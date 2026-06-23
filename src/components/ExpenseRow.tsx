@@ -1,5 +1,5 @@
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { C } from '@/constants/colors';
+import { C, F } from '@/constants/colors';
 
 interface Props {
   name: string;
@@ -17,12 +17,16 @@ export function ExpenseRow({ name, amountFmt, paid, sub, subColor, amountColor, 
     <View style={s.row}>
       <TouchableOpacity style={s.info} onPress={onEdit} activeOpacity={0.7}>
         <Text style={[s.name, paid && s.namePaid]}>{name}</Text>
-        {sub ? <Text style={[s.sub, { color: subColor ?? C.textMuted }]}>{sub}</Text> : null}
+        {sub ? <Text style={[s.sub, { color: subColor ?? C.text3 }]}>{sub}</Text> : null}
       </TouchableOpacity>
       <TouchableOpacity onPress={onEdit} activeOpacity={0.7}>
-        <Text style={[s.amount, { color: amountColor ?? (paid ? C.textDim : C.textPrimary) }]}>{amountFmt}</Text>
+        <Text style={[s.amount, { color: amountColor ?? (paid ? C.text4 : C.text) }]}>{amountFmt}</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={[s.circle, paid && s.circlePaid]} onPress={onToggle} activeOpacity={0.7} hitSlop={8}>
+      <TouchableOpacity
+        style={[s.circle, paid && s.circlePaid]}
+        onPress={onToggle}
+        activeOpacity={0.7}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
         {paid ? <Text style={s.check}>✓</Text> : null}
       </TouchableOpacity>
     </View>
@@ -36,48 +40,24 @@ const s = StyleSheet.create({
     gap: 13,
     paddingVertical: 13,
     borderBottomWidth: 1,
-    borderBottomColor: C.border,
+    borderBottomColor: C.border2,
   },
-  info: {
-    flex: 1,
-    minWidth: 0,
-  },
-  name: {
-    fontSize: 15,
-    fontFamily: 'Manrope_500Medium',
-    color: C.textPrimary,
-    lineHeight: 18,
-  },
-  namePaid: {
-    color: '#6c6860',
-    textDecorationLine: 'line-through',
-  },
-  sub: {
-    fontSize: 11,
-    fontFamily: 'Manrope_400Regular',
-    marginTop: 4,
-  },
-  amount: {
-    fontSize: 13,
-    fontFamily: 'SpaceMono_700Bold',
-  },
+  info: { flex: 1, minWidth: 0 },
+  name: { fontSize: 15, fontFamily: F.medium, color: C.text, lineHeight: 18 },
+  namePaid: { color: '#6c6860', textDecorationLine: 'line-through' },
+  sub: { fontSize: 11, fontFamily: F.regular, marginTop: 4 },
+  amount: { fontSize: 13, fontFamily: F.monoBold },
   circle: {
-    width: 27,
-    height: 27,
+    width: 28,
+    height: 28,
     borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: 'rgba(200,168,106,0.4)',
+    borderColor: '#dfe3ea',
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
+    backgroundColor: 'transparent',
   },
-  circlePaid: {
-    backgroundColor: C.gold,
-    borderColor: C.gold,
-  },
-  check: {
-    fontSize: 12,
-    fontFamily: 'Manrope_700Bold',
-    color: '#1a1408',
-  },
+  circlePaid: { backgroundColor: '#e8e8e8', borderColor: '#d0d0d0' },
+  check: { fontSize: 12, fontFamily: F.bold, color: '#6c6860' },
 });

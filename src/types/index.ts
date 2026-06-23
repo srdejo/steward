@@ -1,8 +1,27 @@
 export type Category = 'cred' | 'fijo' | 'tarjeta' | 'var';
+
+export interface CategoryDef {
+  id: string;
+  key: Category;
+  label: string;
+  color: string;
+}
+
+export interface UserProfile {
+  name: string;
+  diezmar: boolean;
+  cats: CategoryDef[];
+}
+
+export interface OnboardDraft {
+  name: string;
+  diezmar: boolean | null;
+  cats: CategoryDef[];
+}
 export type DiezmoMode = 'separado' | 'agrupado';
 export type MovType = 'transfer' | 'retiro' | 'pago';
 export type DebtSort = 'tasa' | 'saldo';
-export type SheetKind = 'gasto' | 'income' | 'cuenta' | 'deuda' | 'mov' | 'pay';
+export type SheetKind = 'gasto' | 'income' | 'cuenta' | 'deuda' | 'mov' | 'pay' | 'profile';
 export type SheetMode = 'add' | 'edit';
 
 export interface Gasto {

@@ -1,12 +1,12 @@
 import { Tabs } from 'expo-router';
 import { Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { C } from '@/constants/colors';
+import { C, F } from '@/constants/colors';
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 
 function tabIcon(name: IoniconsName, focused: boolean) {
-  return <Ionicons name={name} size={22} color={focused ? C.gold : '#6f6b62'} />;
+  return <Ionicons name={name} size={22} color={focused ? C.primary : C.text3} />;
 }
 
 export default function AppTabs() {
@@ -15,19 +15,19 @@ export default function AppTabs() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: 'rgba(18,19,23,0.96)',
-          borderTopColor: 'rgba(255,255,255,0.07)',
+          backgroundColor: C.navBg,
+          borderTopColor: C.border2,
           borderTopWidth: 1,
           height: Platform.OS === 'ios' ? 88 : 68,
           paddingBottom: Platform.OS === 'ios' ? 28 : 8,
           paddingTop: 8,
         },
-        tabBarActiveTintColor: C.gold,
-        tabBarInactiveTintColor: '#6f6b62',
+        tabBarActiveTintColor: C.primary,
+        tabBarInactiveTintColor: C.text3,
         tabBarLabelStyle: {
-          fontFamily: 'Manrope_600SemiBold',
+          fontFamily: F.bold,
           fontSize: 10,
-          letterSpacing: 0.4,
+          letterSpacing: 0.2,
           marginTop: 2,
         },
       }}>
@@ -66,7 +66,6 @@ export default function AppTabs() {
           tabBarIcon: ({ focused }) => tabIcon('arrow-down-circle-outline', focused),
         }}
       />
-      <Tabs.Screen name="explore" options={{ href: null }} />
     </Tabs>
   );
 }

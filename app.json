@@ -1,18 +1,22 @@
 {
   "expo": {
-    "name": "steward",
+    "name": "Presupuesto",
     "slug": "steward",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "steward",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "light",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "bundleIdentifier": "com.danieljimenez.steward",
+      "supportsTablet": false,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#2563eb",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -28,10 +32,12 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
+          "backgroundColor": "#2563eb",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 120,
           "android": {
             "image": "./assets/images/splash-icon.png",
-            "imageWidth": 76
+            "imageWidth": 120
           }
         }
       ],

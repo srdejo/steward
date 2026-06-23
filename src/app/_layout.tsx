@@ -1,41 +1,58 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
-import { Manrope_400Regular, Manrope_500Medium, Manrope_600SemiBold, Manrope_700Bold } from '@expo-google-fonts/manrope';
-import { SpaceMono_400Regular, SpaceMono_700Bold } from '@expo-google-fonts/space-mono';
-import { InstrumentSerif_400Regular } from '@expo-google-fonts/instrument-serif';
+import {
+  Roboto_400Regular,
+  Roboto_500Medium,
+  Roboto_700Bold,
+  Roboto_900Black,
+} from '@expo-google-fonts/roboto';
+import {
+  RobotoMono_400Regular,
+  RobotoMono_500Medium,
+  RobotoMono_700Bold,
+} from '@expo-google-fonts/roboto-mono';
 import { StatusBar } from 'expo-status-bar';
 
 import AppTabs from '@/components/app-tabs';
+import { OnboardingScreen } from '@/components/OnboardingScreen';
+import { SplashAnimation } from '@/components/SplashAnimation';
 import { BudgetProvider, useBudget } from '@/store/budget';
 import { C } from '@/constants/colors';
 
 SplashScreen.preventAutoHideAsync();
 
 function AppContent() {
-  const { ready } = useBudget();
+  const { ready, state } = useBudget();
+  const [splashDone, setSplashDone] = useState(false);
 
   if (!ready) {
     return (
-      <View style={{ flex: 1, backgroundColor: C.bg1, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator color={C.gold} />
+      <View style={{ flex: 1, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator color={C.primary} />
       </View>
     );
   }
 
+  // Muestra el splash animado la primera vez que abre la app
+  if (!splashDone) {
+    return <SplashAnimation onFinish={() => setSplashDone(true)} />;
+  }
+
+  if (!state.onboarded) return <OnboardingScreen />;
   return <AppTabs />;
 }
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
-    Manrope_400Regular,
-    Manrope_500Medium,
-    Manrope_600SemiBold,
-    Manrope_700Bold,
-    SpaceMono_400Regular,
-    SpaceMono_700Bold,
-    InstrumentSerif_400Regular,
+    Roboto_400Regular,
+    Roboto_500Medium,
+    Roboto_700Bold,
+    Roboto_900Black,
+    RobotoMono_400Regular,
+    RobotoMono_500Medium,
+    RobotoMono_700Bold,
   });
 
   useEffect(() => {
@@ -46,7 +63,7 @@ export default function RootLayout() {
 
   return (
     <BudgetProvider>
-      <View style={{ flex: 1, backgroundColor: C.bg1 }}>
+      <View style={{ flex: 1, backgroundColor: C.bg }}>
         <StatusBar style="light" />
         <AppContent />
       </View>

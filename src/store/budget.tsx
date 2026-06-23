@@ -3,6 +3,7 @@ import React, { createContext, useContext, useEffect, useReducer, useState } fro
 import type {
   Account,
   Category,
+  CategoryDef,
   Debt,
   DebtSort,
   DiezmoMode,
@@ -10,7 +11,9 @@ import type {
   Income,
   MonthBudget,
   Movimiento,
+  OnboardDraft,
   SheetState,
+  UserProfile,
 } from '@/types';
 
 // ---- Meses dinámicos ----
@@ -40,8 +43,20 @@ export const CURRENT_IDX = 3;
 // ---- Estado ----
 
 const ACCOUNT_COLORS = ['#34d399', '#ef6a6a', '#b794f6', '#6aa6f6', '#f0c040', '#5aa6a4'];
-
 const DEFAULT_ACCOUNTS: Account[] = [];
+
+export const CAT_PALETTE = ['#16a34a', '#ea580c', '#7c3aed', '#2563eb', '#0d9488', '#dc2626', '#8b94a0', '#f59e0b', '#06b6d4'];
+
+export const DEFAULT_CATS: CategoryDef[] = [
+  { id: 'cat_cred', key: 'cred', label: 'Deudas Crediservir', color: '#16a34a' },
+  { id: 'cat_fijo', key: 'fijo', label: 'Gastos fijos', color: '#ea580c' },
+  { id: 'cat_tarjeta', key: 'tarjeta', label: 'Tarjetas y cuotas', color: '#7c3aed' },
+  { id: 'cat_var', key: 'var', label: 'Variables', color: '#8b94a0' },
+];
+
+const DEFAULT_PROFILE: UserProfile = { name: 'Yo', diezmar: true, cats: DEFAULT_CATS };
+
+const DEFAULT_DRAFT: OnboardDraft = { name: '', diezmar: null, cats: DEFAULT_CATS };
 
 export interface BudgetState {
   curIdx: number;
@@ -49,11 +64,26 @@ export interface BudgetState {
   debtSort: DebtSort;
   debts: Debt[];
   sheet: SheetState | null;
+  onboarded: boolean;
+  onboardStep: number;
+  profile: UserProfile;
+  draft: OnboardDraft;
 }
 
-type PersistedState = Omit<BudgetState, 'curIdx' | 'sheet'>;
+type PersistedState = Omit<BudgetState, 'curIdx' | 'sheet' | 'onboardStep' | 'draft'>;
 
 type Action =
+  | { type: 'ONBOARD_NEXT' }
+  | { type: 'ONBOARD_BACK' }
+  | { type: 'ONBOARD_SET_NAME'; name: string }
+  | { type: 'ONBOARD_SET_DIEZMAR'; diezmar: boolean }
+  | { type: 'ONBOARD_ADD_CAT' }
+  | { type: 'ONBOARD_REMOVE_CAT'; id: string }
+  | { type: 'ONBOARD_SET_CAT_LABEL'; id: string; label: string }
+  | { type: 'ONBOARD_CYCLE_COLOR'; id: string }
+  | { type: 'ONBOARD_COMPLETE' }
+  | { type: 'PROFILE_OPEN' }
+  | { type: 'PROFILE_SAVE' }
   | { type: 'PREV_MONTH' }
   | { type: 'NEXT_MONTH' }
   | { type: 'COPY_PREV' }
@@ -84,6 +114,10 @@ const INITIAL_STATE: BudgetState = {
   debtSort: 'tasa',
   debts: [],
   sheet: null,
+  onboarded: false,
+  onboardStep: 0,
+  profile: DEFAULT_PROFILE,
+  draft: DEFAULT_DRAFT,
 };
 
 // ---- Helpers ----
@@ -153,7 +187,63 @@ function prevAccountsTemplate(state: BudgetState): Account[] {
 function reducer(state: BudgetState, action: Action): BudgetState {
   switch (action.type) {
     case 'RESTORE':
-      return { ...INITIAL_STATE, ...action.payload, curIdx: CURRENT_IDX, sheet: null };
+      return { ...INITIAL_STATE, ...action.payload, curIdx: CURRENT_IDX, sheet: null, onboardStep: 0, draft: DEFAULT_DRAFT };
+
+    case 'ONBOARD_NEXT':
+      return { ...state, onboardStep: Math.min(2, state.onboardStep + 1) };
+
+    case 'ONBOARD_BACK':
+      return { ...state, onboardStep: Math.max(0, state.onboardStep - 1) };
+
+    case 'ONBOARD_SET_NAME':
+      return { ...state, draft: { ...state.draft, name: action.name } };
+
+    case 'ONBOARD_SET_DIEZMAR':
+      return { ...state, draft: { ...state.draft, diezmar: action.diezmar } };
+
+    case 'ONBOARD_ADD_CAT': {
+      const color = CAT_PALETTE[state.draft.cats.length % CAT_PALETTE.length];
+      const newCat: CategoryDef = { id: 'cat_' + Date.now(), key: 'var', label: 'Nueva categoría', color };
+      return { ...state, draft: { ...state.draft, cats: [...state.draft.cats, newCat] } };
+    }
+
+    case 'ONBOARD_REMOVE_CAT':
+      return { ...state, draft: { ...state.draft, cats: state.draft.cats.filter((c) => c.id !== action.id) } };
+
+    case 'ONBOARD_SET_CAT_LABEL':
+      return { ...state, draft: { ...state.draft, cats: state.draft.cats.map((c) => c.id === action.id ? { ...c, label: action.label } : c) } };
+
+    case 'ONBOARD_CYCLE_COLOR': {
+      return {
+        ...state,
+        draft: {
+          ...state.draft,
+          cats: state.draft.cats.map((c) => {
+            if (c.id !== action.id) return c;
+            const i = CAT_PALETTE.indexOf(c.color);
+            return { ...c, color: CAT_PALETTE[(i + 1) % CAT_PALETTE.length] };
+          }),
+        },
+      };
+    }
+
+    case 'PROFILE_OPEN':
+      return { ...state, draft: { name: state.profile.name, diezmar: state.profile.diezmar, cats: [...state.profile.cats] }, sheet: { kind: 'profile' } };
+
+    case 'PROFILE_SAVE': {
+      const name = state.draft.name.trim() || state.profile.name;
+      const diezmar = state.draft.diezmar !== null ? state.draft.diezmar : state.profile.diezmar;
+      const cats = state.draft.cats.length ? state.draft.cats : state.profile.cats;
+      return { ...state, profile: { name, diezmar, cats }, sheet: null };
+    }
+
+    case 'ONBOARD_COMPLETE': {
+      const name = state.draft.name.trim() || 'Yo';
+      const diezmar = state.draft.diezmar !== false;
+      const cats = state.draft.cats.length ? state.draft.cats : DEFAULT_CATS;
+      const profile: UserProfile = { name, diezmar, cats };
+      return { ...state, onboarded: true, onboardStep: 0, profile, draft: DEFAULT_DRAFT };
+    }
 
     case 'PREV_MONTH':
       return { ...state, curIdx: Math.max(0, state.curIdx - 1) };
@@ -399,7 +489,7 @@ export function selectMonthName(state: BudgetState) {
 
 // ---- Persistencia local ----
 
-const STORAGE_KEY = '@steward/budget_v2';
+const STORAGE_KEY = '@steward/budget_v3';
 
 async function loadPersistedState(): Promise<PersistedState | null> {
   try {

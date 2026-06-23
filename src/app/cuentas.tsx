@@ -1,9 +1,9 @@
+// Movimientos se muestran en la pestaña "Movimientos"
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { C } from '@/constants/colors';
+import { C, F } from '@/constants/colors';
 import { BudgetBottomSheet } from '@/components/BudgetBottomSheet';
 import { fmt, MONTHS, selectCurrentBudget, selectCuentasLabel, selectDisponible, useBudget } from '@/store/budget';
-// Movimientos se muestran en la pestaña "Movimientos"
 
 export default function CuentasScreen() {
   const { state, dispatch } = useBudget();
@@ -15,7 +15,6 @@ export default function CuentasScreen() {
   const disponible = selectDisponible(state);
   const cuentasLabel = selectCuentasLabel(state);
 
-  // Si el mes no tiene presupuesto aún, mostrar estado vacío
   if (!budget?.exists) {
     return (
       <View style={s.container}>
@@ -29,17 +28,14 @@ export default function CuentasScreen() {
           <Text style={s.emptyTitle}>Crea el presupuesto de{'\n'}{MONTHS[curIdx]} primero</Text>
           <Text style={s.emptyHint}>Hazlo desde la pestaña Mes.</Text>
         </View>
+        <BudgetBottomSheet />
       </View>
     );
   }
 
   return (
     <View style={s.container}>
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={s.scroll}
-        showsVerticalScrollIndicator={false}>
-
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
         <SafeAreaView edges={['top']}>
           <View style={s.topPad}>
             <Text style={s.eyebrow}>Trazabilidad</Text>
@@ -58,33 +54,23 @@ export default function CuentasScreen() {
         <View style={s.actions}>
           <TouchableOpacity
             style={s.actionPrimary}
-            onPress={() => dispatch({
-              type: 'OPEN_SHEET',
-              sheet: { kind: 'mov', mode: 'add', type: 'transfer', name: '', a1: '', from: accounts[0]?.name ?? '', to: 'Efectivo' },
-            })}
+            onPress={() => dispatch({ type: 'OPEN_SHEET', sheet: { kind: 'mov', mode: 'add', type: 'transfer', name: '', a1: '', from: accounts[0]?.name ?? '', to: 'Efectivo' } })}
             activeOpacity={0.7}>
-            <Text style={s.actionIcon}>⇄</Text>
-            <Text style={s.actionPrimaryText}>Mover dinero</Text>
+            <Text style={s.actionPrimaryText}>⇄  Mover dinero</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={s.actionSecondary}
-            onPress={() => dispatch({
-              type: 'OPEN_SHEET',
-              sheet: { kind: 'mov', mode: 'add', type: 'retiro', name: '', a1: '', from: accounts[0]?.name ?? '', to: 'Efectivo' },
-            })}
+            onPress={() => dispatch({ type: 'OPEN_SHEET', sheet: { kind: 'mov', mode: 'add', type: 'retiro', name: '', a1: '', from: accounts[0]?.name ?? '', to: 'Efectivo' } })}
             activeOpacity={0.7}>
-            <Text style={s.actionIcon2}>↓</Text>
-            <Text style={s.actionSecondaryText}>Retirar</Text>
+            <Text style={s.actionSecondaryText}>↓  Retirar</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Lista de cuentas */}
+        {/* Lista cuentas */}
         <View style={s.section}>
           <View style={s.sectionHeader}>
             <Text style={s.sectionLabel}>Por cuenta</Text>
-            <TouchableOpacity
-              onPress={() => dispatch({ type: 'OPEN_SHEET', sheet: { kind: 'cuenta', mode: 'add', name: '', a1: '', a2: '' } })}
-              activeOpacity={0.7}>
+            <TouchableOpacity onPress={() => dispatch({ type: 'OPEN_SHEET', sheet: { kind: 'cuenta', mode: 'add', name: '', a1: '', a2: '' } })} activeOpacity={0.7}>
               <Text style={s.addBtn}>+ Agregar</Text>
             </TouchableOpacity>
           </View>
@@ -118,57 +104,51 @@ export default function CuentasScreen() {
           ))}
 
           <View style={s.note}>
-            <Text style={s.noteText}>El <Text style={{ color: C.goldLight }}>Disponible</Text> es la suma de las cuentas marcadas <Text style={{ color: C.goldLight }}>En disponible</Text>. Cada mes tiene sus propios saldos — pagar un gasto descuenta del saldo de este mes únicamente.</Text>
+            <Text style={s.noteText}>El <Text style={{ color: C.primary }}>Disponible</Text> es la suma de las cuentas marcadas <Text style={{ color: C.primary }}>En disponible</Text>. Cada mes tiene sus propios saldos — pagar un gasto descuenta del saldo de este mes únicamente.</Text>
           </View>
         </View>
       </ScrollView>
-
       <BudgetBottomSheet />
     </View>
   );
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.bg1 },
+  container: { flex: 1, backgroundColor: C.bg },
   scroll: { paddingBottom: 40 },
   topPad: { paddingHorizontal: 26, paddingTop: 16, paddingBottom: 6 },
-  eyebrow: { fontSize: 11, fontFamily: 'Manrope_500Medium', letterSpacing: 1.6, textTransform: 'uppercase', color: '#8c887e' },
-  title: { fontSize: 26, fontFamily: 'InstrumentSerif_400Regular', color: C.textPrimary, marginTop: 5 },
-  emptyCard: { margin: 22, marginTop: 30, padding: 30, backgroundColor: C.bg2, borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(200,168,106,0.32)', borderRadius: 24, alignItems: 'center' },
-  emptyTitle: { fontSize: 19, fontFamily: 'InstrumentSerif_400Regular', color: C.textPrimary, textAlign: 'center', lineHeight: 25 },
-  emptyHint: { fontSize: 13, fontFamily: 'Manrope_400Regular', color: C.textMuted, marginTop: 10, textAlign: 'center', lineHeight: 19 },
-  summaryCard: { margin: 22, marginTop: 18, padding: 24, backgroundColor: C.bg2, borderRadius: 24, borderWidth: 1, borderColor: 'rgba(200,168,106,0.18)' },
-  summaryLabel: { fontSize: 11, fontFamily: 'Manrope_600SemiBold', letterSpacing: 2, textTransform: 'uppercase', color: C.gold },
-  summaryAmount: { fontSize: 38, fontFamily: 'SpaceMono_700Bold', color: C.textBright, marginTop: 14, letterSpacing: -0.76 },
-  summaryMeta: { fontSize: 13, fontFamily: 'Manrope_400Regular', color: C.textMuted, marginTop: 10 },
+  eyebrow: { fontSize: 11, fontFamily: F.medium, letterSpacing: 1.6, textTransform: 'uppercase', color: C.text3 },
+  title: { fontSize: 24, fontFamily: F.bold, color: C.text, marginTop: 3 },
+  emptyCard: { margin: 22, marginTop: 30, padding: 30, backgroundColor: C.surface, borderWidth: 1, borderStyle: 'dashed', borderColor: C.primaryBorder, borderRadius: 24, alignItems: 'center' },
+  emptyTitle: { fontSize: 19, fontFamily: F.bold, color: C.text, textAlign: 'center', lineHeight: 25 },
+  emptyHint: { fontSize: 13, fontFamily: F.regular, color: C.text3, marginTop: 10, textAlign: 'center', lineHeight: 19 },
+  summaryCard: {
+    margin: 22, marginTop: 18, padding: 24, backgroundColor: C.primary, borderRadius: 24,
+    shadowColor: C.primary, shadowOffset: { width: 0, height: 16 }, shadowRadius: 32, shadowOpacity: 0.5, elevation: 12,
+  },
+  summaryLabel: { fontSize: 11, fontFamily: F.bold, letterSpacing: 2, textTransform: 'uppercase', color: C.primaryDim },
+  summaryAmount: { fontSize: 38, fontFamily: F.monoBold, color: '#fff', marginTop: 14 },
+  summaryMeta: { fontSize: 13, fontFamily: F.regular, color: C.primaryDim2, marginTop: 10 },
   actions: { flexDirection: 'row', gap: 10, marginHorizontal: 22 },
-  actionPrimary: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 14, backgroundColor: 'rgba(200,168,106,0.1)', borderWidth: 1, borderColor: 'rgba(200,168,106,0.3)', borderRadius: 14 },
-  actionIcon: { fontSize: 16, color: C.goldLight },
-  actionPrimaryText: { fontSize: 13, fontFamily: 'Manrope_700Bold', color: C.goldLight },
-  actionSecondary: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 14, backgroundColor: C.bg2, borderWidth: 1, borderColor: C.borderMid, borderRadius: 14 },
-  actionIcon2: { fontSize: 16, color: '#cfc9bd' },
-  actionSecondaryText: { fontSize: 13, fontFamily: 'Manrope_700Bold', color: '#cfc9bd' },
+  actionPrimary: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 14, backgroundColor: C.primaryBg, borderWidth: 1, borderColor: C.primaryBorder, borderRadius: 14 },
+  actionPrimaryText: { fontSize: 13, fontFamily: F.bold, color: C.primary },
+  actionSecondary: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 14, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, borderRadius: 14 },
+  actionSecondaryText: { fontSize: 13, fontFamily: F.bold, color: C.text2 },
   section: { paddingHorizontal: 26, paddingTop: 20, paddingBottom: 8 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 6 },
-  sectionLabel: { fontSize: 10, fontFamily: 'Manrope_600SemiBold', letterSpacing: 1.6, textTransform: 'uppercase', color: '#7c7870' },
-  addBtn: { fontSize: 11, fontFamily: 'Manrope_600SemiBold', color: C.gold },
-  accountCard: { marginTop: 12, padding: 16, backgroundColor: C.bg2, borderRadius: 18, borderWidth: 1, borderColor: C.border },
+  sectionLabel: { fontSize: 10, fontFamily: F.bold, letterSpacing: 1.6, textTransform: 'uppercase', color: C.text3 },
+  addBtn: { fontSize: 12, fontFamily: F.bold, color: C.primary },
+  accountCard: { marginTop: 12, padding: 16, backgroundColor: C.surface, borderRadius: 18, borderWidth: 1, borderColor: C.border },
   accountRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  dot: { width: 9, height: 9, borderRadius: 99, flexShrink: 0 },
-  accountName: { flex: 1, fontSize: 15, fontFamily: 'Manrope_600SemiBold', color: C.textPrimary },
-  accountSaldo: { fontSize: 15, fontFamily: 'SpaceMono_700Bold', color: C.textPrimary },
+  dot: { width: 10, height: 10, borderRadius: 99, flexShrink: 0 },
+  accountName: { flex: 1, fontSize: 15, fontFamily: F.bold, color: C.text },
+  accountSaldo: { fontSize: 15, fontFamily: F.monoBold, color: C.text },
   incluirRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 14 },
-  incluirLabel: { fontSize: 11, fontFamily: 'Manrope_500Medium', color: C.textMuted },
-  incluirChip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 99, borderWidth: 1, borderColor: C.borderMid },
-  incluirChipActive: { backgroundColor: 'rgba(200,168,106,0.12)', borderColor: 'rgba(200,168,106,0.4)' },
-  incluirText: { fontSize: 10, fontFamily: 'Manrope_600SemiBold', letterSpacing: 0.4, color: C.textDim },
-  incluirTextActive: { color: C.gold },
-  movRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: C.border },
-  movIcon: { width: 32, height: 32, borderRadius: 9, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  movIconText: { fontSize: 15, fontFamily: 'Manrope_600SemiBold' },
-  movDesc: { fontSize: 14, fontFamily: 'Manrope_500Medium', color: C.textPrimary },
-  movMeta: { fontSize: 11, fontFamily: 'Manrope_400Regular', color: '#7c7870', marginTop: 4 },
-  movMonto: { fontSize: 13, fontFamily: 'SpaceMono_700Bold', color: C.textPrimary },
-  note: { marginTop: 18, padding: 14, backgroundColor: 'rgba(200,168,106,0.07)', borderWidth: 1, borderColor: 'rgba(200,168,106,0.18)', borderRadius: 14 },
-  noteText: { fontSize: 12, fontFamily: 'Manrope_400Regular', color: '#a8a092', lineHeight: 18 },
+  incluirLabel: { fontSize: 11, fontFamily: F.medium, color: C.text3 },
+  incluirChip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 99, backgroundColor: C.surface3, borderWidth: 1, borderColor: C.border },
+  incluirChipActive: { backgroundColor: C.primaryBg, borderColor: C.primaryBorder },
+  incluirText: { fontSize: 10, fontFamily: F.bold, letterSpacing: 0.4, color: C.text3 },
+  incluirTextActive: { color: C.primary },
+  note: { marginTop: 18, padding: 14, backgroundColor: C.primaryBg, borderWidth: 1, borderColor: C.primaryBorder, borderRadius: 14 },
+  noteText: { fontSize: 12, fontFamily: F.regular, color: C.text3, lineHeight: 18 },
 });

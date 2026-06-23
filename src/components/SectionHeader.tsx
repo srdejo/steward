@@ -1,5 +1,5 @@
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { C } from '@/constants/colors';
+import { C, F } from '@/constants/colors';
 
 interface Props {
   label: string;
@@ -7,7 +7,7 @@ interface Props {
   onAdd?: () => void;
 }
 
-export function SectionHeader({ label, color = C.textDim, onAdd }: Props) {
+export function SectionHeader({ label, color = C.text3, onAdd }: Props) {
   return (
     <View style={s.row}>
       <Text style={[s.label, { color }]}>{label}</Text>
@@ -30,13 +30,13 @@ const s = StyleSheet.create({
   },
   label: {
     fontSize: 10,
-    fontFamily: 'Manrope_600SemiBold',
+    fontFamily: F.bold,
     letterSpacing: 1.6,
     textTransform: 'uppercase',
   },
   add: {
-    fontSize: 11,
-    fontFamily: 'Manrope_600SemiBold',
-    color: C.gold,
+    fontSize: 12,
+    fontFamily: F.bold,
+    color: C.primary,
   },
 });

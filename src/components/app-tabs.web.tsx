@@ -1,6 +1,6 @@
 import { Tabs, TabList, TabTrigger, TabSlot, TabTriggerSlotProps, TabListProps } from 'expo-router/ui';
 import { Pressable, View, StyleSheet, Text } from 'react-native';
-import { C } from '@/constants/colors';
+import { C, F } from '@/constants/colors';
 
 export default function AppTabs() {
   return (
@@ -13,6 +13,9 @@ export default function AppTabs() {
           </TabTrigger>
           <TabTrigger name="cuentas" href="/cuentas" asChild>
             <TabButton>Cuentas</TabButton>
+          </TabTrigger>
+          <TabTrigger name="movimientos" href="/movimientos" asChild>
+            <TabButton>Movimientos</TabButton>
           </TabTrigger>
           <TabTrigger name="deudas" href="/deudas" asChild>
             <TabButton>Deudas</TabButton>
@@ -61,20 +64,25 @@ const s = StyleSheet.create({
   inner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: C.bg2,
+    backgroundColor: C.bg,
     paddingVertical: 8,
     paddingHorizontal: 20,
     borderRadius: 40,
     gap: 4,
-    maxWidth: 600,
+    maxWidth: 640,
     flex: 1,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
+    borderColor: C.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 12,
+    shadowOpacity: 0.08,
+    elevation: 4,
   },
   brand: {
-    fontFamily: 'InstrumentSerif_400Regular',
+    fontFamily: F.bold,
     fontSize: 16,
-    color: C.gold,
+    color: C.primary,
     marginRight: 'auto',
   },
   chip: {
@@ -83,16 +91,16 @@ const s = StyleSheet.create({
     borderRadius: 99,
   },
   chipActive: {
-    backgroundColor: 'rgba(200,168,106,0.15)',
+    backgroundColor: C.primaryBg,
   },
   chipText: {
     fontSize: 13,
-    fontFamily: 'Manrope_500Medium',
-    color: C.textSecondary,
+    fontFamily: F.medium,
+    color: C.text3,
   },
   chipTextActive: {
-    color: C.gold,
-    fontFamily: 'Manrope_600SemiBold',
+    color: C.primary,
+    fontFamily: F.bold,
   },
   pressed: { opacity: 0.7 },
 });

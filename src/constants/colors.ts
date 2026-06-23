@@ -1,26 +1,58 @@
+// Light theme — primary blue
 export const C = {
-  bg0: '#0c0d10',
-  bg1: '#131418',
-  bg2: '#1a1c21',
-  bg3: '#23252c',
-  border: 'rgba(255,255,255,0.06)',
-  borderMid: 'rgba(255,255,255,0.08)',
-  gold: '#c8a86a',
-  goldLight: '#e6cd96',
-  goldBg: 'rgba(200,168,106,0.12)',
-  goldBorder: 'rgba(200,168,106,0.35)',
-  textPrimary: '#ece7dd',
-  textBright: '#f4efe4',
-  textSecondary: '#9a958a',
-  textMuted: '#807c72',
-  textDim: '#6f6b62',
-  textDeep: '#5a564e',
-  green: '#7bd6a0',
-  orange: '#e0a87a',
-  red: '#ef6a6a',
-  redBg: 'rgba(239,106,106,0.12)',
-  purple: '#9b7ad6',
-  teal: '#5aa6a4',
-  navBg: 'rgba(18,19,23,0.92)',
-  sheetBg: '#191a1f',
+  // Backgrounds
+  outerBg: '#dfe4ea',
+  bg: '#ffffff',
+  surface: '#f7f9fc',
+  surface2: '#f1f4f8',
+  surface3: '#eef1f5',
+
+  // Borders
+  border: '#eaeef3',
+  border2: '#eef1f5',
+
+  // Text
+  text: '#1a1d21',
+  text2: '#3a4150',
+  text3: '#8b94a0',
+  text4: '#aeb4bd',
+
+  // Primary (blue)
+  primary: '#2563eb',
+  primaryLight: '#3b82f6',
+  primaryBg: '#eff4ff',
+  primaryBorder: '#dbe6ff',
+  primaryDim: '#bcd0ff',
+  primaryDim2: '#cfddff',
+
+  // Semantic
+  green: '#16a34a',
+  greenBg: '#f0fdf4',
+  greenBorder: '#bbf7d0',
+  teal: '#0d9488',
+  tealBg: '#f0fdfa',
+  orange: '#ea580c',
+  orangeBg: '#fff7ed',
+  purple: '#7c3aed',
+  purpleBg: '#f5f3ff',
+  red: '#dc2626',
+  redBg: '#fef2f2',
+  redBorder: '#fecaca',
+  redDim: '#fecaca',
+
+  // Nav
+  navBg: 'rgba(255,255,255,0.92)',
+  sheetBg: '#ffffff',
+  sheetShadow: 'rgba(20,28,40,0.18)',
+} as const;
+
+// Font helpers
+export const F = {
+  regular: 'Roboto_400Regular',
+  medium: 'Roboto_500Medium',
+  bold: 'Roboto_700Bold',
+  black: 'Roboto_900Black',
+  monoRegular: 'RobotoMono_400Regular',
+  monoMedium: 'RobotoMono_500Medium',
+  monoBold: 'RobotoMono_700Bold',
 } as const;
