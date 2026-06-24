@@ -9,6 +9,7 @@ export default function IngresosScreen() {
   const { curIdx } = state;
   const monthName = MONTHS[curIdx];
   const budget = selectCurrentBudget(state);
+  const accounts = budget?.accounts ?? [];
   const hasBudget = !!budget?.exists;
 
   const recibidos = budget?.incomes.filter((i) => i.recibido) ?? [];
@@ -53,11 +54,21 @@ export default function IngresosScreen() {
               {(budget?.incomes ?? []).map((inc) => {
                 const diezmo = Math.round(inc.bruto * 0.1);
                 const isRec = inc.recibido;
+                const acct = accounts.find((a) => a.id === inc.accountId);
                 return (
                   <View key={inc.id} style={s.incCard}>
                     <View style={s.incTop}>
-                      <TouchableOpacity style={{ flex: 1 }} onPress={() => dispatch({ type: 'OPEN_SHEET', sheet: { kind: 'income', mode: 'edit', id: inc.id, name: inc.name, a1: String(inc.bruto), a2: String(inc.neto) } })} activeOpacity={0.7}>
-                        <Text style={s.incName}>{inc.name}</Text>
+                      <TouchableOpacity style={{ flex: 1 }} onPress={() => dispatch({ type: 'OPEN_SHEET', sheet: { kind: 'income', mode: 'edit', id: inc.id, name: inc.name, a1: String(inc.bruto), a2: String(inc.neto), accountId: inc.accountId, recurrente: inc.recurrente } })} activeOpacity={0.7}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                          <Text style={s.incName}>{inc.name}</Text>
+                          {inc.recurrente && <View style={s.fijoBadge}><Text style={s.fijoBadgeText}>Fijo</Text></View>}
+                          {acct && (
+                            <View style={s.acctChip}>
+                              <View style={[s.acctDot, { backgroundColor: acct.color }]} />
+                              <Text style={s.acctChipText}>{acct.name}</Text>
+                            </View>
+                          )}
+                        </View>
                       </TouchableOpacity>
                       <TouchableOpacity
                         style={[s.estadoBadge, isRec ? s.estadoBadgeActive : s.estadoBadgeInactive]}
@@ -149,4 +160,9 @@ const s = StyleSheet.create({
   totalVal: { fontSize: 13, fontFamily: F.monoBold, color: C.text },
   totalDivider: { height: 1, backgroundColor: C.border, marginBottom: 12 },
   totalNote: { fontSize: 12, fontFamily: F.regular, color: C.text3, lineHeight: 18 },
+  fijoBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 99, backgroundColor: C.primaryBg, borderWidth: 1, borderColor: C.primaryBorder },
+  fijoBadgeText: { fontSize: 9, fontFamily: F.bold, letterSpacing: 0.6, textTransform: 'uppercase', color: C.primary },
+  acctChip: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 99, backgroundColor: C.surface2, borderWidth: 1, borderColor: C.border },
+  acctDot: { width: 7, height: 7, borderRadius: 99 },
+  acctChipText: { fontSize: 10, fontFamily: F.medium, color: C.text3 },
 });

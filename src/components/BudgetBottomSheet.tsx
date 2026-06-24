@@ -312,6 +312,46 @@ export function BudgetBottomSheet() {
                 </View>
               )}
 
+              {/* Selector de cuenta destino (solo ingresos) */}
+              {activeSheet.kind === 'income' && accounts.length > 0 && (
+                <>
+                  <Text style={s.fieldLabel}>Entra a la cuenta</Text>
+                  <View style={s.selectBox}>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                      {accounts.map((a) => (
+                        <TouchableOpacity
+                          key={a.id}
+                          style={[s.selectChip, activeSheet.accountId === a.id && s.selectChipActive]}
+                          onPress={() => dispatch({ type: 'SET_SHEET', patch: { accountId: a.id } })}
+                          activeOpacity={0.7}>
+                          <View style={[s.dot, { backgroundColor: a.color, marginRight: 5 }]} />
+                          <Text style={[s.selectChipText, activeSheet.accountId === a.id && s.selectChipTextActive]}>{a.name}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                </>
+              )}
+
+              {/* Toggle Fijo / Solo este mes (solo ingresos) */}
+              {activeSheet.kind === 'income' && (
+                <>
+                  <Text style={s.fieldLabel}>Frecuencia</Text>
+                  <View style={s.recToggleRow}>
+                    {([{ val: true, label: 'Ingreso fijo', sub: 'Se repite cada mes' }, { val: false, label: 'Solo este mes', sub: 'No se repite' }] as const).map((opt) => (
+                      <TouchableOpacity
+                        key={String(opt.val)}
+                        style={[s.recToggleOpt, activeSheet.recurrente === opt.val && s.recToggleOptActive]}
+                        onPress={() => dispatch({ type: 'SET_SHEET', patch: { recurrente: opt.val } })}
+                        activeOpacity={0.7}>
+                        <Text style={[s.recToggleTitle, activeSheet.recurrente === opt.val && s.recToggleTitleActive]}>{opt.label}</Text>
+                        <Text style={s.recToggleSub}>{opt.sub}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </>
+              )}
+
               <View style={s.amtRow}>
                 <View style={{ flex: 1 }}>
                   <Text style={s.fieldLabel}>{a1Label()}</Text>
@@ -430,4 +470,10 @@ const s = StyleSheet.create({
   swatchRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 4 },
   swatch: { width: 30, height: 30, borderRadius: 15 },
   swatchActive: { borderWidth: 3, borderColor: C.text },
+  recToggleRow: { flexDirection: 'row', gap: 10 },
+  recToggleOpt: { flex: 1, padding: 13, paddingVertical: 12, backgroundColor: C.surface, borderWidth: 1.5, borderColor: C.border, borderRadius: 14 },
+  recToggleOptActive: { borderColor: C.primary, backgroundColor: C.primaryBg },
+  recToggleTitle: { fontSize: 13, fontFamily: F.bold, color: C.text },
+  recToggleTitleActive: { color: C.primary },
+  recToggleSub: { fontSize: 11, fontFamily: F.regular, color: C.text3, marginTop: 3 },
 });

@@ -447,8 +447,34 @@ function reducer(state: BudgetState, action: Action): BudgetState {
       return next;
     }
 
-    case 'TOGGLE_RECIBIDO':
-      return setIncomes(state, (is) => is.map((i) => i.id === action.incId ? { ...i, recibido: !i.recibido } : i));
+    case 'TOGGLE_RECIBIDO': {
+      const b = curBudget(state);
+      if (!b) return state;
+      const inc = b.incomes.find((i) => i.id === action.incId);
+      if (!inc) return state;
+      const wasRecibido = inc.recibido;
+      let next = setIncomes(state, (is) => is.map((i) => i.id === action.incId ? { ...i, recibido: !i.recibido } : i));
+      if (!wasRecibido && inc.accountId) {
+        next = setAccounts(next, (as) =>
+          as.map((a) => a.id === inc.accountId ? { ...a, saldo: a.saldo + inc.neto } : a),
+        );
+        const acctName = b.accounts.find((a) => a.id === inc.accountId)?.name ?? '';
+        const mv: Movimiento = {
+          id: 'inc_' + inc.id,
+          desc: inc.name + (acctName ? ' → ' + acctName : ''),
+          meta: 'Ingreso · hoy',
+          monto: inc.neto,
+          type: 'transfer',
+        };
+        next = setMovimientos(next, (ms) => [mv, ...ms.filter((m) => m.id !== 'inc_' + inc.id)]);
+      } else if (wasRecibido && inc.accountId) {
+        next = setAccounts(next, (as) =>
+          as.map((a) => a.id === inc.accountId ? { ...a, saldo: a.saldo - inc.neto } : a),
+        );
+        next = setMovimientos(next, (ms) => ms.filter((m) => m.id !== 'inc_' + inc.id));
+      }
+      return next;
+    }
 
     case 'TOGGLE_DIEZMO': {
       if (action.isGroup) {
@@ -497,10 +523,10 @@ function reducer(state: BudgetState, action: Action): BudgetState {
       if (sh.kind === 'income') {
         const name = sh.name?.trim() || 'Ingreso';
         if (sh.mode === 'add') {
-          const item: Income = { id: 'i' + Date.now(), name, bruto: a1, neto: a2 || a1, fecha: null, recibido: false, diezmoPaid: false };
+          const item: Income = { id: 'i' + Date.now(), name, bruto: a1, neto: a2 || a1, fecha: null, recibido: false, diezmoPaid: false, accountId: sh.accountId, recurrente: sh.recurrente ?? false };
           return { ...setIncomes(state, (is) => [...is, item]), sheet: null };
         } else {
-          return { ...setIncomes(state, (is) => is.map((i) => i.id === sh.id ? { ...i, name, bruto: a1, neto: a2 || a1 } : i)), sheet: null };
+          return { ...setIncomes(state, (is) => is.map((i) => i.id === sh.id ? { ...i, name, bruto: a1, neto: a2 || a1, accountId: sh.accountId ?? i.accountId, recurrente: sh.recurrente ?? i.recurrente } : i)), sheet: null };
         }
       }
 

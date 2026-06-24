@@ -301,7 +301,7 @@ export function OnboardingScreen() {
             </TouchableOpacity>
           )}
           <TouchableOpacity
-            style={[s.primaryBtn, { flex: canBack ? 1 : undefined, width: canBack ? undefined : '100%' as any }]}
+            style={s.primaryBtn}
             onPress={handlePrimary}
             activeOpacity={0.8}>
             <Text style={s.primaryBtnText}>{isLast ? 'Empezar' : 'Continuar'}</Text>
@@ -377,6 +377,6 @@ const s = StyleSheet.create({
   footer: { flexDirection: 'row', gap: 10, padding: 20, paddingTop: 8 },
   backBtn: { paddingVertical: 16, paddingHorizontal: 20, backgroundColor: C.surface2, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   backBtnText: { fontSize: 15, fontFamily: F.bold, color: C.text2 },
-  primaryBtn: { paddingVertical: 16, paddingHorizontal: 24, backgroundColor: C.primary, borderRadius: 14, alignItems: 'center' },
+  primaryBtn: { flex: 1, paddingVertical: 16, paddingHorizontal: 24, backgroundColor: C.primary, borderRadius: 14, alignItems: 'center' },
   primaryBtnText: { fontSize: 15, fontFamily: F.bold, color: '#fff' },
 });

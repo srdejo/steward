@@ -126,4 +126,6 @@ export interface SheetState {
   payMode?: 'same' | 'otro';
   payAmt?: string;
   color?: string;
+  accountId?: string;
+  recurrente?: boolean;
 }
