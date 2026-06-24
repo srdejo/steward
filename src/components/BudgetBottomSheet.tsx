@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F } from '@/constants/colors';
-import { CAT_PALETTE, selectCurrentBudget, useBudget } from '@/store/budget';
+import { ACCT_PALETTE, CAT_PALETTE, selectCurrentBudget, useBudget } from '@/store/budget';
 import type { CategoryDef } from '@/types';
 
 function maskMoney(raw: string): string {
@@ -232,6 +232,23 @@ export function BudgetBottomSheet() {
             <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
               <Text style={s.title}>{sheetTitle()}</Text>
 
+              {/* Swatches de color para cuentas */}
+              {activeSheet.kind === 'cuenta' && (
+                <>
+                  <Text style={s.fieldLabel}>Color</Text>
+                  <View style={s.swatchRow}>
+                    {ACCT_PALETTE.map((col) => (
+                      <TouchableOpacity
+                        key={col}
+                        style={[s.swatch, { backgroundColor: col }, activeSheet.color === col && s.swatchActive]}
+                        onPress={() => dispatch({ type: 'SET_SHEET', patch: { color: col } })}
+                        activeOpacity={0.7}
+                      />
+                    ))}
+                  </View>
+                </>
+              )}
+
               {activeSheet.kind !== 'mov' && (
                 <>
                   <Text style={s.fieldLabel}>
@@ -410,4 +427,7 @@ const s = StyleSheet.create({
   profileCatDelete: { fontSize: 13, color: C.text4, padding: 4 },
   profileAddCat: { padding: 12, alignItems: 'center', borderWidth: 1, borderStyle: 'dashed', borderColor: C.primaryBorder, borderRadius: 12 },
   profileAddCatText: { fontSize: 13, fontFamily: F.bold, color: C.primary },
+  swatchRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 4 },
+  swatch: { width: 30, height: 30, borderRadius: 15 },
+  swatchActive: { borderWidth: 3, borderColor: C.text },
 });

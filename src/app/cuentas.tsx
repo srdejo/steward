@@ -83,7 +83,7 @@ export default function CuentasScreen() {
             <View key={ac.id} style={s.accountCard}>
               <TouchableOpacity
                 style={s.accountRow}
-                onPress={() => dispatch({ type: 'OPEN_SHEET', sheet: { kind: 'cuenta', mode: 'edit', id: ac.id, name: ac.name, a1: String(ac.saldo), a2: '' } })}
+                onPress={() => dispatch({ type: 'OPEN_SHEET', sheet: { kind: 'cuenta', mode: 'edit', id: ac.id, name: ac.name, a1: String(ac.saldo), a2: '', color: ac.color } })}
                 activeOpacity={0.7}>
                 <View style={[s.dot, { backgroundColor: ac.color }]} />
                 <Text style={s.accountName}>{ac.name}</Text>

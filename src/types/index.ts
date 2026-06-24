@@ -7,6 +7,29 @@ export interface CategoryDef {
   color: string;
 }
 
+// Draft types for onboarding (values as strings before parsing)
+export interface DraftAccount {
+  id: string;
+  name: string;
+  color: string;
+  saldo: string;
+}
+
+export interface DraftIncome {
+  id: string;
+  name: string;
+  bruto: string;
+  neto: string;
+  accountId: string;
+}
+
+export interface DraftDebt {
+  id: string;
+  name: string;
+  saldo: string;
+  tasa: string;
+}
+
 export interface UserProfile {
   name: string;
   diezmar: boolean;
@@ -17,7 +40,12 @@ export interface OnboardDraft {
   name: string;
   diezmar: boolean | null;
   cats: CategoryDef[];
+  accounts: DraftAccount[];
+  incomes: DraftIncome[];
+  hasDebts: boolean | null;
+  debts: DraftDebt[];
 }
+
 export type DiezmoMode = 'separado' | 'agrupado';
 export type MovType = 'transfer' | 'retiro' | 'pago';
 export type DebtSort = 'tasa' | 'saldo';
@@ -43,6 +71,8 @@ export interface Income {
   fecha: string | null;
   recibido: boolean;
   diezmoPaid: boolean;
+  accountId?: string;
+  recurrente?: boolean;
 }
 
 export interface Account {
@@ -67,8 +97,8 @@ export interface MonthBudget {
   diezmoGrupoPaid: boolean;
   gastos: Gasto[];
   incomes: Income[];
-  accounts: Account[];        // saldos propios del mes
-  movimientos: Movimiento[];  // movimientos del mes
+  accounts: Account[];
+  movimientos: Movimiento[];
 }
 
 export interface Debt {
@@ -95,4 +125,5 @@ export interface SheetState {
   payBudgeted?: number;
   payMode?: 'same' | 'otro';
   payAmt?: string;
+  color?: string;
 }

@@ -7,6 +7,9 @@ import type {
   Debt,
   DebtSort,
   DiezmoMode,
+  DraftAccount,
+  DraftDebt,
+  DraftIncome,
   Gasto,
   Income,
   MonthBudget,
@@ -44,11 +47,12 @@ export const CURRENT_IDX = 3;
 
 const ACCOUNT_COLORS = ['#34d399', '#ef6a6a', '#b794f6', '#6aa6f6', '#f0c040', '#5aa6a4'];
 const DEFAULT_ACCOUNTS: Account[] = [];
+export const ACCT_PALETTE = ['#ef4444', '#7c3aed', '#3b82f6', '#16a34a', '#f59e0b', '#0d9488', '#ec4899', '#6b7280', '#f97316'];
 
 export const CAT_PALETTE = ['#16a34a', '#ea580c', '#7c3aed', '#2563eb', '#0d9488', '#dc2626', '#8b94a0', '#f59e0b', '#06b6d4'];
 
 export const DEFAULT_CATS: CategoryDef[] = [
-  { id: 'cat_cred', key: 'cred', label: 'Deudas Crediservir', color: '#16a34a' },
+  { id: 'cat_cred', key: 'cred', label: 'Créditos', color: '#16a34a' },
   { id: 'cat_fijo', key: 'fijo', label: 'Gastos fijos', color: '#ea580c' },
   { id: 'cat_tarjeta', key: 'tarjeta', label: 'Tarjetas y cuotas', color: '#7c3aed' },
   { id: 'cat_var', key: 'var', label: 'Variables', color: '#8b94a0' },
@@ -56,7 +60,15 @@ export const DEFAULT_CATS: CategoryDef[] = [
 
 const DEFAULT_PROFILE: UserProfile = { name: 'Yo', diezmar: true, cats: DEFAULT_CATS };
 
-const DEFAULT_DRAFT: OnboardDraft = { name: '', diezmar: null, cats: DEFAULT_CATS };
+const DEFAULT_DRAFT: OnboardDraft = {
+  name: '',
+  diezmar: null,
+  cats: DEFAULT_CATS,
+  accounts: [],
+  incomes: [],
+  hasDebts: null,
+  debts: [],
+};
 
 export interface BudgetState {
   curIdx: number;
@@ -81,6 +93,17 @@ type Action =
   | { type: 'ONBOARD_REMOVE_CAT'; id: string }
   | { type: 'ONBOARD_SET_CAT_LABEL'; id: string; label: string }
   | { type: 'ONBOARD_CYCLE_COLOR'; id: string }
+  | { type: 'ONBOARD_ADD_ACCOUNT' }
+  | { type: 'ONBOARD_REMOVE_ACCOUNT'; id: string }
+  | { type: 'ONBOARD_SET_ACCOUNT'; id: string; patch: Partial<DraftAccount> }
+  | { type: 'ONBOARD_CYCLE_ACCOUNT_COLOR'; id: string }
+  | { type: 'ONBOARD_ADD_INCOME' }
+  | { type: 'ONBOARD_REMOVE_INCOME'; id: string }
+  | { type: 'ONBOARD_SET_INCOME'; id: string; patch: Partial<DraftIncome> }
+  | { type: 'ONBOARD_SET_HAS_DEBTS'; value: boolean }
+  | { type: 'ONBOARD_ADD_DEBT' }
+  | { type: 'ONBOARD_REMOVE_DEBT'; id: string }
+  | { type: 'ONBOARD_SET_DEBT'; id: string; patch: Partial<DraftDebt> }
   | { type: 'ONBOARD_COMPLETE' }
   | { type: 'PROFILE_OPEN' }
   | { type: 'PROFILE_SAVE' }
@@ -190,7 +213,7 @@ function reducer(state: BudgetState, action: Action): BudgetState {
       return { ...INITIAL_STATE, ...action.payload, curIdx: CURRENT_IDX, sheet: null, onboardStep: 0, draft: DEFAULT_DRAFT };
 
     case 'ONBOARD_NEXT':
-      return { ...state, onboardStep: Math.min(2, state.onboardStep + 1) };
+      return { ...state, onboardStep: Math.min(5, state.onboardStep + 1) };
 
     case 'ONBOARD_BACK':
       return { ...state, onboardStep: Math.max(0, state.onboardStep - 1) };
@@ -228,7 +251,7 @@ function reducer(state: BudgetState, action: Action): BudgetState {
     }
 
     case 'PROFILE_OPEN':
-      return { ...state, draft: { name: state.profile.name, diezmar: state.profile.diezmar, cats: [...state.profile.cats] }, sheet: { kind: 'profile' } };
+      return { ...state, draft: { ...DEFAULT_DRAFT, name: state.profile.name, diezmar: state.profile.diezmar, cats: [...state.profile.cats] }, sheet: { kind: 'profile' } };
 
     case 'PROFILE_SAVE': {
       const name = state.draft.name.trim() || state.profile.name;
@@ -237,12 +260,110 @@ function reducer(state: BudgetState, action: Action): BudgetState {
       return { ...state, profile: { name, diezmar, cats }, sheet: null };
     }
 
+    case 'ONBOARD_ADD_ACCOUNT': {
+      const color = ACCT_PALETTE[state.draft.accounts.length % ACCT_PALETTE.length];
+      const newAcct: DraftAccount = { id: 'a' + Date.now(), name: '', color, saldo: '' };
+      return { ...state, draft: { ...state.draft, accounts: [...state.draft.accounts, newAcct] } };
+    }
+
+    case 'ONBOARD_REMOVE_ACCOUNT':
+      return { ...state, draft: { ...state.draft, accounts: state.draft.accounts.filter((a) => a.id !== action.id) } };
+
+    case 'ONBOARD_SET_ACCOUNT':
+      return { ...state, draft: { ...state.draft, accounts: state.draft.accounts.map((a) => a.id === action.id ? { ...a, ...action.patch } : a) } };
+
+    case 'ONBOARD_CYCLE_ACCOUNT_COLOR': {
+      return {
+        ...state, draft: { ...state.draft, accounts: state.draft.accounts.map((a) => {
+          if (a.id !== action.id) return a;
+          const i = ACCT_PALETTE.indexOf(a.color);
+          return { ...a, color: ACCT_PALETTE[(i + 1) % ACCT_PALETTE.length] };
+        }) },
+      };
+    }
+
+    case 'ONBOARD_ADD_INCOME': {
+      const defaultAccountId = state.draft.accounts[0]?.id ?? '';
+      const newInc: DraftIncome = { id: 'ri' + Date.now(), name: '', bruto: '', neto: '', accountId: defaultAccountId };
+      return { ...state, draft: { ...state.draft, incomes: [...state.draft.incomes, newInc] } };
+    }
+
+    case 'ONBOARD_REMOVE_INCOME':
+      return { ...state, draft: { ...state.draft, incomes: state.draft.incomes.filter((i) => i.id !== action.id) } };
+
+    case 'ONBOARD_SET_INCOME':
+      return { ...state, draft: { ...state.draft, incomes: state.draft.incomes.map((i) => i.id === action.id ? { ...i, ...action.patch } : i) } };
+
+    case 'ONBOARD_SET_HAS_DEBTS': {
+      const debts = action.value && state.draft.debts.length === 0
+        ? [{ id: 'dd' + Date.now(), name: '', saldo: '', tasa: '' }]
+        : state.draft.debts;
+      return { ...state, draft: { ...state.draft, hasDebts: action.value, debts } };
+    }
+
+    case 'ONBOARD_ADD_DEBT': {
+      const newDebt: DraftDebt = { id: 'dd' + Date.now(), name: '', saldo: '', tasa: '' };
+      return { ...state, draft: { ...state.draft, debts: [...state.draft.debts, newDebt] } };
+    }
+
+    case 'ONBOARD_REMOVE_DEBT':
+      return { ...state, draft: { ...state.draft, debts: state.draft.debts.filter((d) => d.id !== action.id) } };
+
+    case 'ONBOARD_SET_DEBT':
+      return { ...state, draft: { ...state.draft, debts: state.draft.debts.map((d) => d.id === action.id ? { ...d, ...action.patch } : d) } };
+
     case 'ONBOARD_COMPLETE': {
-      const name = state.draft.name.trim() || 'Yo';
-      const diezmar = state.draft.diezmar !== false;
-      const cats = state.draft.cats.length ? state.draft.cats : DEFAULT_CATS;
+      const d = state.draft;
+      const name = d.name.trim() || 'Yo';
+      const diezmar = d.diezmar !== false;
+      const cats = d.cats.length ? d.cats : DEFAULT_CATS;
       const profile: UserProfile = { name, diezmar, cats };
-      return { ...state, onboarded: true, onboardStep: 0, profile, draft: DEFAULT_DRAFT };
+
+      // Convertir cuentas del draft → Account[]
+      const accounts: Account[] = d.accounts
+        .filter((a) => a.name.trim())
+        .map((a) => ({ id: a.id, name: a.name.trim(), color: a.color, saldo: parseNum(a.saldo), incluir: true }));
+
+      // Convertir debts del draft → Debt[]
+      const debts: Debt[] = (d.hasDebts ? d.debts : [])
+        .filter((x) => x.name.trim() || parseNum(x.saldo))
+        .map((x) => ({ id: x.id, name: x.name.trim() || 'Deuda', saldo: parseNum(x.saldo), tasa: parseRate(x.tasa) }));
+
+      // Convertir ingresos recurrentes → incomes del mes actual
+      const incomes: Income[] = d.incomes
+        .filter((i) => i.name.trim() || parseNum(i.bruto))
+        .map((i, idx) => ({
+          id: 'i' + Date.now() + '_' + idx,
+          name: i.name.trim() || 'Ingreso',
+          bruto: parseNum(i.bruto),
+          neto: parseNum(i.neto) || parseNum(i.bruto),
+          accountId: i.accountId,
+          recurrente: true,
+          fecha: null,
+          recibido: false,
+          diezmoPaid: false,
+        }));
+
+      const m = MONTHS[state.curIdx];
+      const monthBudget: MonthBudget = {
+        exists: true,
+        diezmoMode: 'separado',
+        diezmoGrupoPaid: false,
+        gastos: [],
+        incomes,
+        accounts,
+        movimientos: [],
+      };
+
+      return {
+        ...state,
+        onboarded: true,
+        onboardStep: 0,
+        profile,
+        debts,
+        budgets: { ...state.budgets, [m]: monthBudget },
+        draft: DEFAULT_DRAFT,
+      };
     }
 
     case 'PREV_MONTH':
@@ -388,10 +509,12 @@ function reducer(state: BudgetState, action: Action): BudgetState {
         const b = curBudget(state);
         const currentAccounts = b?.accounts ?? [];
         if (sh.mode === 'add') {
-          const item: Account = { id: 'a' + Date.now(), name, color: ACCOUNT_COLORS[currentAccounts.length % ACCOUNT_COLORS.length], saldo: a1, incluir: true };
+          const color = sh.color ?? ACCT_PALETTE[currentAccounts.length % ACCT_PALETTE.length];
+          const item: Account = { id: 'a' + Date.now(), name, color, saldo: a1, incluir: true };
           return { ...setAccounts(state, (as) => [...as, item]), sheet: null };
         } else {
-          return { ...setAccounts(state, (as) => as.map((a) => a.id === sh.id ? { ...a, name, saldo: a1 } : a)), sheet: null };
+          const color = sh.color;
+          return { ...setAccounts(state, (as) => as.map((a) => a.id === sh.id ? { ...a, name, saldo: a1, ...(color ? { color } : {}) } : a)), sheet: null };
         }
       }
 
