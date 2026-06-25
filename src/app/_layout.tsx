@@ -13,6 +13,7 @@ import {
   RobotoMono_500Medium,
   RobotoMono_700Bold,
 } from '@expo-google-fonts/roboto-mono';
+import { Lora_700Bold } from '@expo-google-fonts/lora';
 import { StatusBar } from 'expo-status-bar';
 
 import AppTabs from '@/components/app-tabs';
@@ -53,6 +54,7 @@ export default function RootLayout() {
     RobotoMono_400Regular,
     RobotoMono_500Medium,
     RobotoMono_700Bold,
+    Lora_700Bold,
   });
 
   useEffect(() => {
@@ -64,7 +66,7 @@ export default function RootLayout() {
   return (
     <BudgetProvider>
       <View style={{ flex: 1, backgroundColor: C.bg }}>
-        <StatusBar style="light" />
+        <StatusBar style="dark" />
         <AppContent />
       </View>
     </BudgetProvider>

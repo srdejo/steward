@@ -8,10 +8,10 @@ export default function DeudasScreen() {
   const { state, dispatch } = useBudget();
   const { debts, debtSort } = state;
 
-  const activeDebts = debts.filter((d) => d.saldo > 0);
   const totalDebt = debts.reduce((s, d) => s + d.saldo, 0);
   const sorted = [...debts].sort((a, b) => debtSort === 'tasa' ? b.tasa - a.tasa : b.saldo - a.saldo);
   const priority = sorted.find((d) => d.saldo > 0);
+  const debtCountLabel = `${debts.length} crédito${debts.length !== 1 ? 's' : ''}`;
 
   function rateColor(tasa: number) {
     if (tasa >= 18) return C.red;
@@ -24,13 +24,27 @@ export default function DeudasScreen() {
     return C.surface2;
   }
 
+  function dueInfo(venceDia: number | undefined): { text: string; color: string } | null {
+    if (!venceDia || venceDia < 1 || venceDia > 31) return null;
+    const today = new Date();
+    const currentDay = today.getDate();
+    const daysLeft = venceDia - currentDay;
+    if (daysLeft < 0) {
+      const ago = -daysLeft;
+      return { text: ago === 1 ? 'Venció ayer' : `Venció hace ${ago} días`, color: C.red };
+    }
+    if (daysLeft === 0) return { text: 'Vence hoy', color: C.red };
+    if (daysLeft <= 5) return { text: `Vence en ${daysLeft} día${daysLeft === 1 ? '' : 's'}`, color: C.orange };
+    return { text: `Vence el día ${venceDia}`, color: C.text3 };
+  }
+
   return (
     <View style={s.container}>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
         <SafeAreaView edges={['top']}>
           <View style={s.topPad}>
             <Text style={s.eyebrow}>Abono a capital</Text>
-            <Text style={s.title}>Créditos activos</Text>
+            <Text style={s.title}>Mis créditos</Text>
           </View>
         </SafeAreaView>
 
@@ -38,7 +52,7 @@ export default function DeudasScreen() {
         <View style={s.summaryCard}>
           <Text style={s.summaryLabel}>Total que debo</Text>
           <Text style={s.summaryAmount}>{fmt(totalDebt)}</Text>
-          <Text style={s.summaryMeta}>{activeDebts.length} crédito{activeDebts.length !== 1 ? 's' : ''} activo{activeDebts.length !== 1 ? 's' : ''}</Text>
+          <Text style={s.summaryMeta}>{debtCountLabel}</Text>
         </View>
 
         {/* Priority hint */}
@@ -66,7 +80,7 @@ export default function DeudasScreen() {
                 </TouchableOpacity>
               </View>
             </View>
-            <TouchableOpacity onPress={() => dispatch({ type: 'OPEN_SHEET', sheet: { kind: 'deuda', mode: 'add', name: '', a1: '', a2: '', a3: '' } })} activeOpacity={0.7}>
+            <TouchableOpacity onPress={() => dispatch({ type: 'OPEN_SHEET', sheet: { kind: 'deuda', mode: 'add', name: '', a1: '', a2: '', a3: '', dia: '' } })} activeOpacity={0.7}>
               <Text style={s.addBtn}>+ Agregar</Text>
             </TouchableOpacity>
           </View>
@@ -77,7 +91,7 @@ export default function DeudasScreen() {
               <TouchableOpacity
                 key={d.id}
                 style={[s.debtCard, isPrio && s.debtCardPrio]}
-                onPress={() => dispatch({ type: 'OPEN_SHEET', sheet: { kind: 'deuda', mode: 'edit', id: d.id, name: d.name, a1: String(d.saldo), a2: String(d.tasa), a3: String(d.cuota ?? '') } })}
+                onPress={() => dispatch({ type: 'OPEN_SHEET', sheet: { kind: 'deuda', mode: 'edit', id: d.id, name: d.name, a1: String(d.saldo), a2: String(d.tasa), a3: String(d.cuota ?? ''), dia: d.venceDia ? String(d.venceDia) : '' } })}
                 activeOpacity={0.7}>
                 <View style={s.debtTop}>
                   <View style={{ flex: 1 }}>
@@ -92,12 +106,21 @@ export default function DeudasScreen() {
                   <Text style={s.debtSaldo}>{fmt(d.saldo)}</Text>
                   {d.cuota ? <Text style={s.debtCuota}>{fmt(d.cuota)}/mes</Text> : null}
                 </View>
+                {(() => {
+                  const due = dueInfo(d.venceDia);
+                  if (!due) return null;
+                  return (
+                    <View style={s.payoffRow}>
+                      <Text style={[s.payoffText, { color: due.color }]}>{due.text}</Text>
+                    </View>
+                  );
+                })()}
               </TouchableOpacity>
             );
           })}
 
           <View style={s.note}>
-            <Text style={s.noteText}>Toca cualquier crédito para actualizar su saldo, cuota o tasa. La cuota mensual aparece automáticamente en tus gastos del mes. Ordénalos por tasa para saber dónde rinde más cada abono extra.</Text>
+            <Text style={s.noteText}>Toca cualquier deuda para actualizar su saldo o tasa a mano. Ordénalas por tasa para saber dónde rinde más cada abono extra.</Text>
           </View>
         </View>
       </ScrollView>
@@ -119,7 +142,7 @@ const s = StyleSheet.create({
   summaryLabel: { fontSize: 11, fontFamily: F.bold, letterSpacing: 2, textTransform: 'uppercase', color: C.redDim },
   summaryAmount: { fontSize: 38, fontFamily: F.monoBold, color: '#fff', marginTop: 14 },
   summaryMeta: { fontSize: 13, fontFamily: F.regular, color: 'rgba(255,255,255,0.7)', marginTop: 10 },
-  priorityCard: { flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 22, padding: 15, backgroundColor: C.primaryBg, borderWidth: 1, borderColor: C.primaryBorder, borderRadius: 16, marginBottom: 4 },
+  priorityCard: { flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 22, marginTop: 14, padding: 15, backgroundColor: C.primaryBg, borderWidth: 1, borderColor: C.primaryBorder, borderRadius: 16, marginBottom: 4 },
   priorityIcon: { width: 34, height: 34, borderRadius: 10, backgroundColor: C.primaryBorder, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   priorityText: { flex: 1, fontSize: 12, fontFamily: F.regular, color: C.text2, lineHeight: 17 },
   priorityName: { fontFamily: F.bold, color: C.primary },
@@ -143,6 +166,8 @@ const s = StyleSheet.create({
   debtBottom: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 13 },
   debtSaldo: { fontSize: 19, fontFamily: F.monoBold, color: C.text },
   debtCuota: { fontSize: 12, fontFamily: F.medium, color: C.text3 },
+  payoffRow: { marginTop: 11, paddingTop: 11, borderTopWidth: 1, borderTopColor: C.border },
+  payoffText: { fontSize: 11, fontFamily: F.bold },
   note: { marginTop: 18, padding: 14, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, borderRadius: 14 },
   noteText: { fontSize: 12, fontFamily: F.regular, color: C.text3, lineHeight: 18 },
 });

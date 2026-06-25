@@ -207,6 +207,7 @@ function syncCreditGastos(state: BudgetState): BudgetState {
         amount: d.cuota!,
         paid: prev?.paid ?? false,
         debtId: d.id,
+        ...(d.venceDia ? { venceDia: d.venceDia } : {}),
         ...(prev?.source ? { source: prev.source, sourceName: prev.sourceName, real: prev.real } : {}),
       };
     });
@@ -352,7 +353,8 @@ function reducer(state: BudgetState, action: Action): BudgetState {
         .filter((x) => x.name.trim() || parseNum(x.saldo))
         .map((x) => {
           const cuota = parseNum(x.cuota);
-          return { id: x.id, name: x.name.trim() || 'Crédito', saldo: parseNum(x.saldo), tasa: parseRate(x.tasa), ...(cuota > 0 ? { cuota } : {}) };
+          const venceDia = parseNum(x.dia) || undefined;
+          return { id: x.id, name: x.name.trim() || 'Crédito', saldo: parseNum(x.saldo), tasa: parseRate(x.tasa), ...(cuota > 0 ? { cuota } : {}), ...(venceDia ? { venceDia } : {}) };
         });
 
       // Convertir ingresos recurrentes → incomes del mes actual
@@ -541,12 +543,13 @@ function reducer(state: BudgetState, action: Action): BudgetState {
 
       if (sh.kind === 'gasto') {
         const name = sh.name?.trim() || 'Sin nombre';
+        const venceDia = parseNum(sh.dia) || undefined;
         if (sh.mode === 'add') {
-          const item: Gasto = { id: 'g' + Date.now(), cat: sh.cat ?? 'var', name, amount: a1, paid: false };
+          const item: Gasto = { id: 'g' + Date.now(), cat: sh.cat ?? 'var', name, amount: a1, paid: false, ...(venceDia ? { venceDia } : {}) };
           return { ...setGastos(state, (gs) => [...gs, item]), sheet: null };
         } else {
           const real = sh.a2 !== '' && sh.a2 !== undefined ? a2 : undefined;
-          return { ...setGastos(state, (gs) => gs.map((g) => g.id === sh.id ? { ...g, name, amount: a1, real } : g)), sheet: null };
+          return { ...setGastos(state, (gs) => gs.map((g) => g.id === sh.id ? { ...g, name, amount: a1, real, ...(venceDia ? { venceDia } : { venceDia: undefined }) } : g)), sheet: null };
         }
       }
 
@@ -578,12 +581,13 @@ function reducer(state: BudgetState, action: Action): BudgetState {
         const name = sh.name?.trim() || 'Crédito';
         const tasa = parseRate(sh.a2);
         const cuota = parseNum(sh.a3);
+        const venceDia = parseNum(sh.dia) || undefined;
         let next: BudgetState;
         if (sh.mode === 'add') {
-          const debt: Debt = { id: 'd' + Date.now(), name, saldo: a1, tasa, ...(cuota > 0 ? { cuota } : {}) };
+          const debt: Debt = { id: 'd' + Date.now(), name, saldo: a1, tasa, ...(cuota > 0 ? { cuota } : {}), ...(venceDia ? { venceDia } : {}) };
           next = { ...state, debts: [...state.debts, debt], sheet: null };
         } else {
-          next = { ...state, debts: state.debts.map((d) => d.id === sh.id ? { ...d, name, saldo: a1, tasa, cuota: cuota > 0 ? cuota : undefined } : d), sheet: null };
+          next = { ...state, debts: state.debts.map((d) => d.id === sh.id ? { ...d, name, saldo: a1, tasa, cuota: cuota > 0 ? cuota : undefined, ...(venceDia ? { venceDia } : { venceDia: undefined }) } : d), sheet: null };
         }
         return syncCreditGastos(next);
       }

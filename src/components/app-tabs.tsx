@@ -1,7 +1,7 @@
+import { C, F } from '@/constants/colors';
+import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import { Platform } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { C, F } from '@/constants/colors';
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 

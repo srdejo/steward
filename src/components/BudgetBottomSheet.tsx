@@ -1,3 +1,6 @@
+import { C, F } from '@/constants/colors';
+import { ACCT_PALETTE, selectCurrentBudget, useBudget } from '@/store/budget';
+import type { CategoryDef } from '@/types';
 import { useEffect, useRef } from 'react';
 import {
   Animated,
@@ -13,9 +16,6 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { C, F } from '@/constants/colors';
-import { ACCT_PALETTE, CAT_PALETTE, selectCurrentBudget, useBudget } from '@/store/budget';
-import type { CategoryDef } from '@/types';
 
 function maskMoney(raw: string): string {
   const digits = raw.replace(/[^0-9]/g, '');
@@ -396,6 +396,27 @@ export function BudgetBottomSheet() {
                 </>
               )}
 
+              {(activeSheet.kind === 'gasto' || activeSheet.kind === 'deuda') && (
+                <>
+                  <Text style={s.fieldLabel}>Día de pago (1–31)</Text>
+                  <TextInput
+                    style={s.inputMono}
+                    value={activeSheet.dia ?? ''}
+                    onChangeText={(t) => {
+                      const digits = t.replace(/[^0-9]/g, '');
+                      const num = parseInt(digits, 10);
+                      const clamped = isNaN(num) ? '' : String(Math.min(31, Math.max(1, num)));
+                      dispatch({ type: 'SET_SHEET', patch: { dia: digits === '' ? '' : clamped } });
+                    }}
+                    placeholder="Ej. 15 (opcional)"
+                    placeholderTextColor={C.text4}
+                    keyboardType="numeric"
+                    returnKeyType="done"
+                    maxLength={2}
+                  />
+                </>
+              )}
+
               <View style={s.actionRow}>
                 {showDelete && (
                   <TouchableOpacity style={s.deleteBtn} onPress={() => dispatch({ type: 'DELETE_SHEET' })} activeOpacity={0.7}>
@@ -480,7 +501,7 @@ const s = StyleSheet.create({
   profileCatColor: { width: 20, height: 20, borderRadius: 10, flexShrink: 0 },
   profileCatInput: { flex: 1, fontSize: 14, fontFamily: F.medium, color: C.text, padding: 0 },
   profileCatDelete: { fontSize: 13, color: C.text4, padding: 4 },
-  profileAddCat: { padding: 12, alignItems: 'center', borderWidth: 1, borderStyle: 'dashed', borderColor: C.primaryBorder, borderRadius: 12 },
+  profileAddCat: { padding: 12, alignItems: 'center', borderWidth: 1, borderStyle: 'dashed', borderColor: C.dashedBorder, borderRadius: 12 },
   profileAddCatText: { fontSize: 13, fontFamily: F.bold, color: C.primary },
   swatchRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 4 },
   swatch: { width: 30, height: 30, borderRadius: 15 },

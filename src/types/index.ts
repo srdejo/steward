@@ -29,6 +29,7 @@ export interface DraftDebt {
   saldo: string;
   tasa: string;
   cuota: string;
+  dia?: string;
 }
 
 export interface UserProfile {
@@ -63,6 +64,7 @@ export interface Gasto {
   source?: string;
   sourceName?: string;
   debtId?: string;
+  venceDia?: number;
 }
 
 export interface Income {
@@ -109,6 +111,7 @@ export interface Debt {
   saldo: number;
   tasa: number;
   cuota?: number;
+  venceDia?: number;
 }
 
 export interface SheetState {
@@ -120,6 +123,7 @@ export interface SheetState {
   a1?: string;
   a2?: string;
   a3?: string;
+  dia?: string;
   type?: 'transfer' | 'retiro';
   from?: string;
   to?: string;

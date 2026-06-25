@@ -1,6 +1,6 @@
-import { Tabs, TabList, TabTrigger, TabSlot, TabTriggerSlotProps, TabListProps } from 'expo-router/ui';
-import { Pressable, View, StyleSheet, Text } from 'react-native';
 import { C, F } from '@/constants/colors';
+import { TabList, TabListProps, Tabs, TabSlot, TabTrigger, TabTriggerSlotProps } from 'expo-router/ui';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 export default function AppTabs() {
   return (
@@ -18,7 +18,7 @@ export default function AppTabs() {
             <TabButton>Movimientos</TabButton>
           </TabTrigger>
           <TabTrigger name="deudas" href="/deudas" asChild>
-            <TabButton>Deudas</TabButton>
+            <TabButton>Créditos</TabButton>
           </TabTrigger>
           <TabTrigger name="ingresos" href="/ingresos" asChild>
             <TabButton>Ingresos</TabButton>

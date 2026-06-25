@@ -1,3 +1,5 @@
+import { C, F } from '@/constants/colors';
+import { useBudget } from '@/store/budget';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -9,8 +11,6 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { C, F } from '@/constants/colors';
-import { ACCT_PALETTE, CAT_PALETTE, useBudget } from '@/store/budget';
 
 const TOTAL_STEPS = 6;
 
@@ -20,7 +20,7 @@ const STEP_META = [
   { tag: 'Organiza',      title: 'Tus categorías',             subtitle: 'Renómbralas, toca el color para cambiarlo o elimina las que no uses. Podrás ajustarlas luego.' },
   { tag: 'Cuentas',       title: '¿Dónde recibes tu dinero?',  subtitle: 'Cada ingreso entrará a una de estas cuentas. Pon su saldo de hoy para empezar.' },
   { tag: 'Ingresos fijos',title: 'Lo que entra cada mes',      subtitle: 'Defínelos una sola vez —como tu salario— y los repetimos en todos los meses del año.' },
-  { tag: 'Créditos',      title: '¿Tienes créditos?',          subtitle: 'Registra tus créditos, define la cuota mensual y la añadimos automáticamente a tus gastos cada mes.' },
+  { tag: 'Deudas',        title: '¿Tienes créditos?',            subtitle: 'Si las registras, te ayudamos a ver cuánto debes y a priorizar el abono por tasa.' },
 ];
 
 function maskNum(s: string) {
@@ -253,19 +253,19 @@ export function OnboardingScreen() {
                           <Text style={s.catDeleteIcon}>✕</Text>
                         </TouchableOpacity>
                       </View>
+                      <View style={{ marginTop: 10 }}>
+                        <Text style={s.incLabel}>Saldo que debo</Text>
+                        <TextInput
+                          style={s.incInput}
+                          value={maskNum(d.saldo)}
+                          onChangeText={(t) => dispatch({ type: 'ONBOARD_SET_DEBT', id: d.id, patch: { saldo: stripNum(t) } })}
+                          placeholder="0"
+                          placeholderTextColor={C.text4}
+                          keyboardType="numeric"
+                          returnKeyType="next"
+                        />
+                      </View>
                       <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
-                        <View style={{ flex: 1 }}>
-                          <Text style={s.incLabel}>Saldo que debo</Text>
-                          <TextInput
-                            style={s.incInput}
-                            value={maskNum(d.saldo)}
-                            onChangeText={(t) => dispatch({ type: 'ONBOARD_SET_DEBT', id: d.id, patch: { saldo: stripNum(t) } })}
-                            placeholder="0"
-                            placeholderTextColor={C.text4}
-                            keyboardType="numeric"
-                            returnKeyType="next"
-                          />
-                        </View>
                         <View style={{ flex: 1 }}>
                           <Text style={s.incLabel}>Cuota mensual</Text>
                           <TextInput
@@ -278,7 +278,7 @@ export function OnboardingScreen() {
                             returnKeyType="next"
                           />
                         </View>
-                        <View style={{ width: 90 }}>
+                        <View style={{ flex: 1 }}>
                           <Text style={s.incLabel}>Tasa E.A. %</Text>
                           <TextInput
                             style={s.incInput}
@@ -287,7 +287,25 @@ export function OnboardingScreen() {
                             placeholder="0"
                             placeholderTextColor={C.text4}
                             keyboardType="decimal-pad"
+                            returnKeyType="next"
+                          />
+                        </View>
+                        <View style={{ width: 72 }}>
+                          <Text style={s.incLabel}>Día pago</Text>
+                          <TextInput
+                            style={s.incInput}
+                            value={d.dia ?? ''}
+                            onChangeText={(t) => {
+                              const digits = t.replace(/[^0-9]/g, '');
+                              const num = parseInt(digits, 10);
+                              const val = isNaN(num) ? '' : String(Math.min(31, Math.max(1, num)));
+                              dispatch({ type: 'ONBOARD_SET_DEBT', id: d.id, patch: { dia: digits === '' ? '' : val } });
+                            }}
+                            placeholder="1–31"
+                            placeholderTextColor={C.text4}
+                            keyboardType="numeric"
                             returnKeyType="done"
+                            maxLength={2}
                           />
                         </View>
                       </View>
@@ -382,7 +400,7 @@ const s = StyleSheet.create({
   debtNoteText: { fontSize: 12, fontFamily: F.regular, color: C.text2, lineHeight: 18 },
 
   // Shared
-  addDashed: { padding: 13, alignItems: 'center', borderWidth: 1.5, borderStyle: 'dashed', borderColor: C.primaryBorder, borderRadius: 14, marginTop: 2 },
+  addDashed: { padding: 13, alignItems: 'center', borderWidth: 1.5, borderStyle: 'dashed', borderColor: C.dashedBorder, borderRadius: 14, marginTop: 2 },
   addDashedText: { fontSize: 13, fontFamily: F.bold, color: C.primary },
 
   // Footer

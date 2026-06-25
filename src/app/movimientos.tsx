@@ -98,7 +98,7 @@ const s = StyleSheet.create({
   actionSecondaryText: { fontSize: 13, fontFamily: F.bold, color: C.text2 },
   section: { paddingHorizontal: 26, paddingTop: 4, paddingBottom: 8 },
   sectionLabel: { fontSize: 10, fontFamily: F.bold, letterSpacing: 1.6, textTransform: 'uppercase', color: C.text3, paddingBottom: 4 },
-  emptyCard: { marginTop: 14, padding: 30, backgroundColor: C.surface, borderWidth: 1, borderStyle: 'dashed', borderColor: C.primaryBorder, borderRadius: 20, alignItems: 'center' },
+  emptyCard: { marginTop: 14, padding: 30, backgroundColor: C.surface, borderWidth: 1, borderStyle: 'dashed', borderColor: C.dashedBorder, borderRadius: 20, alignItems: 'center' },
   emptyTitle: { fontSize: 18, fontFamily: F.bold, color: C.text, textAlign: 'center' },
   emptyHint: { fontSize: 13, fontFamily: F.regular, color: C.text3, marginTop: 8, textAlign: 'center', lineHeight: 19 },
   movRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: C.border2 },

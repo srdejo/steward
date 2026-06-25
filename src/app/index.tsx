@@ -41,13 +41,54 @@ export default function MesScreen() {
   const varItems = budget?.gastos.filter((g) => g.cat === 'var') ?? [];
   const diezmos = (budget && profile.diezmar) ? diezmoEntries(budget) : [];
 
+  // dueWatch: upcoming/overdue payments with venceDia
+  const dueWatch = (() => {
+    if (!budget?.exists) return null;
+    const today = new Date();
+    const day = today.getDate();
+    const items: { name: string; daysLeft: number; overdue: boolean; text: string }[] = [];
+    budget.gastos.forEach((g) => {
+      if (!g.paid && g.venceDia) {
+        const daysLeft = g.venceDia - day;
+        if (daysLeft <= 5) {
+          const text = daysLeft < 0 ? `Venció hace ${-daysLeft} día${-daysLeft === 1 ? '' : 's'}` : daysLeft === 0 ? 'Vence hoy' : `Vence en ${daysLeft} día${daysLeft === 1 ? '' : 's'}`;
+          items.push({ name: g.name, daysLeft, overdue: daysLeft < 0, text });
+        }
+      }
+    });
+    state.debts.forEach((d) => {
+      if (d.cuota && d.venceDia) {
+        const paid = budget.gastos.find((g) => g.debtId === d.id && g.paid);
+        if (!paid) {
+          const daysLeft = d.venceDia - day;
+          if (daysLeft <= 5) {
+            const text = daysLeft < 0 ? `Venció hace ${-daysLeft} día${-daysLeft === 1 ? '' : 's'}` : daysLeft === 0 ? 'Vence hoy' : `Vence en ${daysLeft} día${daysLeft === 1 ? '' : 's'}`;
+            items.push({ name: d.name, daysLeft, overdue: daysLeft < 0, text });
+          }
+        }
+      }
+    });
+    if (!items.length) return null;
+    items.sort((a, b) => a.daysLeft - b.daysLeft);
+    const hasOverdue = items.some((x) => x.overdue);
+    return { items, hasOverdue, top: items[0] };
+  })();
+
   function decorateGasto(g: (typeof credItems)[0]): { sub?: string; subColor: string; shown: number; paid: boolean } {
     const paid = g.paid;
     const diff = paid && g.real != null && g.real !== g.amount;
     const shown = paid && g.real != null ? g.real : g.amount;
     let sub = '';
     let subColor: string = C.text3;
-    if (g.cat === 'tarjeta') { sub = 'Tarjeta de crédito'; }
+    if (!paid && g.venceDia) {
+      const today = new Date();
+      const daysLeft = g.venceDia - today.getDate();
+      if (daysLeft < 0) { sub = `Venció el día ${g.venceDia}`; subColor = C.red; }
+      else if (daysLeft === 0) { sub = 'Vence hoy'; subColor = C.red; }
+      else if (daysLeft <= 5) { sub = `Vence en ${daysLeft} día${daysLeft === 1 ? '' : 's'}`; subColor = C.orange; }
+      else { sub = `Vence el día ${g.venceDia}`; subColor = C.text3; }
+    }
+    if (g.cat === 'tarjeta' && !sub) { sub = 'Tarjeta de crédito'; }
     if (paid && g.sourceName) { sub = 'Pagado desde ' + g.sourceName; subColor = C.text3; }
     if (diff) { sub = (paid && g.sourceName ? 'Desde ' + g.sourceName + ' · ' : '') + 'presup. ' + fmt(g.amount); subColor = C.green; }
     return { sub: sub || undefined, subColor, shown, paid };
@@ -72,7 +113,7 @@ export default function MesScreen() {
           sub={sub}
           subColor={subColor}
           amountColor={paid ? C.text4 : C.text}
-          onEdit={() => dispatch({ type: 'OPEN_SHEET', sheet: { kind: 'gasto', mode: 'edit', id: g.id, cat: g.cat, name: g.name, a1: String(g.amount), a2: g.real != null ? String(g.real) : '' } })}
+          onEdit={() => dispatch({ type: 'OPEN_SHEET', sheet: { kind: 'gasto', mode: 'edit', id: g.id, cat: g.cat, name: g.name, a1: String(g.amount), a2: g.real != null ? String(g.real) : '', dia: g.venceDia ? String(g.venceDia) : '' } })}
           onToggle={() => { if (paid) dispatch({ type: 'UNPAY_GASTO', gastoId: g.id }); else openPay(g); }}
         />
       );
@@ -138,8 +179,8 @@ export default function MesScreen() {
                   <Text style={[s.metaAmount, { color: '#fbbf24' }]}>{fmt(pendiente)}</Text>
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.metaLabel}>Ahorro proyectado</Text>
-                  <Text style={[s.metaAmount, { color: '#86efac' }]}>{fmt(ahorro)}</Text>
+                  <Text style={s.metaLabel}>{ahorro < 0 ? 'Faltante' : 'Ahorro proyectado'}</Text>
+                  <Text style={[s.metaAmount, { color: ahorro < 0 ? '#f87171' : '#86efac' }]}>{fmt(ahorro)}</Text>
                 </View>
               </View>
             </View>
@@ -155,6 +196,21 @@ export default function MesScreen() {
               </View>
             </View>
 
+            {/* dueWatch banner */}
+            {dueWatch && (
+              <View style={[s.dueWatchCard, dueWatch.hasOverdue ? s.dueWatchCardOverdue : s.dueWatchCardWarn]}>
+                <View style={[s.dueWatchIcon, dueWatch.hasOverdue ? s.dueWatchIconOverdue : s.dueWatchIconWarn]}>
+                  <Text style={{ fontSize: 14, color: dueWatch.hasOverdue ? C.red : C.orange }}>⏰</Text>
+                </View>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={[s.dueWatchLabel, { color: dueWatch.hasOverdue ? C.red : C.orange }]}>
+                    {dueWatch.items.length === 1 ? '1 pago próximo a vencer' : `${dueWatch.items.length} pagos próximos a vencer`}
+                  </Text>
+                  <Text style={s.dueWatchSub}>{dueWatch.top.name} · {dueWatch.top.text.toLowerCase()}</Text>
+                </View>
+              </View>
+            )}
+
             {/* Expense lists */}
             <View style={s.lists}>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 2 }}>
@@ -162,11 +218,7 @@ export default function MesScreen() {
                 <Text style={s.gastosTip}>toca el círculo al pagar</Text>
               </View>
 
-              {/* Crediservir */}
-              <SectionHeader label={catDef('cred')?.label ?? 'Deudas'} color={catDef('cred')?.color ?? C.green} onAdd={() => dispatch({ type: 'OPEN_SHEET', sheet: { kind: 'gasto', mode: 'add', cat: 'cred', name: '', a1: '', a2: '' } })} />
-              {renderGastoRows(credItems)}
-
-              {/* Diezmo — solo si el usuario lo habilitó */}
+              {/* Diezmo — primero, antes de las categorías, si el usuario lo habilitó */}
               {profile.diezmar && <View style={s.diezmoHeaderRow}>
                 <Text style={[s.sectionLabelText, { color: C.teal }]}>Diezmo</Text>
                 <View style={s.toggle}>
@@ -201,16 +253,20 @@ export default function MesScreen() {
                 );
               })}
 
+              {/* Créditos */}
+              <SectionHeader label={catDef('cred')?.label ?? 'Créditos'} color={catDef('cred')?.color ?? C.green} onAdd={() => dispatch({ type: 'OPEN_SHEET', sheet: { kind: 'gasto', mode: 'add', cat: 'cred', name: '', a1: '', a2: '', dia: '' } })} />
+              {renderGastoRows(credItems)}
+
               {/* Fijos */}
-              <SectionHeader label={catDef('fijo')?.label ?? 'Gastos fijos'} color={catDef('fijo')?.color ?? C.orange} onAdd={() => dispatch({ type: 'OPEN_SHEET', sheet: { kind: 'gasto', mode: 'add', cat: 'fijo', name: '', a1: '', a2: '' } })} />
+              <SectionHeader label={catDef('fijo')?.label ?? 'Gastos fijos'} color={catDef('fijo')?.color ?? C.orange} onAdd={() => dispatch({ type: 'OPEN_SHEET', sheet: { kind: 'gasto', mode: 'add', cat: 'fijo', name: '', a1: '', a2: '', dia: '' } })} />
               {renderGastoRows(fijoItems)}
 
               {/* Tarjetas */}
-              <SectionHeader label={catDef('tarjeta')?.label ?? 'Tarjetas y cuotas'} color={catDef('tarjeta')?.color ?? C.purple} onAdd={() => dispatch({ type: 'OPEN_SHEET', sheet: { kind: 'gasto', mode: 'add', cat: 'tarjeta', name: '', a1: '', a2: '' } })} />
+              <SectionHeader label={catDef('tarjeta')?.label ?? 'Tarjetas y cuotas'} color={catDef('tarjeta')?.color ?? C.purple} onAdd={() => dispatch({ type: 'OPEN_SHEET', sheet: { kind: 'gasto', mode: 'add', cat: 'tarjeta', name: '', a1: '', a2: '', dia: '' } })} />
               {renderGastoRows(tarjetaItems)}
 
               {/* Variables */}
-              <SectionHeader label={catDef('var')?.label ?? 'Variables'} color={catDef('var')?.color ?? C.text3} onAdd={() => dispatch({ type: 'OPEN_SHEET', sheet: { kind: 'gasto', mode: 'add', cat: 'var', name: '', a1: '', a2: '' } })} />
+              <SectionHeader label={catDef('var')?.label ?? 'Variables'} color={catDef('var')?.color ?? C.text3} onAdd={() => dispatch({ type: 'OPEN_SHEET', sheet: { kind: 'gasto', mode: 'add', cat: 'var', name: '', a1: '', a2: '', dia: '' } })} />
               {renderGastoRows(varItems)}
 
               <Text style={s.tip}>Toca un gasto para editar su valor o registrar lo que <Text style={{ color: C.text2 }}>realmente</Text> gastaste. Toca el círculo para marcarlo pagado.</Text>
@@ -232,7 +288,7 @@ const s = StyleSheet.create({
   navRow: { flexDirection: 'row', gap: 8 },
   navBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: C.surface2, alignItems: 'center', justifyContent: 'center' },
   navArrow: { fontSize: 18, fontFamily: F.bold, lineHeight: 22 },
-  emptyCard: { margin: 22, marginTop: 30, padding: 24, backgroundColor: C.surface, borderWidth: 1, borderStyle: 'dashed', borderColor: '#c5d6f7', borderRadius: 24, alignItems: 'center' },
+  emptyCard: { margin: 22, marginTop: 30, padding: 24, backgroundColor: C.surface, borderWidth: 1, borderStyle: 'dashed', borderColor: C.dashedBorder, borderRadius: 24, alignItems: 'center' },
   emptyIcon: { width: 54, height: 54, borderRadius: 16, backgroundColor: C.primaryBg, alignItems: 'center', justifyContent: 'center' },
   emptyTitle: { fontSize: 21, fontFamily: F.bold, color: C.text, textAlign: 'center', marginTop: 18, lineHeight: 28 },
   emptyHint: { fontSize: 13, fontFamily: F.regular, color: C.text3, marginTop: 10, textAlign: 'center', lineHeight: 19 },
@@ -251,6 +307,14 @@ const s = StyleSheet.create({
   divider: { height: 1, backgroundColor: 'rgba(255,255,255,0.2)', marginVertical: 20 },
   metaLabel: { fontSize: 10, fontFamily: F.bold, letterSpacing: 1.4, textTransform: 'uppercase', color: 'rgba(255,255,255,0.6)' },
   metaAmount: { fontSize: 16, fontFamily: F.monoBold, marginTop: 8 },
+  dueWatchCard: { flexDirection: 'row', alignItems: 'center', gap: 11, marginHorizontal: 26, marginTop: 14, padding: 13, borderRadius: 14, borderWidth: 1 },
+  dueWatchCardWarn: { backgroundColor: '#fff7ed', borderColor: '#fde4cf' },
+  dueWatchCardOverdue: { backgroundColor: C.redBg, borderColor: C.redBorder },
+  dueWatchIcon: { width: 32, height: 32, borderRadius: 9, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  dueWatchIconWarn: { backgroundColor: '#fee9d5' },
+  dueWatchIconOverdue: { backgroundColor: '#fde2e2' },
+  dueWatchLabel: { fontSize: 12, fontFamily: F.bold, lineHeight: 16 },
+  dueWatchSub: { fontSize: 11, fontFamily: F.regular, color: C.text3, marginTop: 3 },
   progressWrap: { marginHorizontal: 28, marginBottom: 4 },
   progressRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 9 },
   progressLabel: { fontSize: 11, fontFamily: F.bold, letterSpacing: 0.4, color: C.text3 },

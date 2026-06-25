@@ -6,11 +6,12 @@ import { fmt, MONTHS, selectCurrentBudget, useBudget } from '@/store/budget';
 
 export default function IngresosScreen() {
   const { state, dispatch } = useBudget();
-  const { curIdx } = state;
+  const { curIdx, profile } = state;
   const monthName = MONTHS[curIdx];
   const budget = selectCurrentBudget(state);
   const accounts = budget?.accounts ?? [];
   const hasBudget = !!budget?.exists;
+  const showDiezmo = profile.diezmar;
 
   const recibidos = budget?.incomes.filter((i) => i.recibido) ?? [];
   const cajeroTotal = recibidos.reduce((s, i) => s + i.neto, 0);
@@ -87,10 +88,12 @@ export default function IngresosScreen() {
                         <Text style={s.detailLabel}>Salario</Text>
                         <Text style={s.detailAmount}>{fmt(inc.bruto)}</Text>
                       </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={s.detailLabel}>Diezmo 10%</Text>
-                        <Text style={[s.detailAmount, { color: C.teal }]}>{fmt(diezmo)}</Text>
-                      </View>
+                      {showDiezmo && (
+                        <View style={{ flex: 1 }}>
+                          <Text style={s.detailLabel}>Diezmo 10%</Text>
+                          <Text style={[s.detailAmount, { color: C.teal }]}>{fmt(diezmo)}</Text>
+                        </View>
+                      )}
                       <View style={{ flex: 1 }}>
                         <Text style={s.detailLabel}>Entra</Text>
                         <Text style={[s.detailAmount, { color: isRec ? C.green : C.text3 }]}>{fmt(inc.neto)}</Text>
@@ -105,12 +108,16 @@ export default function IngresosScreen() {
                   <Text style={s.totalKey}>Entró al cajero</Text>
                   <Text style={s.totalVal}>{fmt(cajeroTotal)}</Text>
                 </View>
-                <View style={s.totalRow}>
-                  <Text style={s.totalKey}>Diezmo presupuestado</Text>
-                  <Text style={[s.totalVal, { color: C.teal }]}>{fmt(diezmoTotal)}</Text>
-                </View>
-                <View style={s.totalDivider} />
-                <Text style={s.totalNote}>El diezmo se calcula sobre el salario completo y se paga en <Text style={{ color: C.teal }}>Gastos</Text> (agrupado o separado por fecha). El neto alimenta el Disponible.</Text>
+                {showDiezmo && (
+                  <>
+                    <View style={s.totalRow}>
+                      <Text style={s.totalKey}>Diezmo presupuestado</Text>
+                      <Text style={[s.totalVal, { color: C.teal }]}>{fmt(diezmoTotal)}</Text>
+                    </View>
+                    <View style={s.totalDivider} />
+                    <Text style={s.totalNote}>El diezmo se calcula sobre el salario completo y se paga en <Text style={{ color: C.teal }}>Gastos</Text> (agrupado o separado por fecha). El neto alimenta el Disponible.</Text>
+                  </>
+                )}
               </View>
             </View>
           </>
@@ -127,7 +134,7 @@ const s = StyleSheet.create({
   topPad: { paddingHorizontal: 26, paddingTop: 16, paddingBottom: 6 },
   eyebrow: { fontSize: 11, fontFamily: F.medium, letterSpacing: 1.6, textTransform: 'uppercase', color: C.text3 },
   title: { fontSize: 24, fontFamily: F.bold, color: C.text, marginTop: 3 },
-  emptyCard: { margin: 22, marginTop: 30, padding: 30, backgroundColor: C.surface, borderWidth: 1, borderStyle: 'dashed', borderColor: C.primaryBorder, borderRadius: 24, alignItems: 'center' },
+  emptyCard: { margin: 22, marginTop: 30, padding: 30, backgroundColor: C.surface, borderWidth: 1, borderStyle: 'dashed', borderColor: C.dashedBorder, borderRadius: 24, alignItems: 'center' },
   emptyTitle: { fontSize: 19, fontFamily: F.bold, color: C.text, textAlign: 'center', lineHeight: 25 },
   emptyHint: { fontSize: 13, fontFamily: F.regular, color: C.text3, marginTop: 10, textAlign: 'center' },
   summaryCard: {

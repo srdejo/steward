@@ -104,7 +104,7 @@ export default function CuentasScreen() {
           ))}
 
           <View style={s.note}>
-            <Text style={s.noteText}>El <Text style={{ color: C.primary }}>Disponible</Text> es la suma de las cuentas marcadas <Text style={{ color: C.primary }}>En disponible</Text>. Cada mes tiene sus propios saldos — pagar un gasto descuenta del saldo de este mes únicamente.</Text>
+            <Text style={s.noteText}>El <Text style={{ color: C.primary }}>Disponible</Text> es la suma de las cuentas marcadas <Text style={{ color: C.primary }}>En disponible</Text>. Pagar desde una cuenta baja su saldo; el efectivo solo se marca y no cruza ninguna cuenta.</Text>
           </View>
         </View>
       </ScrollView>
@@ -119,7 +119,7 @@ const s = StyleSheet.create({
   topPad: { paddingHorizontal: 26, paddingTop: 16, paddingBottom: 6 },
   eyebrow: { fontSize: 11, fontFamily: F.medium, letterSpacing: 1.6, textTransform: 'uppercase', color: C.text3 },
   title: { fontSize: 24, fontFamily: F.bold, color: C.text, marginTop: 3 },
-  emptyCard: { margin: 22, marginTop: 30, padding: 30, backgroundColor: C.surface, borderWidth: 1, borderStyle: 'dashed', borderColor: C.primaryBorder, borderRadius: 24, alignItems: 'center' },
+  emptyCard: { margin: 22, marginTop: 30, padding: 30, backgroundColor: C.surface, borderWidth: 1, borderStyle: 'dashed', borderColor: C.dashedBorder, borderRadius: 24, alignItems: 'center' },
   emptyTitle: { fontSize: 19, fontFamily: F.bold, color: C.text, textAlign: 'center', lineHeight: 25 },
   emptyHint: { fontSize: 13, fontFamily: F.regular, color: C.text3, marginTop: 10, textAlign: 'center', lineHeight: 19 },
   summaryCard: {

@@ -1,29 +1,30 @@
-// Light theme — primary blue
+// Light theme — primary forest green
 export const C = {
   // Backgrounds
-  outerBg: '#dfe4ea',
+  outerBg: '#e7e4da',
   bg: '#ffffff',
-  surface: '#f7f9fc',
-  surface2: '#f1f4f8',
-  surface3: '#eef1f5',
+  surface: '#f6f5ef',
+  surface2: '#f0efe8',
+  surface3: '#eef0e9',
 
   // Borders
-  border: '#eaeef3',
-  border2: '#eef1f5',
+  border: '#e9e6dd',
+  border2: '#eef0e9',
+  dashedBorder: '#c4d4b9',
 
   // Text
   text: '#1a1d21',
   text2: '#3a4150',
-  text3: '#8b94a0',
-  text4: '#aeb4bd',
+  text3: '#8a8d82',
+  text4: '#aeaca2',
 
-  // Primary (blue)
-  primary: '#2563eb',
-  primaryLight: '#3b82f6',
-  primaryBg: '#eff4ff',
-  primaryBorder: '#dbe6ff',
-  primaryDim: '#bcd0ff',
-  primaryDim2: '#cfddff',
+  // Primary (forest green)
+  primary: '#2d4a39',
+  primaryLight: '#3f6650',
+  primaryBg: '#eef3e8',
+  primaryBorder: '#dce6d0',
+  primaryDim: '#aebfa4',
+  primaryDim2: '#c2d2b6',
 
   // Semantic
   green: '#16a34a',
