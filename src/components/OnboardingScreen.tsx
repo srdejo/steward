@@ -20,7 +20,7 @@ const STEP_META = [
   { tag: 'Organiza',      title: 'Tus categorías',             subtitle: 'Renómbralas, toca el color para cambiarlo o elimina las que no uses. Podrás ajustarlas luego.' },
   { tag: 'Cuentas',       title: '¿Dónde recibes tu dinero?',  subtitle: 'Cada ingreso entrará a una de estas cuentas. Pon su saldo de hoy para empezar.' },
   { tag: 'Ingresos fijos',title: 'Lo que entra cada mes',      subtitle: 'Defínelos una sola vez —como tu salario— y los repetimos en todos los meses del año.' },
-  { tag: 'Deudas',        title: '¿Tienes deudas?',            subtitle: 'Si las registras, te ayudamos a ver cuánto debes y a priorizar el abono por tasa.' },
+  { tag: 'Créditos',      title: '¿Tienes créditos?',          subtitle: 'Registra tus créditos, define la cuota mensual y la añadimos automáticamente a tus gastos cada mes.' },
 ];
 
 function maskNum(s: string) {
@@ -224,7 +224,7 @@ export function OnboardingScreen() {
           {onboardStep === 5 && (
             <View>
               <View style={{ flexDirection: 'row', gap: 12, marginTop: 4 }}>
-                {[{ val: true, label: 'Sí, registrar', sub: 'Llevar saldo y tasa' }, { val: false, label: 'No tengo', sub: 'Omitir por ahora' }].map((opt) => (
+                {[{ val: true, label: 'Sí, registrar', sub: 'Cuota, saldo y tasa' }, { val: false, label: 'No tengo', sub: 'Omitir por ahora' }].map((opt) => (
                   <TouchableOpacity
                     key={String(opt.val)}
                     style={[s.debtChoice, draft.hasDebts === opt.val && s.debtChoiceActive]}
@@ -266,7 +266,19 @@ export function OnboardingScreen() {
                             returnKeyType="next"
                           />
                         </View>
-                        <View style={{ width: 108 }}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={s.incLabel}>Cuota mensual</Text>
+                          <TextInput
+                            style={s.incInput}
+                            value={maskNum(d.cuota)}
+                            onChangeText={(t) => dispatch({ type: 'ONBOARD_SET_DEBT', id: d.id, patch: { cuota: stripNum(t) } })}
+                            placeholder="0"
+                            placeholderTextColor={C.text4}
+                            keyboardType="numeric"
+                            returnKeyType="next"
+                          />
+                        </View>
+                        <View style={{ width: 90 }}>
                           <Text style={s.incLabel}>Tasa E.A. %</Text>
                           <TextInput
                             style={s.incInput}
@@ -282,10 +294,10 @@ export function OnboardingScreen() {
                     </View>
                   ))}
                   <TouchableOpacity style={s.addDashed} onPress={() => dispatch({ type: 'ONBOARD_ADD_DEBT' })} activeOpacity={0.7}>
-                    <Text style={s.addDashedText}>+ Otra deuda</Text>
+                    <Text style={s.addDashedText}>+ Otro crédito</Text>
                   </TouchableOpacity>
                   <View style={s.debtNote}>
-                    <Text style={s.debtNoteText}>Ordenaremos tus deudas por tasa para que cada abono extra vaya primero a la más cara.</Text>
+                    <Text style={s.debtNoteText}>La cuota mensual aparecerá automáticamente en tus gastos cada mes. Ordenamos por tasa para priorizar el abono al más caro.</Text>
                   </View>
                 </View>
               )}

@@ -28,6 +28,7 @@ export interface DraftDebt {
   name: string;
   saldo: string;
   tasa: string;
+  cuota: string;
 }
 
 export interface UserProfile {
@@ -61,6 +62,7 @@ export interface Gasto {
   paid: boolean;
   source?: string;
   sourceName?: string;
+  debtId?: string;
 }
 
 export interface Income {
@@ -106,6 +108,7 @@ export interface Debt {
   name: string;
   saldo: number;
   tasa: number;
+  cuota?: number;
 }
 
 export interface SheetState {
@@ -116,6 +119,7 @@ export interface SheetState {
   name?: string;
   a1?: string;
   a2?: string;
+  a3?: string;
   type?: 'transfer' | 'retiro';
   from?: string;
   to?: string;

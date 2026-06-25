@@ -30,7 +30,7 @@ export default function DeudasScreen() {
         <SafeAreaView edges={['top']}>
           <View style={s.topPad}>
             <Text style={s.eyebrow}>Abono a capital</Text>
-            <Text style={s.title}>Deudas pendientes</Text>
+            <Text style={s.title}>Créditos activos</Text>
           </View>
         </SafeAreaView>
 
@@ -38,7 +38,7 @@ export default function DeudasScreen() {
         <View style={s.summaryCard}>
           <Text style={s.summaryLabel}>Total que debo</Text>
           <Text style={s.summaryAmount}>{fmt(totalDebt)}</Text>
-          <Text style={s.summaryMeta}>{activeDebts.length} deuda{activeDebts.length !== 1 ? 's' : ''} activa{activeDebts.length !== 1 ? 's' : ''}</Text>
+          <Text style={s.summaryMeta}>{activeDebts.length} crédito{activeDebts.length !== 1 ? 's' : ''} activo{activeDebts.length !== 1 ? 's' : ''}</Text>
         </View>
 
         {/* Priority hint */}
@@ -66,7 +66,7 @@ export default function DeudasScreen() {
                 </TouchableOpacity>
               </View>
             </View>
-            <TouchableOpacity onPress={() => dispatch({ type: 'OPEN_SHEET', sheet: { kind: 'deuda', mode: 'add', name: '', a1: '', a2: '' } })} activeOpacity={0.7}>
+            <TouchableOpacity onPress={() => dispatch({ type: 'OPEN_SHEET', sheet: { kind: 'deuda', mode: 'add', name: '', a1: '', a2: '', a3: '' } })} activeOpacity={0.7}>
               <Text style={s.addBtn}>+ Agregar</Text>
             </TouchableOpacity>
           </View>
@@ -77,7 +77,7 @@ export default function DeudasScreen() {
               <TouchableOpacity
                 key={d.id}
                 style={[s.debtCard, isPrio && s.debtCardPrio]}
-                onPress={() => dispatch({ type: 'OPEN_SHEET', sheet: { kind: 'deuda', mode: 'edit', id: d.id, name: d.name, a1: String(d.saldo), a2: String(d.tasa) } })}
+                onPress={() => dispatch({ type: 'OPEN_SHEET', sheet: { kind: 'deuda', mode: 'edit', id: d.id, name: d.name, a1: String(d.saldo), a2: String(d.tasa), a3: String(d.cuota ?? '') } })}
                 activeOpacity={0.7}>
                 <View style={s.debtTop}>
                   <View style={{ flex: 1 }}>
@@ -88,13 +88,16 @@ export default function DeudasScreen() {
                     <Text style={[s.rateText, { color: rateColor(d.tasa) }]}>{d.tasa.toFixed(2)}% E.A.</Text>
                   </View>
                 </View>
-                <Text style={s.debtSaldo}>{fmt(d.saldo)}</Text>
+                <View style={s.debtBottom}>
+                  <Text style={s.debtSaldo}>{fmt(d.saldo)}</Text>
+                  {d.cuota ? <Text style={s.debtCuota}>{fmt(d.cuota)}/mes</Text> : null}
+                </View>
               </TouchableOpacity>
             );
           })}
 
           <View style={s.note}>
-            <Text style={s.noteText}>Toca cualquier deuda para actualizar su saldo o tasa a mano. Ordénalas por tasa para saber dónde rinde más cada abono extra.</Text>
+            <Text style={s.noteText}>Toca cualquier crédito para actualizar su saldo, cuota o tasa. La cuota mensual aparece automáticamente en tus gastos del mes. Ordénalos por tasa para saber dónde rinde más cada abono extra.</Text>
           </View>
         </View>
       </ScrollView>
@@ -137,7 +140,9 @@ const s = StyleSheet.create({
   prioLabel: { fontSize: 9, fontFamily: F.bold, letterSpacing: 1, textTransform: 'uppercase', color: C.primary, marginTop: 5 },
   rateBadge: { paddingHorizontal: 9, paddingVertical: 6, borderRadius: 8, flexShrink: 0 },
   rateText: { fontSize: 11, fontFamily: F.monoBold },
-  debtSaldo: { fontSize: 19, fontFamily: F.monoBold, color: C.text, marginTop: 13 },
+  debtBottom: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 13 },
+  debtSaldo: { fontSize: 19, fontFamily: F.monoBold, color: C.text },
+  debtCuota: { fontSize: 12, fontFamily: F.medium, color: C.text3 },
   note: { marginTop: 18, padding: 14, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, borderRadius: 14 },
   noteText: { fontSize: 12, fontFamily: F.regular, color: C.text3, lineHeight: 18 },
 });

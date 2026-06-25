@@ -55,7 +55,7 @@ export default function AppTabs() {
       <Tabs.Screen
         name="deudas"
         options={{
-          title: 'Deudas',
+          title: 'Créditos',
           tabBarIcon: ({ focused }) => tabIcon('business-outline', focused),
         }}
       />

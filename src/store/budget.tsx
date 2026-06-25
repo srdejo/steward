@@ -190,6 +190,29 @@ function realOf(g: Gasto) {
   return g.real != null ? g.real : g.amount;
 }
 
+function syncCreditGastos(state: BudgetState): BudgetState {
+  const b = curBudget(state);
+  if (!b) return state;
+  const manual = b.gastos.filter((g) => !g.debtId);
+  const existingAuto: Record<string, Gasto> = {};
+  b.gastos.forEach((g) => { if (g.debtId) existingAuto[g.debtId] = g; });
+  const creditGastos: Gasto[] = state.debts
+    .filter((d) => d.cuota && d.cuota > 0)
+    .map((d) => {
+      const prev = existingAuto[d.id];
+      return {
+        id: prev?.id ?? ('auto_' + d.id),
+        cat: 'cred' as Category,
+        name: d.name,
+        amount: d.cuota!,
+        paid: prev?.paid ?? false,
+        debtId: d.id,
+        ...(prev?.source ? { source: prev.source, sourceName: prev.sourceName, real: prev.real } : {}),
+      };
+    });
+  return patchBudget(state, { gastos: [...manual, ...creditGastos] });
+}
+
 function parseNum(s: string | undefined) {
   return parseInt(String(s ?? '').replace(/[^0-9]/g, ''), 10) || 0;
 }
@@ -296,13 +319,13 @@ function reducer(state: BudgetState, action: Action): BudgetState {
 
     case 'ONBOARD_SET_HAS_DEBTS': {
       const debts = action.value && state.draft.debts.length === 0
-        ? [{ id: 'dd' + Date.now(), name: '', saldo: '', tasa: '' }]
+        ? [{ id: 'dd' + Date.now(), name: '', saldo: '', tasa: '', cuota: '' }]
         : state.draft.debts;
       return { ...state, draft: { ...state.draft, hasDebts: action.value, debts } };
     }
 
     case 'ONBOARD_ADD_DEBT': {
-      const newDebt: DraftDebt = { id: 'dd' + Date.now(), name: '', saldo: '', tasa: '' };
+      const newDebt: DraftDebt = { id: 'dd' + Date.now(), name: '', saldo: '', tasa: '', cuota: '' };
       return { ...state, draft: { ...state.draft, debts: [...state.draft.debts, newDebt] } };
     }
 
@@ -327,7 +350,10 @@ function reducer(state: BudgetState, action: Action): BudgetState {
       // Convertir debts del draft → Debt[]
       const debts: Debt[] = (d.hasDebts ? d.debts : [])
         .filter((x) => x.name.trim() || parseNum(x.saldo))
-        .map((x) => ({ id: x.id, name: x.name.trim() || 'Deuda', saldo: parseNum(x.saldo), tasa: parseRate(x.tasa) }));
+        .map((x) => {
+          const cuota = parseNum(x.cuota);
+          return { id: x.id, name: x.name.trim() || 'Crédito', saldo: parseNum(x.saldo), tasa: parseRate(x.tasa), ...(cuota > 0 ? { cuota } : {}) };
+        });
 
       // Convertir ingresos recurrentes → incomes del mes actual
       const incomes: Income[] = d.incomes
@@ -355,7 +381,7 @@ function reducer(state: BudgetState, action: Action): BudgetState {
         movimientos: [],
       };
 
-      return {
+      const afterOnboard: BudgetState = {
         ...state,
         onboarded: true,
         onboardStep: 0,
@@ -364,6 +390,7 @@ function reducer(state: BudgetState, action: Action): BudgetState {
         budgets: { ...state.budgets, [m]: monthBudget },
         draft: DEFAULT_DRAFT,
       };
+      return syncCreditGastos(afterOnboard);
     }
 
     case 'PREV_MONTH':
@@ -382,19 +409,22 @@ function reducer(state: BudgetState, action: Action): BudgetState {
       });
       const incomes = prev.incomes.map((i) => ({ ...i, recibido: false, diezmoPaid: false }));
       const accounts = prevAccountsTemplate(state);
-      return patchBudget(state, {
+      const afterCopy = patchBudget(state, {
         exists: true, diezmoMode: prev.diezmoMode, diezmoGrupoPaid: false,
         gastos, incomes, accounts, movimientos: [],
       });
+      return syncCreditGastos(afterCopy);
     }
 
-    case 'START_EMPTY':
-      return patchBudget(state, {
+    case 'START_EMPTY': {
+      const afterEmpty = patchBudget(state, {
         exists: true, diezmoMode: 'separado', diezmoGrupoPaid: false,
         gastos: [], incomes: [],
         accounts: prevAccountsTemplate(state),
         movimientos: [],
       });
+      return syncCreditGastos(afterEmpty);
+    }
 
     case 'SET_DIEZMO_MODE':
       return patchBudget(state, { diezmoMode: action.mode });
@@ -545,13 +575,17 @@ function reducer(state: BudgetState, action: Action): BudgetState {
       }
 
       if (sh.kind === 'deuda') {
-        const name = sh.name?.trim() || 'Deuda';
+        const name = sh.name?.trim() || 'Crédito';
         const tasa = parseRate(sh.a2);
+        const cuota = parseNum(sh.a3);
+        let next: BudgetState;
         if (sh.mode === 'add') {
-          return { ...state, debts: [...state.debts, { id: 'd' + Date.now(), name, saldo: a1, tasa }], sheet: null };
+          const debt: Debt = { id: 'd' + Date.now(), name, saldo: a1, tasa, ...(cuota > 0 ? { cuota } : {}) };
+          next = { ...state, debts: [...state.debts, debt], sheet: null };
         } else {
-          return { ...state, debts: state.debts.map((d) => d.id === sh.id ? { ...d, name, saldo: a1, tasa } : d), sheet: null };
+          next = { ...state, debts: state.debts.map((d) => d.id === sh.id ? { ...d, name, saldo: a1, tasa, cuota: cuota > 0 ? cuota : undefined } : d), sheet: null };
         }
+        return syncCreditGastos(next);
       }
 
       if (sh.kind === 'mov') {
@@ -570,7 +604,10 @@ function reducer(state: BudgetState, action: Action): BudgetState {
       if (sh.kind === 'gasto') return { ...setGastos(state, (gs) => gs.filter((g) => g.id !== sh.id)), sheet: null };
       if (sh.kind === 'income') return { ...setIncomes(state, (is) => is.filter((i) => i.id !== sh.id)), sheet: null };
       if (sh.kind === 'cuenta') return { ...setAccounts(state, (as) => as.filter((a) => a.id !== sh.id)), sheet: null };
-      if (sh.kind === 'deuda') return { ...state, debts: state.debts.filter((d) => d.id !== sh.id), sheet: null };
+      if (sh.kind === 'deuda') {
+        const afterDel = { ...state, debts: state.debts.filter((d) => d.id !== sh.id), sheet: null };
+        return syncCreditGastos(afterDel);
+      }
       return { ...state, sheet: null };
     }
 

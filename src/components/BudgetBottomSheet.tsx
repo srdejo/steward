@@ -77,7 +77,7 @@ export function BudgetBottomSheet() {
       case 'gasto': return isEdit ? 'Editar gasto' : 'Nuevo gasto';
       case 'income': return isEdit ? 'Editar ingreso' : 'Nuevo ingreso';
       case 'cuenta': return isEdit ? 'Editar cuenta' : 'Nueva cuenta';
-      case 'deuda': return isEdit ? 'Editar deuda' : 'Nueva deuda';
+      case 'deuda': return isEdit ? 'Editar crédito' : 'Nuevo crédito';
       case 'mov': return activeSheet.type === 'transfer' ? 'Mover dinero' : 'Retirar dinero';
       default: return '';
     }
@@ -252,7 +252,7 @@ export function BudgetBottomSheet() {
               {activeSheet.kind !== 'mov' && (
                 <>
                   <Text style={s.fieldLabel}>
-                    {activeSheet.kind === 'cuenta' ? 'Nombre de la cuenta' : activeSheet.kind === 'deuda' ? 'Nombre de la deuda' : activeSheet.kind === 'income' ? 'Fuente de ingreso' : 'Nombre del gasto'}
+                    {activeSheet.kind === 'cuenta' ? 'Nombre de la cuenta' : activeSheet.kind === 'deuda' ? 'Nombre del crédito' : activeSheet.kind === 'income' ? 'Fuente de ingreso' : 'Nombre del gasto'}
                   </Text>
                   <TextInput
                     style={s.input}
@@ -380,6 +380,21 @@ export function BudgetBottomSheet() {
                   </View>
                 )}
               </View>
+
+              {activeSheet.kind === 'deuda' && (
+                <>
+                  <Text style={s.fieldLabel}>Cuota mensual</Text>
+                  <TextInput
+                    style={s.inputMono}
+                    value={maskMoney(activeSheet.a3 ?? '')}
+                    onChangeText={(t) => dispatch({ type: 'SET_SHEET', patch: { a3: stripMoney(t) } })}
+                    placeholder="0"
+                    placeholderTextColor={C.text4}
+                    keyboardType="numeric"
+                    returnKeyType="done"
+                  />
+                </>
+              )}
 
               <View style={s.actionRow}>
                 {showDelete && (
