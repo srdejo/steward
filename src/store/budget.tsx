@@ -43,6 +43,15 @@ function generateMonths(): string[] {
 export const MONTHS = generateMonths();
 export const CURRENT_IDX = 3;
 
+export function daysUntilDue(monthName: string, venceDia: number): number {
+  const [name, yearStr] = monthName.split(' ');
+  const monthIdx = MONTH_NAMES_ES.indexOf(name);
+  const due = new Date(Number(yearStr), monthIdx, venceDia);
+  const today = new Date();
+  const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  return Math.round((due.getTime() - todayMidnight.getTime()) / 86400000);
+}
+
 // ---- Estado ----
 
 const ACCOUNT_COLORS = ['#34d399', '#ef6a6a', '#b794f6', '#6aa6f6', '#f0c040', '#5aa6a4'];

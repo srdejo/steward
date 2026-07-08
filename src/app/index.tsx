@@ -5,6 +5,7 @@ import { BudgetBottomSheet } from '@/components/BudgetBottomSheet';
 import { ExpenseRow } from '@/components/ExpenseRow';
 import { SectionHeader } from '@/components/SectionHeader';
 import {
+  daysUntilDue,
   diezmoEntries,
   fmt,
   MONTHS,
@@ -44,12 +45,10 @@ export default function MesScreen() {
   // dueWatch: upcoming/overdue payments with venceDia
   const dueWatch = (() => {
     if (!budget?.exists) return null;
-    const today = new Date();
-    const day = today.getDate();
     const items: { name: string; daysLeft: number; overdue: boolean; text: string }[] = [];
     budget.gastos.forEach((g) => {
       if (!g.paid && g.venceDia) {
-        const daysLeft = g.venceDia - day;
+        const daysLeft = daysUntilDue(monthName, g.venceDia);
         if (daysLeft <= 5) {
           const text = daysLeft < 0 ? `Venció hace ${-daysLeft} día${-daysLeft === 1 ? '' : 's'}` : daysLeft === 0 ? 'Vence hoy' : `Vence en ${daysLeft} día${daysLeft === 1 ? '' : 's'}`;
           items.push({ name: g.name, daysLeft, overdue: daysLeft < 0, text });
@@ -60,7 +59,7 @@ export default function MesScreen() {
       if (d.cuota && d.venceDia) {
         const paid = budget.gastos.find((g) => g.debtId === d.id && g.paid);
         if (!paid) {
-          const daysLeft = d.venceDia - day;
+          const daysLeft = daysUntilDue(monthName, d.venceDia);
           if (daysLeft <= 5) {
             const text = daysLeft < 0 ? `Venció hace ${-daysLeft} día${-daysLeft === 1 ? '' : 's'}` : daysLeft === 0 ? 'Vence hoy' : `Vence en ${daysLeft} día${daysLeft === 1 ? '' : 's'}`;
             items.push({ name: d.name, daysLeft, overdue: daysLeft < 0, text });
@@ -81,8 +80,7 @@ export default function MesScreen() {
     let sub = '';
     let subColor: string = C.text3;
     if (!paid && g.venceDia) {
-      const today = new Date();
-      const daysLeft = g.venceDia - today.getDate();
+      const daysLeft = daysUntilDue(monthName, g.venceDia);
       if (daysLeft < 0) { sub = `Venció el día ${g.venceDia}`; subColor = C.red; }
       else if (daysLeft === 0) { sub = 'Vence hoy'; subColor = C.red; }
       else if (daysLeft <= 5) { sub = `Vence en ${daysLeft} día${daysLeft === 1 ? '' : 's'}`; subColor = C.orange; }
