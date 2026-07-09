@@ -15,6 +15,7 @@ import {
 } from '@expo-google-fonts/roboto-mono';
 import { Lora_700Bold } from '@expo-google-fonts/lora';
 import { StatusBar } from 'expo-status-bar';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import AppTabs from '@/components/app-tabs';
 import { OnboardingScreen } from '@/components/OnboardingScreen';
@@ -64,11 +65,13 @@ export default function RootLayout() {
   if (!fontsLoaded) return null;
 
   return (
-    <BudgetProvider>
-      <View style={{ flex: 1, backgroundColor: C.bg }}>
-        <StatusBar style="dark" />
-        <AppContent />
-      </View>
-    </BudgetProvider>
+    <SafeAreaProvider>
+      <BudgetProvider>
+        <View style={{ flex: 1, backgroundColor: C.bg }}>
+          <StatusBar style="dark" />
+          <AppContent />
+        </View>
+      </BudgetProvider>
+    </SafeAreaProvider>
   );
 }
