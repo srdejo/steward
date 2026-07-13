@@ -1,6 +1,6 @@
 import { C, F } from '@/constants/colors';
-import { ACCT_PALETTE, selectCurrentBudget, useBudget } from '@/store/budget';
-import type { CategoryDef } from '@/types';
+import { ACCT_PALETTE, CURRENCIES, fmt, selectCurrentBudget, useBudget } from '@/store/budget';
+import type { CategoryDef, Currency } from '@/types';
 import { useEffect, useRef } from 'react';
 import {
   Animated,
@@ -17,10 +17,10 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-function maskMoney(raw: string): string {
+function maskMoney(raw: string, locale: string): string {
   const digits = raw.replace(/[^0-9]/g, '');
   if (!digits) return '';
-  return parseInt(digits, 10).toLocaleString('es-CO');
+  return parseInt(digits, 10).toLocaleString(locale);
 }
 
 function stripMoney(formatted: string): string {
@@ -40,6 +40,7 @@ export function BudgetBottomSheet() {
   const { sheet } = state;
   const accounts = selectCurrentBudget(state)?.accounts ?? [];
   const cats = state.profile?.cats?.length ? state.profile.cats : FALLBACK_CATS;
+  const locale = CURRENCIES[state.profile.currency].locale;
   const insets = useSafeAreaInsets();
   const slideAnim = useRef(new Animated.Value(400)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -128,7 +129,7 @@ export function BudgetBottomSheet() {
 
               <View style={s.payBudgetRow}>
                 <Text style={s.payBudgetKey}>Presupuestado</Text>
-                <Text style={s.payBudgetVal}>{'$' + Math.round(activeSheet.payBudgeted ?? 0).toLocaleString('es-CO')}</Text>
+                <Text style={s.payBudgetVal}>{fmt(activeSheet.payBudgeted ?? 0)}</Text>
               </View>
 
               <Text style={s.fieldLabel}>¿Cuánto pagaste?</Text>
@@ -144,7 +145,7 @@ export function BudgetBottomSheet() {
               {activeSheet.payMode === 'otro' && (
                 <TextInput
                   style={[s.inputMono, { marginBottom: 16, borderColor: C.primaryBorder }]}
-                  value={maskMoney(activeSheet.payAmt ?? '')}
+                  value={maskMoney(activeSheet.payAmt ?? '', locale)}
                   onChangeText={(t) => dispatch({ type: 'SET_SHEET', patch: { payAmt: stripMoney(t) } })}
                   placeholder="0"
                   placeholderTextColor={C.text4}
@@ -196,6 +197,23 @@ export function BudgetBottomSheet() {
                     {state.draft.diezmar ? 'Sí' : 'No'}
                   </Text>
                 </TouchableOpacity>
+              </View>
+
+              <Text style={s.fieldLabel}>Moneda</Text>
+              <View style={s.currencyGrid}>
+                {(Object.keys(CURRENCIES) as Currency[]).map((code) => {
+                  const active = state.draft.currency === code;
+                  return (
+                    <TouchableOpacity
+                      key={code}
+                      style={[s.currencyChip, active && s.currencyChipActive]}
+                      onPress={() => dispatch({ type: 'ONBOARD_SET_CURRENCY', currency: code })}
+                      activeOpacity={0.7}>
+                      <Text style={[s.currencyChipCode, active && s.currencyChipCodeActive]}>{code}</Text>
+                      <Text style={[s.currencyChipLabel, active && s.currencyChipLabelActive]}>{CURRENCIES[code].label}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
 
               <Text style={s.fieldLabel}>Categorías</Text>
@@ -357,7 +375,7 @@ export function BudgetBottomSheet() {
                   <Text style={s.fieldLabel}>{a1Label()}</Text>
                   <TextInput
                     style={s.inputMono}
-                    value={maskMoney(activeSheet.a1 ?? '')}
+                    value={maskMoney(activeSheet.a1 ?? '', locale)}
                     onChangeText={(t) => dispatch({ type: 'SET_SHEET', patch: { a1: stripMoney(t) } })}
                     placeholder="0"
                     placeholderTextColor={C.text4}
@@ -370,7 +388,7 @@ export function BudgetBottomSheet() {
                     <Text style={s.fieldLabel}>{a2Label()}</Text>
                     <TextInput
                       style={s.inputMono}
-                      value={activeSheet.kind === 'deuda' ? (activeSheet.a2 ?? '') : maskMoney(activeSheet.a2 ?? '')}
+                      value={activeSheet.kind === 'deuda' ? (activeSheet.a2 ?? '') : maskMoney(activeSheet.a2 ?? '', locale)}
                       onChangeText={(t) => dispatch({ type: 'SET_SHEET', patch: { a2: activeSheet.kind === 'deuda' ? t : stripMoney(t) } })}
                       placeholder={activeSheet.kind === 'deuda' ? '0,00' : '0'}
                       placeholderTextColor={C.text4}
@@ -386,7 +404,7 @@ export function BudgetBottomSheet() {
                   <Text style={s.fieldLabel}>Cuota mensual</Text>
                   <TextInput
                     style={s.inputMono}
-                    value={maskMoney(activeSheet.a3 ?? '')}
+                    value={maskMoney(activeSheet.a3 ?? '', locale)}
                     onChangeText={(t) => dispatch({ type: 'SET_SHEET', patch: { a3: stripMoney(t) } })}
                     placeholder="0"
                     placeholderTextColor={C.text4}
@@ -434,8 +452,6 @@ export function BudgetBottomSheet() {
     </View>
   );
 }
-
-function fmt(n: number) { return '$' + Math.round(n || 0).toLocaleString('es-CO'); }
 
 const s = StyleSheet.create({
   kvWrap: { flex: 1, justifyContent: 'flex-end' },
@@ -497,6 +513,13 @@ const s = StyleSheet.create({
   diezmoTogglePillText: { fontSize: 13, fontFamily: F.bold },
   diezmoTogglePillTextOn: { color: '#fff' },
   diezmoTogglePillTextOff: { color: C.text3 },
+  currencyGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  currencyChip: { paddingHorizontal: 12, paddingVertical: 9, borderRadius: 12, borderWidth: 1, borderColor: C.border, backgroundColor: C.surface, minWidth: '30%' },
+  currencyChipActive: { borderColor: C.primaryBorder, backgroundColor: C.primaryBg },
+  currencyChipCode: { fontSize: 12, fontFamily: F.bold, color: C.text },
+  currencyChipCodeActive: { color: C.primary },
+  currencyChipLabel: { fontSize: 10, fontFamily: F.regular, color: C.text3, marginTop: 2 },
+  currencyChipLabelActive: { color: C.primary },
   profileCatRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, borderRadius: 12, marginBottom: 8 },
   profileCatColor: { width: 20, height: 20, borderRadius: 10, flexShrink: 0 },
   profileCatInput: { flex: 1, fontSize: 14, fontFamily: F.medium, color: C.text, padding: 0 },

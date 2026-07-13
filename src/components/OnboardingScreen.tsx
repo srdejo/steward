@@ -1,5 +1,6 @@
 import { C, F } from '@/constants/colors';
-import { useBudget } from '@/store/budget';
+import { CURRENCIES, useBudget } from '@/store/budget';
+import type { Currency } from '@/types';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -23,16 +24,17 @@ const STEP_META = [
   { tag: 'Deudas',        title: '¿Tienes créditos?',            subtitle: 'Si las registras, te ayudamos a ver cuánto debes y a priorizar el abono por tasa.' },
 ];
 
-function maskNum(s: string) {
+function maskNum(s: string, locale: string) {
   const digits = s.replace(/[^0-9]/g, '');
   if (!digits) return '';
-  return parseInt(digits, 10).toLocaleString('es-CO');
+  return parseInt(digits, 10).toLocaleString(locale);
 }
 function stripNum(s: string) { return s.replace(/[^0-9]/g, ''); }
 
 export function OnboardingScreen() {
   const { state, dispatch } = useBudget();
   const { onboardStep, draft } = state;
+  const locale = CURRENCIES[draft.currency].locale;
 
   const isLast = onboardStep === TOTAL_STEPS - 1;
   const canBack = onboardStep > 0;
@@ -65,16 +67,35 @@ export function OnboardingScreen() {
 
           {/* ─── Paso 0: Nombre ─── */}
           {onboardStep === 0 && (
-            <TextInput
-              style={s.nameInput}
-              value={draft.name}
-              onChangeText={(t) => dispatch({ type: 'ONBOARD_SET_NAME', name: t })}
-              placeholder="Tu nombre"
-              placeholderTextColor={C.text4}
-              autoFocus
-              returnKeyType="done"
-              onSubmitEditing={handlePrimary}
-            />
+            <View>
+              <TextInput
+                style={s.nameInput}
+                value={draft.name}
+                onChangeText={(t) => dispatch({ type: 'ONBOARD_SET_NAME', name: t })}
+                placeholder="Tu nombre"
+                placeholderTextColor={C.text4}
+                autoFocus
+                returnKeyType="done"
+                onSubmitEditing={handlePrimary}
+              />
+
+              <Text style={s.currencyLabel}>¿En qué moneda llevas tu presupuesto?</Text>
+              <View style={s.currencyGrid}>
+                {(Object.keys(CURRENCIES) as Currency[]).map((code) => {
+                  const active = draft.currency === code;
+                  return (
+                    <TouchableOpacity
+                      key={code}
+                      style={[s.currencyChip, active && s.currencyChipActive]}
+                      onPress={() => dispatch({ type: 'ONBOARD_SET_CURRENCY', currency: code })}
+                      activeOpacity={0.7}>
+                      <Text style={[s.currencyChipCode, active && s.currencyChipCodeActive]}>{code}</Text>
+                      <Text style={[s.currencyChipLabel, active && s.currencyChipLabelActive]}>{CURRENCIES[code].label}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
           )}
 
           {/* ─── Paso 1: Diezmo ─── */}
@@ -132,7 +153,7 @@ export function OnboardingScreen() {
                   />
                   <TextInput
                     style={s.acctSaldoInput}
-                    value={maskNum(a.saldo)}
+                    value={maskNum(a.saldo, locale)}
                     onChangeText={(t) => dispatch({ type: 'ONBOARD_SET_ACCOUNT', id: a.id, patch: { saldo: stripNum(t) } })}
                     placeholder="0"
                     placeholderTextColor={C.text4}
@@ -173,7 +194,7 @@ export function OnboardingScreen() {
                       <Text style={s.incLabel}>Bruto</Text>
                       <TextInput
                         style={s.incInput}
-                        value={maskNum(inc.bruto)}
+                        value={maskNum(inc.bruto, locale)}
                         onChangeText={(t) => dispatch({ type: 'ONBOARD_SET_INCOME', id: inc.id, patch: { bruto: stripNum(t) } })}
                         placeholder="0"
                         placeholderTextColor={C.text4}
@@ -185,7 +206,7 @@ export function OnboardingScreen() {
                       <Text style={s.incLabel}>Entra (neto)</Text>
                       <TextInput
                         style={s.incInput}
-                        value={maskNum(inc.neto)}
+                        value={maskNum(inc.neto, locale)}
                         onChangeText={(t) => dispatch({ type: 'ONBOARD_SET_INCOME', id: inc.id, patch: { neto: stripNum(t) } })}
                         placeholder="0"
                         placeholderTextColor={C.text4}
@@ -257,7 +278,7 @@ export function OnboardingScreen() {
                         <Text style={s.incLabel}>Saldo que debo</Text>
                         <TextInput
                           style={s.incInput}
-                          value={maskNum(d.saldo)}
+                          value={maskNum(d.saldo, locale)}
                           onChangeText={(t) => dispatch({ type: 'ONBOARD_SET_DEBT', id: d.id, patch: { saldo: stripNum(t) } })}
                           placeholder="0"
                           placeholderTextColor={C.text4}
@@ -270,7 +291,7 @@ export function OnboardingScreen() {
                           <Text style={s.incLabel}>Cuota mensual</Text>
                           <TextInput
                             style={s.incInput}
-                            value={maskNum(d.cuota)}
+                            value={maskNum(d.cuota, locale)}
                             onChangeText={(t) => dispatch({ type: 'ONBOARD_SET_DEBT', id: d.id, patch: { cuota: stripNum(t) } })}
                             placeholder="0"
                             placeholderTextColor={C.text4}
@@ -354,6 +375,14 @@ const s = StyleSheet.create({
 
   // Paso 0
   nameInput: { fontSize: 18, fontFamily: F.medium, color: C.text, backgroundColor: C.surface, borderWidth: 1.5, borderColor: C.primaryBorder, borderRadius: 14, padding: 16 },
+  currencyLabel: { fontSize: 10, fontFamily: F.bold, letterSpacing: 1.2, textTransform: 'uppercase', color: C.text3, marginTop: 24, marginBottom: 10 },
+  currencyGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  currencyChip: { paddingHorizontal: 12, paddingVertical: 9, borderRadius: 12, borderWidth: 1, borderColor: C.border, backgroundColor: C.surface, minWidth: '30%' },
+  currencyChipActive: { borderColor: C.primary, backgroundColor: C.primaryBg },
+  currencyChipCode: { fontSize: 12, fontFamily: F.bold, color: C.text },
+  currencyChipCodeActive: { color: C.primary },
+  currencyChipLabel: { fontSize: 10, fontFamily: F.regular, color: C.text3, marginTop: 2 },
+  currencyChipLabelActive: { color: C.primary },
 
   // Paso 1
   diezmoCards: { gap: 12 },

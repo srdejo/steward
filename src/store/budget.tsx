@@ -4,6 +4,7 @@ import type {
   Account,
   Category,
   CategoryDef,
+  Currency,
   Debt,
   DebtSort,
   DiezmoMode,
@@ -67,7 +68,20 @@ export const DEFAULT_CATS: CategoryDef[] = [
   { id: 'cat_var', key: 'var', label: 'Variables', color: '#8b94a0' },
 ];
 
-const DEFAULT_PROFILE: UserProfile = { name: 'Yo', diezmar: true, cats: DEFAULT_CATS };
+export const CURRENCIES: Record<Currency, { label: string; symbol: string; locale: string }> = {
+  COP: { label: 'Peso colombiano', symbol: '$', locale: 'es-CO' },
+  USD: { label: 'Dólar estadounidense', symbol: '$', locale: 'en-US' },
+  MXN: { label: 'Peso mexicano', symbol: '$', locale: 'es-MX' },
+  ARS: { label: 'Peso argentino', symbol: '$', locale: 'es-AR' },
+  CLP: { label: 'Peso chileno', symbol: '$', locale: 'es-CL' },
+  PEN: { label: 'Sol peruano', symbol: 'S/', locale: 'es-PE' },
+  BRL: { label: 'Real brasileño', symbol: 'R$', locale: 'pt-BR' },
+  EUR: { label: 'Euro', symbol: '€', locale: 'es-ES' },
+};
+
+const DEFAULT_CURRENCY: Currency = 'COP';
+
+const DEFAULT_PROFILE: UserProfile = { name: 'Yo', diezmar: true, cats: DEFAULT_CATS, currency: DEFAULT_CURRENCY };
 
 const DEFAULT_DRAFT: OnboardDraft = {
   name: '',
@@ -77,6 +91,7 @@ const DEFAULT_DRAFT: OnboardDraft = {
   incomes: [],
   hasDebts: null,
   debts: [],
+  currency: DEFAULT_CURRENCY,
 };
 
 export interface BudgetState {
@@ -98,6 +113,7 @@ type Action =
   | { type: 'ONBOARD_BACK' }
   | { type: 'ONBOARD_SET_NAME'; name: string }
   | { type: 'ONBOARD_SET_DIEZMAR'; diezmar: boolean }
+  | { type: 'ONBOARD_SET_CURRENCY'; currency: Currency }
   | { type: 'ONBOARD_ADD_CAT' }
   | { type: 'ONBOARD_REMOVE_CAT'; id: string }
   | { type: 'ONBOARD_SET_CAT_LABEL'; id: string; label: string }
@@ -243,7 +259,15 @@ function prevAccountsTemplate(state: BudgetState): Account[] {
 function reducer(state: BudgetState, action: Action): BudgetState {
   switch (action.type) {
     case 'RESTORE':
-      return { ...INITIAL_STATE, ...action.payload, curIdx: CURRENT_IDX, sheet: null, onboardStep: 0, draft: DEFAULT_DRAFT };
+      return {
+        ...INITIAL_STATE,
+        ...action.payload,
+        profile: { ...DEFAULT_PROFILE, ...action.payload.profile },
+        curIdx: CURRENT_IDX,
+        sheet: null,
+        onboardStep: 0,
+        draft: DEFAULT_DRAFT,
+      };
 
     case 'ONBOARD_NEXT':
       return { ...state, onboardStep: Math.min(5, state.onboardStep + 1) };
@@ -256,6 +280,9 @@ function reducer(state: BudgetState, action: Action): BudgetState {
 
     case 'ONBOARD_SET_DIEZMAR':
       return { ...state, draft: { ...state.draft, diezmar: action.diezmar } };
+
+    case 'ONBOARD_SET_CURRENCY':
+      return { ...state, draft: { ...state.draft, currency: action.currency } };
 
     case 'ONBOARD_ADD_CAT': {
       const color = CAT_PALETTE[state.draft.cats.length % CAT_PALETTE.length];
@@ -284,13 +311,14 @@ function reducer(state: BudgetState, action: Action): BudgetState {
     }
 
     case 'PROFILE_OPEN':
-      return { ...state, draft: { ...DEFAULT_DRAFT, name: state.profile.name, diezmar: state.profile.diezmar, cats: [...state.profile.cats] }, sheet: { kind: 'profile' } };
+      return { ...state, draft: { ...DEFAULT_DRAFT, name: state.profile.name, diezmar: state.profile.diezmar, cats: [...state.profile.cats], currency: state.profile.currency }, sheet: { kind: 'profile' } };
 
     case 'PROFILE_SAVE': {
       const name = state.draft.name.trim() || state.profile.name;
       const diezmar = state.draft.diezmar !== null ? state.draft.diezmar : state.profile.diezmar;
       const cats = state.draft.cats.length ? state.draft.cats : state.profile.cats;
-      return { ...state, profile: { name, diezmar, cats }, sheet: null };
+      const currency = state.draft.currency ?? state.profile.currency;
+      return { ...state, profile: { name, diezmar, cats, currency }, sheet: null };
     }
 
     case 'ONBOARD_ADD_ACCOUNT': {
@@ -350,7 +378,8 @@ function reducer(state: BudgetState, action: Action): BudgetState {
       const name = d.name.trim() || 'Yo';
       const diezmar = d.diezmar !== false;
       const cats = d.cats.length ? d.cats : DEFAULT_CATS;
-      const profile: UserProfile = { name, diezmar, cats };
+      const currency = d.currency ?? DEFAULT_CURRENCY;
+      const profile: UserProfile = { name, diezmar, cats, currency };
 
       // Convertir cuentas del draft → Account[]
       const accounts: Account[] = d.accounts
@@ -631,8 +660,17 @@ function reducer(state: BudgetState, action: Action): BudgetState {
 
 // ---- Selectores ----
 
-export function fmt(n: number): string {
-  return '$' + Math.round(n || 0).toLocaleString('es-CO');
+// Moneda activa, sincronizada por BudgetProvider en cada render para que
+// fmt() pueda usarse sin pasar el estado en cada llamada.
+let activeCurrency: Currency = DEFAULT_CURRENCY;
+
+export function setActiveCurrency(currency: Currency) {
+  activeCurrency = currency;
+}
+
+export function fmt(n: number, currency: Currency = activeCurrency): string {
+  const { symbol, locale } = CURRENCIES[currency];
+  return symbol + Math.round(n || 0).toLocaleString(locale);
 }
 
 export function selectDisponible(state: BudgetState): number {
@@ -734,6 +772,8 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
     if (!ready) return;
     saveState(state);
   }, [state, ready]);
+
+  setActiveCurrency(state.profile.currency);
 
   return (
     <BudgetContext.Provider value={{ state, dispatch, ready }}>

@@ -1,12 +1,15 @@
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useState } from 'react';
+import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, F } from '@/constants/colors';
 import { BudgetBottomSheet } from '@/components/BudgetBottomSheet';
-import { fmt, useBudget } from '@/store/budget';
+import { fmt, selectCurrentBudget, useBudget } from '@/store/budget';
 
 export default function DeudasScreen() {
   const { state, dispatch } = useBudget();
   const { debts, debtSort } = state;
+  const gastos = selectCurrentBudget(state)?.gastos ?? [];
+  const [showStrategyInfo, setShowStrategyInfo] = useState(false);
 
   const totalDebt = debts.reduce((s, d) => s + d.saldo, 0);
   const sorted = [...debts].sort((a, b) => debtSort === 'tasa' ? b.tasa - a.tasa : b.saldo - a.saldo);
@@ -24,8 +27,10 @@ export default function DeudasScreen() {
     return C.surface2;
   }
 
-  function dueInfo(venceDia: number | undefined): { text: string; color: string } | null {
+  function dueInfo(venceDia: number | undefined, debtId: string): { text: string; color: string } | null {
     if (!venceDia || venceDia < 1 || venceDia > 31) return null;
+    const gasto = gastos.find((g) => g.debtId === debtId);
+    if (gasto?.paid) return { text: 'Pagado este mes', color: C.green };
     const today = new Date();
     const currentDay = today.getDate();
     const daysLeft = venceDia - currentDay;
@@ -71,6 +76,9 @@ export default function DeudasScreen() {
           <View style={s.sectionHeader}>
             <View style={s.sortRow}>
               <Text style={s.sectionLabel}>Ordenar</Text>
+              <TouchableOpacity onPress={() => setShowStrategyInfo(true)} activeOpacity={0.7} hitSlop={8}>
+                <Text style={s.infoIcon}>ⓘ</Text>
+              </TouchableOpacity>
               <View style={s.toggle}>
                 <TouchableOpacity style={[s.toggleOpt, debtSort === 'tasa' && s.toggleOptActive]} onPress={() => dispatch({ type: 'SET_DEBT_SORT', sort: 'tasa' })} activeOpacity={0.7}>
                   <Text style={[s.toggleText, debtSort === 'tasa' && s.toggleTextActive]}>Tasa</Text>
@@ -107,7 +115,7 @@ export default function DeudasScreen() {
                   {d.cuota ? <Text style={s.debtCuota}>{fmt(d.cuota)}/mes</Text> : null}
                 </View>
                 {(() => {
-                  const due = dueInfo(d.venceDia);
+                  const due = dueInfo(d.venceDia, d.id);
                   if (!due) return null;
                   return (
                     <View style={s.payoffRow}>
@@ -125,6 +133,38 @@ export default function DeudasScreen() {
         </View>
       </ScrollView>
       <BudgetBottomSheet />
+
+      <Modal visible={showStrategyInfo} transparent animationType="fade" onRequestClose={() => setShowStrategyInfo(false)}>
+        <View style={s.modalOverlay}>
+          <View style={s.modalCard}>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Text style={s.modalTitle}>¿Cómo priorizar tus abonos?</Text>
+
+              <Text style={s.modalStrategyName}>❄️ Bola de nieve (snowball)</Text>
+              <Text style={s.modalStrategyText}>
+                Paga primero la deuda con menor saldo, sin importar la tasa. Al liquidarla rápido ganas motivación y liberas esa cuota para sumarla a la siguiente. Es la estrategia más fácil de sostener en el tiempo.
+              </Text>
+
+              <Text style={s.modalStrategyName}>🏔️ Avalancha (por tasa)</Text>
+              <Text style={s.modalStrategyText}>
+                Paga primero la deuda con la tasa de interés más alta, sin importar el saldo. Es la más eficiente matemáticamente: minimiza el total de intereses que pagarás.
+              </Text>
+
+              <Text style={s.modalStrategyName}>⚖️ Bola de nieve mixta (híbrida)</Text>
+              <Text style={s.modalStrategyText}>
+                Combina ambos criterios: normaliza saldo y tasa de cada deuda y calcula un puntaje ponderado entre ambos, priorizando la deuda con el mejor balance entre "fácil de liquidar" y "cara de mantener". Es útil cuando tienes deudas pequeñas con tasas bajas y deudas grandes con tasas altas al mismo tiempo.
+              </Text>
+              <Text style={s.modalNote}>
+                Por ahora esta app ordena por tasa (avalancha) o por saldo (snowball). El híbrido es un criterio que podrás activar más adelante.
+              </Text>
+
+              <TouchableOpacity style={s.modalCloseBtn} onPress={() => setShowStrategyInfo(false)} activeOpacity={0.8}>
+                <Text style={s.modalCloseBtnText}>Entendido</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -149,6 +189,15 @@ const s = StyleSheet.create({
   section: { paddingHorizontal: 26, paddingTop: 18, paddingBottom: 8 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
   sortRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  infoIcon: { fontSize: 14, color: C.text3 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(20,28,40,0.5)', justifyContent: 'center', padding: 24 },
+  modalCard: { backgroundColor: C.surface, borderRadius: 22, borderWidth: 1, borderColor: C.border, padding: 22, maxHeight: '80%' },
+  modalTitle: { fontSize: 19, fontFamily: F.bold, color: C.text, marginBottom: 16 },
+  modalStrategyName: { fontSize: 14, fontFamily: F.bold, color: C.text, marginTop: 14 },
+  modalStrategyText: { fontSize: 13, fontFamily: F.regular, color: C.text3, lineHeight: 19, marginTop: 6 },
+  modalNote: { fontSize: 12, fontFamily: F.regular, color: C.text4, lineHeight: 17, marginTop: 16, fontStyle: 'italic' },
+  modalCloseBtn: { marginTop: 22, padding: 15, backgroundColor: C.primary, borderRadius: 14, alignItems: 'center' },
+  modalCloseBtnText: { fontSize: 14, fontFamily: F.bold, color: '#fff' },
   sectionLabel: { fontSize: 10, fontFamily: F.bold, letterSpacing: 1.2, textTransform: 'uppercase', color: C.text3 },
   toggle: { flexDirection: 'row', backgroundColor: C.surface2, borderRadius: 99, padding: 3 },
   toggleOpt: { paddingHorizontal: 11, paddingVertical: 6, borderRadius: 99 },

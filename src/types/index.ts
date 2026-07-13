@@ -32,10 +32,13 @@ export interface DraftDebt {
   dia?: string;
 }
 
+export type Currency = 'COP' | 'USD' | 'MXN' | 'ARS' | 'CLP' | 'PEN' | 'BRL' | 'EUR';
+
 export interface UserProfile {
   name: string;
   diezmar: boolean;
   cats: CategoryDef[];
+  currency: Currency;
 }
 
 export interface OnboardDraft {
@@ -46,6 +49,7 @@ export interface OnboardDraft {
   incomes: DraftIncome[];
   hasDebts: boolean | null;
   debts: DraftDebt[];
+  currency: Currency;
 }
 
 export type DiezmoMode = 'separado' | 'agrupado';
