@@ -36,6 +36,8 @@ docker exec local-postgres psql -U postgres -c "CREATE DATABASE steward"
 
 `infra/local-secrets/steward.env` es opcional; solo hace falta para probar con un Google Client ID real.
 
+**Google**: steward usa el mismo OAuth client que beauty. El origen `https://steward.srdejo.com.co` ya está autorizado en Google Cloud Console. Para entrar con Google en local hay que agregar también `http://steward.test` como origen autorizado de JavaScript, y conectar el client ID al programa `steward` de `local-deploy.ps1` cuando exista el backend (como recaudo y subscription-hub).
+
 ## VPS
 
 Configuración en `infra/vps/steward/` del workspace: vhost, `steward.service` y `setup-vps.sh`.
@@ -49,7 +51,7 @@ Configuración en `infra/vps/steward/` del workspace: vhost, `steward.service` y
    DB_USERNAME=steward
    DB_PASSWORD=<generada>
    JWT_SECRET=<generada, 64+ caracteres>
-   GOOGLE_CLIENT_ID=<del proyecto de Google Cloud>
+   GOOGLE_CLIENT_ID=<el mismo OAuth client de beauty>   # en el VPS ya esta puesto (2026-10-26)
    CONTACT_URL=http://127.0.0.1:3000
    DB_POOL_MAX=3
    ```
