@@ -1,0 +1,104 @@
+@import 'tailwindcss';
+
+/*
+ * Tokens de Presupuesto Hogar (HANDOFF.md, "Tokens visuales"): un solo acento, sin sombras, Inter en la UI y
+ * JetBrains Mono para los montos. Radios de 10 a 16 px; zonas tocables de al menos 44 px.
+ */
+@theme {
+  --font-sans: 'Inter', system-ui, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  --color-fondo: #fafaf7;
+  --color-superficie: #ffffff;
+  --color-borde: #e7e6e1;
+  --color-divisor: #efeeea;
+  --color-control: #c9c8c2;
+  --color-texto: #1b1c1a;
+  --color-secundario: #5f625c;
+
+  --color-acento: #2e4a3b;
+  --color-acento-oscuro: #1f3328;
+  --color-acento-suave: #eef3ef;
+  --color-avatar-suave: #d8e3da;
+  --color-positivo: #2e6b45;
+  --color-negativo: #a3361f;
+  --color-aviso: #8a5a00;
+  --color-aviso-suave: #fbf3e2;
+  --color-diezmo: #1e5a4c;
+  --color-diezmo-texto: #3d5a52;
+  --color-diezmo-suave: #eaf2ee;
+
+  --color-cat-fijos: #e2551b;
+  --color-cat-tarjetas: #7c4ddb;
+  --color-cat-variables: #8d8f88;
+  --color-cat-creditos: #2e6b45;
+  --color-cat-diezmo: #0f766e;
+
+  --radius-control: 10px;
+  --radius-tarjeta: 14px;
+  --radius-panel: 16px;
+}
+
+html,
+body {
+  @apply bg-fondo text-texto antialiased;
+  font-family: var(--font-sans);
+}
+
+/* Rotulos en mayusculas del diseño ("TE QUEDA LIBRE", "¿QUIÉN?"). */
+@utility rotulo {
+  @apply text-xs font-semibold tracking-[0.08em] text-secundario uppercase;
+}
+
+/* Montos: siempre monoespaciados y con cifras tabulares. */
+@utility monto {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Zona tocable minima de 44 px aunque la forma visible sea menor (spec steward-ui-shell). */
+@utility tocable {
+  @apply relative;
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 50% auto auto 50%;
+    width: max(100%, 44px);
+    height: max(100%, 44px);
+    transform: translate(-50%, -50%);
+  }
+}
+
+@utility boton {
+  @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-control px-4 text-[15px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+@layer components {
+  .tarjeta {
+    @apply rounded-panel border border-borde bg-superficie;
+  }
+  .boton-primario {
+    @apply boton bg-acento text-white hover:bg-acento-oscuro;
+  }
+  .boton-secundario {
+    @apply boton border border-borde bg-superficie text-texto hover:bg-fondo;
+  }
+  .boton-texto {
+    @apply inline-flex min-h-11 items-center text-[13px] font-semibold text-acento hover:text-acento-oscuro;
+  }
+  .campo {
+    @apply min-h-12 w-full rounded-control border border-borde bg-superficie px-3.5 text-[15px] text-texto placeholder:text-secundario/70 focus:border-acento focus:outline-none;
+  }
+  .fila {
+    @apply flex items-center justify-between gap-3 border-b border-divisor py-2.5 last:border-b-0;
+  }
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-acento);
+  outline-offset: 2px;
+}
+
+.sr-only-focusable:not(:focus) {
+  @apply sr-only;
+}

@@ -1,0 +1,15 @@
+{
+  "name": "Presupuesto Hogar",
+  "short_name": "Presupuesto",
+  "description": "Planeen el mes juntos y lleven lo que de verdad pasa.",
+  "lang": "es",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#FAFAF7",
+  "theme_color": "#FAFAF7",
+  "icons": [
+    { "src": "icons/icon-1024.png", "sizes": "1024x1024", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-1024.png", "sizes": "1024x1024", "type": "image/png", "purpose": "maskable" }
+  ]
+}
