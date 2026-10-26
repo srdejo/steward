@@ -1,0 +1,15 @@
+{
+  "name": "@steward/domain",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Dominio compartido de Presupuesto Hogar: modelo, reglas, puertos y adaptador de prueba. TypeScript puro, sin dependencias de runtime.",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "typescript": "~6.0.2",
+    "vitest": "^5.0.0"
+  }
+}
