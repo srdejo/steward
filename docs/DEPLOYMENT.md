@@ -72,7 +72,7 @@ Para encenderlo, cuando el backend cumpla el presupuesto de memoria:
 1. `BackendEnabled = $true` en `infra/deploy.ps1`.
 2. `ssh -t nolost-vps "sudo systemctl enable steward"`.
 3. Si el backend usa Hikari (JDBC), agregar `steward` a `UNITS` de `infra/vps/db-pool/setup-vps.sh` y a `ALL_APPS` de `infra/vps/jvm/setup-vps.sh`.
-4. `.\infra\deploy.ps1 -Projects steward`: toma un backup de la base, publica el JAR y la web, y reinicia el servicio. Comprobarlo con `https://steward.srdejo.com.co/actuator/health` → `{"status":"UP"}`.
+4. `.\infra\deploy.ps1 -Projects steward`: publica el JAR y la web, y reinicia el servicio. Desde ahí, antes de cada deploy con migraciones: `.\infra\deploy.ps1 -Projects steward -Action Backup`. Comprobarlo con `https://steward.srdejo.com.co/actuator/health` → `{"status":"UP"}`.
 5. Actualizar `infra/PORTS.md`: 8099 pasa de reservado a desplegado.
 
 ## App móvil (EAS)
