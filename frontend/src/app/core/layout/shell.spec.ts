@@ -1,9 +1,8 @@
 import { TestBed } from '@angular/core/testing';
-import { provideRouter, Router } from '@angular/router';
+import { Router } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 
-import { routes } from '../../app.routes';
-import { conSesion, provideDemoPrueba, puertos } from '../../../testing/demo';
+import { conSesion, provideAppPrueba, puertos } from '../../../testing/demo';
 
 async function abrir(url: string) {
   const harness = await RouterTestingHarness.create();
@@ -15,7 +14,7 @@ async function abrir(url: string) {
 
 describe('Shell y navegación (steward-ui-shell)', () => {
   beforeEach(() => {
-    TestBed.configureTestingModule({ providers: [provideRouter(routes), provideDemoPrueba()] });
+    TestBed.configureTestingModule({ providers: provideAppPrueba() });
   });
 
   it('móvil: barra inferior con Hoy activo, Planear y Cuentas (oculta desde 1024 px)', async () => {

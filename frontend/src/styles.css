@@ -12,6 +12,9 @@
   --color-superficie: #ffffff;
   --color-borde: #e7e6e1;
   --color-divisor: #efeeea;
+  --color-borde-campo: #e2e1dc;
+  --color-hueco: #efeee9;
+  --color-nota: #f4f3ef;
   --color-control: #c9c8c2;
   --color-texto: #1b1c1a;
   --color-secundario: #5f625c;
@@ -82,6 +85,25 @@ body {
   }
   .boton-secundario {
     @apply boton border border-borde bg-superficie text-texto hover:bg-fondo;
+  }
+  /* Acciones principales de pantalla completa (52 px, radio 14): "Continuar", "Guardar aporte". */
+  .boton-grande {
+    @apply boton h-[52px] w-full rounded-[14px] bg-acento text-base text-white hover:bg-acento-oscuro;
+  }
+  .boton-atras {
+    @apply boton h-[52px] w-24 shrink-0 rounded-[14px] bg-hueco text-base text-texto hover:bg-borde;
+  }
+  .boton-enlace {
+    @apply flex min-h-11 w-full items-center justify-center text-sm font-medium text-acento hover:text-acento-oscuro;
+  }
+  .boton-punteado {
+    @apply boton h-12 w-full rounded-[14px] border border-dashed border-control bg-transparent text-sm text-acento;
+  }
+  .campo-grande {
+    @apply h-14 w-full rounded-[14px] border border-borde-campo bg-superficie px-4 text-[17px] font-medium text-texto focus:border-acento focus:outline-none;
+  }
+  .nota {
+    @apply flex flex-col gap-2.5 rounded-[14px] bg-nota p-4;
   }
   .boton-texto {
     @apply inline-flex min-h-11 items-center text-[13px] font-semibold text-acento hover:text-acento-oscuro;

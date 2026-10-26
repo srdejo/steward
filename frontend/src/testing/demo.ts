@@ -3,6 +3,9 @@ import { TestBed } from '@angular/core/testing';
 import type { Puertos } from '@steward/domain';
 import { storageEnMemoria } from '@steward/domain/demo';
 
+import { provideRouter, withComponentInputBinding } from '@angular/router';
+
+import { routes } from '../app/app.routes';
 import { PUERTOS, providePuertosDemo } from '../app/core/datos/puertos';
 
 /** Reloj de los artboards: lunes 26 de octubre de 2026. */
@@ -13,6 +16,11 @@ export const NOV = { anio: 2026, mes: 11 };
 /** Adaptador de prueba con storage en memoria y reloj fijo. */
 export function provideDemoPrueba(): EnvironmentProviders {
   return providePuertosDemo({ storage: storageEnMemoria(), ahora: AHORA });
+}
+
+/** Router de la app como en app.config.ts (los parametros de ruta llegan a los input()). */
+export function provideAppPrueba(): EnvironmentProviders[] {
+  return [provideRouter(routes, withComponentInputBinding()), provideDemoPrueba()];
 }
 
 export function puertos(): Puertos {

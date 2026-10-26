@@ -1,9 +1,89 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
+import { Router, RouterLink } from '@angular/router';
 
-// Pendiente: se construye en su grupo de tareas de presupuesto-hogar-ui.
+import { consulta, mensajeDeError } from '../../core/datos/consulta';
+import { PUERTOS } from '../../core/datos/puertos';
+import { SesionActual } from '../../core/sesion/sesion';
+import { Avatar } from '../../shared/components/avatar';
+import { Interruptor } from '../../shared/components/interruptor';
+
+/** Invitado.dc.html: "{quien} te invitó a {hogar}". El invitado no configura ingresos ni cuentas. */
 @Component({
   selector: 'app-invitacion-page',
+  imports: [Avatar, Interruptor, RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: '<h1 class="p-6 text-xl font-bold">Invitación</h1>',
+  host: { class: 'mx-auto flex min-h-dvh w-full max-w-[430px] flex-col gap-6 px-6 pt-12 pb-9' },
+  template: `
+    @if (invitacion.isLoading()) {
+      <p class="mt-24 text-center text-secundario">Cargando invitación…</p>
+    } @else if (invitacion.value(); as inv) {
+      <div class="mt-6 flex flex-col items-center gap-4 text-center">
+        <div class="flex items-center">
+          @for (m of inv.miembros; track m.id; let primero = $first) {
+            <app-avatar [inicial]="m.inicial" [variante]="primero ? 'fuerte' : 'suave'" [tamano]="56" [class.-ml-3.5]="!primero" [class.border-[3px]]="!primero" [class.border-fondo]="!primero" />
+          }
+          <app-avatar [inicial]="inicialInvitado()" variante="suave" [tamano]="56" class="-ml-3.5 border-[3px] border-fondo" />
+        </div>
+        <h1 class="text-[26px] leading-tight font-bold">{{ inv.invitadoPor.nombre }} te invitó a {{ inv.hogar }}</h1>
+        <p class="text-[15px] leading-normal text-secundario">Van a llevar juntos los gastos del hogar. Tus ingresos siguen siendo tuyos: aquí solo pones lo que aportas.</p>
+      </div>
+
+      <label class="flex flex-col gap-2">
+        <span class="rotulo">Tu nombre</span>
+        <input class="campo-grande h-[52px] text-base" placeholder="Tu nombre" autocomplete="given-name" [value]="nombre()" (input)="nombre.set($any($event.target).value)" />
+      </label>
+
+      <div class="rounded-[14px] border border-borde bg-superficie px-4 py-3.5">
+        <app-interruptor titulo="Diezmar de mis aportes" detalle="Opcional · 10% al registrar cada aporte" [(activo)]="diezmo" />
+      </div>
+
+      <div class="nota">
+        <span class="text-[13px] font-semibold">Lo que vas a hacer aquí</span>
+        <span class="text-[13px] leading-normal text-[#3B3D39]">Marcar lo que pagas · poner un aporte cuando quieras · ver cuánto queda libre en el mes</span>
+      </div>
+
+      @if (error()) {
+        <p role="alert" class="text-sm text-negativo">{{ error() }}</p>
+      }
+
+      <div class="mt-auto flex flex-col gap-1">
+        <button type="button" class="boton-grande" [disabled]="uniendo()" (click)="unirme(inv.token)">Unirme al hogar</button>
+        <a routerLink="/acceso" class="boton-enlace">No soy yo</a>
+      </div>
+    } @else {
+      <div class="mt-24 flex flex-col items-center gap-4 text-center">
+        <h1 class="text-[26px] leading-tight font-bold">Esta invitación ya no sirve</h1>
+        <p class="text-[15px] text-secundario">Se usó o venció (duran 7 días). Pide a quien te invitó que la reenvíe.</p>
+        <a routerLink="/acceso" class="boton-grande mt-4">Ir al acceso</a>
+      </div>
+    }
+  `,
 })
-export class InvitacionPage {}
+export class InvitacionPage {
+  private readonly puertos = inject(PUERTOS);
+  private readonly sesion = inject(SesionActual);
+  private readonly router = inject(Router);
+
+  /** Parametro de la ruta (`/invitacion/:token`). */
+  readonly token = input.required<string>();
+  protected readonly invitacion = consulta(() => this.token(), (p, t) => p.hogar.invitacion(t));
+  protected readonly nombre = signal('');
+  protected readonly diezmo = signal(false);
+  protected readonly uniendo = signal(false);
+  protected readonly error = signal('');
+  protected readonly inicialInvitado = computed(() => (this.nombre().trim().charAt(0) || this.invitacion.value()?.email.charAt(0) || '?').toUpperCase());
+
+  protected async unirme(token: string): Promise<void> {
+    this.uniendo.set(true);
+    this.error.set('');
+    try {
+      const s = await this.puertos.hogar.aceptar(token, this.nombre(), this.diezmo());
+      this.sesion.establecer(s);
+      await this.router.navigateByUrl('/hoy');
+    } catch (e) {
+      this.error.set(mensajeDeError(e));
+    } finally {
+      this.uniendo.set(false);
+    }
+  }
+}
