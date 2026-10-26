@@ -87,7 +87,7 @@ Steward incluye herramientas para organizar compromisos financieros y explicar e
 Las capturas de la aplicación se encuentran en:
 
 ```text
-assets/images/
+mobile/assets/images/
 ```
 
 Próximamente se incluirán aquí las principales pantallas de Steward para facilitar una vista rápida del producto.
@@ -120,20 +120,26 @@ Steward está construido como una aplicación móvil utilizando tecnologías mod
 
 El proyecto está organizado buscando mantener una estructura clara y facilitar su evolución a medida que se agregan nuevas funcionalidades.
 
+El repo está en tres capas. La app publicada en App Store vive en `mobile/`. `backend/` y `frontend/` se agregan con la versión en la nube (Presupuesto Hogar): ver [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+
 ```text
 steward/
-├── assets/
-│   └── images/
-├── scripts/
-├── src/
+├── backend/          # API Spring Boot (por construir)
+├── frontend/         # PWA Angular (por construir)
+├── mobile/           # App Expo publicada en App Store
+│   ├── assets/images/
+│   ├── scripts/
+│   ├── src/
+│   ├── app.json
+│   ├── eas.json
+│   ├── package.json
+│   └── tsconfig.json
+├── docs/
+│   └── DEPLOYMENT.md
 ├── .claude/
 ├── .vscode/
 ├── AGENTS.md
-├── CLAUDE.md
-├── app.json
-├── eas.json
-├── package.json
-└── tsconfig.json
+└── CLAUDE.md
 ```
 
 ---
@@ -161,10 +167,10 @@ npm --version
 git clone https://github.com/srdejo/steward.git
 ```
 
-Entrar al proyecto:
+Entrar a la app móvil:
 
 ```bash
-cd steward
+cd steward/mobile
 ```
 
 Instalar dependencias:
@@ -190,10 +196,10 @@ Steward utiliza **Expo Application Services (EAS)** para generar las versiones d
 La configuración de los builds se encuentra en:
 
 ```text
-eas.json
+mobile/eas.json
 ```
 
-Para iniciar un build:
+Para iniciar un build (desde `mobile/`):
 
 ```bash
 eas build

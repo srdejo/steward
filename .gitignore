@@ -1,43 +1,26 @@
-# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+# Raiz del repo: backend/ (Spring Boot), frontend/ (Angular PWA), mobile/ (Expo, con su propio .gitignore)
 
-# dependencies
+# Dependencias
 node_modules/
 
-# Expo
-.expo/
+# Builds
 dist/
-web-build/
-expo-env.d.ts
-
-# Native
-.kotlin/
-*.orig.*
-*.jks
-*.p8
-*.p12
-*.key
-*.mobileprovision
-
-# Metro
-.metro-health-check*
-
-# debug
-npm-debug.*
-yarn-debug.*
-yarn-error.*
-
-# macOS
-.DS_Store
-*.pem
-
-# local env files
-.env*.local
-
-# typescript
+build/
+out/
+.gradle/
+.angular/
+.expo/
 *.tsbuildinfo
 
-example
+# Entorno local
+.env
+.env.*
+!.env.example
 
-# generated native folders
-/ios
-/android
+# Editores / sistema
+.idea/
+.DS_Store
+Thumbs.db
+
+# Claude
+.claude/settings.local.json
