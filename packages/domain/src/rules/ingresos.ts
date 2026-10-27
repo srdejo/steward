@@ -41,17 +41,19 @@ function detalleAportes(movs: Movimiento[]): string {
   return partes.join(' · ');
 }
 
-function fijos(estado: EstadoHogar, ref: MesRef): LineaIngreso[] {
+function fijos(estado: EstadoHogar, ref: MesRef, ejecucion: boolean): LineaIngreso[] {
   const movs = movimientosDe(estado, ref);
   return estado.ingresosFijos
     .filter((f) => f.activo)
     .map((f) => {
       const recibido = movs.find((m) => m.tipo === 'INGRESO_FIJO' && m.ingresoFijoId === f.id);
+      // Al planear solo importa que es fijo; "recibido / llega" es de la ejecucion (Hoy).
+      const detalle = !ejecucion ? 'Fijo' : recibido ? `Fijo · recibido ${formatFechaCorta(recibido.fecha)}` : `Fijo · llega el día ${f.diaPago}`;
       return base({
         clave: `fijo-${f.id}`,
         tipo: 'FIJO',
         nombre: f.nombre,
-        detalle: recibido ? `Fijo · recibido ${formatFechaCorta(recibido.fecha)}` : `Fijo · llega el día ${f.diaPago}`,
+        detalle,
         monto: recibido ? recibido.monto : f.neto,
         usuarioId: f.usuarioId,
         ingresoFijoId: f.id,
@@ -80,7 +82,7 @@ function sobrante(estado: EstadoHogar, ref: MesRef): LineaIngreso[] {
  * - PLAN (columna "plan" del cierre): la proyeccion cuando existe, si no lo registrado.
  */
 export function ingresosDelMes(estado: EstadoHogar, ref: MesRef, modo: 'EJECUCION' | 'PLANEACION' | 'PLAN'): LineaIngreso[] {
-  const lineas = [...fijos(estado, ref), ...extras(estado, ref)];
+  const lineas = [...fijos(estado, ref, modo === 'EJECUCION'), ...extras(estado, ref)];
   const reales = aportesReales(estado, ref);
   const usuarios = new Set<Id>([...reales.keys(), ...estado.proyecciones.filter((p) => p.ref.anio === ref.anio && p.ref.mes === ref.mes).map((p) => p.usuarioId)]);
   for (const usuarioId of usuarios) {

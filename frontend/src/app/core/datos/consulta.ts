@@ -1,4 +1,4 @@
-import { DestroyRef, Injectable, inject, resource, signal, type ResourceRef } from '@angular/core';
+import { DestroyRef, Injectable, effect, inject, resource, signal, untracked, type ResourceRef } from '@angular/core';
 import { ReglaError, type Puertos } from '@steward/domain';
 
 import { PUERTOS } from './puertos';
@@ -23,10 +23,20 @@ export class CambiosDeDatos {
 export function consulta<P, T>(params: () => P, loader: (puertos: Puertos, params: P) => Promise<T>): ResourceRef<T | undefined> {
   const puertos = inject(PUERTOS);
   const cambios = inject(CambiosDeDatos);
-  return resource({
-    params: () => ({ valor: params(), version: cambios.version() }),
+  const ref = resource({
+    params: () => ({ valor: params() }),
     loader: ({ params: p }) => loader(puertos, p.valor),
   });
+  // Tras una escritura se usa reload(): conserva el valor anterior mientras llega el nuevo (sin parpadeo).
+  let vista = cambios.version();
+  effect(() => {
+    const v = cambios.version();
+    if (v !== vista) {
+      vista = v;
+      untracked(() => ref.reload());
+    }
+  });
+  return ref;
 }
 
 /** Mensaje para mostrar de un error del adaptador (las reglas traen texto listo; lo demas es tecnico). */

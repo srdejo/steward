@@ -25,6 +25,7 @@ let siguienteId = 0;
       [placeholder]="placeholder()"
       [value]="texto()"
       [attr.aria-describedby]="ayuda() ? id + '-ayuda' : null"
+      [attr.aria-label]="etiqueta() ? null : etiquetaAccesible() || null"
       (input)="escribir($any($event.target))"
     />
     @if (ayuda()) {
@@ -36,6 +37,8 @@ export class MontoInput {
   protected readonly id = `monto-${++siguienteId}`;
   readonly valor = model<Pesos | null>(null);
   readonly etiqueta = input('');
+  /** Nombre del campo cuando no lleva etiqueta visible (filas de tablas). */
+  readonly etiquetaAccesible = input('');
   readonly ayuda = input('');
   readonly grande = input(false);
   readonly placeholder = input('$0');
