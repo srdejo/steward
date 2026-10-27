@@ -1,6 +1,11 @@
 import { Redirect } from 'expo-router';
 
-/** La raiz abre Hoy; las rutas protegidas del layout llevan a Acceso u onboarding si hace falta. */
+import { useSesion } from '@/data/sesion';
+
+/** Al abrir: sin sesion, Acceso; con el hogar sin configurar, el onboarding; si no, Hoy del mes en curso. */
 export default function Inicio() {
+  const { sesion } = useSesion();
+  if (!sesion) return <Redirect href="/acceso" />;
+  if (!sesion.hogarConfigurado) return <Redirect href="/onboarding/1" />;
   return <Redirect href="/hoy" />;
 }

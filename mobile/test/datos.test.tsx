@@ -35,6 +35,6 @@ describe('capa de datos (design D2)', () => {
     await p.demo!.probarDesdeCero();
     expect(await AsyncStorage.getItem('@steward/budget_v3')).toBe(v1);
     expect(await AsyncStorage.getItem('steward-demo/v1')).not.toBeNull();
-    expect((await AsyncStorage.getAllKeys()).sort()).toEqual(['@steward/budget_v3', 'steward-demo/session', 'steward-demo/v1']);
+    expect([...(await AsyncStorage.getAllKeys())].sort()).toEqual(['@steward/budget_v3', 'steward-demo/session', 'steward-demo/v1']);
   });
 });

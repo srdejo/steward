@@ -45,6 +45,12 @@ export function Encabezado({ titulo, rotulo, rotuloColor, volver, volverTexto = 
   );
 }
 
+/** Cierra una hoja: vuelve atras si hay de donde (lo normal) o va a Hoy si se abrio directo (enlace, prueba). */
+export function cerrarHoja(): void {
+  if (router.canGoBack()) router.back();
+  else router.replace('/hoy');
+}
+
 /** Hoja de registro (formSheet): titulo, "Cancelar" y contenido, como Aporte/Pagar/Gasto.dc.html. */
 export function Hoja({ titulo, antetitulo, antetituloColor, subtitulo, children }: { titulo: string; antetitulo?: string; antetituloColor?: string; subtitulo?: ReactNode; children: ReactNode }) {
   return (
@@ -55,7 +61,7 @@ export function Hoja({ titulo, antetitulo, antetituloColor, subtitulo, children 
           <Texto accessibilityRole="header" style={{ fontFamily: fonts.bold, fontSize: 22 }}>{titulo}</Texto>
           {subtitulo}
         </View>
-        <Boton tipo="enlace" titulo="Cancelar" onPress={() => router.back()} />
+        <Boton tipo="enlace" titulo="Cancelar" onPress={cerrarHoja} />
       </View>
       {children}
     </ScrollView>
