@@ -120,22 +120,17 @@ Steward está construido como una aplicación móvil utilizando tecnologías mod
 
 El proyecto está organizado buscando mantener una estructura clara y facilitar su evolución a medida que se agregan nuevas funcionalidades.
 
-El repo está en tres capas. La app publicada en App Store vive en `mobile/`. `backend/` y `frontend/` se agregan con la versión en la nube (Presupuesto Hogar): ver [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+El repo está en capas. En `main`, `mobile/` es la v1 publicada en App Store. En la rama `feature/presupuesto-hogar` se construye la versión en la nube (Presupuesto Hogar), por ahora con datos de prueba y sin publicarse en las tiendas. Despliegue en [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 ```text
 steward/
-├── backend/          # API Spring Boot (por construir)
-├── frontend/         # PWA Angular (por construir)
-├── mobile/           # App Expo publicada en App Store
-│   ├── assets/images/
-│   ├── scripts/
-│   ├── src/
-│   ├── app.json
-│   ├── eas.json
-│   ├── package.json
-│   └── tsconfig.json
+├── backend/            # API Spring Boot (por construir)
+├── frontend/           # PWA Angular 22: las 22 pantallas del diseño (frontend/README.md)
+├── mobile/             # App Expo: en main la v1 de App Store; en la rama, el diseño nuevo (mobile/README.md)
+├── packages/domain/    # Dominio compartido: modelo, reglas, puertos y adaptador de prueba (packages/domain/README.md)
 ├── docs/
-│   └── DEPLOYMENT.md
+│   ├── DEPLOYMENT.md
+│   └── ROADMAP.md
 ├── .claude/
 ├── .vscode/
 ├── AGENTS.md

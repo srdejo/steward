@@ -1,77 +1,58 @@
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, View } from 'react-native';
 import { useFonts } from 'expo-font';
-import * as SplashScreen from 'expo-splash-screen';
-import {
-  Roboto_400Regular,
-  Roboto_500Medium,
-  Roboto_700Bold,
-  Roboto_900Black,
-} from '@expo-google-fonts/roboto';
-import {
-  RobotoMono_400Regular,
-  RobotoMono_500Medium,
-  RobotoMono_700Bold,
-} from '@expo-google-fonts/roboto-mono';
-import { Lora_700Bold } from '@expo-google-fonts/lora';
+import { SplashScreen, Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useEffect } from 'react';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import AppTabs from '@/components/app-tabs';
-import { OnboardingScreen } from '@/components/OnboardingScreen';
-import { SplashAnimation } from '@/components/SplashAnimation';
-import { BudgetProvider, useBudget } from '@/store/budget';
-import { C } from '@/constants/colors';
+import { puertosDeLaApp } from '@/data/instancia';
+import { DatosProvider } from '@/data/puertos';
+import { SesionProvider, useSesion } from '@/data/sesion';
+import { colors } from '@/ui';
+import { appFonts } from '@/ui/fonts';
 
 SplashScreen.preventAutoHideAsync();
 
-function AppContent() {
-  const { ready, state } = useBudget();
-  const [splashDone, setSplashDone] = useState(false);
-
-  if (!ready) {
-    return (
-      <View style={{ flex: 1, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator color={C.primary} />
-      </View>
-    );
-  }
-
-  // Muestra el splash animado la primera vez que abre la app
-  if (!splashDone) {
-    return <SplashAnimation onFinish={() => setSplashDone(true)} />;
-  }
-
-  if (!state.onboarded) return <OnboardingScreen />;
-  return <AppTabs />;
+export default function RootLayout() {
+  const [fuentes, errorFuentes] = useFonts(appFonts);
+  return (
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.fondo }}>
+      <SafeAreaProvider>
+        <DatosProvider puertos={puertosDeLaApp()}>
+          <SesionProvider>
+            <StatusBar style="dark" />
+            <Navegacion lista={fuentes || !!errorFuentes} />
+          </SesionProvider>
+        </DatosProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
+  );
 }
 
-export default function RootLayout() {
-  const [fontsLoaded] = useFonts({
-    Roboto_400Regular,
-    Roboto_500Medium,
-    Roboto_700Bold,
-    Roboto_900Black,
-    RobotoMono_400Regular,
-    RobotoMono_500Medium,
-    RobotoMono_700Bold,
-    Lora_700Bold,
-  });
-
+/**
+ * Sin sesion: Acceso. Con sesion y el hogar sin configurar: Activar Face ID y el onboarding. Con el hogar
+ * configurado: la app. La invitacion se abre siempre (spec steward-acceso-onboarding).
+ */
+function Navegacion({ lista }: { lista: boolean }) {
+  const { cargando, sesion } = useSesion();
+  const esperando = !lista || cargando;
   useEffect(() => {
-    if (fontsLoaded) SplashScreen.hideAsync();
-  }, [fontsLoaded]);
-
-  if (!fontsLoaded) return null;
-
+    if (!esperando) SplashScreen.hide();
+  }, [esperando]);
+  if (esperando) return null;
   return (
-    <SafeAreaProvider>
-      <BudgetProvider>
-        <View style={{ flex: 1, backgroundColor: C.bg }}>
-          <StatusBar style="dark" />
-          <AppContent />
-        </View>
-      </BudgetProvider>
-    </SafeAreaProvider>
+    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.fondo } }}>
+      <Stack.Protected guard={!sesion}>
+        <Stack.Screen name="acceso" />
+      </Stack.Protected>
+      <Stack.Protected guard={!!sesion && !sesion.hogarConfigurado}>
+        <Stack.Screen name="face-id" />
+        <Stack.Screen name="onboarding/[paso]" />
+      </Stack.Protected>
+      <Stack.Protected guard={!!sesion?.hogarConfigurado}>
+        <Stack.Screen name="(app)" />
+      </Stack.Protected>
+      <Stack.Screen name="invitacion/[token]" />
+    </Stack>
   );
 }
