@@ -193,4 +193,24 @@ describe('Ajustes (steward-ajustes)', () => {
   });
 });
 
+describe('paridad con la PWA (steward-mobile-app)', () => {
+  it('pagar la Mastercard desde Davivienda y un aporte para noviembre dan las mismas cifras que la PWA', async () => {
+    await conSesion();
+    renderRouter('./src/app', { initialUrl: '/hoy' });
+    await tocar('Tarjeta Mastercard');
+    await tocar('Davivienda');
+    await tocar('Marcar pagado');
+    await enRuta('/hoy');
+    await tocar('+ Aporte');
+    await escribir('¿Cuánto?', '500000');
+    await tocar('Noviembre');
+    await tocar('Guardar aporte');
+    await enRuta('/hoy');
+    // Mismas cifras que frontend/src/app/features/hoy/paridad.spec.ts.
+    await waitFor(() => expect(screen.getByTestId('libre')).toHaveTextContent('$3.436.000'));
+    expect(screen.getByText('$4.113.000')).toBeTruthy();
+    expect(screen.getByText('−$62.000')).toBeTruthy();
+  });
+});
+
 export { conSesion };
