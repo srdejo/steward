@@ -113,6 +113,7 @@ El estado completo se serializa en JSON bajo `steward-demo/v1`: en `localStorage
 - [El modo demo se confunda con datos reales] → Aviso persistente de "Datos de prueba". El VPS no publica la PWA mientras el backend esté reservado.
 - [Dos UIs (Angular y React Native) se desalinean] → Las dos parten de los mismos artboards y del mismo dominio. La paridad se verifica con las mismas cifras en los tests de flujo de ambas.
 - [Una corrección de la v1 desde `main` necesitará la 1.0.3 o más] → Funciona: App Store Connect compara contra la última versión publicada, no contra las de TestFlight. La versión con backend deberá ser mayor que 1.1.0.
+- [App Store Connect ya tiene una ficha de versión 2.0.0 "en preparación", reservada para la versión pública con backend] → Nunca se envía a revisión en este cambio, y los builds 1.1.0 de TestFlight no se le pueden asociar. App Store Connect permite una sola versión editable: antes de sacar una 1.0.3 desde `main`, hay que renombrar o borrar esa ficha.
 
 ## Migration Plan
 
