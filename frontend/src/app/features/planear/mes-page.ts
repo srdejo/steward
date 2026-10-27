@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, input, signal } f
 import { NgTemplateOutlet } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import {
-  claveMes, formatCop, formatMesAnio, mesDe, nombreMesCapital, parseClaveMes, sumarMeses, type GrupoCategoria, type Id, type ItemPlan, type ModoNuevoMes, type VistaOpcion,
+  claveMes, formatCop, formatMesAnio, mesDe, nombreMesCapital, parseClaveMes, sumarMeses, type Id, type ItemPlan, type ModoNuevoMes, type VistaOpcion,
 } from '@steward/domain';
 
 import { consulta, mensajeDeError } from '../../core/datos/consulta';
@@ -162,13 +162,6 @@ import { MontoInput } from '../../shared/components/monto-input';
                       }
                     </li>
                   }
-                  @if (editable) {
-                    <li class="flex items-center gap-2">
-                      <input class="h-11 min-w-0 grow rounded-control border border-borde bg-superficie px-3 text-sm focus:border-acento focus:outline-none" placeholder="Nuevo gasto" [attr.aria-label]="'Nuevo gasto en ' + g.nombre"
-                        [value]="nuevo()" (input)="nuevo.set($any($event.target).value)" />
-                      <button type="button" class="boton-texto font-semibold" (click)="agregar(o, g)">Agregar</button>
-                    </li>
-                  }
                 </ul>
               }
             </div>
@@ -185,6 +178,19 @@ import { MontoInput } from '../../shared/components/monto-input';
             </span>
           </div>
         </div>
+        @if (editable) {
+          <form class="mt-2 flex flex-wrap items-center gap-2 rounded-xl bg-nota p-3" (submit)="$event.preventDefault(); agregar(o)" aria-label="Agregar un gasto a la opción">
+            <select class="h-11 rounded-control border border-borde bg-superficie px-2 text-sm focus:border-acento focus:outline-none" aria-label="Categoría del gasto"
+              [value]="categoriaNueva() ?? ''" (change)="categoriaNueva.set($any($event.target).value)">
+              @for (c of categorias.value() ?? []; track c.id) {
+                <option [value]="c.id">{{ c.nombre }}</option>
+              }
+            </select>
+            <input class="h-11 min-w-0 grow rounded-control border border-borde bg-superficie px-3 text-sm focus:border-acento focus:outline-none" placeholder="Nuevo gasto" aria-label="Nombre del gasto"
+              [value]="nuevo()" (input)="nuevo.set($any($event.target).value)" />
+            <button type="submit" class="boton-texto font-semibold" [disabled]="!nuevo().trim()">+ Agregar</button>
+          </form>
+        }
       </section>
     </ng-template>
   `,
@@ -205,6 +211,8 @@ export class MesPage {
   private readonly sesion = consulta(() => null, (p) => p.sesion.actual());
   protected readonly usuarioActual = computed(() => this.sesion.value()?.usuario.id ?? null);
 
+  protected readonly categorias = consulta(() => null, (p) => p.hogar.categorias());
+  protected readonly categoriaNueva = signal<Id | null>(null);
   protected readonly elegida = signal<Id | null>(null);
   protected readonly abierta = signal<Id | null>(null);
   protected readonly nuevo = signal('');
@@ -267,13 +275,16 @@ export class MesPage {
     await this.ejecutar(() => this.puertos.plan.guardarItem(plan.id, o.escenario.id, { ...item, monto }));
   }
 
-  protected async agregar(o: VistaOpcion, g: GrupoCategoria): Promise<void> {
+  /** "+ Agregar": un gasto nuevo en cualquier categoria (tambien las recien creadas en Ajustes); se abre para darle monto. */
+  protected async agregar(o: VistaOpcion): Promise<void> {
     const plan = this.vista.value()?.plan;
-    if (!plan || !this.nuevo().trim()) return;
-    const tipo = g.items[0]?.tipo ?? 'FIJO';
+    const categoria = (this.categorias.value() ?? []).find((c) => c.id === this.categoriaNueva()) ?? this.categorias.value()?.[0];
+    if (!plan || !categoria || !this.nuevo().trim()) return;
+    const tipo = categoria.tipo === 'VARIABLE' ? 'VARIABLE' : categoria.tipo === 'CREDITO' ? 'CREDITO' : 'FIJO';
     await this.ejecutar(async () => {
-      await this.puertos.plan.guardarItem(plan.id, o.escenario.id, { categoriaId: g.categoriaId, nombre: this.nuevo(), monto: 0, diaVence: null, tipo, cuota: null, creditoId: null });
+      await this.puertos.plan.guardarItem(plan.id, o.escenario.id, { categoriaId: categoria.id, nombre: this.nuevo(), monto: 0, diaVence: null, tipo, cuota: null, creditoId: null });
       this.nuevo.set('');
+      this.abierta.set(categoria.id);
     });
   }
 
