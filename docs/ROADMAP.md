@@ -29,7 +29,7 @@ Las etapas 2 a 9 siguen el "Orden sugerido de implementación" del handoff. Conv
 - [x] PWA Angular 22 con las 22 pantallas, móvil y web; publicada en `steward.test` y recorrida completa a 390 y 1280 px sin errores.
 - [x] App Expo reescrita en SDK 57 con las mismas pantallas, en la rama `feature/presupuesto-hogar` (sin publicar); la v1 sigue en `main`.
 - [x] Paridad: la misma secuencia da las mismas cifras en la PWA y en la app.
-- [ ] Build interno de la app (`eas build --profile preview`) probado en un iPhone.
+- [x] App 1.1.0 en TestFlight (perfil `testflight`) con los testers internos instalándola; sin revisión de App Store.
 
 Las etapas 2 a 9 conectan estas pantallas al backend: cada pantalla ya existe y pasa a usar el adaptador HTTP en lugar del de prueba.
 
@@ -82,6 +82,7 @@ Las etapas 2 a 9 conectan estas pantallas al backend: cada pantalla ya existe y 
 - [ ] Passkeys (WebAuthn, RP ID `steward.srdejo.com.co`), biometría al abrir y "Ocultar montos".
 - [ ] Backend dentro del presupuesto de memoria de `optimizar-recursos-plataforma-comun` (imagen nativa o el ajuste de JVM que se defina).
 - [ ] Encender el backend en el VPS (`BackendEnabled = $true`, `systemctl enable steward`; pasos en `DEPLOYMENT.md`) y publicar la PWA.
+- [ ] Pasar `develop` a `main` por PR cuando esté lista. Antes, tag `v1.0.2` en `main` para poder sacar correcciones de la v1, y actualizar el spec `steward-mobile-app`, que hoy pide que `main` siga generando la v1.
 
 ## Mejoras futuras
 
