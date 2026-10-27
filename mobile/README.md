@@ -2,7 +2,7 @@
 
 App de Presupuesto Hogar en Expo SDK 57 con expo-router y React Native 0.86. Tiene las mismas pantallas y flujos que la PWA de `../frontend`, en su versión móvil: barra inferior Hoy · Planear · Cuentas, y Aporte, Marcar pago y Registrar gasto como hojas (`formSheet`).
 
-> **Esta rama (`feature/presupuesto-hogar`) se distribuye solo por TestFlight**, a los testers internos, como versión 1.1.0. Nunca pasa a revisión de App Store ni a Google Play. La v1 publicada en App Store (1.0.2) sigue en `main`. `bundleIdentifier`, `package` y `projectId` no cambian.
+> **La rama `develop` se distribuye solo por TestFlight**, a los testers internos, como versión 1.1.0. Nunca pasa a revisión de App Store ni a Google Play. La v1 publicada en App Store (1.0.2) sigue en `main`. `bundleIdentifier`, `package` y `projectId` no cambian.
 
 Hoy funciona en **modo demo**: los datos de prueba se guardan en el teléfono (AsyncStorage, clave `steward-demo/v1`) y se restablecen desde Ajustes. Los datos de la v1 (`@steward/budget_v3`) nunca se leen ni se tocan.
 

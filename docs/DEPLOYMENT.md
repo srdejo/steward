@@ -34,7 +34,7 @@ Requiere `127.0.0.1 steward.test` en el archivo `hosts` (lo trae `infra/hosts.sn
 docker exec local-postgres psql -U postgres -c "CREATE DATABASE steward"
 ```
 
-Desde la rama `feature/presupuesto-hogar`, `steward.test` sirve la PWA completa en **modo demo** (datos de prueba en el navegador, sin backend); el backend se omite con aviso hasta que exista `backend/`. El service worker de la PWA no se registra en `http://steward.test`: los navegadores solo lo permiten en HTTPS o en `localhost`. Funciona en producción (HTTPS) y se puede probar sirviendo `frontend/dist/frontend/browser` en `http://localhost`.
+Desde la rama `develop`, `steward.test` sirve la PWA completa en **modo demo** (datos de prueba en el navegador, sin backend); el backend se omite con aviso hasta que exista `backend/`. El service worker de la PWA no se registra en `http://steward.test`: los navegadores solo lo permiten en HTTPS o en `localhost`. Funciona en producción (HTTPS) y se puede probar sirviendo `frontend/dist/frontend/browser` en `http://localhost`.
 
 `infra/local-secrets/steward.env` es opcional; solo hace falta para probar con un Google Client ID real.
 
