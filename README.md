@@ -120,7 +120,7 @@ Steward está construido como una aplicación móvil utilizando tecnologías mod
 
 El proyecto está organizado buscando mantener una estructura clara y facilitar su evolución a medida que se agregan nuevas funcionalidades.
 
-El repo está en capas. En `main`, `mobile/` es la v1 publicada en App Store. En la rama `feature/presupuesto-hogar` se construye la versión en la nube (Presupuesto Hogar), por ahora con datos de prueba y sin publicarse en las tiendas. Despliegue en [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+El repo está en capas. En `main`, `mobile/` es la v1 publicada en App Store. En la rama `feature/presupuesto-hogar` se construye la versión en la nube (Presupuesto Hogar), por ahora con datos de prueba y distribuida solo por TestFlight (1.1.0, testers internos), sin publicarse en las tiendas. Despliegue en [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 ```text
 steward/

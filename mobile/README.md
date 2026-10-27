@@ -2,7 +2,7 @@
 
 App de Presupuesto Hogar en Expo SDK 57 con expo-router y React Native 0.86. Tiene las mismas pantallas y flujos que la PWA de `../frontend`, en su versión móvil: barra inferior Hoy · Planear · Cuentas, y Aporte, Marcar pago y Registrar gasto como hojas (`formSheet`).
 
-> **Esta rama (`feature/presupuesto-hogar`) no se publica.** La app reescrita solo se construye con los perfiles `development` o `preview` de EAS (distribución interna). La v1 publicada en App Store (1.0.2) sigue en `main`. La versión de `app.json`, `bundleIdentifier`, `package` y `projectId` no cambian.
+> **Esta rama (`feature/presupuesto-hogar`) se distribuye solo por TestFlight**, a los testers internos, como versión 1.1.0. Nunca pasa a revisión de App Store ni a Google Play. La v1 publicada en App Store (1.0.2) sigue en `main`. `bundleIdentifier`, `package` y `projectId` no cambian.
 
 Hoy funciona en **modo demo**: los datos de prueba se guardan en el teléfono (AsyncStorage, clave `steward-demo/v1`) y se restablecen desde Ajustes. Los datos de la v1 (`@steward/budget_v3`) nunca se leen ni se tocan.
 
@@ -14,7 +14,7 @@ npx expo start                 # dev client / Expo Go
 npm test                       # Jest + Testing Library
 npm run typecheck
 npx expo export --platform web # comprobación rápida de que Metro compila
-eas build --profile preview --platform ios   # build interno; nunca `eas submit` desde esta rama
+eas build --profile testflight --platform ios --auto-submit-with-profile testflight   # build de tienda enviado solo a TestFlight
 ```
 
 ## Estructura

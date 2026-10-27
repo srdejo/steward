@@ -85,10 +85,14 @@
 - [x] 10.5 Ajustes, incluidos Ocultar montos, Cerrar sesión y Restablecer datos de prueba. Verificar con un test de Jest de "Ocultar montos".
 - [x] 10.6 Comparar cada pantalla en un simulador o dispositivo con su artboard de 390 px y corregir. Commit.
 
-## 11. App: build interno y paridad
+## 11. App: TestFlight y paridad
 
-- [ ] 11.1 `eas build --profile preview --platform ios` (distribución interna), sin `submit`. Verificar que el build termina y que App Store Connect no tiene una versión nueva.
-- [x] 11.2 Paridad: desde datos iniciales, hacer en la app y en la PWA la misma secuencia (pagar Mastercard desde Davivienda, registrar un aporte para el mes siguiente). Verificar que las dos muestran el mismo libre, el mismo pagado y el mismo vs. plan.
+- [x] 11.1 En `mobile/`, poner `version` en 1.1.0 en `app.json` y agregar a `eas.json` el perfil de build `testflight` (`distribution: store`, `autoIncrement: true`) y el de submit `testflight` (mismo `ascAppId`). Verificar que `npx expo config --type public` da 1.1.0 y que `production` no cambió.
+- [ ] 11.2 Desde `mobile/`, `npx eas-cli build --profile testflight --platform ios --auto-submit-with-profile testflight` (lo corre Daniel si EAS pide credenciales de Apple). Verificar que el build termina, que llega a TestFlight como 1.1.0 y que ninguna versión está en revisión en App Store Connect.
+- [ ] 11.3 Agregar los testers internos en App Store Connect (TestFlight → grupo interno). Verificar que pueden instalar.
+- [x] 11.4 Verificar que `main` sigue generando la v1: `git show main:mobile/app.json` en 1.0.2 y `git show main:mobile/eas.json` con `production` sin cambios.
+- [x] 11.5 Paridad: desde datos iniciales, hacer en la app y en la PWA la misma secuencia (pagar Mastercard desde Davivienda, registrar un aporte para el mes siguiente). Verificar que las dos muestran el mismo libre, el mismo pagado y el mismo vs. plan.
+- [x] 11.6 En `mobile/README.md` y el README raíz, cambiar "esta rama no se publica" por cómo se distribuye por TestFlight (perfil y comando).
 
 ## 12. Cierre
 

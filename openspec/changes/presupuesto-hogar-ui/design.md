@@ -18,7 +18,7 @@
 
 **Non-Goals:**
 - Llamadas HTTP, autenticación real, WebAuthn o biometría del sistema, notificaciones.
-- Migrar los datos de la v1 o publicar en las tiendas.
+- Migrar los datos de la v1 o publicar en las tiendas (TestFlight sí, ver D8).
 - Pixel-perfect automatizado: la fidelidad se revisa contra los artboards en dos anchos (390 y 1280 px).
 
 ## Decisions
@@ -81,7 +81,7 @@ El estado completo se serializa en JSON bajo `steward-demo/v1`: en `localStorage
 
 ### D6. App Expo: reescritura en la misma carpeta, en una rama
 - Rama `feature/presupuesto-hogar` en el repo steward. `main` queda con la v1 publicable. La PWA va en la misma rama, porque el dominio es común.
-- Se sube a Expo SDK 57 (el del workspace en denti-caja) con `npx expo install --fix`, conservando `app.json` (`bundleIdentifier`, `package`, `projectId` y versión 1.0.2).
+- Se sube a Expo SDK 57 (el del workspace en denti-caja) con `npx expo install --fix`, conservando en `app.json` el `bundleIdentifier`, el `package` y el `projectId`. La versión sigue en 1.0.2 hasta el envío a TestFlight (D8).
 - Se reemplaza `src/` por la estructura nueva:
   - `app/` con expo-router: grupos `(acceso)` y `(app)/(tabs)` con hoy, planear y cuentas;
   - modales `aporte`, `pagar` y `gasto` como `presentation: 'formSheet'`;
@@ -99,6 +99,12 @@ El estado completo se serializa en JSON bajo `steward-demo/v1`: en `localStorage
 - **App**: Jest + Testing Library con los mismos tres flujos.
 - **Fidelidad**: capturas de cada pantalla a 390 px (y de Comparar y Anual a 1280/1440) junto al artboard. Las diferencias se anotan y se corrigen en la misma tarea.
 
+### D8. Distribución por TestFlight
+- La rama sube `app.json` a la versión 1.1.0: la 1.0.2 ya está publicada y App Store Connect no acepta builds nuevos para una versión que ya salió.
+- `eas.json` suma un perfil de build `testflight` (`distribution: store`, `autoIncrement: true`) y un perfil de submit `testflight` con el mismo `ascAppId`. El número de build es remoto (`appVersionSource: remote`) y se comparte con `main`: siempre sube, así que no choca.
+- Solo testers internos: usuarios de App Store Connect, sin Beta App Review. Los testers externos piden revisión y quedan fuera de este cambio.
+- *Alternativa*: build ad hoc con el perfil `preview`. Se descarta porque exige registrar cada iPhone en la cuenta de Apple.
+
 ## Risks / Trade-offs
 
 - [El TS compartido por `paths` puede fallar en algún builder (esbuild o Metro)] → La primera tarea de cada app es una prueba mínima que importe `@steward/domain` y compile en `ng build` y en `expo export`. Si falla, el plan alternativo es un paso `tsc` del dominio a `dist/` antes del build.
@@ -106,13 +112,14 @@ El estado completo se serializa en JSON bajo `steward-demo/v1`: en `localStorage
 - [Reglas implementadas en el cliente que el backend deberá repetir] → Viven solo en `packages/domain/rules` con tests de las cifras del handoff. Esos tests se vuelven la especificación ejecutable del backend.
 - [El modo demo se confunda con datos reales] → Aviso persistente de "Datos de prueba". El VPS no publica la PWA mientras el backend esté reservado.
 - [Dos UIs (Angular y React Native) se desalinean] → Las dos parten de los mismos artboards y del mismo dominio. La paridad se verifica con las mismas cifras en los tests de flujo de ambas.
+- [Una corrección de la v1 desde `main` necesitará la 1.0.3 o más] → Funciona: App Store Connect compara contra la última versión publicada, no contra las de TestFlight. La versión con backend deberá ser mayor que 1.1.0.
 
 ## Migration Plan
 
 1. Crear la rama `feature/presupuesto-hogar` en steward.
 2. Dominio y tests.
 3. PWA y `local-deploy.ps1 -Project steward`: `steward.test` muestra la PWA.
-4. App y build `preview` interno.
+4. App y build `testflight` enviado a TestFlight.
 
 **Rollback**: no hay nada en producción que revertir. En local, borrar `frontend/` devuelve "Próximamente". La v1 sigue en `main`.
 

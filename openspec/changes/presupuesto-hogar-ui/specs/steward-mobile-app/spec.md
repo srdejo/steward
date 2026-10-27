@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Define la app Expo de `mobile/` reescrita con el diseño de Presupuesto Hogar: paridad con la PWA, el mismo dominio compartido y las restricciones para no afectar la v1 publicada.
+Define la app Expo de `mobile/` reescrita con el diseño de Presupuesto Hogar: paridad con la PWA, el mismo dominio compartido y la distribución por TestFlight sin afectar la v1 publicada.
 
 ## ADDED Requirements
 
@@ -20,9 +20,13 @@ La app SHALL guardar los datos de prueba en el dispositivo con una clave de alma
 - **WHEN** la app nueva se instala en un dispositivo con datos de la v1 y luego se reinstala la v1
 - **THEN** la v1 muestra sus datos intactos
 
-### Requirement: Sin publicación en este cambio
-La app reescrita MUST NOT enviarse a App Store ni a Google Play en este cambio, y la versión de `app.json` MUST NOT subir de la publicada. Los builds SHALL hacerse solo con el perfil `development` o `preview` (distribución interna). La rama `main` del repo MUST seguir pudiendo generar la v1.
+### Requirement: Distribución solo por TestFlight
+La app reescrita SHALL distribuirse solo por TestFlight, al grupo de pruebas internas, con la versión 1.1.0 en el `app.json` de la rama. MUST NOT enviarse a revisión de App Store ni publicarse en la tienda, y MUST NOT distribuirse por Google Play. El build SHALL salir del perfil `testflight` de `eas.json` (distribución de tienda y número de build remoto con autoincremento), y el envío, del perfil de submit `testflight`. La rama `main` MUST seguir pudiendo generar la v1 con la versión 1.0.2 y su perfil `production`.
 
-#### Scenario: Build de prueba
-- **WHEN** se ejecuta `eas build --profile preview` desde la rama del cambio
-- **THEN** sale un build interno, y en App Store Connect no aparece ninguna versión nueva
+#### Scenario: Build en TestFlight
+- **WHEN** desde la rama se ejecuta `eas build --profile testflight --platform ios --auto-submit-with-profile testflight`
+- **THEN** el build 1.1.0 aparece en TestFlight para los testers internos, ninguna versión se envía a revisión en App Store Connect y la tienda sigue mostrando la 1.0.2
+
+#### Scenario: La v1 sigue publicable
+- **WHEN** se revisa `main`
+- **THEN** `mobile/app.json` sigue en 1.0.2 y `mobile/eas.json` conserva el perfil `production` y su submit sin cambios
