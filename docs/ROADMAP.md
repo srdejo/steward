@@ -13,12 +13,25 @@ Las etapas 2 a 9 siguen el "Orden sugerido de implementación" del handoff. Conv
 
 - 2026-07-13 — Steward v1.0.2 en App Store: presupuesto mensual local con moneda por país, créditos y bola de nieve
 - 2026-10-26 — Infra de Presupuesto Hogar lista: `steward.test` y `https://steward.srdejo.com.co` sirviendo la página Próximamente, con el backend reservado en el VPS
+- 2026-10-26 — UI completa con datos de prueba: las 22 pantallas del diseño en la PWA (`steward.test`) y en la app Expo, con las mismas cifras en las dos (cambio OpenSpec `presupuesto-hogar-ui`)
 
 ## Etapa 1 — Infra de despliegue ✅
 
 - [x] Repo en tres capas: `backend/`, `frontend/` y `mobile/` (la app Expo, sin cambios en EAS).
 - [x] Entorno local: `local-deploy.ps1 -Project steward` publica `http://steward.test` (página Próximamente, base `steward`, puerto 8099).
 - [x] VPS: `https://steward.srdejo.com.co` con certificado, cabeceras de seguridad y `index.html` sin caché. Base y rol `steward` creados; la unit está instalada y deshabilitada (`BackendEnabled = $false`).
+
+## Etapa 1.5 — UI con datos de prueba ✅
+
+**Criterio de cierre**: el producto se puede usar de punta a punta sin backend (acceso, onboarding, Hoy, planear, cuentas, cierre) y las reglas del handoff quedan como tests que el backend debe reproducir.
+
+- [x] Dominio compartido `packages/domain`: modelo, reglas (libre, diezmo al recibir, aporte implícito, cuadre, cierre, escenarios, plan anual, simulador de crédito), puertos y adaptador de prueba; 41 tests con las cifras de los specs.
+- [x] PWA Angular 22 con las 22 pantallas, móvil y web; publicada en `steward.test` y recorrida completa a 390 y 1280 px sin errores.
+- [x] App Expo reescrita en SDK 57 con las mismas pantallas, en la rama `feature/presupuesto-hogar` (sin publicar); la v1 sigue en `main`.
+- [x] Paridad: la misma secuencia da las mismas cifras en la PWA y en la app.
+- [ ] Build interno de la app (`eas build --profile preview`) probado en un iPhone.
+
+Las etapas 2 a 9 conectan estas pantallas al backend: cada pantalla ya existe y pasa a usar el adaptador HTTP en lugar del de prueba.
 
 ## Etapa 2 — Esqueleto backend, acceso, hogar e invitaciones
 
@@ -28,7 +41,7 @@ Las etapas 2 a 9 siguen el "Orden sugerido de implementación" del handoff. Conv
 - [ ] Backend con los módulos del handoff (`auth`, `hogar`, `ingresos`, `plan`, `movimientos`, `cuentas`, `cierre`) y las migraciones Flyway iniciales del modelo de datos.
 - [ ] Login con Google y sesión (cookie HttpOnly o JWT corto con refresh).
 - [ ] Hogar, miembros e invitaciones por correo, enviadas por `contact`.
-- [ ] Shell de la PWA Angular con los tokens del diseño y la pantalla de Acceso.
+- [x] Shell de la PWA Angular con los tokens del diseño y la pantalla de Acceso (Etapa 1.5).
 - [ ] `local-deploy.ps1 -Project steward` despliega backend y web juntos en `steward.test`.
 
 ## Etapa 3 — Onboarding, ingresos fijos y diezmo
