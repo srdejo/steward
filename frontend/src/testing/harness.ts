@@ -28,7 +28,8 @@ export async function app(url: string) {
     router,
     raiz,
     estable,
-    texto: () => raiz().textContent!.replace(/\s+/g, ' '),
+    /** Texto visible con un espacio entre nodos (como lo leeria una persona), sin el de los <select>. */
+    texto: () => textoLegible(raiz()),
     url: () => router.url,
     porTexto,
     async tocar(texto: string | RegExp, selector?: string) {
@@ -47,6 +48,16 @@ export async function app(url: string) {
       await estable();
     },
   };
+}
+
+export function textoLegible(raiz: Node): string {
+  const partes: string[] = [];
+  const recorrer = (n: Node) => {
+    if (n.nodeType === Node.TEXT_NODE) partes.push(n.textContent ?? '');
+    else if (!(n instanceof HTMLSelectElement)) n.childNodes.forEach(recorrer);
+  };
+  recorrer(raiz);
+  return partes.join(' ').replace(/\s+/g, ' ').trim();
 }
 
 /** Campo por selector CSS o por el texto de su etiqueta (label, aria-label o placeholder). */

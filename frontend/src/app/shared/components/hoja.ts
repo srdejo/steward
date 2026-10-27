@@ -23,7 +23,13 @@ const ENFOCABLES = 'a[href], button:not([disabled]), input:not([disabled]), sele
     >
       <span class="h-1 w-10 self-center rounded-sm bg-[#D9D8D2] lg:hidden" aria-hidden="true"></span>
       <header class="flex items-center justify-between gap-3">
-        <h2 [id]="id" class="text-[22px] font-bold">{{ titulo() }}</h2>
+        <div class="flex min-w-0 flex-col gap-1">
+          @if (antetitulo()) {
+            <span class="rotulo" [style.color]="colorAntetitulo()">{{ antetitulo() }}</span>
+          }
+          <h2 [id]="id" class="text-[22px] font-bold">{{ titulo() }}</h2>
+          <ng-content select="[subtitulo]" />
+        </div>
         <button type="button" class="boton-texto text-sm font-normal" (click)="cerrar.emit()">Cancelar</button>
       </header>
       <ng-content />
@@ -33,6 +39,9 @@ const ENFOCABLES = 'a[href], button:not([disabled]), input:not([disabled]), sele
 export class Hoja implements OnDestroy {
   protected readonly id = `hoja-${++siguienteId}`;
   readonly titulo = input.required<string>();
+  /** Rotulo sobre el titulo (la categoria en Marcar pago). */
+  readonly antetitulo = input('');
+  readonly colorAntetitulo = input<string | null>(null);
   readonly cerrar = output<void>();
 
   private readonly panel = viewChild.required<ElementRef<HTMLElement>>('panel');
