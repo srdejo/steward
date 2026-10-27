@@ -32,7 +32,7 @@ export function Encabezado({ titulo, rotulo, rotuloColor, volver, volverTexto = 
   return (
     <View style={{ gap: 4 }}>
       {volver ? (
-        <Boton tipo="texto" titulo={`‹ ${volverTexto}`} onPress={() => (typeof volver === 'string' ? router.navigate(volver as never) : volver())} style={{ alignSelf: 'flex-start', minHeight: 36 }} />
+        <Boton tipo="texto" titulo={`‹ ${volverTexto}`} onPress={() => (typeof volver === 'string' ? volverA(volver) : volver())} style={{ alignSelf: 'flex-start', minHeight: 36 }} />
       ) : null}
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
         <View style={{ flexShrink: 1, gap: 2 }}>
@@ -45,10 +45,15 @@ export function Encabezado({ titulo, rotulo, rotuloColor, volver, volverTexto = 
   );
 }
 
-/** Cierra una hoja: vuelve atras si hay de donde (lo normal) o va a Hoy si se abrio directo (enlace, prueba). */
-export function cerrarHoja(): void {
+/** Vuelve atras si hay de donde (lo normal) o va a `respaldo` si la pantalla se abrio directo (enlace, prueba). */
+export function volverA(respaldo: string): void {
   if (router.canGoBack()) router.back();
-  else router.replace('/hoy');
+  else router.replace(respaldo as never);
+}
+
+/** Cierra una hoja de registro de Hoy. */
+export function cerrarHoja(): void {
+  volverA('/hoy');
 }
 
 /** Hoja de registro (formSheet): titulo, "Cancelar" y contenido, como Aporte/Pagar/Gasto.dc.html. */

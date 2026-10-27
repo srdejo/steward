@@ -116,4 +116,81 @@ describe('Hoy (steward-hoy)', () => {
   });
 });
 
+describe('Planear (steward-planear)', () => {
+  it('cerrar octubre reparte el sobrante y lo pasa a noviembre', async () => {
+    const p = await conSesion();
+    const OCT = { anio: 2026, mes: 10 };
+    const pagar = (itemId: string, monto: number) => p.movimientos.marcarPago({ itemId, ref: OCT, monto, usuarioId: 'u-daniel', origen: { tipo: 'CUENTA', cuentaId: 'cta-davivienda' } });
+    await pagar('m0-mastercard', 1_500_000);
+    await pagar('m0-cuotas', 375_000);
+    await p.movimientos.registrarGasto({ monto: 140_000, itemId: 'm0-mercado', nota: '', usuarioId: 'u-daniel', origen: { tipo: 'NINGUNO' }, ref: OCT });
+    await p.movimientos.registrarGasto({ monto: 112_000, itemId: null, nota: 'Farmacia', usuarioId: 'u-daniel', origen: { tipo: 'NINGUNO' }, ref: OCT });
+    const diezmo = (await p.movimientos.resumenMes(OCT)).diezmo.pendientes[0]!;
+    await p.ingresos.entregarDiezmo([diezmo.id], OCT, null);
+    await p.cuentas.cuadrar([{ cuentaId: 'cta-nu', saldoBanco: 3_190_000 }, { cuentaId: 'cta-efectivo', saldoBanco: 150_000 }]);
+
+    renderRouter('./src/app', { initialUrl: '/cierre/2026-10' });
+    await waitFor(() => expect(screen.getByTestId('sobrante')).toHaveTextContent('$3.166.000'));
+    expect(screen.getByText('El plan esperaba $2.898.000 libres.')).toBeTruthy();
+    await escribir('A ahorro', '2000000');
+    expect(await screen.findByTestId('aviso-reparto')).toBeTruthy();
+    await escribir('Pasar a noviembre', '1166000');
+    await tocar('Cerrar octubre');
+    await enRuta('/mes/2026-11');
+    await waitFor(() => expect(screen.getByTestId('dejaria-libre')).toHaveTextContent('$4.064.000'));
+    expect(screen.getByText('Sobrante de octubre')).toBeTruthy();
+  });
+
+  it('duplicar crea una opción nueva y el diezmo no se edita', async () => {
+    const p = await conSesion();
+    renderRouter('./src/app', { initialUrl: '/mes/2026-11' });
+    await waitFor(() => expect(screen.getByTestId('dejaria-libre')).toHaveTextContent('$2.898.000'));
+    expect(screen.getByTestId('fila-diezmo')).toHaveTextContent(/Calculado · 10% de Salario Daniel/);
+    await tocar('+ Duplicar');
+    expect(await screen.findByText('Opción D')).toBeTruthy();
+    expect((await p.plan.mes({ anio: 2026, mes: 11 })).opciones).toHaveLength(4);
+  });
+});
+
+describe('Cuentas (steward-cuentas)', () => {
+  it('cuadrar muestra la diferencia en vivo y la guarda como ajuste', async () => {
+    const p = await conSesion();
+    renderRouter('./src/app', { initialUrl: '/cuadrar' });
+    await escribir('Banco dice · Davivienda', '3980000');
+    await escribir('Hay en la billetera · Efectivo', '150000');
+    await escribir('Banco dice · Nu', '3360000');
+    await waitFor(() => expect(screen.getByTestId('sin-registrar')).toHaveTextContent('$220.000'));
+    expect(screen.getByTestId('cuadrar-Davivienda')).toHaveTextContent(/−\$170\.000/);
+    expect(screen.getByTestId('cuadrar-Nu')).toHaveTextContent(/Cuadra/);
+    await tocar('Guardar saldos');
+    await waitFor(async () => expect((await p.cierre.vista({ anio: 2026, mes: 10 })).sinRegistrar).toBe(220_000));
+  });
+
+  it('detalle de crédito con el simulador del diseño', async () => {
+    await conSesion();
+    renderRouter('./src/app', { initialUrl: '/credito/cred-libre' });
+    await waitFor(() => expect(screen.getByTestId('simulacion')).toHaveTextContent('≈ 5 cuotas menos y ≈ $1.200.000 menos en intereses.'));
+    expect(screen.getByText('Faltan 38 cuotas')).toBeTruthy();
+  });
+});
+
+describe('Ajustes (steward-ajustes)', () => {
+  it('ocultar montos muestra $•••• hasta tocar', async () => {
+    await conSesion();
+    renderRouter('./src/app', { initialUrl: '/ajustes' });
+    expect(await screen.findByText('Esposa')).toBeTruthy();
+    fireEvent(await screen.findByLabelText('Ocultar montos'), 'valueChange', true);
+    await waitFor(async () => expect((await screen.findByLabelText('Ocultar montos')).props.value).toBe(true));
+  });
+
+  it('con montos ocultos, Hoy muestra $•••• y al tocarlo el valor', async () => {
+    const p = await conSesion();
+    await p.sesion.guardarPreferencias({ ocultarMontos: true });
+    renderRouter('./src/app', { initialUrl: '/hoy' });
+    await waitFor(() => expect(screen.getByTestId('libre')).toHaveTextContent('$••••'));
+    fireEvent.press(screen.getByTestId('libre'));
+    await waitFor(() => expect(screen.getByTestId('libre')).toHaveTextContent('$3.436.000'));
+  });
+});
+
 export { conSesion };
