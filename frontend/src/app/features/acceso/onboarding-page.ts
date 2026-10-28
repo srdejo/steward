@@ -3,7 +3,8 @@ import { Router } from '@angular/router';
 import { previsualizarDiezmo, type BaseDiezmo, type Id, type Invitacion, type Pesos } from '@steward/domain';
 
 import { mensajeDeError } from '../../core/datos/consulta';
-import { PUERTOS } from '../../core/datos/puertos';
+import type { InvitacionConectada } from '../../core/datos/http/puertos-conectados';
+import { PUERTOS, puertosConectados } from '../../core/datos/puertos';
 import { SesionActual } from '../../core/sesion/sesion';
 import { Avatar } from '../../shared/components/avatar';
 import { Icono } from '../../shared/components/icono';
@@ -204,10 +205,16 @@ const COLORES_CUENTA = ['#D93025', '#7C4DDB', '#8D8F88', '#2E6B45', '#E2551B', '
           <span class="text-[13px] font-semibold">Los dos podrán</span>
           <span class="text-[13px] leading-normal text-[#3B3D39]">Ver el mes y el año · marcar pagos · registrar aportes · crear y elegir opciones de presupuesto</span>
         </div>
+        @if (correoNoEnviado()) {
+          <p role="status" class="nota text-[13px] leading-normal" data-testid="correo-no-enviado">No pudimos enviar el correo. Copia el enlace de invitación y compártelo tú.</p>
+        }
         @if (invitaciones().length) {
           <button type="button" class="boton-enlace gap-2" (click)="copiarEnlace()">
             <app-icono nombre="enlace" [tamano]="16" />{{ copiado() ? 'Enlace copiado' : 'O copiar enlace de invitación' }}
           </button>
+          @if (conectado) {
+            <p class="text-center text-xs text-secundario">Al reenviar o copiar se crea un enlace nuevo: el anterior deja de servir.</p>
+          }
         }
       }
     }
@@ -256,6 +263,8 @@ export class OnboardingPage implements OnInit {
   protected readonly invitaciones = signal<Invitacion[]>([]);
   protected readonly reenviada = signal<Id | null>(null);
   protected readonly copiado = signal(false);
+  protected readonly correoNoEnviado = signal(false);
+  protected readonly conectado = puertosConectados(this.puertos) !== null;
   protected readonly guardando = signal(false);
   protected readonly error = signal('');
 
@@ -379,7 +388,9 @@ export class OnboardingPage implements OnInit {
   protected async invitar(): Promise<void> {
     await this.guardar(async () => {
       const inv = await this.puertos.hogar.invitar(this.correo());
-      this.invitaciones.update((l) => [...l, inv]);
+      // Modo conectado: si contact no envio el correo, la invitacion igual quedo (spec "Correo no enviado").
+      this.correoNoEnviado.set((inv as Partial<InvitacionConectada>).correoEnviado === false);
+      this.invitaciones.update((l) => [...l.filter((i) => i.id !== inv.id), inv]);
       this.correo.set('');
     });
   }

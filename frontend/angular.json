@@ -48,6 +48,39 @@
             "development": {
               "optimization": false,
               "extractLicenses": false,
+              "sourceMap": true,
+              "fileReplacements": [
+                {
+                  "replace": "src/app/config/modo.ts",
+                  "with": "src/app/config/modo.demo.ts"
+                }
+              ]
+            },
+            "demo": {
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "500kB",
+                  "maximumError": "1MB"
+                },
+                {
+                  "type": "anyComponentStyle",
+                  "maximumWarning": "4kB",
+                  "maximumError": "8kB"
+                }
+              ],
+              "outputHashing": "all",
+              "serviceWorker": "ngsw-config.json",
+              "fileReplacements": [
+                {
+                  "replace": "src/app/config/modo.ts",
+                  "with": "src/app/config/modo.demo.ts"
+                }
+              ]
+            },
+            "conectado": {
+              "optimization": false,
+              "extractLicenses": false,
               "sourceMap": true
             }
           },
@@ -61,6 +94,13 @@
             },
             "development": {
               "buildTarget": "frontend:build:development"
+            },
+            "demo": {
+              "buildTarget": "frontend:build:demo"
+            },
+            "conectado": {
+              "buildTarget": "frontend:build:conectado",
+              "proxyConfig": "proxy.conf.json"
             }
           },
           "defaultConfiguration": "development"

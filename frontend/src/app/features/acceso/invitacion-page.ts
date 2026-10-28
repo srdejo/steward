@@ -1,11 +1,19 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 
 import { consulta, mensajeDeError } from '../../core/datos/consulta';
-import { PUERTOS } from '../../core/datos/puertos';
+import { PUERTOS, puertosConectados } from '../../core/datos/puertos';
 import { SesionActual } from '../../core/sesion/sesion';
 import { Avatar } from '../../shared/components/avatar';
 import { Interruptor } from '../../shared/components/interruptor';
+
+/** Lo que la persona escribio antes de ir a entrar con Google: al volver se une sola (modo conectado). */
+const CLAVE_UNIRME = 'steward/unirme';
+interface UnirmePendiente {
+  token: string;
+  nombre: string;
+  diezmo: boolean;
+}
 
 /** Invitado.dc.html: "{quien} te invitó a {hogar}". El invitado no configura ingresos ni cuentas. */
 @Component({
@@ -52,7 +60,7 @@ import { Interruptor } from '../../shared/components/interruptor';
       </div>
     } @else {
       <div class="mt-24 flex flex-col items-center gap-4 text-center">
-        <h1 class="text-[26px] leading-tight font-bold">Esta invitación ya no sirve</h1>
+        <h1 class="text-[26px] leading-tight font-bold">Esta invitación ya no es válida</h1>
         <p class="text-[15px] text-secundario">Se usó o venció (duran 7 días). Pide a quien te invitó que la reenvíe.</p>
         <a routerLink="/acceso" class="boton-grande mt-4">Ir al acceso</a>
       </div>
@@ -73,7 +81,34 @@ export class InvitacionPage {
   protected readonly error = signal('');
   protected readonly inicialInvitado = computed(() => (this.nombre().trim().charAt(0) || this.invitacion.value()?.email.charAt(0) || '?').toUpperCase());
 
+  private readonly conectado = puertosConectados(this.puertos) !== null;
+
+  constructor() {
+    // Modo conectado: si la persona fue a entrar con Google desde aqui, al volver con sesion se une sola.
+    effect(() => {
+      const inv = this.invitacion.value();
+      if (!this.conectado || !inv) return;
+      const pendiente = leerPendiente();
+      if (pendiente?.token !== inv.token) return;
+      untracked(() => void this.continuarTrasLogin(pendiente));
+    });
+  }
+
+  private async continuarTrasLogin(pendiente: UnirmePendiente): Promise<void> {
+    if (!(await this.sesion.cargar())) return;
+    borrarPendiente();
+    this.nombre.set(pendiente.nombre);
+    this.diezmo.set(pendiente.diezmo);
+    await this.unirme(pendiente.token);
+  }
+
   protected async unirme(token: string): Promise<void> {
+    // Modo conectado sin sesion: primero entrar con Google y volver aqui (spec "Unirse sin sesión").
+    if (this.conectado && !(await this.sesion.cargar())) {
+      guardarPendiente({ token, nombre: this.nombre(), diezmo: this.diezmo() });
+      await this.router.navigate(['/acceso'], { queryParams: { volver: `/invitacion/${token}` } });
+      return;
+    }
     this.uniendo.set(true);
     this.error.set('');
     try {
@@ -85,5 +120,30 @@ export class InvitacionPage {
     } finally {
       this.uniendo.set(false);
     }
+  }
+}
+
+function leerPendiente(): UnirmePendiente | null {
+  try {
+    const texto = sessionStorage.getItem(CLAVE_UNIRME);
+    return texto ? (JSON.parse(texto) as UnirmePendiente) : null;
+  } catch {
+    return null;
+  }
+}
+
+function guardarPendiente(p: UnirmePendiente): void {
+  try {
+    sessionStorage.setItem(CLAVE_UNIRME, JSON.stringify(p));
+  } catch {
+    // Sin almacenamiento: al volver tendra que tocar "Unirme" otra vez.
+  }
+}
+
+function borrarPendiente(): void {
+  try {
+    sessionStorage.removeItem(CLAVE_UNIRME);
+  } catch {
+    // nada que borrar
   }
 }

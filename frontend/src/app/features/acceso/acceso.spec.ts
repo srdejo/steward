@@ -109,6 +109,6 @@ describe('Acceso y onboarding (steward-acceso-onboarding)', () => {
 
   it('una invitación usada o vencida lo dice', async () => {
     const a = await app('/invitacion/no-existe');
-    expect(a.texto()).toContain('Esta invitación ya no sirve');
+    expect(a.texto()).toContain('Esta invitación ya no es válida');
   });
 });

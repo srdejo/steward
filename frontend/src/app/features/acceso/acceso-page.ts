@@ -1,8 +1,11 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, afterNextRender, inject, input, signal, viewChild } from '@angular/core';
 import { Router } from '@angular/router';
 import type { MetodoAcceso } from '@steward/domain';
 
 import { mensajeDeError } from '../../core/datos/consulta';
+import { Api } from '../../core/datos/http/api';
+import { PUERTOS, puertosConectados } from '../../core/datos/puertos';
+import { GOOGLE_IDENTITY_LOADER } from '../../core/sesion/google-identity';
 import { SesionActual } from '../../core/sesion/sesion';
 import { Icono } from '../../shared/components/icono';
 
@@ -24,6 +27,18 @@ import { Icono } from '../../shared/components/icono';
     </div>
 
     <div class="mt-auto flex flex-col gap-2.5">
+      @if (conectado) {
+        <!-- Modo conectado: el boton lo dibuja Google Identity Services (design D5). -->
+        <div #google class="flex min-h-[52px] justify-center" data-testid="google"></div>
+        @if (sinGoogle()) {
+          <p class="text-center text-sm text-secundario">El acceso con Google todavía no está configurado.</p>
+        }
+        <button type="button" class="boton-grande" disabled aria-describedby="proximamente">
+          <app-icono nombre="rostro" [tamano]="20" />Entrar con Face ID
+        </button>
+        <button type="button" class="boton-enlace h-12 text-[15px]" disabled aria-describedby="proximamente">Continuar con correo</button>
+        <p id="proximamente" class="text-center text-xs text-secundario">Face ID y correo: Próximamente</p>
+      } @else {
       <button type="button" class="boton h-[52px] rounded-[14px] border border-[#D9D8D2] bg-superficie text-base" [disabled]="entrando()" (click)="entrar('GOOGLE')">
         <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
           <path fill="#4285F4" d="M22.5 12.3c0-.8-.1-1.5-.2-2.2H12v4.2h5.9a5 5 0 0 1-2.2 3.3v2.7h3.5c2.1-1.9 3.3-4.7 3.3-8z" />
@@ -37,6 +52,7 @@ import { Icono } from '../../shared/components/icono';
         <app-icono nombre="rostro" [tamano]="20" />Entrar con Face ID
       </button>
       <button type="button" class="boton-enlace h-12 text-[15px]" [disabled]="entrando()" (click)="entrar('CORREO')">Continuar con correo</button>
+      }
       @if (error()) {
         <p role="alert" class="text-center text-sm text-negativo">{{ error() }}</p>
       }
@@ -51,8 +67,55 @@ import { Icono } from '../../shared/components/icono';
 export class AccesoPage {
   private readonly sesion = inject(SesionActual);
   private readonly router = inject(Router);
+  private readonly api = inject(Api);
+  private readonly cargarGoogle = inject(GOOGLE_IDENTITY_LOADER);
+  protected readonly conectado = puertosConectados(inject(PUERTOS));
+  /** Ruta a la que volver tras entrar (la invitacion recibida la usa para "Unirme" sin sesion). */
+  readonly volver = input<string>();
   protected readonly entrando = signal(false);
   protected readonly error = signal('');
+  protected readonly sinGoogle = signal(false);
+  private readonly contenedorGoogle = viewChild<ElementRef<HTMLElement>>('google');
+
+  constructor() {
+    if (this.conectado) afterNextRender(() => void this.mostrarGoogle());
+  }
+
+  private async mostrarGoogle(): Promise<void> {
+    try {
+      const { googleClientId } = await this.api.config();
+      if (!googleClientId) {
+        this.sinGoogle.set(true);
+        return;
+      }
+      const google = await this.cargarGoogle();
+      google.initialize({ client_id: googleClientId, callback: (r) => void this.entrarConGoogle(r.credential) });
+      const contenedor = this.contenedorGoogle()?.nativeElement;
+      if (contenedor) {
+        google.renderButton(contenedor, { theme: 'outline', size: 'large', shape: 'rectangular', text: 'continue_with', width: 340 });
+      }
+    } catch (e) {
+      this.error.set(mensajeDeError(e));
+    }
+  }
+
+  /** Modo conectado: sin hogar → Activar Face ID; hogar sin terminar → onboarding; configurado → Hoy. */
+  protected async entrarConGoogle(credential: string): Promise<void> {
+    if (!this.conectado) return;
+    this.entrando.set(true);
+    this.error.set('');
+    try {
+      const { sesion, tieneHogar } = await this.conectado.iniciarConGoogle(credential);
+      this.sesion.establecer(sesion);
+      const volver = this.volver();
+      if (volver?.startsWith('/')) await this.router.navigateByUrl(volver);
+      else await this.router.navigateByUrl(!tieneHogar ? '/acceso/face-id' : sesion.hogarConfigurado ? '/hoy' : '/onboarding/1');
+    } catch (e) {
+      this.error.set(mensajeDeError(e));
+    } finally {
+      this.entrando.set(false);
+    }
+  }
 
   protected async entrar(metodo: MetodoAcceso): Promise<void> {
     this.entrando.set(true);

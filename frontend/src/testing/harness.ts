@@ -2,18 +2,25 @@ import { TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 
-/** Navega con el router real de la app y deja helpers para interactuar como el usuario. */
-export async function app(url: string) {
+/**
+ * Navega con el router real de la app y deja helpers para interactuar como el usuario. En modo conectado los guards
+ * piden datos por HTTP: `mientrasNavega` los responde antes de esperar a que termine la navegacion.
+ */
+export async function app(url: string, mientrasNavega?: (estable: () => Promise<void>) => Promise<void>) {
   const harness = await RouterTestingHarness.create();
   const router = TestBed.inject(Router);
   const estable = async () => {
     for (let i = 0; i < 3; i++) {
-      await harness.fixture.whenStable();
+      // whenStable tambien espera las peticiones HTTP pendientes: en modo conectado las responde el test, asi que
+      // no se espera mas de 50 ms por vuelta.
+      await Promise.race([harness.fixture.whenStable(), new Promise((r) => setTimeout(r, 50))]);
       await new Promise((r) => setTimeout(r));
     }
     harness.detectChanges();
   };
-  await harness.navigateByUrl(url);
+  const navegacion = harness.navigateByUrl(url);
+  if (mientrasNavega) await mientrasNavega(estable);
+  await navegacion;
   await estable();
   const raiz = () => harness.fixture.nativeElement as HTMLElement;
 

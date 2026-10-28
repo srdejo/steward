@@ -90,4 +90,23 @@ describe('adaptador demo (steward-ui-shell: modo demo)', () => {
     await expect(p.movimientos.marcarPago({ itemId: 'm0-luz', ref: OCT, monto: 38_000, usuarioId: 'u-daniel', origen: { tipo: 'NINGUNO' } })).rejects.toThrow('Ya lo pagó Esposa el 12 oct');
     expect((await p.movimientos.resumenMes(OCT)).pagado).toBe(2_613_000);
   });
+
+  it('con titular, "tú" y la inicial salen de la persona real (modo conectado)', async () => {
+    const titular = { nombre: 'Ana María', email: 'ana@ejemplo.com', inicial: 'A' };
+    const storage = storageEnMemoria();
+    const p = crearAdaptadorDemo({ storage, ahora, titular });
+    // Sin iniciar sesion demo: en modo conectado la sesion es la del backend.
+    const s = await p.sesion.actual();
+    expect(s?.usuario).toMatchObject({ id: 'u-daniel', nombre: 'Ana María', email: 'ana@ejemplo.com', inicial: 'A' });
+    const vista = await p.hogar.obtener();
+    expect(vista.miembros.find((m) => m.esActual)?.usuario.inicial).toBe('A');
+    // Las cifras del mes no cambian.
+    expect((await p.movimientos.resumenMes(OCT)).libre).toBe(3_436_000);
+    // Restablecer conserva al titular.
+    await p.demo!.restablecer();
+    expect((await p.sesion.actual())?.usuario.nombre).toBe('Ana María');
+    // Recargar con el mismo storage y el mismo titular lo conserva.
+    const recargado = crearAdaptadorDemo({ storage, ahora, titular });
+    expect((await recargado.sesion.actual())?.usuario.inicial).toBe('A');
+  });
 });

@@ -1,10 +1,10 @@
 // Adaptador de prueba: implementa todos los puertos en memoria con las reglas de rules/ y guarda el
 // estado en el dispositivo (localStorage en la PWA, AsyncStorage en la app). Ver design D2-D4.
 
-import type { EstadoHogar, Fecha, Id } from '../model';
+import type { EstadoHogar, Fecha, Id, Usuario } from '../model';
 import type { Preferencias, Puertos, Sesion } from '../ports';
 import * as R from '../rules';
-import { crearHogarVacio, crearSemilla, VERSION_ESQUEMA } from './seed';
+import { crearHogarVacio, crearSemilla, DANIEL, VERSION_ESQUEMA } from './seed';
 
 export { crearHogarVacio, crearSemilla, DANIEL, ESPOSA, VERSION_ESQUEMA } from './seed';
 
@@ -32,6 +32,12 @@ export interface OpcionesDemo {
   ahora?: () => Date;
   /** Generador de tokens de invitacion (inyectable para los tests). */
   token?: () => string;
+  /**
+   * Modo conectado (design D9): la persona real de la sesion del backend. Ocupa el lugar de "Daniel" en los datos de
+   * prueba (nombre, correo e inicial) y la sesion demo queda siempre como ella, para que "tu" cuadre en las pantallas
+   * que todavia usan datos de prueba.
+   */
+  titular?: Pick<Usuario, 'nombre' | 'email' | 'inicial'>;
 }
 
 function tokenAleatorio(): string {
@@ -46,6 +52,17 @@ export function crearAdaptadorDemo(opciones: OpcionesDemo): Puertos {
   const mesActual = () => R.mesDe(hoy());
 
   let estado: EstadoHogar | null = null;
+  const titular = opciones.titular;
+
+  /** Pone al titular real en el lugar de Daniel; sin titular deja el estado igual. */
+  function conTitular(s: EstadoHogar): EstadoHogar {
+    if (!titular) return s;
+    return { ...s, usuarios: s.usuarios.map((u) => (u.id === DANIEL ? { ...u, ...titular } : u)) };
+  }
+
+  function semilla(): EstadoHogar {
+    return conTitular(crearSemilla(hoy()));
+  }
   let sesion: SesionGuardada = { usuarioId: null, preferencias: { ...PREFERENCIAS } };
   const oyentes = new Set<() => void>();
 
@@ -70,10 +87,11 @@ export function crearAdaptadorDemo(opciones: OpcionesDemo): Puertos {
   function cargar(): Promise<void> {
     carga ??= (async () => {
       const guardado = await leer<EstadoHogar>(CLAVE_ESTADO);
-      estado = guardado && guardado.version === VERSION_ESQUEMA ? guardado : crearSemilla(hoy());
+      estado = guardado && guardado.version === VERSION_ESQUEMA ? conTitular(guardado) : semilla();
       if (!guardado || guardado.version !== VERSION_ESQUEMA) await escribir(CLAVE_ESTADO, estado);
       const s = await leer<SesionGuardada>(CLAVE_SESION);
       if (s) sesion = { usuarioId: s.usuarioId, preferencias: { ...PREFERENCIAS, ...s.preferencias } };
+      if (titular) sesion.usuarioId = DANIEL;
     })();
     return carga;
   }
@@ -379,7 +397,7 @@ export function crearAdaptadorDemo(opciones: OpcionesDemo): Puertos {
     demo: {
       async restablecer() {
         await cargar();
-        estado = crearSemilla(hoy());
+        estado = semilla();
         await escribir(CLAVE_ESTADO, estado);
         avisar();
       },

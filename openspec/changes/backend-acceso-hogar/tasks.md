@@ -74,22 +74,22 @@
 
 ## 6. PWA en modo conectado
 
-- [ ] 6.1 En `packages/domain`, agregar el parámetro opcional `titular` a `crearAdaptadorDemo` (D9). Verificar: los tests del dominio siguen en verde, y un test nuevo comprueba que, con `titular`, "tú" y la inicial salen de ese usuario.
-- [ ] 6.2 En `frontend/`:
+- [x] 6.1 En `packages/domain`, agregar el parámetro opcional `titular` a `crearAdaptadorDemo` (D9). Verificar: los tests del dominio siguen en verde, y un test nuevo comprueba que, con `titular`, "tú" y la inicial salen de ese usuario.
+- [x] 6.2 En `frontend/`:
   - `src/app/config/modo.ts` con `fileReplacements`: `production` → conectado y la configuración `demo` → demo;
   - `proxy.conf.json` hacia `localhost:8099` para `ng serve -c conectado`.
   
   Verificar: `ng build -c production` y `ng build -c demo` compilan, y un test confirma qué proveedor de puertos usa cada modo.
-- [ ] 6.3 `core/datos/http/`:
+- [x] 6.3 `core/datos/http/`:
   - `SesionPort` y la parte de miembros e invitaciones de `HogarPort` sobre `HttpClient`;
   - interceptor de `Bearer` que, ante un 401, borra la sesión y abre Acceso;
   - `providePuertosConectados()`, que compone los puertos con el adaptador demo (con `titular`) y une los `suscribir`.
   
   Verificar: tests con `HttpTestingController` del mapeo de cada endpoint y de errores (409 y 404 con su `codigo`), y un test de que el 401 lleva a Acceso.
-- [ ] 6.4 Acceso con Google Identity Services: script de GIS cargado si `GET /api/auth/config` trae client id, `credential` a `POST /api/auth/google`, y Face ID y correo deshabilitados con "Próximamente" en modo conectado. Verificar: tests de "Google real, primera vez" (con GIS simulado) y "Opciones aún no disponibles", y "Primera vez" y "Hogar ya configurado" siguen pasando en modo demo.
-- [ ] 6.5 Onboarding paso 1 (crea o renombra el hogar), paso 5 (invitaciones reales, aviso de copiar el enlace y "el enlace anterior deja de servir" al reenviar) y terminar (onboarding completo en el backend). Verificar: tests de "Hogar creado en el backend" y "Correo no enviado"; los escenarios demo del onboarding siguen pasando.
-- [ ] 6.6 Invitación recibida en modo conectado: consulta por token, estado "Esta invitación ya no es válida" y login con Google antes de Unirme, volviendo a la invitación. Ajustes: miembros reales, salir del hogar y sin "Probar desde cero". Verificar: tests de "Unirse sin sesión", "Enlace no válido" y "Modo conectado" (`steward-ui-shell`).
-- [ ] 6.7 Actualizar `frontend/README.md` (modos, `ng serve -c conectado` y cómo pasa un módulo del adaptador demo al HTTP). Commit.
+- [x] 6.4 Acceso con Google Identity Services: script de GIS cargado si `GET /api/auth/config` trae client id, `credential` a `POST /api/auth/google`, y Face ID y correo deshabilitados con "Próximamente" en modo conectado. Verificar: tests de "Google real, primera vez" (con GIS simulado) y "Opciones aún no disponibles", y "Primera vez" y "Hogar ya configurado" siguen pasando en modo demo.
+- [x] 6.5 Onboarding paso 1 (crea o renombra el hogar), paso 5 (invitaciones reales, aviso de copiar el enlace y "el enlace anterior deja de servir" al reenviar) y terminar (onboarding completo en el backend). Verificar: tests de "Hogar creado en el backend" y "Correo no enviado"; los escenarios demo del onboarding siguen pasando.
+- [x] 6.6 Invitación recibida en modo conectado: consulta por token, estado "Esta invitación ya no es válida" y login con Google antes de Unirme, volviendo a la invitación. Ajustes: miembros reales, salir del hogar y sin "Probar desde cero". Verificar: tests de "Unirse sin sesión", "Enlace no válido" y "Modo conectado" (`steward-ui-shell`).
+- [x] 6.7 Actualizar `frontend/README.md` (modos, `ng serve -c conectado` y cómo pasa un módulo del adaptador demo al HTTP). Commit.
 
 ## 7. Entorno local e integración
 

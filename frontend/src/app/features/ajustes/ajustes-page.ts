@@ -4,7 +4,7 @@ import { Router, RouterLink } from '@angular/router';
 import { formatFechaCorta, formatPorcentaje, type BaseDiezmo, type Categoria, type DiezmoEnHoy, type IngresoFijo } from '@steward/domain';
 
 import { consulta, mensajeDeError } from '../../core/datos/consulta';
-import { PUERTOS } from '../../core/datos/puertos';
+import { PUERTOS, puertosConectados } from '../../core/datos/puertos';
 import { MiembrosHogar } from '../../core/layout/miembros';
 import { SesionActual } from '../../core/sesion/sesion';
 import { Avatar } from '../../shared/components/avatar';
@@ -118,7 +118,9 @@ const CONFIRMACIONES = {
         <h2 id="ajustes-demo" class="rotulo text-aviso">Datos de prueba</h2>
         <div class="flex flex-col divide-y divide-divisor rounded-[14px] border border-dashed border-control bg-superficie px-4 py-1">
           <button type="button" class="h-[46px] text-left text-sm font-semibold text-acento" (click)="abrir({ tipo: 'confirmar', accion: 'restablecer' })">Restablecer datos de prueba</button>
-          <button type="button" class="h-[46px] text-left text-sm font-semibold text-acento" (click)="abrir({ tipo: 'confirmar', accion: 'desde-cero' })">Probar desde cero</button>
+          @if (!conectado) {
+            <button type="button" class="h-[46px] text-left text-sm font-semibold text-acento" (click)="abrir({ tipo: 'confirmar', accion: 'desde-cero' })">Probar desde cero</button>
+          }
         </div>
       </section>
     }
@@ -207,6 +209,8 @@ export class AjustesPage {
   private readonly sesion = inject(SesionActual);
   protected readonly miembros = inject(MiembrosHogar);
   protected readonly esDemo = this.puertos.demo !== null;
+  /** Modo conectado: el hogar es real, asi que no hay "Probar desde cero" (spec steward-ui-shell). */
+  protected readonly conectado = puertosConectados(this.puertos) !== null;
   protected readonly confirmaciones = CONFIRMACIONES;
 
   protected readonly hogar = this.miembros.hogar;
@@ -323,6 +327,14 @@ export class AjustesPage {
       await this.puertos.demo!.restablecer();
       this.cerrar();
       this.mensaje.set('Volvieron los datos de ejemplo.');
+      return;
+    }
+    if (accion === 'salir' && this.conectado) {
+      // La sesion sigue: sin hogar, el onboarding permite crear otro o unirse a uno.
+      await this.puertos.hogar.salir();
+      this.cerrar();
+      await this.sesion.recargar();
+      await this.router.navigateByUrl('/onboarding/1');
       return;
     }
     if (accion === 'desde-cero') await this.puertos.demo!.probarDesdeCero();
