@@ -24,6 +24,7 @@ Sin capa de *handlers*: la conversión entre dominio y DTO es directa (`SesionRe
 - **Correos solo por `contact`**: `IMailPort` tiene una implementación real que llama a la API `contact` del workspace. El backend no tiene SMTP ni credenciales de correo.
 - **Sin Lombok, MapStruct ni springdoc**: records y mapeo a mano. Menos reflexión para la imagen nativa.
 - **Nada toca la base antes de que Flyway termine** (lección de `agent-project`).
+- **Sin `@Profile` en los beans**: lo que cambia entre entornos va en propiedades leídas al arrancar, porque la preparación AOT de la imagen nativa congela las condiciones de los beans (`docs/DECISIONS.md`). `gradlew aotTest` lo verifica.
 
 ## Código común y `srdejo-platform`
 

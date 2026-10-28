@@ -69,3 +69,20 @@ graalvmNative {
 
 // Los tests de contrato prueban el binario por HTTP (design D8), no con nativeTest: no hace falta el AOT de tests.
 tasks.named('processTestAot') { enabled = false }
+
+// Red de seguridad del dia a dia para la imagen nativa (spec "Preparado para imagen nativa", design D8): la bateria de
+// contrato con la app en modo AOT de Spring en la JVM. Usa la misma preparacion (processAot) que nativeCompile, sin
+// GraalVM y con la memoria de un build normal.
+tasks.register('aotTest', Test) {
+	description = 'Tests de contrato con la app en modo AOT de Spring (sin GraalVM).'
+	group = 'verification'
+	useJUnitPlatform()
+	testClassesDirs = sourceSets.test.output.classesDirs
+	classpath = sourceSets.aot.runtimeClasspath + sourceSets.aot.output + sourceSets.test.runtimeClasspath
+	filter { includeTestsMatching 'co.com.srdejo.steward.contract.*' }
+	systemProperty 'spring.aot.enabled', 'true'
+	dependsOn tasks.named('aotClasses')
+	shouldRunAfter tasks.named('test')
+}
+
+tasks.named('check') { dependsOn 'aotTest' }

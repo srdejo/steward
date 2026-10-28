@@ -7,6 +7,8 @@ API de steward en Spring Boot 4.1 reactivo (WebFlux + R2DBC), Java 25 y Postgres
 ```powershell
 .\gradlew.bat bootRun                 # perfil dev, base steward en 127.0.0.1:5433, puerto 8099
 .\gradlew.bat test                    # unitarios + contrato (levanta la app con el perfil contract)
+.\gradlew.bat aotTest                 # contrato con la app en modo AOT: lo que necesita la imagen nativa, sin GraalVM
+.\gradlew.bat check                   # test + aotTest
 .\gradlew.bat bootJar                 # lo que publica local-deploy.ps1
 ```
 
@@ -25,6 +27,9 @@ El primer build descarga el JDK 25 si no está instalado (foojay).
 | `GOOGLE_CLIENT_ID` | vacío | el client id de **beauty** (mismo OAuth client). Vacío = login con Google deshabilitado |
 | `CONTACT_API_URL` | `http://127.0.0.1:3000` | API `contact` del workspace, por donde salen **todos** los correos |
 | `STEWARD_PUBLIC_URL` | `http://steward.test` | origen de los enlaces de invitación |
+| `STEWARD_MAIL_MODO` | `contact` (`log` en `dev`) | `log` escribe el enlace de invitación en el log en vez de enviarlo |
+
+Nada se decide con `@Profile` en los beans: la imagen nativa congela esas condiciones al compilar. Los perfiles solo cambian propiedades (`docs/DECISIONS.md`).
 
 | Perfil | Uso |
 |---|---|

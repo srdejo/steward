@@ -29,7 +29,7 @@ import co.com.srdejo.steward.infrastructure.security.SecurityContextCurrentUserA
 import co.com.srdejo.steward.infrastructure.security.SystemClockAdapter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Profile;
+import org.springframework.core.io.ResourceLoader;
 import org.springframework.r2dbc.core.DatabaseClient;
 import org.springframework.transaction.reactive.TransactionalOperator;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -56,11 +56,16 @@ public class BeanConfiguration {
         return new SecurityContextCurrentUserAdapter();
     }
 
-    /** Google real; el perfil contract lo cambia por una llave local (ContractConfiguration). */
+    /** Google real por JWKS; con {@code google-test-public-key} (solo perfil contract), una llave RSA de prueba. */
     @Bean
-    @Profile("!contract")
-    IGoogleIdentityPort googleIdentityPort(StewardProperties properties) {
-        return GoogleIdentityAdapter.conJwksDeGoogle(properties.security().googleClientId());
+    IGoogleIdentityPort googleIdentityPort(StewardProperties properties, ResourceLoader recursos) {
+        StewardProperties.Security security = properties.security();
+        String llaveDePrueba = security.googleTestPublicKey();
+        if (llaveDePrueba == null || llaveDePrueba.isBlank()) {
+            return GoogleIdentityAdapter.conJwksDeGoogle(security.googleClientId());
+        }
+        return GoogleIdentityAdapter.conLlaveDePrueba(security.googleClientId(),
+                LlavePublicaRsa.leer(recursos.getResource(llaveDePrueba)));
     }
 
     @Bean
@@ -88,18 +93,12 @@ public class BeanConfiguration {
         return new SecureTokenGenerator();
     }
 
-    /** Produccion: todos los correos salen por la API contact del workspace (design D7). */
+    /** Todos los correos salen por la API contact (design D7); en dev y en los tests, el enlace va al log. */
     @Bean
-    @Profile("!dev & !contract")
-    IMailPort contactMailPort(WebClient.Builder builder, StewardProperties properties) {
-        return new ContactMailAdapter(builder, properties.contactApiUrl());
-    }
-
-    /** dev y contract: el enlace queda en el log, sin depender de contact. */
-    @Bean
-    @Profile("dev | contract")
-    IMailPort loggingMailPort() {
-        return new LoggingMailAdapter();
+    IMailPort mailPort(WebClient.Builder builder, StewardProperties properties) {
+        return properties.mail().porContact()
+                ? new ContactMailAdapter(builder, properties.contactApiUrl())
+                : new LoggingMailAdapter();
     }
 
     @Bean

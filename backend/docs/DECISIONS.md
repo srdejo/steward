@@ -20,3 +20,21 @@ Registro de decisiones técnicas del backend de steward. Las del cambio OpenSpec
 - La imagen de ejecución es la misma distribución y versión que el VPS, así que lo que corre en `local-deploy -Native` corre allá.
 
 **Revisar** cuando salga GraalVM para JDK 26 o posterior: subir el toolchain y las dos imágenes juntas, y volver a pasar los tests de contrato contra el binario.
+
+## 2026-10-28 — El día a día en JVM; nativo solo para desplegar
+
+**Contexto.** La primera compilación nativa en el PC de desarrollo (16 GB) dejó el sistema sin memoria y tumbó Docker Desktop dos veces.
+
+**Decisión.** El backend se desarrolla, se prueba y se publica en local en JVM. La compilación nativa (`scripts/native-build.ps1`, con `-J-Xmx5g`) se hace solo para desplegar al VPS, con nada más pesado abierto. La red de seguridad es `gradlew aotTest`: la batería de contrato con la app en **modo AOT de Spring** en la JVM, la misma preparación que usa la imagen nativa. Corre con `gradlew check`.
+
+## 2026-10-28 — Sin `@Profile` en los beans
+
+**Contexto.** La preparación AOT (`processAot`) congela al compilar las condiciones de los beans (`@Profile`, `@ConditionalOn…`). Con `@Profile("contract")` o `@Profile("dev")` en los beans, el binario quedaría con la elección del momento de compilar, sin importar el perfil con el que arranque.
+
+**Decisión.** Lo que cambia entre entornos se decide con **propiedades en tiempo de ejecución** dentro de un solo bean:
+- `steward.mail.modo`: `contact` (por defecto) o `log` (perfiles `dev` y `contract`);
+- `steward.security.google-test-public-key`: si tiene valor (solo `contract`), Google se valida con una llave RSA de prueba.
+
+Los archivos `application-<perfil>.yml` sí se leen al arrancar, también en AOT y en nativo. `aotTest` lo comprueba: arranca en AOT con el perfil `contract`.
+
+**Lección del test runner.** En modo AOT Spring busca el inicializador generado de la clase *main*; al levantar la app desde un test hay que indicarla con `SpringApplicationBuilder.main(StewardApplication.class)`.

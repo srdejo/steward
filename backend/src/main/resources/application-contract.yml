@@ -1,6 +1,6 @@
-# Perfil SOLO para los tests de contrato (design D8), en JVM y contra el binario nativo. Nunca se activa en el VPS.
-# Usa la base steward_test, un secreto de sesion conocido por los tests, Google con una llave RSA local y el correo
-# en el log.
+# Perfil SOLO para los tests de contrato (design D8), en JVM, en modo AOT y contra el binario nativo. Nunca se activa en
+# el VPS. Usa la base steward_test, un secreto de sesion conocido por los tests, Google con una llave RSA local y el
+# correo en el log. Todo son propiedades: la preparacion AOT no congela nada de esto.
 
 spring:
   r2dbc:
@@ -9,10 +9,10 @@ spring:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5433}/${DB_NAME:steward_test}
 
 steward:
+  mail:
+    modo: log
   security:
     jwt-secret: contract-only-secret-steward-0123456789abcdef0123456789abcdef0123456789
     google-client-id: contract-client-id
-
-contract:
-  # Llave publica de prueba; la privada esta en src/test/resources/contract/. No es una llave de Google.
-  google-public-key: classpath:contract-google-test-public.pem
+    # Llave publica de prueba; la privada esta en src/test/resources/contract/. No es una llave de Google.
+    google-test-public-key: classpath:contract-google-test-public.pem

@@ -69,8 +69,8 @@
 
 ## 5. Preparado para imagen nativa (en JVM)
 
-- [ ] 5.1 Tarea de Gradle que corre la batería de contrato con la app en modo AOT de Spring en la JVM (`processAot` y `spring.aot.enabled=true`), sin GraalVM. Los *hints* que falten se agregan en `infrastructure/configuration` (D2). Verificar: todos los tests de contrato pasan en modo AOT, igual que en el modo normal (spec "Preparado para imagen nativa").
-- [ ] 5.2 Commit.
+- [x] 5.1 Tarea de Gradle que corre la batería de contrato con la app en modo AOT de Spring en la JVM (`processAot` y `spring.aot.enabled=true`), sin GraalVM. Los *hints* que falten se agregan en `infrastructure/configuration` (D2). Verificar: todos los tests de contrato pasan en modo AOT, igual que en el modo normal (spec "Preparado para imagen nativa").
+- [x] 5.2 Commit.
 
 ## 6. PWA en modo conectado
 

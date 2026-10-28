@@ -43,6 +43,8 @@ public abstract class ContratoBase {
                 baseUrl = externa;
             } else {
                 app = new SpringApplicationBuilder(StewardApplication.class)
+                        // En modo AOT, Spring busca el inicializador generado de la clase main: no la deduce del stack.
+                        .main(StewardApplication.class)
                         .profiles("contract")
                         .run("--server.port=0");
                 baseUrl = "http://localhost:" + app.getEnvironment().getProperty("local.server.port");

@@ -39,6 +39,9 @@ steward:
   public-url: ${STEWARD_PUBLIC_URL:http://steward.test}
   # Los correos salen siempre por la API contact del workspace (design D7): el backend no tiene SMTP.
   contact-api-url: ${CONTACT_API_URL:http://127.0.0.1:3000}
+  mail:
+    # contact | log. Se decide en ejecucion, no con @Profile, para que la imagen nativa no lo congele (design D2).
+    modo: ${STEWARD_MAIL_MODO:contact}
   security:
     jwt-secret: ${JWT_SECRET:}
     jwt-ttl: 7d
@@ -52,5 +55,8 @@ spring:
       on-profile: dev
 
 steward:
+  # En local contact no suele correr: el enlace de invitacion queda en el log. Con STEWARD_MAIL_MODO=contact, sale por contact.
+  mail:
+    modo: ${STEWARD_MAIL_MODO:log}
   security:
     jwt-secret: ${JWT_SECRET:dev-only-secret-steward-0123456789abcdef0123456789abcdef0123456789}
