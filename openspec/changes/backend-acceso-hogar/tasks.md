@@ -159,3 +159,8 @@
   - en la PWA conectada, "Entrar como…" con correo y nombre, solo si `devLogin`.
   
   Verificar: tests de contrato de "Dos personas en local", test unitario de "Apagado" (404 y sin usuario creado), test de la PWA de que el formulario aparece solo con `devLogin`, `aotTest` en verde, y `local-deploy` con `steward.test/api/auth/config` mostrando `devLogin: true`.
+- [x] 7.8 Invitaciones para mi correo (spec `steward-hogar` "Invitaciones para mi correo" y `steward-acceso-onboarding` "Invitado que entra sin el enlace", design D7):
+  - backend: `GET /api/mis-invitaciones` (pendientes y vigentes para el correo de la sesión) y `POST /api/mis-invitaciones/{id}/aceptar` (mismas reglas que por enlace; 404 si no es para su correo);
+  - PWA conectada: tras entrar sin hogar y sin `volver`, si hay una invitación para su correo, abrirla en `/invitacion/para-mi/{id}` con "Unirme al hogar" y "Prefiero crear mi hogar"; en el onboarding paso 1, un aviso con enlace a la invitación pendiente.
+  
+  Verificar: tests de contrato de "Entra sin el enlace", "Invitación de otro correo", vencida no aparece y `YA_TIENE_HOGAR`; tests de la PWA del ruteo tras entrar y del aviso en el onboarding; `aotTest` en verde; recorrido en Chrome en `steward.test` entrando primero sin el enlace.

@@ -46,6 +46,10 @@ export interface InvitacionEnviadaApi {
   correoEnviado: boolean;
 }
 
+export interface MiInvitacionApi extends InvitacionRecibidaApi {
+  id: string;
+}
+
 export interface InvitacionRecibidaApi {
   hogar: string;
   invitadoPor: UsuarioApi;
@@ -116,6 +120,15 @@ export class Api {
 
   invitacion(token: string): Promise<InvitacionRecibidaApi> {
     return this.pedir(this.http.get<InvitacionRecibidaApi>(`/api/invitaciones/${encodeURIComponent(token)}`));
+  }
+
+  /** Invitaciones pendientes para el correo de la sesion (quien entra sin el enlace). */
+  misInvitaciones(): Promise<MiInvitacionApi[]> {
+    return this.pedir(this.http.get<MiInvitacionApi[]>('/api/mis-invitaciones'));
+  }
+
+  aceptarMia(id: string, nombre: string, diezmoAportes: boolean): Promise<SesionApi> {
+    return this.pedir(this.http.post<SesionApi>(`/api/mis-invitaciones/${encodeURIComponent(id)}/aceptar`, { nombre, diezmoAportes }));
   }
 
   aceptar(token: string, nombre: string, diezmoAportes: boolean): Promise<SesionApi> {

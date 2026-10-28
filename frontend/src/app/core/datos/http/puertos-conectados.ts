@@ -27,6 +27,9 @@ import type { TokenSesion } from './token-sesion';
 /** Lo que agrega el modo conectado a la invitacion: si el correo salio y el enlace para copiar (spec "Correo caido"). */
 export type InvitacionConectada = Invitacion & { correoEnviado: boolean; enlace: string };
 
+/** Invitacion para el correo de la sesion: se acepta por id, sin token. */
+export type MiInvitacion = InvitacionRecibida & { id: string };
+
 export interface ResultadoLogin {
   sesion: Sesion;
   tieneHogar: boolean;
@@ -102,6 +105,17 @@ export class PuertosConectados implements Puertos {
   /** Acceso de desarrollo (solo local): misma sesion que Google, por correo y nombre. */
   async iniciarDesarrollo(email: string, nombre: string): Promise<ResultadoLogin> {
     return this.conSesionNueva(await this.d.api.loginDesarrollo(email, nombre));
+  }
+
+  /** Invitaciones pendientes para el correo de la sesion: quien entra sin el enlace tambien puede unirse. */
+  async misInvitaciones(): Promise<MiInvitacion[]> {
+    return (await this.d.api.misInvitaciones()).map((r) => ({ id: r.id, ...recibida('', r) }));
+  }
+
+  async aceptarMia(id: string, nombre: string, diezmoAportes: boolean): Promise<Sesion> {
+    const s = await this.d.api.aceptarMia(id, nombre, diezmoAportes);
+    this.avisar();
+    return this.aSesion(s);
   }
 
   private async conSesionNueva(s: SesionApi): Promise<ResultadoLogin> {

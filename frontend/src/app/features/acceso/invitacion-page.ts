@@ -55,8 +55,12 @@ interface UnirmePendiente {
       }
 
       <div class="mt-auto flex flex-col gap-1">
-        <button type="button" class="boton-grande" [disabled]="uniendo()" (click)="unirme(inv.token)">Unirme al hogar</button>
-        <a routerLink="/acceso" class="boton-enlace">No soy yo</a>
+        <button type="button" class="boton-grande" [disabled]="uniendo()" (click)="unirme()">Unirme al hogar</button>
+        @if (id()) {
+          <a routerLink="/acceso/face-id" class="boton-enlace">Prefiero crear mi hogar</a>
+        } @else {
+          <a routerLink="/acceso" class="boton-enlace">No soy yo</a>
+        }
       </div>
     } @else {
       <div class="mt-24 flex flex-col items-center gap-4 text-center">
@@ -72,16 +76,25 @@ export class InvitacionPage {
   private readonly sesion = inject(SesionActual);
   private readonly router = inject(Router);
 
-  /** Parametro de la ruta (`/invitacion/:token`). */
-  readonly token = input.required<string>();
-  protected readonly invitacion = consulta(() => this.token(), (p, t) => p.hogar.invitacion(t));
+  /** `/invitacion/:token`: el enlace del correo. */
+  readonly token = input<string>();
+  /** `/invitacion/para-mi/:id`: invitacion para el correo de la sesion, sin enlace (modo conectado). */
+  readonly id = input<string>();
+  private readonly conectadoP = puertosConectados(this.puertos);
+  protected readonly invitacion = consulta(
+    () => ({ token: this.token(), id: this.id() }),
+    async (p, { token, id }) => {
+      if (id) return (await this.conectadoP?.misInvitaciones())?.find((i) => i.id === id) ?? null;
+      return token ? p.hogar.invitacion(token) : null;
+    },
+  );
   protected readonly nombre = signal('');
   protected readonly diezmo = signal(false);
   protected readonly uniendo = signal(false);
   protected readonly error = signal('');
   protected readonly inicialInvitado = computed(() => (this.nombre().trim().charAt(0) || this.invitacion.value()?.email.charAt(0) || '?').toUpperCase());
 
-  private readonly conectado = puertosConectados(this.puertos) !== null;
+  private readonly conectado = this.conectadoP !== null;
 
   constructor() {
     // Modo conectado: si la persona fue a entrar con Google desde aqui, al volver con sesion se une sola.
@@ -89,7 +102,7 @@ export class InvitacionPage {
       const inv = this.invitacion.value();
       if (!this.conectado || !inv) return;
       const pendiente = leerPendiente();
-      if (pendiente?.token !== inv.token) return;
+      if (!inv.token || pendiente?.token !== inv.token) return;
       untracked(() => void this.continuarTrasLogin(pendiente));
     });
   }
@@ -99,12 +112,14 @@ export class InvitacionPage {
     borrarPendiente();
     this.nombre.set(pendiente.nombre);
     this.diezmo.set(pendiente.diezmo);
-    await this.unirme(pendiente.token);
+    await this.unirme();
   }
 
-  protected async unirme(token: string): Promise<void> {
-    // Modo conectado sin sesion: primero entrar con Google y volver aqui (spec "Unirse sin sesión").
-    if (this.conectado && !(await this.sesion.cargar())) {
+  protected async unirme(): Promise<void> {
+    const id = this.id();
+    const token = this.token() ?? '';
+    // Modo conectado sin sesion: primero entrar y volver aqui (spec "Unirse sin sesión").
+    if (!id && this.conectado && !(await this.sesion.cargar())) {
       guardarPendiente({ token, nombre: this.nombre(), diezmo: this.diezmo() });
       await this.router.navigate(['/acceso'], { queryParams: { volver: `/invitacion/${token}` } });
       return;
@@ -112,7 +127,9 @@ export class InvitacionPage {
     this.uniendo.set(true);
     this.error.set('');
     try {
-      const s = await this.puertos.hogar.aceptar(token, this.nombre(), this.diezmo());
+      const s = id && this.conectadoP
+        ? await this.conectadoP.aceptarMia(id, this.nombre(), this.diezmo())
+        : await this.puertos.hogar.aceptar(token, this.nombre(), this.diezmo());
       this.sesion.establecer(s);
       await this.router.navigateByUrl('/hoy');
     } catch (e) {

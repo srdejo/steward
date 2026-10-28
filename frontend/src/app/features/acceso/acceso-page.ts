@@ -134,7 +134,13 @@ export class AccesoPage {
       const { sesion, tieneHogar } = await login();
       this.sesion.establecer(sesion);
       const volver = this.volver();
-      if (volver?.startsWith('/')) await this.router.navigateByUrl(volver);
+      if (volver?.startsWith('/')) {
+        await this.router.navigateByUrl(volver);
+        return;
+      }
+      // Sin hogar: si alguien la invito a su correo, primero la invitacion (spec "Invitado que entra sin el enlace").
+      const pendiente = !tieneHogar ? (await this.conectado?.misInvitaciones())?.[0] : undefined;
+      if (pendiente) await this.router.navigate(['/invitacion/para-mi', pendiente.id]);
       else await this.router.navigateByUrl(!tieneHogar ? '/acceso/face-id' : sesion.hogarConfigurado ? '/hoy' : '/onboarding/1');
     } catch (e) {
       this.error.set(mensajeDeError(e));

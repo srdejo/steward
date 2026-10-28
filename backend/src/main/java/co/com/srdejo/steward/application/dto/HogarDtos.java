@@ -5,6 +5,7 @@ import co.com.srdejo.steward.domain.model.Hogar;
 import co.com.srdejo.steward.domain.model.Invitacion;
 import co.com.srdejo.steward.domain.model.InvitacionEnviada;
 import co.com.srdejo.steward.domain.model.InvitacionRecibida;
+import co.com.srdejo.steward.domain.model.MiInvitacion;
 import co.com.srdejo.steward.domain.model.VistaHogar;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -66,6 +67,17 @@ public final class HogarDtos {
         public static InvitacionEnviadaResponse de(InvitacionEnviada enviada) {
             return new InvitacionEnviadaResponse(InvitacionResponse.de(enviada.invitacion()), enviada.enlace(),
                     enviada.correoEnviado());
+        }
+    }
+
+    /** Invitacion pendiente para el correo de la sesion (se acepta por id, sin el enlace). */
+    public record MiInvitacionResponse(UUID id, String hogar, UsuarioResponse invitadoPor, List<UsuarioResponse> miembros,
+                                       String email) {
+
+        public static MiInvitacionResponse de(MiInvitacion mi) {
+            InvitacionRecibida r = mi.detalle();
+            return new MiInvitacionResponse(mi.id(), r.hogar(), UsuarioResponse.de(r.invitadoPor()),
+                    r.miembros().stream().map(UsuarioResponse::de).toList(), r.email());
         }
     }
 

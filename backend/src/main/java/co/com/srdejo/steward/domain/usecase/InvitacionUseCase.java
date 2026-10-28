@@ -6,6 +6,7 @@ import co.com.srdejo.steward.domain.model.Hogar;
 import co.com.srdejo.steward.domain.model.Invitacion;
 import co.com.srdejo.steward.domain.model.InvitacionEnviada;
 import co.com.srdejo.steward.domain.model.InvitacionRecibida;
+import co.com.srdejo.steward.domain.model.MiInvitacion;
 import co.com.srdejo.steward.domain.model.Miembro;
 import co.com.srdejo.steward.domain.model.Sesion;
 import co.com.srdejo.steward.domain.model.Usuario;
@@ -17,6 +18,7 @@ import co.com.srdejo.steward.domain.spi.IMailPort;
 import co.com.srdejo.steward.domain.spi.ITokenGeneratorPort;
 import co.com.srdejo.steward.domain.spi.ITransaccionPort;
 import co.com.srdejo.steward.domain.spi.IUsuarioPersistencePort;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.time.Duration;
@@ -80,20 +82,46 @@ public class InvitacionUseCase implements IInvitacionServicePort {
 
     @Override
     public Mono<InvitacionRecibida> consultar(String token) {
-        return vigentePorToken(token).flatMap(inv -> Mono.zip(
+        return vigentePorToken(token).flatMap(inv -> detalle(inv));
+    }
+
+    private Mono<InvitacionRecibida> detalle(Invitacion inv) {
+        return Mono.zip(
                         hogares.miembros(inv.hogarId()).map(Miembro::usuario).collectList(),
                         usuarios.porId(inv.creadaPor()),
                         hogares.porId(inv.hogarId()).switchIfEmpty(Mono.error(InvitacionUseCase::noValida)))
-                .map(t -> new InvitacionRecibida(t.getT3().nombre(), t.getT2(), t.getT1(), inv.email())));
+                .map(t -> new InvitacionRecibida(t.getT3().nombre(), t.getT2(), t.getT1(), inv.email()));
     }
 
     @Override
     public Mono<Sesion> aceptar(String token, String nombre, boolean diezmoAportes) {
+        return usuarioActual.usuarioId().flatMap(usuario -> unirse(vigentePorToken(token), usuario, nombre, diezmoAportes));
+    }
+
+    @Override
+    public Flux<MiInvitacion> paraMi() {
+        return usuarioActual.usuarioId()
+                .flatMap(id -> usuarios.porId(id).switchIfEmpty(Mono.error(DomainException::noAutenticado)))
+                .flatMapMany(usuario -> invitaciones.pendientesParaEmail(usuario.email(), clock.ahora()))
+                .concatMap(inv -> detalle(inv).map(d -> new MiInvitacion(inv.id(), d)));
+    }
+
+    @Override
+    public Mono<Sesion> aceptarParaMi(UUID invitacionId, String nombre, boolean diezmoAportes) {
+        return usuarioActual.usuarioId().flatMap(id -> usuarios.porId(id)
+                .switchIfEmpty(Mono.error(DomainException::noAutenticado))
+                .flatMap(usuario -> unirse(invitaciones.porId(invitacionId)
+                        // Solo la persona a cuyo correo se envio: su correo verificado es la prueba (design D7).
+                        .filter(inv -> inv.email().equalsIgnoreCase(usuario.email()) && inv.vigenteEn(clock.ahora()))
+                        .switchIfEmpty(Mono.error(InvitacionUseCase::noValida)), id, nombre, diezmoAportes)));
+    }
+
+    private Mono<Sesion> unirse(Mono<Invitacion> invitacion, UUID usuario, String nombre, boolean diezmoAportes) {
         String limpio = nombre == null ? "" : nombre.strip();
         if (limpio.isEmpty() || limpio.length() > Usuario.NOMBRE_MAX) {
             return Mono.error(DomainException.datosInvalidos("El nombre debe tener entre 1 y 60 caracteres"));
         }
-        return usuarioActual.usuarioId().flatMap(usuario -> vigentePorToken(token)
+        return invitacion
                 .flatMap(inv -> transaccion.enTransaccion(
                         // Unir primero: si ya tiene hogar falla con YA_TIENE_HOGAR y la invitacion no se consume.
                         hogares.unir(inv.hogarId(), usuario, clock.hoy(), diezmoAportes)
@@ -101,7 +129,7 @@ public class InvitacionUseCase implements IInvitacionServicePort {
                                 .flatMap(marcada -> marcada ? usuarios.actualizarNombre(usuario, limpio)
                                         : Mono.error(InvitacionUseCase::noValida))))
                 .flatMap(actualizado -> hogares.estadoDe(usuario)
-                        .map(estado -> new Sesion(null, actualizado, estado.tieneHogar(), estado.configurado()))));
+                        .map(estado -> new Sesion(null, actualizado, estado.tieneHogar(), estado.configurado())));
     }
 
     private Mono<InvitacionEnviada> crearYEnviar(Contexto ctx, String email) {

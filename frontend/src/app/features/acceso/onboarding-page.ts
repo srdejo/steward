@@ -1,9 +1,9 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { previsualizarDiezmo, type BaseDiezmo, type Id, type Invitacion, type Pesos } from '@steward/domain';
 
 import { mensajeDeError } from '../../core/datos/consulta';
-import type { InvitacionConectada } from '../../core/datos/http/puertos-conectados';
+import type { InvitacionConectada, MiInvitacion } from '../../core/datos/http/puertos-conectados';
 import { PUERTOS, puertosConectados } from '../../core/datos/puertos';
 import { SesionActual } from '../../core/sesion/sesion';
 import { Avatar } from '../../shared/components/avatar';
@@ -34,7 +34,7 @@ const COLORES_CUENTA = ['#D93025', '#7C4DDB', '#8D8F88', '#2E6B45', '#E2551B', '
  */
 @Component({
   selector: 'app-onboarding-page',
-  imports: [Avatar, Icono, Monto, MontoInput],
+  imports: [Avatar, Icono, Monto, MontoInput, RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'mx-auto flex min-h-dvh w-full max-w-[430px] flex-col gap-6 px-6 pt-8 pb-9' },
   template: `
@@ -46,6 +46,12 @@ const COLORES_CUENTA = ['#D93025', '#7C4DDB', '#8D8F88', '#2E6B45', '#E2551B', '
 
     @switch (numero()) {
       @case (1) {
+        @if (invitacionPendiente(); as inv) {
+          <a [routerLink]="['/invitacion/para-mi', inv.id]" class="nota text-[13px] leading-normal" data-testid="invitacion-pendiente">
+            <span class="font-semibold">{{ inv.invitadoPor.nombre }} te invitó a {{ inv.hogar }}</span>
+            <span class="text-acento">Ver invitación y unirme en vez de crear un hogar</span>
+          </a>
+        }
         <div class="flex flex-col gap-2.5">
           <span class="text-xs font-semibold tracking-[0.1em] text-acento">BIENVENIDO</span>
           <h1 class="text-[28px] leading-tight font-bold">¿Cómo te llamas?</h1>
@@ -265,6 +271,8 @@ export class OnboardingPage implements OnInit {
   protected readonly copiado = signal(false);
   protected readonly correoNoEnviado = signal(false);
   protected readonly conectado = puertosConectados(this.puertos) !== null;
+  /** Modo conectado: invitacion para el correo de la sesion, por si llego al onboarding sin el enlace. */
+  protected readonly invitacionPendiente = signal<MiInvitacion | null>(null);
   protected readonly guardando = signal(false);
   protected readonly error = signal('');
 
@@ -291,6 +299,10 @@ export class OnboardingPage implements OnInit {
       this.diezmo.set(regla.activa);
       this.porcentaje.set(regla.porcentaje);
       this.base.set(regla.base);
+    }
+    const conectados = puertosConectados(this.puertos);
+    if (conectados && !hogar.hogar.id) {
+      this.invitacionPendiente.set((await conectados.misInvitaciones().catch(() => []))[0] ?? null);
     }
     if (fijos.length) this.ingresos.set(fijos.map((f) => ({ id: f.id, nombre: f.nombre, bruto: f.bruto, neto: f.neto, dia: f.diaPago })));
   }

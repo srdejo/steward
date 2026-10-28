@@ -6,6 +6,7 @@ import co.com.srdejo.steward.application.dto.HogarDtos.HogarResponse;
 import co.com.srdejo.steward.application.dto.HogarDtos.InvitacionEnviadaResponse;
 import co.com.srdejo.steward.application.dto.HogarDtos.InvitacionRecibidaResponse;
 import co.com.srdejo.steward.application.dto.HogarDtos.InvitarRequest;
+import co.com.srdejo.steward.application.dto.HogarDtos.MiInvitacionResponse;
 import co.com.srdejo.steward.application.dto.HogarDtos.NombreHogarRequest;
 import co.com.srdejo.steward.domain.api.IHogarServicePort;
 import co.com.srdejo.steward.domain.api.IInvitacionServicePort;
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.UUID;
@@ -88,6 +90,17 @@ public class HogarController {
     @GetMapping("/api/invitaciones/{token}")
     public Mono<InvitacionRecibidaResponse> consultar(@PathVariable String token) {
         return invitaciones.consultar(token).map(InvitacionRecibidaResponse::de);
+    }
+
+    /** Invitaciones para el correo de la sesion: quien entra sin el enlace tambien puede unirse. */
+    @GetMapping("/api/mis-invitaciones")
+    public Flux<MiInvitacionResponse> misInvitaciones() {
+        return invitaciones.paraMi().map(MiInvitacionResponse::de);
+    }
+
+    @PostMapping("/api/mis-invitaciones/{id}/aceptar")
+    public Mono<SesionResponse> aceptarMia(@PathVariable UUID id, @Valid @RequestBody AceptarRequest request) {
+        return invitaciones.aceptarParaMi(id, request.nombre(), request.diezmoAportes()).map(SesionResponse::de);
     }
 
     @PostMapping("/api/invitaciones/{token}/aceptar")

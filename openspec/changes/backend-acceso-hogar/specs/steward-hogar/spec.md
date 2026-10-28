@@ -100,3 +100,18 @@ Cada operación SHALL actuar solo sobre el hogar del usuario de la sesión. Toda
 #### Scenario: Peticiones simultáneas
 - **WHEN** miembros de dos hogares consultan su hogar al mismo tiempo, muchas veces
 - **THEN** cada respuesta trae solo el hogar de quien la pidió
+
+### Requirement: Invitaciones para mi correo
+Un usuario con sesión SHALL poder ver las invitaciones pendientes y vigentes dirigidas a su correo (sin distinguir mayúsculas), aunque no tenga el enlace. Cada una MUST mostrar el hogar, quién invitó y los miembros. El usuario SHALL poder aceptar una de ellas con su nombre y su preferencia de diezmo sobre los aportes, con las mismas reglas que aceptar por enlace:
+- la invitación queda aceptada y no vuelve a servir;
+- si ya pertenece a un hogar, MUST responder 409 `YA_TIENE_HOGAR` sin consumirla.
+
+Aceptar una invitación que no está dirigida a su correo, que venció o que ya se usó MUST responder 404 `INVITACION_NO_VALIDA`.
+
+#### Scenario: Entra sin el enlace
+- **WHEN** Daniel invitó a `sulbey@ejemplo.com` y Sulbey entra con ese correo sin abrir el enlace
+- **THEN** ve la invitación de Daniel a "Jimenez Navarro" y, al aceptarla, queda como miembro
+
+#### Scenario: Invitación de otro correo
+- **WHEN** un usuario con otro correo intenta aceptar esa invitación por su id
+- **THEN** responde 404 `INVITACION_NO_VALIDA` y la invitación sigue pendiente

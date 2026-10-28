@@ -8,6 +8,8 @@ export const routes: Routes = [
   { path: 'acceso', canActivate: [accesoGuard], loadComponent: () => import('./features/acceso/acceso-page').then((m) => m.AccesoPage) },
   { path: 'acceso/face-id', canActivate: [onboardingGuard], loadComponent: () => import('./features/acceso/face-id-page').then((m) => m.FaceIdPage) },
   { path: 'onboarding/:paso', canActivate: [onboardingGuard], loadComponent: () => import('./features/acceso/onboarding-page').then((m) => m.OnboardingPage) },
+  // Invitacion para el correo de la sesion (sin enlace): requiere sesion y no tener el hogar configurado.
+  { path: 'invitacion/para-mi/:id', canActivate: [onboardingGuard], loadComponent: () => import('./features/acceso/invitacion-page').then((m) => m.InvitacionPage) },
   { path: 'invitacion/:token', loadComponent: () => import('./features/acceso/invitacion-page').then((m) => m.InvitacionPage) },
   {
     path: '',

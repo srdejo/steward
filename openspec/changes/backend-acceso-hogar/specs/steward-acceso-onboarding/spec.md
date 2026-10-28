@@ -6,7 +6,8 @@
 Sin sesión, la UI SHALL mostrar Acceso con "Continuar con Google", "Entrar con Face ID" y "Continuar con correo", y el texto de que la primera vez se crea la cuenta.
 - **En modo demo**, cualquiera de las tres opciones MUST iniciar una sesión de prueba. Si el hogar de prueba ya está configurado, MUST ir a Hoy; si no, a Activar Face ID.
 - **En modo conectado**, "Continuar con Google" MUST iniciar el login real con Google. "Entrar con Face ID" y "Continuar con correo" MUST verse deshabilitadas, con la etiqueta "Próximamente". Tras entrar:
-  - sin hogar, MUST ir a Activar Face ID;
+  - sin hogar y con una invitación pendiente para su correo, MUST abrir esa invitación ("{quien} te invitó a {hogar}") en vez del onboarding, con la opción de crear su propio hogar;
+  - sin hogar y sin invitaciones, MUST ir a Activar Face ID;
   - con un hogar que no terminó el onboarding, al paso 1 del onboarding;
   - con el hogar configurado, a Hoy.
 
@@ -21,6 +22,10 @@ Sin sesión, la UI SHALL mostrar Acceso con "Continuar con Google", "Entrar con 
 #### Scenario: Google real, primera vez
 - **WHEN** en modo conectado una persona sin cuenta entra con Google
 - **THEN** se crea su usuario y se abre Activar Face ID
+
+#### Scenario: Invitado que entra sin el enlace
+- **WHEN** en modo conectado entra una persona sin hogar que tiene una invitación pendiente para su correo
+- **THEN** se abre "{quien} te invitó a {hogar}" con "Unirme al hogar" y "Prefiero crear mi hogar", no Activar Face ID
 
 #### Scenario: Opciones aún no disponibles
 - **WHEN** en modo conectado se abre Acceso

@@ -21,6 +21,12 @@ public interface IInvitacionPersistencePort {
 
     Mono<Invitacion> porTokenHash(String tokenHash);
 
+    /** Pendientes y vigentes dirigidas a ese correo, en cualquier hogar (sin distinguir mayusculas). */
+    Flux<Invitacion> pendientesParaEmail(String email, Instant ahora);
+
+    /** Solo para validar una invitacion contra el correo de la sesion (el hogar sale de la propia invitacion). */
+    Mono<Invitacion> porId(UUID id);
+
     /** Token nuevo y nuevo vencimiento: el enlace anterior deja de servir. */
     Mono<Invitacion> rotar(UUID id, UUID hogarId, String tokenHash, Instant enviadaEn, Instant expiraEn);
 

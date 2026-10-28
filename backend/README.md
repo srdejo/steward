@@ -95,3 +95,5 @@ El token de una invitación sirve una vez y vence a los 7 días. En la base solo
 | `POST /api/hogar/invitaciones/{id}/enlace` | sí | enlace nuevo para copiar, sin correo |
 | `GET /api/invitaciones/{token}` | no | `{hogar, invitadoPor, miembros, email}`; 404 `INVITACION_NO_VALIDA` si no existe, venció o ya se usó (sin distinguir) |
 | `POST /api/invitaciones/{token}/aceptar` | sí | `{"nombre", "diezmoAportes"}` → la sesión, ya con hogar; 409 `YA_TIENE_HOGAR` sin consumir la invitación |
+| `GET /api/mis-invitaciones` | sí | pendientes y vigentes para el correo de la sesión: `[{id, hogar, invitadoPor, miembros, email}]`. Así quien entra sin el enlace también puede unirse |
+| `POST /api/mis-invitaciones/{id}/aceptar` | sí | `{"nombre", "diezmoAportes"}` → la sesión, ya con hogar; 404 `INVITACION_NO_VALIDA` si no es para su correo, venció o ya se usó; 409 `YA_TIENE_HOGAR` |

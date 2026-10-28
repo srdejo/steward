@@ -141,6 +141,7 @@ describe('pantallas en modo conectado (steward-acceso-onboarding, steward-ui-she
     a.porTexto('Entrar como…').click();
     const login = await responder('POST', '/api/auth/dev', sesionApi({ token: 'jwt-dev', tieneHogar: false, hogarConfigurado: false }), a.estable);
     expect(login.request.body).toEqual({ email: 'esposa@ejemplo.com', nombre: 'Esposa' });
+    await responder('GET', '/api/mis-invitaciones', [], a.estable);
     expect(a.url()).toBe('/acceso/face-id');
     expect(localStorage.getItem(TOKEN)).toBe('jwt-dev');
   });
@@ -151,8 +152,48 @@ describe('pantallas en modo conectado (steward-acceso-onboarding, steward-ui-she
     google.elegirCuenta('credencial-1');
     const login = await responder('POST', '/api/auth/google', sesionApi({ token: 'jwt-nuevo', tieneHogar: false, hogarConfigurado: false }), a.estable);
     expect(login.request.body).toEqual({ idToken: 'credencial-1' });
+    await responder('GET', '/api/mis-invitaciones', [], a.estable);
     expect(a.url()).toBe('/acceso/face-id');
     expect(localStorage.getItem(TOKEN)).toBe('jwt-nuevo');
+  });
+
+  const MIA = {
+    id: 'inv-1',
+    hogar: 'Jimenez Navarro',
+    invitadoPor: { id: 'u-d', nombre: 'Daniel', email: 'srdejo@ejemplo.com', inicial: 'D' },
+    miembros: [{ id: 'u-d', nombre: 'Daniel', email: 'srdejo@ejemplo.com', inicial: 'D' }],
+    email: 'ana@ejemplo.com',
+  };
+
+  it('invitado que entra sin el enlace: abre la invitación y se une', async () => {
+    const a = await app('/acceso');
+    await responder('GET', '/api/auth/config', { googleClientId: null, devLogin: true }, a.estable);
+    await a.escribir('Correo', 'ana@ejemplo.com');
+    await a.escribir('Nombre', 'Ana María');
+    a.porTexto('Entrar como…').click();
+    await responder('POST', '/api/auth/dev', sesionApi({ token: 'jwt-ana', tieneHogar: false, hogarConfigurado: false }), a.estable);
+    await responder('GET', '/api/mis-invitaciones', [MIA], a.estable);
+    expect(a.url()).toBe('/invitacion/para-mi/inv-1');
+    await responder('GET', '/api/mis-invitaciones', [MIA], a.estable);
+    expect(a.texto()).toContain('Daniel te invitó a Jimenez Navarro');
+    expect(a.porTexto('Prefiero crear mi hogar')).toBeTruthy();
+    await a.escribir('Tu nombre', 'Ana María');
+    a.porTexto('Unirme al hogar').click();
+    const aceptar = await responder('POST', '/api/mis-invitaciones/inv-1/aceptar', sesionApi(), a.estable);
+    expect(aceptar.request.body).toEqual({ nombre: 'Ana María', diezmoAportes: false });
+    expect(a.url()).toBe('/hoy');
+  });
+
+  it('onboarding paso 1 avisa de una invitación pendiente para su correo', async () => {
+    conToken();
+    const a = await app('/onboarding/1', async (estable) => {
+      await responder('GET', '/api/sesion', sesionApi({ tieneHogar: false, hogarConfigurado: false }), estable);
+    });
+    await responder('GET', '/api/hogar', { codigo: 'SIN_HOGAR', mensaje: 'Todavía no tienes un hogar' }, a.estable, 404);
+    await responder('GET', '/api/mis-invitaciones', [MIA], a.estable);
+    const aviso = a.raiz().querySelector<HTMLAnchorElement>('[data-testid="invitacion-pendiente"]');
+    expect(aviso?.textContent).toContain('Daniel te invitó a Jimenez Navarro');
+    expect(aviso?.getAttribute('href')).toBe('/invitacion/para-mi/inv-1');
   });
 
   it('hogar creado en el backend en el paso 1', async () => {
@@ -161,6 +202,8 @@ describe('pantallas en modo conectado (steward-acceso-onboarding, steward-ui-she
       await responder('GET', '/api/sesion', sesionApi({ tieneHogar: false, hogarConfigurado: false }), estable);
     });
     await responder('GET', '/api/hogar', { codigo: 'SIN_HOGAR', mensaje: 'Todavía no tienes un hogar' }, a.estable, 404);
+    await responder('GET', '/api/mis-invitaciones', [], a.estable);
+    expect(a.raiz().querySelector('[data-testid="invitacion-pendiente"]')).toBeNull();
     expect(a.campo('Tu nombre').value).toBe('Ana María');
     await a.escribir('Nombre del hogar', 'Nuestra casa');
     a.porTexto('Continuar').click();
