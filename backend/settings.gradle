@@ -1,0 +1,6 @@
+plugins {
+	// Descarga el JDK 25 del toolchain si la maquina no lo tiene (docs/DECISIONS.md).
+	id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
+}
+
+rootProject.name = 'steward'

@@ -1,0 +1,71 @@
+plugins {
+	id 'org.springframework.boot' version '4.1.2'
+	id 'io.spring.dependency-management' version '1.1.7'
+	// Imagen nativa con GraalVM (docs/DECISIONS.md): misma version que fija el BOM de Spring Boot 4.1.2.
+	id 'org.graalvm.buildtools.native' version '1.1.14'
+	id 'java'
+	id 'jacoco'
+}
+
+group = 'co.com.srdejo'
+version = '0.0.1-SNAPSHOT'
+
+java {
+	toolchain {
+		// Java 25 y no 26: GraalVM aun no tiene version para JDK 26 (docs/DECISIONS.md).
+		languageVersion = JavaLanguageVersion.of(25)
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+// Sin Lombok, MapStruct ni springdoc (design D1): menos generacion de codigo y reflexion para la imagen nativa.
+dependencies {
+	implementation 'org.springframework.boot:spring-boot-starter-webflux'
+	// WebClient.Builder (Boot 4 lo separa de webflux): llamadas a contact y a las llaves de Google.
+	implementation 'org.springframework.boot:spring-boot-starter-webclient'
+	implementation 'org.springframework.boot:spring-boot-starter-validation'
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+	implementation 'org.springframework.boot:spring-boot-starter-data-r2dbc'
+	runtimeOnly 'org.postgresql:r2dbc-postgresql'
+	// Flyway usa su propia conexion JDBC (arquetipo del workspace).
+	implementation 'org.springframework.boot:spring-boot-starter-flyway'
+	implementation 'org.flywaydb:flyway-database-postgresql'
+	runtimeOnly 'org.postgresql:postgresql'
+	implementation 'org.springframework.boot:spring-boot-starter-security'
+	// JWT HMAC de la sesion y verificacion del ID token de Google (Nimbus).
+	implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
+
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testImplementation 'org.springframework.boot:spring-boot-webtestclient'
+	testImplementation 'org.springframework.security:spring-security-test'
+	testImplementation 'io.projectreactor:reactor-test'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.withType(JavaCompile).configureEach {
+	options.encoding = 'UTF-8'
+	options.compilerArgs << '-parameters'
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+	// Los tests de contrato pueden apuntar a un proceso externo (el binario nativo): -Dcontract.baseUrl=http://...
+	systemProperty 'contract.baseUrl', System.getProperty('contract.baseUrl', '')
+	finalizedBy jacocoTestReport
+}
+
+graalvmNative {
+	binaries {
+		main {
+			imageName = 'steward'
+			// Tope de memoria del compilador nativo: sin el, native-image toma casi toda la RAM del PC.
+			buildArgs.add('-J-Xmx5g')
+		}
+	}
+}
+
+// Los tests de contrato prueban el binario por HTTP (design D8), no con nativeTest: no hace falta el AOT de tests.
+tasks.named('processTestAot') { enabled = false }

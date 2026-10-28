@@ -1,0 +1,56 @@
+server:
+  port: ${SERVER_PORT:8099}
+
+spring:
+  application:
+    name: steward
+  profiles:
+    default: dev
+  r2dbc:
+    url: r2dbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5433}/${DB_NAME:steward}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+    # El Postgres del VPS lo comparten ~13 apps con max_connections=100: 3 conexiones por defecto (design D3).
+    pool:
+      initial-size: 1
+      max-size: ${DB_POOL_MAX:3}
+      validation-query: SELECT 1
+      max-idle-time: 10m
+  flyway:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5433}/${DB_NAME:steward}
+    user: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+      # Sin "groups" en la respuesta: la spec pide solo {"status":"UP"}.
+      probes:
+        enabled: false
+
+steward:
+  zone: America/Bogota
+  # Origen de los enlaces de invitacion (design D7).
+  public-url: ${STEWARD_PUBLIC_URL:http://steward.test}
+  # Los correos salen siempre por la API contact del workspace (design D7): el backend no tiene SMTP.
+  contact-api-url: ${CONTACT_API_URL:http://127.0.0.1:3000}
+  security:
+    jwt-secret: ${JWT_SECRET:}
+    jwt-ttl: 7d
+    # El OAuth client "Aplicacion web" de beauty (design D5). Vacio = login con Google deshabilitado.
+    google-client-id: ${GOOGLE_CLIENT_ID:}
+
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+steward:
+  security:
+    jwt-secret: ${JWT_SECRET:dev-only-secret-steward-0123456789abcdef0123456789abcdef0123456789}

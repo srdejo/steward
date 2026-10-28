@@ -1,0 +1,24 @@
+# Imagen nativa de steward (design D2 y D12; versiones en docs/DECISIONS.md).
+#   build:   GraalVM CE 25 compila el binario con nativeCompile (glibc 2.39).
+#   runtime: Debian 13, la misma distribucion que nolost-vps (glibc 2.41); solo el binario, sin JVM ni Gradle.
+# Se construye con scripts/native-build.ps1 desde la raiz del repo.
+
+FROM ghcr.io/graalvm/native-image-community:25.0.2@sha256:0d936f32bb8acb5bc60c41b33e05f064d7a6aaf36b726538296c54949bd4a3c0 AS build
+WORKDIR /src
+COPY . .
+# gradlew llega con CRLF desde Windows.
+RUN sed -i 's/\r$//' gradlew && chmod +x gradlew
+RUN --mount=type=cache,target=/root/.gradle \
+    ./gradlew nativeCompile --no-daemon --console=plain -x test
+
+FROM debian:trixie-slim@sha256:89c1ea91e897f0fe0a3731595330bc45b8bdef4047464a07116f891a94054b31 AS runtime
+# ca-certificates: el binario consulta las llaves publicas de Google por HTTPS.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd --system --uid 10001 --no-create-home steward
+COPY --from=build /src/build/native/nativeCompile/steward /app/steward
+USER steward
+EXPOSE 8099
+# -Xmx64m: sin tope, la imagen nativa toma un porcentaje de la memoria visible (design D12).
+ENTRYPOINT ["/app/steward", "-Xmx64m"]
