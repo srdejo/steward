@@ -31,7 +31,7 @@
   - `IClockPort` con zona `America/Bogota`.
   
   Verificar: tests de "Ruta protegida sin sesión", token vencido (reloj fijo a 8 días), token alterado y token firmado con otra clave → 401.
-- [ ] 2.3 Base de los tests de contrato (D8): clase base con `WebTestClient.bindToServer()` y la base `steward_test` limpia entre tests, que admite `-Dcontract.baseUrl` para apuntar a un proceso externo; perfil `contract` con el decoder de Google de llave local y el `LoggingMailAdapter`. Verificar: un test de contrato de `/actuator/health` pasa en JVM.
+- [x] 2.3 Base de los tests de contrato (D8): clase base con `WebTestClient.bindToServer()` y la base `steward_test` limpia entre tests, que admite `-Dcontract.baseUrl` para apuntar a un proceso externo; perfil `contract` con el decoder de Google de llave local y el `LoggingMailAdapter`. Verificar: un test de contrato de `/actuator/health` pasa en JVM.
 - [x] 2.4 `backend/README.md` (comandos, perfiles, variables, tests y build nativo) y `backend/docs/ARCHITECTURE.md` (capas, puertos y la regla de D10 sobre `srdejo-platform`). Commit.
 
 ## 3. Acceso
@@ -48,7 +48,7 @@
 
 ## 4. Hogar e invitaciones
 
-- [ ] 4.1 `Hogar`, `Miembro`, `IHogarPersistencePort` y `HogarUseCase`, con su API:
+- [x] 4.1 `Hogar`, `Miembro`, `IHogarPersistencePort` y `HogarUseCase`, con su API:
   - `POST /api/hogar` (crear; 409 `YA_TIENE_HOGAR`);
   - `GET /api/hogar` (404 `SIN_HOGAR`);
   - `PATCH /api/hogar` (nombre);
@@ -56,16 +56,16 @@
   - `DELETE /api/hogar/miembros/yo` (salir; si es el último, se borran el hogar y sus invitaciones).
   
   Verificar: tests de contrato de "Crear", "Segundo hogar", "Dos miembros", "Terminar onboarding" y "Sale uno de dos".
-- [ ] 4.2 `Invitacion`, `IInvitacionPersistencePort` (`token_hash` y filtro por `hogar_id`) e `ITokenGeneratorPort` (32 bytes de `SecureRandom` en Base64URL y SHA-256). `IMailPort` con `ContactMailAdapter` (`POST /api/send`, timeout de 5 s, plantilla con el nombre de quien invita y el del hogar) y `LoggingMailAdapter` en `dev` y `contract`. Verificar: test del adaptador de correo contra un servidor HTTP falso (enviado, error 500 y timeout), y test de que en la base no queda el token en claro.
-- [ ] 4.3 `InvitacionUseCase` y su API:
+- [x] 4.2 `Invitacion`, `IInvitacionPersistencePort` (`token_hash` y filtro por `hogar_id`) e `ITokenGeneratorPort` (32 bytes de `SecureRandom` en Base64URL y SHA-256). `IMailPort` con `ContactMailAdapter` (`POST /api/send`, timeout de 5 s, plantilla con el nombre de quien invita y el del hogar) y `LoggingMailAdapter` en `dev` y `contract`. Verificar: test del adaptador de correo contra un servidor HTTP falso (enviado, error 500 y timeout), y test de que en la base no queda el token en claro.
+- [x] 4.3 `InvitacionUseCase` y su API:
   - `POST /api/hogar/invitaciones` (201 con `correoEnviado`; 409 `YA_ES_MIEMBRO`; con una pendiente para ese correo, la reenvía);
   - `POST /api/hogar/invitaciones/{id}/reenviar` y `POST /api/hogar/invitaciones/{id}/enlace` (los dos rotan el token y extienden 7 días);
   - `GET /api/invitaciones/{token}` (público; 404 `INVITACION_NO_VALIDA`);
   - `POST /api/invitaciones/{token}/aceptar` (en una transacción; 409 `YA_TIENE_HOGAR` sin consumirla).
   
   Verificar: tests de contrato de "Invitación pendiente", "Correo caído", "Reenviar" (el enlace anterior da 404), "Enlace vencido", "Unirse" y "Ya tiene hogar".
-- [ ] 4.4 Aislamiento: verificar con tests de contrato el escenario "Invitación ajena" y "Peticiones simultáneas": dos hogares, 50 pares de `GET /api/hogar` concurrentes, cada respuesta con su propio hogar.
-- [ ] 4.5 Documentar los endpoints de hogar e invitaciones en `backend/README.md`. Commit.
+- [x] 4.4 Aislamiento: verificar con tests de contrato el escenario "Invitación ajena" y "Peticiones simultáneas": dos hogares, 50 pares de `GET /api/hogar` concurrentes, cada respuesta con su propio hogar.
+- [x] 4.5 Documentar los endpoints de hogar e invitaciones en `backend/README.md`. Commit.
 
 ## 5. Preparado para imagen nativa (en JVM)
 

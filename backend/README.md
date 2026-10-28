@@ -62,3 +62,29 @@ Errores: `{"codigo": "...", "mensaje": "..."}`; la validación agrega `campos`. 
 | `PATCH /api/perfil` | sí | `{"nombre"}` (1 a 60) → usuario con su nueva inicial |
 
 `usuario` = `{id, nombre, email, inicial}`. La sesión es un JWT de 7 días que el cliente envía en `Authorization: Bearer`; cerrar sesión es borrarlo en el cliente.
+
+### Hogar
+
+El hogar siempre es el del usuario de la sesión: no va en la URL. Un usuario pertenece a un solo hogar.
+
+| Método y ruta | Qué hace |
+|---|---|
+| `POST /api/hogar` | `{"nombre"}` (1 a 60) → 201 con el hogar; 409 `YA_TIENE_HOGAR` |
+| `GET /api/hogar` | `{id, nombre, configurado, miembros, invitaciones}`; 404 `SIN_HOGAR` |
+| `PATCH /api/hogar` | `{"nombre"}` → el hogar renombrado |
+| `POST /api/hogar/onboarding-completo` | 204; desde ahí `hogarConfigurado` es verdadero para todos los miembros |
+| `DELETE /api/hogar/miembros/yo` | 204; si era el último miembro, se borran el hogar y sus invitaciones |
+
+`miembros` = `[{usuario, unidoEn, esActual}]`; `invitaciones` = las pendientes y vigentes, `[{id, email, estado, enviadaEn, expiraEn}]`.
+
+### Invitaciones
+
+El token de una invitación sirve una vez y vence a los 7 días. En la base solo queda su SHA-256, así que **reenviar y copiar el enlace generan un enlace nuevo y el anterior deja de servir**. El correo sale por `contact`; si falla, la invitación queda igual y la respuesta trae `correoEnviado: false` para copiar el enlace. En los perfiles `dev` y `contract` el enlace se escribe en el log en vez de enviarse.
+
+| Método y ruta | Sesión | Qué hace |
+|---|---|---|
+| `POST /api/hogar/invitaciones` | sí | `{"email"}` → 201 `{invitacion, enlace, correoEnviado}`; si ya había una pendiente para ese correo, la reenvía (200). 409 `YA_ES_MIEMBRO` |
+| `POST /api/hogar/invitaciones/{id}/reenviar` | sí | enlace nuevo, 7 días más y correo otra vez; 404 si está aceptada, vencida o es de otro hogar |
+| `POST /api/hogar/invitaciones/{id}/enlace` | sí | enlace nuevo para copiar, sin correo |
+| `GET /api/invitaciones/{token}` | no | `{hogar, invitadoPor, miembros, email}`; 404 `INVITACION_NO_VALIDA` si no existe, venció o ya se usó (sin distinguir) |
+| `POST /api/invitaciones/{token}/aceptar` | sí | `{"nombre", "diezmoAportes"}` → la sesión, ya con hogar; 409 `YA_TIENE_HOGAR` sin consumir la invitación |

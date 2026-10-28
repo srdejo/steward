@@ -51,6 +51,63 @@ public abstract class ContratoBase {
         return baseUrl;
     }
 
+    /** Entra con Google (de prueba) y devuelve el token de sesion. */
+    protected String entrar(String email, String nombre) {
+        java.util.Map<?, ?> sesion = client.post().uri("/api/auth/google")
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .bodyValue(java.util.Map.of("idToken", GoogleDePrueba.token(email, nombre)))
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody(java.util.Map.class).returnResult().getResponseBody();
+        return (String) sesion.get("token");
+    }
+
+    protected WebTestClient.ResponseSpec crearHogar(String token, String nombre) {
+        return client.post().uri("/api/hogar").header("Authorization", "Bearer " + token)
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .bodyValue(java.util.Map.of("nombre", nombre)).exchange();
+    }
+
+    protected WebTestClient.ResponseSpec invitarA(String token, String email) {
+        return client.post().uri("/api/hogar/invitaciones").header("Authorization", "Bearer " + token)
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .bodyValue(java.util.Map.of("email", email)).exchange();
+    }
+
+    /** Invita y devuelve el enlace de la respuesta. */
+    protected String invitar(String token, String email) {
+        java.util.Map<?, ?> r = invitarA(token, email).expectStatus().is2xxSuccessful()
+                .expectBody(java.util.Map.class).returnResult().getResponseBody();
+        return (String) r.get("enlace");
+    }
+
+    protected static String tokenDe(String enlace) {
+        return enlace.substring(enlace.lastIndexOf('/') + 1);
+    }
+
+    protected WebTestClient.ResponseSpec aceptar(String sesion, String tokenInvitacion, String nombre) {
+        return client.post().uri("/api/invitaciones/{t}/aceptar", tokenInvitacion)
+                .header("Authorization", "Bearer " + sesion)
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .bodyValue(java.util.Map.of("nombre", nombre, "diezmoAportes", false)).exchange();
+    }
+
+    /** Invita a {@code email}, entra con esa cuenta y acepta; devuelve la sesion del invitado. */
+    protected String unirA(String anfitrion, String email, String nombre) {
+        String token = tokenDe(invitar(anfitrion, email));
+        String invitado = entrar(email, nombre);
+        aceptar(invitado, token, nombre).expectStatus().isOk();
+        return invitado;
+    }
+
+    /** Ejecuta SQL directo en steward_test, para preparar casos que la API no permite (fechas pasadas). */
+    protected static void sql(String sentencia) throws Exception {
+        try (Connection c = DriverManager.getConnection(DB_URL, "postgres", "postgres");
+             Statement s = c.createStatement()) {
+            s.execute(sentencia);
+        }
+    }
+
     private static void limpiarBase() throws Exception {
         try (Connection c = DriverManager.getConnection(DB_URL, "postgres", "postgres");
              Statement s = c.createStatement()) {
