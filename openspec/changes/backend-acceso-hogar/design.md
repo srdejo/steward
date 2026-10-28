@@ -90,6 +90,12 @@ Igual que `denti-caja/GoogleIdentityAdapter`: `NimbusReactiveJwtDecoder.withJwkS
   - GIS solo usa el client id: no hay client secret que compartir.
   - La sesión de steward es independiente de la de beauty: cada app tiene su propio `JWT_SECRET`, y un token de una no sirve en la otra.
   - *Consecuencia:* la pantalla de consentimiento de Google muestra el nombre y el logo que tenga ese client. Cambiarlos, o rotar el client, afecta a las dos apps. Queda escrito en `docs/DEPLOYMENT.md`.
+- **Acceso de desarrollo (local).** Google no acepta `http://steward.test` como origen: solo dominios públicos o `localhost`. Para el recorrido local, `POST /api/auth/dev` (`{email, nombre}`) emite la misma sesión que Google.
+  - Se enciende con la propiedad `steward.security.dev-login`: apagada por defecto, encendida en los perfiles `dev` y `contract`. `local-deploy.ps1` la pone con `STEWARD_DEV_LOGIN=true`.
+  - El VPS corre con el perfil `prod` y sin esa variable, así que queda apagada. Apagada, la ruta responde 404 como si no existiera y no crea nada.
+  - Es una propiedad leída al arrancar, no un `@Profile`, por la regla de AOT (D2). Al arrancar con el acceso encendido, el backend lo avisa en el log con WARN.
+  - `GET /api/auth/config` devuelve `devLogin`; la PWA muestra "Entrar como…" (correo y nombre) solo si es verdadero.
+  - *Alternativa:* Google con `ng serve` en `http://localhost:4200`. Se descarta para el recorrido porque no pasa por `steward.test` ni por `local-java`, y exige dos cuentas de Google.
 - Sin client id, `GET /api/auth/config` responde `{"googleClientId": null}` y el login responde 503 (spec).
 - En la PWA, el botón de Google Identity Services se carga con `https://accounts.google.com/gsi/client` cuando hay client id, y entrega el `credential` (ID token) a `POST /api/auth/google`.
 - Los tests usan un decoder con llave RSA local (`GoogleIdentityAdapter.validator(...)` aplicado a tokens firmados en el test). Así no se depende de Google.

@@ -24,15 +24,17 @@ public class AuthUseCase implements IAuthServicePort {
     private final ITokenPort tokens;
     private final ICurrentUserPort usuarioActual;
     private final IClockPort clock;
+    private final boolean devLogin;
 
     public AuthUseCase(IGoogleIdentityPort google, IUsuarioPersistencePort usuarios, IHogarPersistencePort hogares,
-                       ITokenPort tokens, ICurrentUserPort usuarioActual, IClockPort clock) {
+                       ITokenPort tokens, ICurrentUserPort usuarioActual, IClockPort clock, boolean devLogin) {
         this.google = google;
         this.usuarios = usuarios;
         this.hogares = hogares;
         this.tokens = tokens;
         this.usuarioActual = usuarioActual;
         this.clock = clock;
+        this.devLogin = devLogin;
     }
 
     @Override
@@ -50,6 +52,20 @@ public class AuthUseCase implements IAuthServicePort {
                 .switchIfEmpty(Mono.error(() -> new DomainException(DomainException.Tipo.NO_AUTENTICADO,
                         "GOOGLE_TOKEN_INVALIDO", "No pudimos verificar tu cuenta de Google. Intenta de nuevo.")))
                 .flatMap(this::usuarioDe)
+                .flatMap(usuario -> sesionDe(usuario, tokens.emitir(usuario.id())));
+    }
+
+    @Override
+    public boolean devLogin() {
+        return devLogin;
+    }
+
+    @Override
+    public Mono<Sesion> loginDesarrollo(String email, String nombre) {
+        if (!devLogin) {
+            return Mono.error(() -> DomainException.noEncontrado("NO_ENCONTRADO", "No encontrado"));
+        }
+        return usuarioDe(new IdentidadGoogle(email.strip(), nombre))
                 .flatMap(usuario -> sesionDe(usuario, tokens.emitir(usuario.id())));
     }
 

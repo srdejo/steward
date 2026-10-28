@@ -126,6 +126,25 @@ describe('pantallas en modo conectado (steward-acceso-onboarding, steward-ui-she
     expect(google.botones).toBe(1);
   });
 
+  it('sin acceso de desarrollo no aparece "Entrar como…"', async () => {
+    const a = await app('/acceso');
+    await responder('GET', '/api/auth/config', { googleClientId: 'cid-de-beauty', devLogin: false }, a.estable);
+    expect(a.raiz().querySelector('[data-testid="dev-login"]')).toBeNull();
+  });
+
+  it('acceso de desarrollo: entra con correo y nombre, sin Google', async () => {
+    const a = await app('/acceso');
+    await responder('GET', '/api/auth/config', { googleClientId: null, devLogin: true }, a.estable);
+    expect(a.raiz().querySelector('[data-testid="dev-login"]')).not.toBeNull();
+    await a.escribir('Correo', 'esposa@ejemplo.com');
+    await a.escribir('Nombre', 'Esposa');
+    a.porTexto('Entrar como…').click();
+    const login = await responder('POST', '/api/auth/dev', sesionApi({ token: 'jwt-dev', tieneHogar: false, hogarConfigurado: false }), a.estable);
+    expect(login.request.body).toEqual({ email: 'esposa@ejemplo.com', nombre: 'Esposa' });
+    expect(a.url()).toBe('/acceso/face-id');
+    expect(localStorage.getItem(TOKEN)).toBe('jwt-dev');
+  });
+
   it('Google real, primera vez: crea la cuenta y abre Activar Face ID', async () => {
     const a = await app('/acceso');
     await responder('GET', '/api/auth/config', { googleClientId: 'cid-de-beauty' }, a.estable);

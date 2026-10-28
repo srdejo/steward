@@ -27,6 +27,7 @@ El primer build descarga el JDK 25 si no está instalado (foojay).
 | `GOOGLE_CLIENT_ID` | vacío | el client id de **beauty** (mismo OAuth client). Vacío = login con Google deshabilitado |
 | `CONTACT_API_URL` | `http://127.0.0.1:3000` | API `contact` del workspace, por donde salen **todos** los correos |
 | `STEWARD_PUBLIC_URL` | `http://steward.test` | origen de los enlaces de invitación |
+| `STEWARD_DEV_LOGIN` | `false` (`true` en `dev`) | acceso de desarrollo sin Google; nunca en el VPS |
 | `STEWARD_MAIL_MODO` | `contact` (`log` en `dev`) | `log` escribe el enlace de invitación en el log en vez de enviarlo |
 
 Nada se decide con `@Profile` en los beans: la imagen nativa congela esas condiciones al compilar. Los perfiles solo cambian propiedades (`docs/DECISIONS.md`).
@@ -61,7 +62,8 @@ Errores: `{"codigo": "...", "mensaje": "..."}`; la validación agrega `campos`. 
 
 | Método y ruta | Sesión | Qué hace |
 |---|---|---|
-| `GET /api/auth/config` | no | `{"googleClientId": "..."}` o `null` si Google no está configurado |
+| `GET /api/auth/config` | no | `{"googleClientId": "..." | null, "devLogin": true | false}` |
+| `POST /api/auth/dev` | no | **Solo local** (`STEWARD_DEV_LOGIN=true`, encendido en `dev` y `contract`): `{"email", "nombre"}` → la misma sesión que Google. Apagado (VPS): 404 |
 | `POST /api/auth/google` | no | `{"idToken"}` de Google Identity Services → `{token, usuario, tieneHogar, hogarConfigurado}`. La primera vez crea el usuario. 401 `GOOGLE_TOKEN_INVALIDO`; 503 `GOOGLE_NO_CONFIGURADO` |
 | `GET /api/sesion` | sí | `{usuario, tieneHogar, hogarConfigurado}` |
 | `PATCH /api/perfil` | sí | `{"nombre"}` (1 a 60) → usuario con su nueva inicial |

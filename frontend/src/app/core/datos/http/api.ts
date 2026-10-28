@@ -4,6 +4,12 @@ import { ReglaError, type Usuario } from '@steward/domain';
 import { firstValueFrom, type Observable } from 'rxjs';
 
 /** Contrato HTTP del backend (backend/README.md). */
+export interface ConfigAcceso {
+  googleClientId: string | null;
+  /** Acceso de desarrollo sin Google: solo en local, donde Google no acepta steward.test como origen. */
+  devLogin: boolean;
+}
+
 export interface UsuarioApi {
   id: string;
   nombre: string;
@@ -55,8 +61,13 @@ export interface InvitacionRecibidaApi {
 export class Api {
   private readonly http = inject(HttpClient);
 
-  config(): Promise<{ googleClientId: string | null }> {
-    return this.pedir(this.http.get<{ googleClientId: string | null }>('/api/auth/config'));
+  config(): Promise<ConfigAcceso> {
+    return this.pedir(this.http.get<ConfigAcceso>('/api/auth/config'));
+  }
+
+  /** Acceso de desarrollo (solo local; el backend responde 404 si esta apagado). */
+  loginDesarrollo(email: string, nombre: string): Promise<SesionApi> {
+    return this.pedir(this.http.post<SesionApi>('/api/auth/dev', { email, nombre }));
   }
 
   loginGoogle(idToken: string): Promise<SesionApi> {

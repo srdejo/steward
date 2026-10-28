@@ -10,6 +10,7 @@ Define la base del backend de steward: qué expone sin sesión, cómo responde l
 El backend SHALL responder sin sesión solo:
 - `GET /actuator/health`;
 - el login con Google y su configuración pública (el client id de Google, o su ausencia);
+- el acceso de desarrollo, que solo existe si está encendido en la configuración (spec `steward-auth`);
 - la consulta de una invitación por su token.
 
 Cualquier otra ruta bajo `/api` sin una sesión válida MUST responder 401. `GET /actuator/health` MUST devolver `{"status":"UP"}` sin detalles internos cuando la app y su base responden.

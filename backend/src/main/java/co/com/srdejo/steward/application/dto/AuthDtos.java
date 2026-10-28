@@ -3,6 +3,7 @@ package co.com.srdejo.steward.application.dto;
 import co.com.srdejo.steward.domain.model.Sesion;
 import co.com.srdejo.steward.domain.model.Usuario;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
@@ -14,7 +15,12 @@ public final class AuthDtos {
     private AuthDtos() {
     }
 
-    public record AuthConfigResponse(String googleClientId) {
+    public record AuthConfigResponse(String googleClientId, boolean devLogin) {
+    }
+
+    public record DevLoginRequest(
+            @NotBlank(message = "Escribe un correo") @Email(message = "Ese correo no es válido") String email,
+            @Size(max = Usuario.NOMBRE_MAX, message = "Máximo 60 caracteres") String nombre) {
     }
 
     public record GoogleLoginRequest(@NotBlank(message = "Falta el token de Google") String idToken) {

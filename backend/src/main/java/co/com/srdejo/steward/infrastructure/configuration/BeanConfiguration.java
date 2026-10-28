@@ -27,6 +27,8 @@ import co.com.srdejo.steward.infrastructure.security.JwtTokenAdapter;
 import co.com.srdejo.steward.infrastructure.security.SecureTokenGenerator;
 import co.com.srdejo.steward.infrastructure.security.SecurityContextCurrentUserAdapter;
 import co.com.srdejo.steward.infrastructure.security.SystemClockAdapter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ResourceLoader;
@@ -40,6 +42,8 @@ import org.springframework.web.reactive.function.client.WebClient;
  */
 @Configuration
 public class BeanConfiguration {
+
+    private static final Logger log = LoggerFactory.getLogger(BeanConfiguration.class);
 
     @Bean
     IClockPort clockPort(StewardProperties properties) {
@@ -120,7 +124,11 @@ public class BeanConfiguration {
     @Bean
     IAuthServicePort authServicePort(IGoogleIdentityPort google, IUsuarioPersistencePort usuarios,
                                      IHogarPersistencePort hogares, ITokenPort tokens, ICurrentUserPort usuarioActual,
-                                     IClockPort clock) {
-        return new AuthUseCase(google, usuarios, hogares, tokens, usuarioActual, clock);
+                                     IClockPort clock, StewardProperties properties) {
+        boolean devLogin = properties.security().devLogin();
+        if (devLogin) {
+            log.warn("Acceso de desarrollo ENCENDIDO (steward.security.dev-login): se entra sin Google. Nunca en el VPS.");
+        }
+        return new AuthUseCase(google, usuarios, hogares, tokens, usuarioActual, clock, devLogin);
     }
 }

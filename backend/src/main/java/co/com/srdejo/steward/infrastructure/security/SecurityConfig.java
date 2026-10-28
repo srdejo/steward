@@ -43,7 +43,10 @@ public class SecurityConfig {
                         .pathMatchers(HttpMethod.GET, "/actuator/health").permitAll()
                         .pathMatchers(HttpMethod.GET, "/api/auth/config").permitAll()
                         .pathMatchers(HttpMethod.POST, "/api/auth/google").permitAll()
-                        .pathMatchers(HttpMethod.GET, "/api/invitaciones/*").permitAll()                        .anyExchange().authenticated())
+                        // Acceso de desarrollo: si esta apagado, el endpoint responde 404 (design D5).
+                        .pathMatchers(HttpMethod.POST, "/api/auth/dev").permitAll()
+                        .pathMatchers(HttpMethod.GET, "/api/invitaciones/*").permitAll()
+                        .anyExchange().authenticated())
                 .oauth2ResourceServer(oauth -> oauth
                         .jwt(jwt -> jwt.jwtDecoder(sessionJwtDecoder))
                         .authenticationEntryPoint(noAutenticado))

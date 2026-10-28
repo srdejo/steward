@@ -4,6 +4,7 @@ import type { MetodoAcceso } from '@steward/domain';
 
 import { mensajeDeError } from '../../core/datos/consulta';
 import { Api } from '../../core/datos/http/api';
+import type { ResultadoLogin } from '../../core/datos/http/puertos-conectados';
 import { PUERTOS, puertosConectados } from '../../core/datos/puertos';
 import { GOOGLE_IDENTITY_LOADER } from '../../core/sesion/google-identity';
 import { SesionActual } from '../../core/sesion/sesion';
@@ -38,6 +39,18 @@ import { Icono } from '../../shared/components/icono';
         </button>
         <button type="button" class="boton-enlace h-12 text-[15px]" disabled aria-describedby="proximamente">Continuar con correo</button>
         <p id="proximamente" class="text-center text-xs text-secundario">Face ID y correo: Próximamente</p>
+        @if (devLogin()) {
+          <!-- Solo en local (el backend lo apaga en el VPS): Google no acepta steward.test como origen. -->
+          <form class="mt-2 flex flex-col gap-2 rounded-[14px] border border-dashed border-control bg-superficie p-3.5" data-testid="dev-login"
+            (submit)="$event.preventDefault(); entrarDesarrollo()">
+            <span class="rotulo text-aviso">Acceso de desarrollo</span>
+            <input class="campo-grande h-11 text-[15px]" type="email" aria-label="Correo" placeholder="correo@ejemplo.com"
+              [value]="devEmail()" (input)="devEmail.set($any($event.target).value)" />
+            <input class="campo-grande h-11 text-[15px]" aria-label="Nombre" placeholder="Nombre"
+              [value]="devNombre()" (input)="devNombre.set($any($event.target).value)" />
+            <button type="submit" class="boton-grande" [disabled]="entrando()">Entrar como…</button>
+          </form>
+        }
       } @else {
       <button type="button" class="boton h-[52px] rounded-[14px] border border-[#D9D8D2] bg-superficie text-base" [disabled]="entrando()" (click)="entrar('GOOGLE')">
         <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
@@ -75,6 +88,9 @@ export class AccesoPage {
   protected readonly entrando = signal(false);
   protected readonly error = signal('');
   protected readonly sinGoogle = signal(false);
+  protected readonly devLogin = signal(false);
+  protected readonly devEmail = signal('');
+  protected readonly devNombre = signal('');
   private readonly contenedorGoogle = viewChild<ElementRef<HTMLElement>>('google');
 
   constructor() {
@@ -83,7 +99,8 @@ export class AccesoPage {
 
   private async mostrarGoogle(): Promise<void> {
     try {
-      const { googleClientId } = await this.api.config();
+      const { googleClientId, devLogin } = await this.api.config();
+      this.devLogin.set(devLogin === true);
       if (!googleClientId) {
         this.sinGoogle.set(true);
         return;
@@ -99,13 +116,22 @@ export class AccesoPage {
     }
   }
 
-  /** Modo conectado: sin hogar → Activar Face ID; hogar sin terminar → onboarding; configurado → Hoy. */
   protected async entrarConGoogle(credential: string): Promise<void> {
-    if (!this.conectado) return;
+    const conectado = this.conectado;
+    if (conectado) await this.entrarCon(() => conectado.iniciarConGoogle(credential));
+  }
+
+  protected async entrarDesarrollo(): Promise<void> {
+    const conectado = this.conectado;
+    if (conectado) await this.entrarCon(() => conectado.iniciarDesarrollo(this.devEmail().trim(), this.devNombre().trim()));
+  }
+
+  /** Modo conectado: sin hogar → Activar Face ID; hogar sin terminar → onboarding; configurado → Hoy. */
+  private async entrarCon(login: () => Promise<ResultadoLogin>): Promise<void> {
     this.entrando.set(true);
     this.error.set('');
     try {
-      const { sesion, tieneHogar } = await this.conectado.iniciarConGoogle(credential);
+      const { sesion, tieneHogar } = await login();
       this.sesion.establecer(sesion);
       const volver = this.volver();
       if (volver?.startsWith('/')) await this.router.navigateByUrl(volver);

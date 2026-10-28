@@ -116,9 +116,9 @@
   - `.\infra\deploy.ps1 -Projects steward -WhatIf` con `BackendEnabled` en `$true` solo en memoria (parámetro de prueba), que muestra los pasos nativos en orden, rollback incluido;
   - con la configuración real, `-WhatIf` sigue mostrando solo la página "Próximamente";
   - `-WhatIf` de otro proyecto con jar (denti-caja) da la misma salida que antes.
-- [ ] 7.3 Recorrido de la Etapa 2 en `steward.test` (JVM, `.\infra\local-deploy.ps1 -Project steward`), con dos cuentas de Google:
-  1. Daniel entra, crea "Nuestra casa" e invita al correo de la segunda cuenta;
-  2. la segunda cuenta abre el enlace (del correo, o del log si contact no corre en local), entra con Google y se une;
+- [ ] 7.3 Recorrido de la Etapa 2 en `steward.test` (JVM, `.\infra\local-deploy.ps1 -Project steward`), con dos personas por el acceso de desarrollo (7.7), porque Google no acepta `.test` como origen:
+  1. Daniel entra, crea "Nuestra casa" e invita al correo de la segunda persona;
+  2. la segunda persona abre el enlace (del correo, o del log si contact no corre en local), entra y se une;
   3. los dos ven dos miembros en Ajustes;
   4. el enlace usado da "ya no es válida".
   
@@ -153,3 +153,9 @@
   - `openspec validate backend-acceso-hogar --strict` pasa.
   
   Commit en la rama; merge a `develop` y push solo si Daniel lo pide.
+- [x] 7.7 Acceso de desarrollo (design D5, spec `steward-auth` "Acceso de desarrollo"):
+  - propiedad `steward.security.dev-login`: apagada por defecto, encendida en `dev` y `contract`, y `STEWARD_DEV_LOGIN=true` en el runtime de `local-deploy.ps1`;
+  - `POST /api/auth/dev` (404 si está apagado) y `devLogin` en `GET /api/auth/config`; WARN en el log al arrancar encendido;
+  - en la PWA conectada, "Entrar como…" con correo y nombre, solo si `devLogin`.
+  
+  Verificar: tests de contrato de "Dos personas en local", test unitario de "Apagado" (404 y sin usuario creado), test de la PWA de que el formulario aparece solo con `devLogin`, `aotTest` en verde, y `local-deploy` con `steward.test/api/auth/config` mostrando `devLogin: true`.

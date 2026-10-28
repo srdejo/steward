@@ -26,7 +26,7 @@ Web y API van en un solo origen: así la sesión y, más adelante, las passkeys 
 Steward **no tiene OAuth client propio: usa el de beauty**, el mismo client "Aplicación web" y la misma cuenta de Google.
 
 - `GOOGLE_CLIENT_ID` tiene el mismo valor en `~/apps/beauty/.env` y `~/apps/steward/.env` del VPS, y en `infra/local-secrets/steward.env` local. **No** es el de perla-ai, que usan las otras apps en local.
-- Orígenes autorizados de JavaScript de ese client: `https://steward.srdejo.com.co` y `http://steward.test`.
+- Origen autorizado de JavaScript de ese client: `https://steward.srdejo.com.co`. Google **no acepta** `http://steward.test` (solo dominios públicos o `localhost`); en local se entra con el acceso de desarrollo (abajo).
 - Google Identity Services solo usa el client id: no hay client secret.
 - La sesión de steward es independiente de la de beauty: cada una firma con su propio `JWT_SECRET`, que **no se comparte**.
 - Cambiar el nombre o el logo de la pantalla de consentimiento, o rotar el client, afecta a las dos apps.
@@ -45,11 +45,12 @@ docker exec local-java supervisorctl tail -f steward
 - **Backend:** corre en la JVM (`bootJar`) dentro de `local-java`. Los secretos están en `infra/local-secrets/steward.env`, ignorado por Git; si no existe, `local-deploy.ps1` lo crea con un `JWT_SECRET` nuevo y `GOOGLE_CLIENT_ID` vacío:
 
   ```
-  GOOGLE_CLIENT_ID=<el de beauty: ssh nolost-vps "grep GOOGLE_CLIENT_ID ~/apps/beauty/.env">
+  GOOGLE_CLIENT_ID=<opcional en local; el de beauty: ssh nolost-vps "grep GOOGLE_CLIENT_ID ~/apps/beauty/.env">
   JWT_SECRET=<propio de steward>
   # STEWARD_MAIL_MODO=contact     (por defecto, log: el enlace queda en el log del backend)
   ```
 
+- **Acceso de desarrollo:** como Google no acepta `steward.test`, en local Acceso muestra **"Entrar como…"** (correo y nombre), y con eso se prueba con varias personas en ventanas o perfiles distintos. Lo enciende `STEWARD_DEV_LOGIN=true`, que `local-deploy.ps1` pone solo en local. En el VPS (perfil `prod`, sin esa variable) está apagado y `POST /api/auth/dev` responde 404.
 - **PWA:** se publica en modo **conectado**. Sesión, hogar, miembros e invitaciones vienen del backend; el resto sigue con datos de prueba, con su aviso. Ver `frontend/README.md`.
 - **Requisitos:** `127.0.0.1 steward.test` en el archivo `hosts` (lo trae `infra/hosts.snippet.txt`). Si el volumen de Postgres ya existía antes de este cambio, las bases se crean a mano una vez:
 

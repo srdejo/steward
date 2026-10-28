@@ -22,8 +22,9 @@ public record StewardProperties(String zone, String publicUrl, String contactApi
 
     /**
      * {@code googleTestPublicKey}: solo el perfil contract. Si tiene valor, Google se valida con esa llave RSA local en
-     * lugar del JWKS real.
+     * lugar del JWKS real. {@code devLogin}: acceso de desarrollo sin Google, solo local (apagado por defecto).
      */
-    public record Security(String jwtSecret, Duration jwtTtl, String googleClientId, String googleTestPublicKey) {
+    public record Security(String jwtSecret, Duration jwtTtl, String googleClientId, String googleTestPublicKey,
+                           boolean devLogin) {
     }
 }

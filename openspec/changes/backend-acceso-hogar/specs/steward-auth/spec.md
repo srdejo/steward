@@ -21,6 +21,23 @@ El backend SHALL aceptar un ID token de Google Identity Services y validarlo con
 - **WHEN** llega un ID token válido de Google emitido para otro client id
 - **THEN** responde 401 y no se crea ningún usuario
 
+### Requirement: Acceso de desarrollo
+Solo en desarrollo local, el backend SHALL permitir iniciar sesión con un correo y un nombre, sin Google, para probar con varias personas en `steward.test`, cuyo dominio Google no acepta como origen. El acceso:
+- MUST estar apagado por defecto y activarse solo con una propiedad de configuración explícita;
+- MUST NOT activarse en el VPS;
+- con el acceso apagado, MUST responder 404 como si no existiera;
+- con el acceso encendido, MUST crear el usuario la primera vez y devolver una sesión igual a la de Google.
+
+`GET /api/auth/config` SHALL indicar si está encendido, y la PWA en modo conectado MUST mostrar "Entrar como…" solo en ese caso.
+
+#### Scenario: Apagado
+- **WHEN** se pide el acceso de desarrollo con la configuración por defecto
+- **THEN** responde 404 y no crea ningún usuario
+
+#### Scenario: Dos personas en local
+- **WHEN** con el acceso encendido entran `daniel@ejemplo.com` y `esposa@ejemplo.com` en dos ventanas
+- **THEN** cada una tiene su sesión y su usuario, como si hubieran entrado con Google
+
 ### Requirement: Usuario único por correo
 Cada correo SHALL corresponder a un solo usuario, sin distinguir mayúsculas de minúsculas. Entrar de nuevo con el mismo correo MUST devolver el mismo usuario y sus datos, sin duplicarlo.
 

@@ -47,6 +47,8 @@ steward:
     jwt-ttl: 7d
     # El OAuth client "Aplicacion web" de beauty (design D5). Vacio = login con Google deshabilitado.
     google-client-id: ${GOOGLE_CLIENT_ID:}
+    # Acceso de desarrollo sin Google (POST /api/auth/dev): apagado por defecto; nunca en el VPS (design D5).
+    dev-login: ${STEWARD_DEV_LOGIN:false}
 
 ---
 spring:
@@ -59,4 +61,6 @@ steward:
   mail:
     modo: ${STEWARD_MAIL_MODO:log}
   security:
+    # En local Google no acepta steward.test como origen: se entra con el acceso de desarrollo.
+    dev-login: ${STEWARD_DEV_LOGIN:true}
     jwt-secret: ${JWT_SECRET:dev-only-secret-steward-0123456789abcdef0123456789abcdef0123456789}

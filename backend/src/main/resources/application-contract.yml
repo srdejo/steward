@@ -14,5 +14,6 @@ steward:
   security:
     jwt-secret: contract-only-secret-steward-0123456789abcdef0123456789abcdef0123456789
     google-client-id: contract-client-id
+    dev-login: true
     # Llave publica de prueba; la privada esta en src/test/resources/contract/. No es una llave de Google.
     google-test-public-key: classpath:contract-google-test-public.pem

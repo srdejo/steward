@@ -96,7 +96,15 @@ export class PuertosConectados implements Puertos {
 
   /** Login con el ID token de Google Identity Services. */
   async iniciarConGoogle(credential: string): Promise<ResultadoLogin> {
-    const s = await this.d.api.loginGoogle(credential);
+    return this.conSesionNueva(await this.d.api.loginGoogle(credential));
+  }
+
+  /** Acceso de desarrollo (solo local): misma sesion que Google, por correo y nombre. */
+  async iniciarDesarrollo(email: string, nombre: string): Promise<ResultadoLogin> {
+    return this.conSesionNueva(await this.d.api.loginDesarrollo(email, nombre));
+  }
+
+  private async conSesionNueva(s: SesionApi): Promise<ResultadoLogin> {
     if (s.token) this.d.tokens.guardar(s.token);
     return { sesion: await this.aSesion(s), tieneHogar: s.tieneHogar };
   }
