@@ -32,19 +32,19 @@
   
   Verificar: tests de "Ruta protegida sin sesión", token vencido (reloj fijo a 8 días), token alterado y token firmado con otra clave → 401.
 - [ ] 2.3 Base de los tests de contrato (D8): clase base con `WebTestClient.bindToServer()` y la base `steward_test` limpia entre tests, que admite `-Dcontract.baseUrl` para apuntar a un proceso externo; perfil `contract` con el decoder de Google de llave local y el `LoggingMailAdapter`. Verificar: un test de contrato de `/actuator/health` pasa en JVM.
-- [ ] 2.4 `backend/README.md` (comandos, perfiles, variables, tests y build nativo) y `backend/docs/ARCHITECTURE.md` (capas, puertos y la regla de D10 sobre `srdejo-platform`). Commit.
+- [x] 2.4 `backend/README.md` (comandos, perfiles, variables, tests y build nativo) y `backend/docs/ARCHITECTURE.md` (capas, puertos y la regla de D10 sobre `srdejo-platform`). Commit.
 
 ## 3. Acceso
 
-- [ ] 3.1 `domain/model/Usuario`, `IUsuarioPersistencePort` con su adaptador R2DBC (`DatabaseClient`, `Persistable`, búsqueda por `lower(email)`) y `IGoogleIdentityPort` con `GoogleIdentityAdapter` (D5). Verificar: tests de integración del adaptador (correo único sin distinguir mayúsculas) y tests del validador de Google: emisor, audiencia, vencido y `email_verified`.
-- [ ] 3.2 `AuthUseCase` y la API:
+- [x] 3.1 `domain/model/Usuario`, `IUsuarioPersistencePort` con su adaptador R2DBC (`DatabaseClient`, `Persistable`, búsqueda por `lower(email)`) y `IGoogleIdentityPort` con `GoogleIdentityAdapter` (D5). Verificar: tests de integración del adaptador (correo único sin distinguir mayúsculas) y tests del validador de Google: emisor, audiencia, vencido y `email_verified`.
+- [x] 3.2 `AuthUseCase` y la API:
   - `GET /api/auth/config`;
   - `POST /api/auth/google` (primera vez crea el usuario; 401 si el token es inválido; 503 `GOOGLE_NO_CONFIGURADO` sin client id);
   - `GET /api/sesion` (usuario, `tieneHogar` y `hogarConfigurado`);
   - `PATCH /api/perfil` (nombre de 1 a 60 caracteres; inicial).
   
   Verificar: tests de contrato de los escenarios de `steward-auth` ("Primera vez", "Token de otra app", "Mayúsculas", "Token vencido", "Hogar sin terminar", "Cambio de nombre").
-- [ ] 3.3 Documentar los endpoints de acceso en `backend/README.md`. Commit.
+- [x] 3.3 Documentar los endpoints de acceso en `backend/README.md`. Commit.
 
 ## 4. Hogar e invitaciones
 

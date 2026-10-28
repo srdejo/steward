@@ -1,0 +1,64 @@
+# Presupuesto Hogar · backend
+
+API de steward en Spring Boot 4.1 reactivo (WebFlux + R2DBC), Java 25 y Postgres. Sigue el arquetipo hexagonal del workspace; la estructura está en [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) y las decisiones, en [`docs/DECISIONS.md`](docs/DECISIONS.md). El plan está en el cambio OpenSpec `backend-acceso-hogar`.
+
+## Comandos
+
+```powershell
+.\gradlew.bat bootRun                 # perfil dev, base steward en 127.0.0.1:5433, puerto 8099
+.\gradlew.bat test                    # unitarios + contrato (levanta la app con el perfil contract)
+.\gradlew.bat bootJar                 # lo que publica local-deploy.ps1
+```
+
+Desde la raíz del workspace, `.\infra\local-deploy.ps1 -Project steward` lo publica en `http://steward.test` junto a la PWA.
+
+El primer build descarga el JDK 25 si no está instalado (foojay).
+
+## Perfiles y variables
+
+| Variable | Por defecto | Qué es |
+|---|---|---|
+| `DB_HOST`, `DB_PORT`, `DB_NAME` | `localhost`, `5433`, `steward` | Postgres (R2DBC para la app, JDBC para Flyway) |
+| `DB_USERNAME`, `DB_PASSWORD` | `postgres` | credenciales |
+| `DB_POOL_MAX` | `3` | conexiones máximas: el Postgres del VPS es compartido |
+| `JWT_SECRET` | en `dev`, uno de desarrollo | secreto de la sesión (64+ caracteres); propio de steward, no se comparte con beauty |
+| `GOOGLE_CLIENT_ID` | vacío | el client id de **beauty** (mismo OAuth client). Vacío = login con Google deshabilitado |
+| `CONTACT_API_URL` | `http://127.0.0.1:3000` | API `contact` del workspace, por donde salen **todos** los correos |
+| `STEWARD_PUBLIC_URL` | `http://steward.test` | origen de los enlaces de invitación |
+
+| Perfil | Uso |
+|---|---|
+| `dev` | por defecto en local |
+| `prod` | VPS |
+| `contract` | **solo tests**: base `steward_test`, secreto conocido, Google con una llave RSA de prueba (`src/test/resources/contract/`) |
+
+## Tests
+
+- **Contrato** (`src/test/java/.../contract`): caja negra por HTTP con `WebTestClient` contra la base `steward_test` de la Postgres local (sin H2). Crear la base una vez: `docker exec local-postgres psql -U postgres -c "CREATE DATABASE steward_test"`. Con `-Dcontract.baseUrl=http://localhost:18099` la misma batería prueba un proceso externo (el binario nativo, antes de desplegar).
+- **Unitarios**: adaptadores y casos de uso con dobles de los puertos.
+
+## Imagen nativa (solo para desplegar)
+
+El día a día es en JVM. La compilación nativa se hace solo antes de desplegar al VPS, porque pide de 4 a 8 GB de RAM:
+
+```powershell
+.\scripts\native-build.ps1          # imagen steward-native y backend\build\native\nativeCompile\steward
+.\scripts\native-build.ps1 -Run     # además la levanta con 1 CPU y 160 MB, como el VPS (puerto 18099)
+```
+
+Compilar sin nada más pesado abierto. Ver `docs/DEPLOYMENT.md` del repo ("Antes de encender el VPS").
+
+## API
+
+Errores: `{"codigo": "...", "mensaje": "..."}`; la validación agrega `campos`. Sin sesión o con sesión inválida: 401 `NO_AUTENTICADO`.
+
+### Acceso
+
+| Método y ruta | Sesión | Qué hace |
+|---|---|---|
+| `GET /api/auth/config` | no | `{"googleClientId": "..."}` o `null` si Google no está configurado |
+| `POST /api/auth/google` | no | `{"idToken"}` de Google Identity Services → `{token, usuario, tieneHogar, hogarConfigurado}`. La primera vez crea el usuario. 401 `GOOGLE_TOKEN_INVALIDO`; 503 `GOOGLE_NO_CONFIGURADO` |
+| `GET /api/sesion` | sí | `{usuario, tieneHogar, hogarConfigurado}` |
+| `PATCH /api/perfil` | sí | `{"nombre"}` (1 a 60) → usuario con su nueva inicial |
+
+`usuario` = `{id, nombre, email, inicial}`. La sesión es un JWT de 7 días que el cliente envía en `Authorization: Bearer`; cerrar sesión es borrarlo en el cliente.
