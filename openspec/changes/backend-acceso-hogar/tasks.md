@@ -93,14 +93,14 @@
 
 ## 7. Entorno local e integración
 
-- [ ] 7.1 En el workspace, conectar `infra/local-secrets/steward.env` al programa `steward` de `local-deploy.ps1`, como en recaudo, con:
+- [x] 7.1 En el workspace, conectar `infra/local-secrets/steward.env` al programa `steward` de `local-deploy.ps1`, como en recaudo, con:
   - `GOOGLE_CLIENT_ID`: **el mismo client id de beauty** (D5), copiado de `~/apps/beauty/.env` en el VPS. No se crea un OAuth client nuevo;
   - `JWT_SECRET` propio de steward, generado;
   - `CONTACT_API_URL`;
   - `STEWARD_PUBLIC_URL=http://steward.test`.
   
   En ese mismo OAuth client de beauty, Daniel agrega `http://steward.test` como origen autorizado de JavaScript. Verificar: `.\infra\local-deploy.ps1 -Project steward` desde PowerShell nativo, sin `2>&1`, termina en `[OK]`; `http://steward.test/actuator/health` da UP y `http://steward.test/` sirve la PWA (escenario "Mismo origen").
-- [ ] 7.2 En el workspace, dejar lista la producción nativa **sin encenderla y sin compilar** (D13):
+- [x] 7.2 En el workspace, dejar lista la producción nativa **sin encenderla y sin compilar** (D13):
   - `infra/vps/steward/steward.service` nativa: `ExecStart` del enlace `steward` con `-Xmx64m`, `MemoryHigh=128M`, `MemoryMax=160M`, sin `SuccessExitStatus=143` y con el comentario de variables en `CONTACT_API_URL`;
   - `setup-vps.sh` sin cambios de comportamiento, salvo lo que la unit nativa necesite;
   - en `infra/deploy.ps1`, la entrada steward con `BackendMode = "Native"`. El modo `Native`:
@@ -123,7 +123,7 @@
   4. el enlace usado da "ya no es válida".
   
   Verificar: el criterio de cierre de la Etapa 2 del ROADMAP, sin errores en la consola.
-- [ ] 7.4 Documentación:
+- [x] 7.4 Documentación:
   - `docs/DEPLOYMENT.md`: backend en local (JVM), variables y modo AOT. Una lista **"Antes de encender el VPS"**, que es la primera compilación nativa real y se hace solo para desplegar:
     - `native-build.ps1` con Docker y nada más abierto, por la memoria;
     - tests de contrato contra el binario con `-Dcontract.baseUrl`;
@@ -147,7 +147,7 @@
   - `AGENTS.md`: `backend/` deja de estar "por construir".
   
   Verificar: los comandos documentados se ejecutan tal cual.
-- [ ] 7.5 En el workspace, anotar en `openspec/changes/optimizar-recursos-plataforma-comun/tasks.md` (junto a la 4.1 y la fase 5) que steward está lista para nativo (pasa el contrato en modo AOT) y es candidata a adoptar los starters. Anotar también que el piloto nativo puede apoyarse en `steward/scripts/native-build.ps1` y en la lección de memoria: compilar solo, con `-J-Xmx5g`. Verificar: la nota cita este cambio y `DECISIONS.md`.
+- [x] 7.5 En el workspace, anotar en `openspec/changes/optimizar-recursos-plataforma-comun/tasks.md` (junto a la 4.1 y la fase 5) que steward está lista para nativo (pasa el contrato en modo AOT) y es candidata a adoptar los starters. Anotar también que el piloto nativo puede apoyarse en `steward/scripts/native-build.ps1` y en la lección de memoria: compilar solo, con `-J-Xmx5g`. Verificar: la nota cita este cambio y `DECISIONS.md`.
 - [ ] 7.6 Verificación final:
   - tests de `backend` (JVM y modo AOT), `packages/domain` y `frontend` en verde;
   - `openspec validate backend-acceso-hogar --strict` pasa.

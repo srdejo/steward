@@ -37,12 +37,16 @@ Las etapas 2 a 9 conectan estas pantallas al backend: cada pantalla ya existe y 
 
 **Criterio de cierre**: un usuario entra con Google, crea su hogar e invita a otro por correo. El invitado acepta con un token de un solo uso que vence en 7 días y queda como miembro con los mismos permisos.
 
-- [ ] Decidir el acceso a datos: JdbcTemplate (lo que pide el handoff) o WebFlux + R2DBC (el arquetipo del workspace). Elegir también si se usa `srdejo-platform`.
-- [ ] Backend con los módulos del handoff (`auth`, `hogar`, `ingresos`, `plan`, `movimientos`, `cuentas`, `cierre`) y las migraciones Flyway iniciales del modelo de datos.
-- [ ] Login con Google y sesión (cookie HttpOnly o JWT corto con refresh).
-- [ ] Hogar, miembros e invitaciones por correo, enviadas por `contact`.
+Cambio OpenSpec `backend-acceso-hogar`.
+
+- [x] Decidir el acceso a datos: **WebFlux + R2DBC** (el arquetipo del workspace), Java 25 e imagen nativa (GraalVM) **solo para desplegar**. Sin `srdejo-platform` todavía: el código común queda propio, detrás de puertos, listo para cambiarlo por los starters.
+- [x] Backend con los módulos `auth` y `hogar` (con invitaciones) y la migración Flyway `V1__acceso_hogar`. Los demás módulos del handoff llegan con sus etapas. 60 tests en JVM y 40 de contrato en modo AOT.
+- [x] Login con Google (el OAuth client de beauty) y sesión con JWT HS256 de 7 días; sin refresh por ahora.
+- [x] Hogar, miembros e invitaciones por correo, enviadas por `contact`: token de un solo uso de 7 días, guardado solo como hash.
 - [x] Shell de la PWA Angular con los tokens del diseño y la pantalla de Acceso (Etapa 1.5).
-- [ ] `local-deploy.ps1 -Project steward` despliega backend y web juntos en `steward.test`.
+- [x] PWA en modo conectado: acceso, onboarding (pasos 1 y 5), invitación recibida y miembros en Ajustes contra el backend; el resto sigue con datos de prueba.
+- [x] `local-deploy.ps1 -Project steward` despliega backend y web juntos en `steward.test`.
+- [ ] Recorrido del criterio de cierre en `steward.test` con dos cuentas de Google.
 
 ## Etapa 3 — Onboarding, ingresos fijos y diezmo
 
@@ -80,7 +84,7 @@ Las etapas 2 a 9 conectan estas pantallas al backend: cada pantalla ya existe y 
 **Criterio de cierre**: `https://steward.srdejo.com.co/actuator/health` responde `{"status":"UP"}` con el backend dentro del presupuesto de memoria del VPS, y los dos miembros del hogar lo usan en sus teléfonos.
 
 - [ ] Passkeys (WebAuthn, RP ID `steward.srdejo.com.co`), biometría al abrir y "Ocultar montos".
-- [ ] Backend dentro del presupuesto de memoria de `optimizar-recursos-plataforma-comun` (imagen nativa o el ajuste de JVM que se defina).
+- [ ] Backend dentro del presupuesto de memoria de `optimizar-recursos-plataforma-comun` como **binario nativo**: la lista "Antes de encender el VPS" de `DEPLOYMENT.md` (compilar, contrato contra el binario, medir < 120 MB y < 2 s). La unit nativa y el modo `Native` de `deploy.ps1` ya están listos (Etapa 2).
 - [ ] Encender el backend en el VPS (`BackendEnabled = $true`, `systemctl enable steward`; pasos en `DEPLOYMENT.md`) y publicar la PWA.
 - [ ] Pasar `develop` a `main` por PR cuando esté lista. Antes, tag `v1.0.2` en `main` para poder sacar correcciones de la v1, y actualizar el spec `steward-mobile-app`, que hoy pide que `main` siga generando la v1.
 
