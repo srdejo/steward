@@ -148,7 +148,7 @@
   
   Verificar: los comandos documentados se ejecutan tal cual.
 - [x] 7.5 En el workspace, anotar en `openspec/changes/optimizar-recursos-plataforma-comun/tasks.md` (junto a la 4.1 y la fase 5) que steward está lista para nativo (pasa el contrato en modo AOT) y es candidata a adoptar los starters. Anotar también que el piloto nativo puede apoyarse en `steward/scripts/native-build.ps1` y en la lección de memoria: compilar solo, con `-J-Xmx5g`. Verificar: la nota cita este cambio y `DECISIONS.md`.
-- [ ] 7.6 Verificación final:
+- [x] 7.6 Verificación final:
   - tests de `backend` (JVM y modo AOT), `packages/domain` y `frontend` en verde;
   - `openspec validate backend-acceso-hogar --strict` pasa.
   
