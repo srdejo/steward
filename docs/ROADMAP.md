@@ -9,7 +9,7 @@ Las etapas 2 a 9 siguen el "Orden sugerido de implementación" del handoff. Conv
 **Criterio de cierre**: dos miembros del mismo hogar entran a `steward.test` con Google y comparten un plan del mes. Uno marca un pago o registra un aporte, y el otro lo ve al abrir la app.
 **Alcance**: Etapa 2, Etapa 3, Etapa 4
 
-**Cumplido el 2026-10-28** en `steward.test`, con el acceso de desarrollo porque Google no acepta `.test` como origen. Con Google real se verifica al encender el VPS (Etapa 9). El siguiente objetivo está por definir; lo natural son las Etapas 5 y 6 (cuentas, créditos y cierre), lo último que sigue con datos de prueba en Hoy.
+**Cumplido el 2026-10-28** en `steward.test`, con el acceso de desarrollo porque Google no acepta `.test` como origen. Con Google real se verifica al encender el VPS (Etapa 9). El siguiente objetivo está por definir. Con la Etapa 5 hecha, lo único que sigue con datos de prueba en el mes es el cierre (Etapa 6); después, varias opciones (Etapa 7) y el plan anual (Etapa 8).
 
 ## Objetivos cumplidos
 
@@ -19,6 +19,7 @@ Las etapas 2 a 9 siguen el "Orden sugerido de implementación" del handoff. Conv
 - 2026-10-28 — Backend con acceso, hogar e invitaciones (Etapa 2): dos personas comparten un hogar en `steward.test`; el invitado se une por el enlace o, sin él, desde la invitación a su correo (cambio OpenSpec `backend-acceso-hogar`)
 - 2026-10-28 — Ingresos fijos, regla y diezmo al recibir en el backend (Etapa 3): un hogar nuevo completa el onboarding en `steward.test`, y al marcar el salario como recibido los dos miembros ven "Disponible para diezmar $700.000" (cambio OpenSpec `backend-ingresos-diezmo`)
 - 2026-10-28 — Plan del mes y Hoy en el backend (Etapa 4) y objetivo "Hogar en la nube con un plan del mes usable": dos personas crean el plan de octubre, una paga Internet desde su cuenta, la otra registra un aporte y un gasto, y las dos ven las mismas cifras de "Te queda libre" y "Vs. plan" (cambio OpenSpec `backend-plan-mes-hoy`)
+- 2026-10-29 — Cuentas, cuadre y créditos en el backend (Etapa 5): dos personas agregan un crédito y su cuota aparece en Hoy; pagarla desde Davivienda deja el crédito en $13.978.000, mueven $100.000 al efectivo, cuadran Davivienda con $50.000 de "Gastos sin registrar" que el Cierre muestra, y un abono deja el crédito en $12.978.000, igual para las dos (cambio OpenSpec `backend-cuentas-creditos`)
 
 ## Etapa 1 — Infra de despliegue ✅
 
@@ -75,12 +76,17 @@ Cambio OpenSpec `backend-plan-mes-hoy`.
 - [x] Las cifras de Hoy ("Te queda libre", "Vs. plan") las sigue calculando el dominio compartido en el cliente; el backend guarda y valida (137 tests en JVM y 101 de contrato en modo AOT).
 - [x] Recorrido del criterio de cierre en `steward.test` con dos personas, por el acceso de desarrollo.
 
-## Etapa 5 — Cuentas, cuadre y créditos
+## Etapa 5 — Cuentas, cuadre y créditos ✅
 
-- [ ] Cuentas con titular y saldo estimado; Cuadrar todas guarda la diferencia como ajuste.
-- [ ] Créditos con su cuota en el plan y el simulador de abono extra.
+**Criterio de cierre**: dos personas cuadran las cuentas y la diferencia queda como "Gastos sin registrar"; mueven dinero entre dos cuentas y los saldos estimados lo reflejan; agregan un crédito, su cuota aparece en el plan del mes, y pagarla en Hoy o registrar un abono baja el saldo del crédito, igual para los dos.
 
-En modo conectado, hoy "Cuadrar cuentas" y "Mover dinero" avisan que llegan en una próxima versión, los créditos siguen de prueba y pagar una cuota no baja el saldo del crédito (el ítem todavía no se vincula al crédito).
+Cambio OpenSpec `backend-cuentas-creditos`.
+
+- [x] Cuentas con titular y saldo estimado por orden de registro (último cuadre más lo registrado después, aunque sea de un mes viejo); Cuadrar todas guarda la diferencia como ajuste; Mover dinero entre dos cuentas.
+- [x] Créditos: "+ Agregar" en Cuentas con su cuota enlazada en el plan del mes en curso y en los meses que se crean después; pagar la cuota baja el saldo en la parte de capital; Actualizar saldo y Registrar abono (con su origen). El simulador de abono extra sigue en el dominio compartido (168 tests en JVM y 125 de contrato en modo AOT).
+- [x] Recorrido del criterio de cierre en `steward.test` con dos personas, por el acceso de desarrollo.
+
+Sin editar ni borrar créditos o cuentas, ni enlazar a mano un ítem con un crédito desde Planear (la API ya admite `creditoId`).
 
 ## Etapa 6 — Cierre de mes
 
@@ -92,7 +98,7 @@ En modo conectado, hoy Cierre ya muestra el plan vs. real con lo real, pero "Cer
 
 - [ ] Varias opciones por mes futuro, Comparar lado a lado y "Usar esta" (las demás se archivan).
 
-En modo conectado, hoy cada mes tiene solo la Opción A (el esquema ya admite varias); "+ Duplicar", Comparar y "Probarlo como opción" de un crédito avisan que llegan después.
+En modo conectado, hoy cada mes tiene solo la Opción A (el esquema ya admite varias); "+ Duplicar", Comparar y "Probarlo como opción" de un crédito (ya real desde la Etapa 5) avisan que llegan después.
 
 ## Etapa 8 — Plan anual
 

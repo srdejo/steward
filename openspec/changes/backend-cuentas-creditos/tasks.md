@@ -60,7 +60,7 @@
 
 ## 6. Verificación y cierre
 
-- [ ] 6.1 Desplegar con `local-deploy.ps1 -Project steward` y recorrer en `steward.test`, con dos personas de prueba, por el acceso de desarrollo:
+- [x] 6.1 Desplegar con `local-deploy.ps1 -Project steward` y recorrer en `steward.test`, con dos personas de prueba, por el acceso de desarrollo:
   1. un hogar nuevo con Davivienda ($4.000.000) y Efectivo ($200.000) crea el plan del mes "Desde cero";
   2. una persona agrega "Libre inversión" ($14.250.000, total $20.000.000, cuota $500.000, 1,6 % EM, día 15); la cuota aparece en Hoy para las dos;
   3. la otra paga la cuota desde Davivienda: el crédito queda en $13.978.000 y Davivienda en ≈ $3.500.000;
@@ -69,4 +69,4 @@
   6. un abono de $1.000.000 desde "Su cuenta" deja el crédito en $12.978.000.
   
   Verificar: el criterio de cierre de la Etapa 5 del ROADMAP, las mismas cifras para las dos personas, sin errores en la consola. Borrar las personas y el hogar de prueba al terminar.
-- [ ] 6.2 `docs/ROADMAP.md`: marcar la Etapa 5. Anotar en la Etapa 7 que "Probarlo como opción" sigue con aviso. Verificar: `openspec validate backend-cuentas-creditos --strict` sin errores. Commit.
+- [x] 6.2 `docs/ROADMAP.md`: marcar la Etapa 5. Anotar en la Etapa 7 que "Probarlo como opción" sigue con aviso. Verificar: `openspec validate backend-cuentas-creditos --strict` sin errores. Commit.
