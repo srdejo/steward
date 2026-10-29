@@ -412,7 +412,13 @@ export class PuertosConectados implements Puertos {
   }
 
   private async vista(h: HogarApi): Promise<VistaHogar> {
-    if (h.miembros.length) this.miembrosReales = h.miembros.map((m) => m.usuario);
+    // Los nombres de los miembros entran a la superposicion ("Aportes {nombre}"): si cambian, las vistas se recalculan.
+    const nuevos = h.miembros.map((m) => m.usuario);
+    const antes = this.miembrosReales.map((u) => `${u.id}:${u.nombre}`).join();
+    if (nuevos.length && nuevos.map((u) => `${u.id}:${u.nombre}`).join() !== antes) {
+      this.miembrosReales = nuevos;
+      this.avisar();
+    }
     const diezmoEnHoy = this.finanzas?.diezmoEnHoy ?? 'SEPARADO';
     const invitaciones = h.invitaciones.map(invitacion);
     return {

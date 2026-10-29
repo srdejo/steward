@@ -156,6 +156,23 @@ class RegistrosContratoTest extends ContratoBase {
                 .jsonPath("$.movimientos[0].usuarioId").isEqualTo(idDaniel);
     }
 
+    // --- Salir del hogar con plan y registros ---
+
+    @Test
+    void losUltimosQueSalenNoDejanNadaAunqueHayaPlanYPagos() throws Exception {
+        post(esposa, "/api/pagos", pago(luz, 38_000, idEsposa, "NINGUNO")).expectStatus().isCreated();
+        post(daniel, "/api/gastos", gasto(mercado, 40_000, "", idDaniel)).expectStatus().isCreated();
+        delete(esposa, "/api/hogar/miembros/yo").expectStatus().isNoContent();
+        delete(daniel, "/api/hogar/miembros/yo").expectStatus().isNoContent();
+        for (String tabla : List.of("hogar", "categoria", "plan_mes", "item_plan", "movimiento")) {
+            try (var c = java.sql.DriverManager.getConnection(DB_URL, "postgres", "postgres");
+                 var r = c.createStatement().executeQuery("SELECT count(*) FROM " + tabla)) {
+                r.next();
+                assertEquals(0, r.getLong(1), tabla);
+            }
+        }
+    }
+
     private static Map<String, Object> aporte(String usuario, long monto, java.time.YearMonth mes, boolean diezmo) {
         Map<String, Object> m = new HashMap<>();
         m.put("usuarioId", usuario);

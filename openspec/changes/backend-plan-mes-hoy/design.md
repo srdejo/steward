@@ -57,6 +57,10 @@ En el código:
   - columnas nuevas: `item_id` (FK a item_plan, sin cascada, que se protege con `ITEM_CON_PAGOS`), `nota` y `origen` (con CHECK en CUENTA, EXTERNA, NINGUNO; NOT NULL, con default `NINGUNO` y backfill a `CUENTA` donde hay `cuenta_id`);
   - índice único parcial `(item_id, ref_anio, ref_mes) WHERE tipo = 'PAGO'`, que garantiza `YA_PAGADO` aunque lleguen dos a la vez. Los variables se registran como GASTO y no lo tocan, igual que en el dominio.
 
+Las llaves sin cascada entre tablas que caen en cascada desde el hogar quedan **diferidas** (`V4__fk_diferidas.sql`): `item_plan.categoria_id`, `movimiento.item_id` y `movimiento.ingreso_fijo_id`.
+- **El problema:** verificadas fila por fila, hacían fallar el borrado del hogar cuando salía el último miembro y había plan con pagos. Se encontró en el recorrido 5.1.
+- **Cómo queda:** diferidas, se verifican al terminar la transacción. Quitar un solo ítem con pagos sigue fallando, y el caso de uso responde antes `ITEM_CON_PAGOS`.
+
 El estado efectivo (Borrador que pasa a Activo) se calcula al leer, como `estadoEfectivo`, sin tareas programadas. En la base solo cambia a ACTIVO o CERRADO por una acción (cerrar llega en la Etapa 6).
 
 Alternativa descartada: guardar la opción como JSON dentro de `plan_mes`. Validar la categoría, proteger los ítems con pagos y apuntar el pago a su ítem pide filas.

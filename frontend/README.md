@@ -9,6 +9,8 @@ Tiene dos **modos de datos** (`src/app/config/modo.ts`):
 | **conectado** | `production` (lo que publica `local-deploy.ps1`) y `conectado` | sesión (Google), hogar, miembros, invitaciones, categorías, ingresos fijos, regla de diezmo, "Diezmo en Hoy", las cuentas (sin cuadrar ni mover todavía), el plan de cada mes con su Opción A y todo lo registrado ("Recibí", "Entregado", pagos, gastos y aportes) | créditos, plan anual y cierre. Lo que llega en otras etapas (varias opciones, cerrar el mes, crear meses desde el anual) avisa "llega en una próxima versión" |
 | **demo** | `demo` y `development` (`npm start`) | nada | todo |
 
+**Al pasar a la Etapa 4, el plan de prueba desaparece en modo conectado.** Hoy y Planear muestran solo los planes reales. Un hogar que todavía no tiene el plan del mes en curso (por ejemplo, "Jimenez Navarro" en `steward.test`) ve en Hoy "Este mes no tiene plan" y lo crea desde Planear, con "Empezar desde cero" o "Solo fijos e ingresos". Siguen de prueba los créditos, el plan anual (incluidos los aportes proyectados) y el cierre.
+
 Los datos de prueba viven en el navegador (`localStorage`, clave `steward-demo/v1`) y se restablecen desde Ajustes. Mientras algún módulo los use, se ve el aviso "Datos de prueba". En modo conectado no existe "Probar desde cero" y la sesión es un JWT en `localStorage` (`steward/sesion`).
 
 ## Comandos

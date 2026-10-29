@@ -9,6 +9,8 @@ Las etapas 2 a 9 siguen el "Orden sugerido de implementación" del handoff. Conv
 **Criterio de cierre**: dos miembros del mismo hogar entran a `steward.test` con Google y comparten un plan del mes. Uno marca un pago o registra un aporte, y el otro lo ve al abrir la app.
 **Alcance**: Etapa 2, Etapa 3, Etapa 4
 
+**Cumplido el 2026-10-28** en `steward.test`, con el acceso de desarrollo porque Google no acepta `.test` como origen. Con Google real se verifica al encender el VPS (Etapa 9). El siguiente objetivo está por definir; lo natural son las Etapas 5 y 6 (cuentas, créditos y cierre), lo último que sigue con datos de prueba en Hoy.
+
 ## Objetivos cumplidos
 
 - 2026-07-13 — Steward v1.0.2 en App Store: presupuesto mensual local con moneda por país, créditos y bola de nieve
@@ -16,6 +18,7 @@ Las etapas 2 a 9 siguen el "Orden sugerido de implementación" del handoff. Conv
 - 2026-10-26 — UI completa con datos de prueba: las 22 pantallas del diseño en la PWA (`steward.test`) y en la app Expo, con las mismas cifras en las dos (cambio OpenSpec `presupuesto-hogar-ui`)
 - 2026-10-28 — Backend con acceso, hogar e invitaciones (Etapa 2): dos personas comparten un hogar en `steward.test`; el invitado se une por el enlace o, sin él, desde la invitación a su correo (cambio OpenSpec `backend-acceso-hogar`)
 - 2026-10-28 — Ingresos fijos, regla y diezmo al recibir en el backend (Etapa 3): un hogar nuevo completa el onboarding en `steward.test`, y al marcar el salario como recibido los dos miembros ven "Disponible para diezmar $700.000" (cambio OpenSpec `backend-ingresos-diezmo`)
+- 2026-10-28 — Plan del mes y Hoy en el backend (Etapa 4) y objetivo "Hogar en la nube con un plan del mes usable": dos personas crean el plan de octubre, una paga Internet desde su cuenta, la otra registra un aporte y un gasto, y las dos ven las mismas cifras de "Te queda libre" y "Vs. plan" (cambio OpenSpec `backend-plan-mes-hoy`)
 
 ## Etapa 1 — Infra de despliegue ✅
 
@@ -61,32 +64,41 @@ Cambio OpenSpec `backend-ingresos-diezmo`.
 - [x] PWA: las finanzas reales se superponen a los datos de prueba, así que Hoy, Ajustes y Cuentas muestran lo real junto al plan de prueba.
 - [x] Recorrido del criterio de cierre en `steward.test` con dos personas, por el acceso de desarrollo.
 
-## Etapa 4 — Plan del mes y Hoy
+## Etapa 4 — Plan del mes y Hoy ✅
 
 **Criterio de cierre**: con un plan activo de un escenario, se marca un pago, se registra un aporte y un gasto, y "Te queda libre" y "Vs. plan" cuadran con lo registrado.
 
-- [ ] Plan del mes con un escenario y los estados Borrador, Activo y Cerrado.
-- [ ] Hoy, Marcar pago, + Aporte y Registrar gasto. Un pago desde una cuenta externa cuenta como aporte implícito.
-  - Van sobre la tabla `movimiento` de la Etapa 3: se amplía su `CHECK` de tipos con pagos, gastos, aportes y ajustes.
-  - Los aportes con diezmo generan obligaciones como los ingresos recibidos.
-  - En la PWA, se superponen como los ingresos recibidos (`frontend/README.md`).
+Cambio OpenSpec `backend-plan-mes-hoy`.
+
+- [x] Plan del mes con un escenario (la Opción A) y los estados Borrador, Activo y Cerrado. Categorías del hogar en el backend.
+- [x] Hoy, Marcar pago, + Aporte y Registrar gasto, en la tabla `movimiento`. Un pago desde una cuenta externa cuenta como aporte implícito; los aportes con diezmo generan su obligación.
+- [x] Las cifras de Hoy ("Te queda libre", "Vs. plan") las sigue calculando el dominio compartido en el cliente; el backend guarda y valida (137 tests en JVM y 101 de contrato en modo AOT).
+- [x] Recorrido del criterio de cierre en `steward.test` con dos personas, por el acceso de desarrollo.
 
 ## Etapa 5 — Cuentas, cuadre y créditos
 
 - [ ] Cuentas con titular y saldo estimado; Cuadrar todas guarda la diferencia como ajuste.
 - [ ] Créditos con su cuota en el plan y el simulador de abono extra.
 
+En modo conectado, hoy "Cuadrar cuentas" y "Mover dinero" avisan que llegan en una próxima versión, los créditos siguen de prueba y pagar una cuota no baja el saldo del crédito (el ítem todavía no se vincula al crédito).
+
 ## Etapa 6 — Cierre de mes
 
 - [ ] Plan vs. real por categoría, "Sin registrar", y reparto del sobrante entre ahorro y el mes siguiente; el mes queda en solo lectura.
+
+En modo conectado, hoy Cierre ya muestra el plan vs. real con lo real, pero "Cerrar {mes}" avisa que llega después. El backend ya guarda el estado Cerrado y no deja registrar en un mes cerrado.
 
 ## Etapa 7 — Escenarios y comparar
 
 - [ ] Varias opciones por mes futuro, Comparar lado a lado y "Usar esta" (las demás se archivan).
 
+En modo conectado, hoy cada mes tiene solo la Opción A (el esquema ya admite varias); "+ Duplicar", Comparar y "Probarlo como opción" de un crédito avisan que llegan después.
+
 ## Etapa 8 — Plan anual
 
 - [ ] Cuadrícula de 12 meses por categoría, con eventos del año, aportes proyectados y KPIs.
+
+En modo conectado, hoy el plan anual sigue de prueba (sus aportes proyectados aparecen tenues en Planear) y "Crear meses desde este plan" avisa que llega después.
 
 ## Etapa 9 — Passkeys, ocultar montos y producción
 

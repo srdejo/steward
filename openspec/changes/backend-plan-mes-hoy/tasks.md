@@ -56,7 +56,7 @@
 
 ## 5. Verificación y cierre
 
-- [ ] 5.1 Desplegar con `local-deploy.ps1 -Project steward` y recorrer en `steward.test`, con dos personas de prueba, por el acceso de desarrollo:
+- [x] 5.1 Desplegar con `local-deploy.ps1 -Project steward` y recorrer en `steward.test`, con dos personas de prueba, por el acceso de desarrollo:
   1. un hogar nuevo crea el plan de octubre "Desde cero", con Internet ($120.000, fijo) y Mercado ($320.000, variable), y usa la Opción A;
   2. una persona marca Internet por $100.000 desde "Su cuenta"; la otra ve el pago y "Aportes {nombre}" con el pago directo;
   3. se registran un aporte de $500.000 y un gasto no planeado de $85.000;
@@ -64,5 +64,5 @@
   5. pagar otra vez Internet da "Ya lo pagó…".
   
   Verificar: el criterio de cierre de la Etapa 4 del ROADMAP, sin errores en la consola. Borrar las personas y el hogar de prueba al terminar.
-- [ ] 5.2 Guía para el hogar real "Jimenez Navarro": en `docs/DEPLOYMENT.md` (o el README de la PWA), que al pasar a la Etapa 4 el plan de prueba desaparece y el mes se crea desde Planear. Verificar: con la sesión de Daniel, Hoy muestra "Este mes no tiene plan" y lleva a Planear.
-- [ ] 5.3 `docs/ROADMAP.md`: marcar la Etapa 4 y el objetivo actual ("Hogar en la nube con un plan del mes usable") como cumplido. Anotar en las Etapas 5, 6, 7 y 8 lo que quedó con aviso ("llega en una próxima versión"). Verificar: `openspec validate backend-plan-mes-hoy --strict` sin errores. Commit.
+- [x] 5.2 Guía para el hogar real "Jimenez Navarro": en `docs/DEPLOYMENT.md` (o el README de la PWA), que al pasar a la Etapa 4 el plan de prueba desaparece y el mes se crea desde Planear. Verificar: con la sesión de Daniel, Hoy muestra "Este mes no tiene plan" y lleva a Planear.
+- [x] 5.3 `docs/ROADMAP.md`: marcar la Etapa 4 y el objetivo actual ("Hogar en la nube con un plan del mes usable") como cumplido. Anotar en las Etapas 5, 6, 7 y 8 lo que quedó con aviso ("llega en una próxima versión"). Verificar: `openspec validate backend-plan-mes-hoy --strict` sin errores. Commit.

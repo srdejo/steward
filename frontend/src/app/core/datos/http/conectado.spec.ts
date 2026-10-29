@@ -446,6 +446,23 @@ describe('plan del mes y registros en el backend (steward-plan-mes, design D5)',
     expect(await p.cierre.vista(OCT)).toMatchObject({ cerrado: false });
   });
 
+  it('el aporte de otro miembro lleva su nombre en cuanto se lee el hogar', async () => {
+    const otro = { id: 'u-esposa', nombre: 'Esposa', email: 'esposa@ejemplo.com', inicial: 'E' };
+    // Las finanzas ya traen el aporte de Esposa (las releyo, por ejemplo, el registro de un pago).
+    const pagar = p.movimientos.marcarPago({ itemId: 'it-internet', ref: OCT, monto: 120_000, usuarioId: USUARIO.id, origen: { tipo: 'NINGUNO' } });
+    finanzasPrueba.valor = finanzas({ planes: [PLAN_OCT], movimientos: [registro({ id: 'mov-a', tipo: 'APORTE', monto: 500_000, usuarioId: otro.id })] });
+    await responder('POST', '/api/pagos', registro({}), tick, 201);
+    await pagar;
+    const aviso = vi.fn();
+    p.suscribir(aviso);
+
+    const vista = p.hogar.obtener();
+    await responder('GET', '/api/hogar', { ...hogarApi(), miembros: [...hogarApi().miembros, { usuario: otro, unidoEn: '2026-10-27', esActual: false }] }, tick);
+    await vista;
+    expect(aviso).toHaveBeenCalled();
+    expect((await p.movimientos.resumenMes(OCT)).ingresos.find((l) => l.tipo === 'APORTES')?.nombre).toBe('Aportes Esposa');
+  });
+
   it('un pago desde "Su cuenta" cuenta como aporte de quien pagó', async () => {
     const pagar = p.movimientos.marcarPago({ itemId: 'it-internet', ref: OCT, monto: 100_000, usuarioId: USUARIO.id, origen: { tipo: 'EXTERNA' } });
     const pago = registro({ id: 'mov-p', tipo: 'PAGO', monto: 100_000, itemId: 'it-internet', origen: 'EXTERNA' });
