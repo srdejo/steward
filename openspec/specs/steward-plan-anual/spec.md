@@ -1,7 +1,7 @@
 # steward-plan-anual Specification
 
 ## Purpose
-TBD - created by archiving change backend-plan-anual. Update Purpose after archive.
+Define en el backend el plan anual del hogar: crearlo vacío, sus celdas por categoría y mes, los eventos del año, los aportes proyectados de cada persona y crear los meses del año desde él, con el aislamiento entre hogares.
 
 ## Requirements
 
