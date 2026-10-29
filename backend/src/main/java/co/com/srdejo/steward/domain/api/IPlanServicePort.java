@@ -27,6 +27,18 @@ public interface IPlanServicePort {
     /** "Usar opcion": queda como la que se ejecuta en el mes. */
     Mono<PlanMes> usar(UUID planId, UUID escenarioId);
 
+    /** "+ Duplicar": copia la opcion {@code desde} con la siguiente letra libre (solo en Borrador). Devuelve el plan. */
+    Mono<PlanMes> duplicar(UUID planId, UUID desde, String nota);
+
+    /** "Quitar opcion": borra una opcion que ya no sirve (solo en Borrador). */
+    Mono<Void> quitarOpcion(UUID planId, UUID escenarioId);
+
+    /** "Probarlo como opcion de {mes}": una copia de la principal con el abono extra al credito. */
+    Mono<OpcionNueva> probarAbono(UUID creditoId, YearMonth ref, long abono);
+
+    record OpcionNueva(UUID planId, UUID escenarioId) {
+    }
+
     /** {@code tipo}: FIJO, VARIABLE, CUOTA o CREDITO. Cuota actual y total van juntas o ninguna. */
     /** {@code creditoId}: el credito del hogar al que corresponde; al editar, null conserva el que tenia. */
     record DatosItem(UUID categoriaId, String nombre, long monto, Integer diaVence, String tipo, Integer cuotaActual,

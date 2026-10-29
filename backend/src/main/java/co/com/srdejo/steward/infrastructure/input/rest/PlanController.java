@@ -2,6 +2,7 @@ package co.com.srdejo.steward.infrastructure.input.rest;
 
 import co.com.srdejo.steward.application.dto.PlanDtos.CategoriaResponse;
 import co.com.srdejo.steward.application.dto.PlanDtos.CrearPlanRequest;
+import co.com.srdejo.steward.application.dto.PlanDtos.DuplicarRequest;
 import co.com.srdejo.steward.application.dto.PlanDtos.ItemRequest;
 import co.com.srdejo.steward.application.dto.PlanDtos.ItemResponse;
 import co.com.srdejo.steward.application.dto.PlanDtos.NombreRequest;
@@ -57,6 +58,18 @@ public class PlanController {
     @PostMapping("/api/planes/{id}/usar")
     public Mono<PlanResponse> usar(@PathVariable UUID id, @RequestBody UsarRequest r) {
         return plan.usar(id, r.escenarioId()).map(p -> PlanResponse.de(p, clock.hoy()));
+    }
+
+    @PostMapping("/api/planes/{id}/escenarios")
+    @ResponseStatus(HttpStatus.CREATED)
+    public Mono<PlanResponse> duplicar(@PathVariable UUID id, @RequestBody DuplicarRequest r) {
+        return plan.duplicar(id, r.desde(), r.nota()).map(p -> PlanResponse.de(p, clock.hoy()));
+    }
+
+    @DeleteMapping("/api/planes/{id}/escenarios/{escenarioId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public Mono<Void> quitarOpcion(@PathVariable UUID id, @PathVariable UUID escenarioId) {
+        return plan.quitarOpcion(id, escenarioId);
     }
 
     @PostMapping("/api/planes/{id}/escenarios/{escenarioId}/items")

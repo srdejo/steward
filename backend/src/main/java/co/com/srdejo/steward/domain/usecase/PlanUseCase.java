@@ -10,12 +10,14 @@ import co.com.srdejo.steward.domain.model.PlanMes.Escenario;
 import co.com.srdejo.steward.domain.model.PlanMes.ItemPlan;
 import co.com.srdejo.steward.domain.spi.ICategoriaPersistencePort;
 import co.com.srdejo.steward.domain.spi.ICierrePersistencePort;
+import co.com.srdejo.steward.domain.spi.IClockPort;
 import co.com.srdejo.steward.domain.spi.ICreditoPersistencePort;
 import co.com.srdejo.steward.domain.spi.ICurrentUserPort;
 import co.com.srdejo.steward.domain.spi.IHogarPersistencePort;
 import co.com.srdejo.steward.domain.spi.IMovimientoPersistencePort;
 import co.com.srdejo.steward.domain.spi.IPlanPersistencePort;
 import co.com.srdejo.steward.domain.spi.ITransaccionPort;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.time.YearMonth;
@@ -44,10 +46,12 @@ public class PlanUseCase implements IPlanServicePort {
     private final ICierrePersistencePort cierres;
     private final ICurrentUserPort usuarioActual;
     private final ITransaccionPort transaccion;
+    private final IClockPort clock;
 
     public PlanUseCase(IHogarPersistencePort hogares, ICategoriaPersistencePort categorias, IPlanPersistencePort planes,
                        IMovimientoPersistencePort movimientos, ICreditoPersistencePort creditos,
-                       ICierrePersistencePort cierres, ICurrentUserPort usuarioActual, ITransaccionPort transaccion) {
+                       ICierrePersistencePort cierres, ICurrentUserPort usuarioActual, ITransaccionPort transaccion,
+                       IClockPort clock) {
         this.hogares = hogares;
         this.categorias = categorias;
         this.planes = planes;
@@ -56,6 +60,7 @@ public class PlanUseCase implements IPlanServicePort {
         this.cierres = cierres;
         this.usuarioActual = usuarioActual;
         this.transaccion = transaccion;
+        this.clock = clock;
     }
 
     // --- Categorias -------------------------------------------------------------------------------------------------
@@ -215,9 +220,156 @@ public class PlanUseCase implements IPlanServicePort {
 
     @Override
     public Mono<PlanMes> usar(UUID planId, UUID escenarioId) {
-        return contexto().flatMap(ctx -> escenarioEditable(planId, escenarioId, ctx)
-                .flatMap(esc -> transaccion.enTransaccion(planes.usar(planId, esc.id()).thenReturn(true)))
+        // usarEscenario del dominio (design D1 de backend-opciones-mes): volver a elegir la que esta en uso no cambia
+        // nada; cambiar de opcion solo en Borrador, y no si la principal ya tiene pagos en el mes.
+        return contexto().flatMap(ctx -> planDelHogar(planId, ctx).flatMap(plan -> {
+            if (plan.estado() == PlanMes.Estado.CERRADO) {
+                return Mono.<PlanMes>error(mesCerrado());
+            }
+            Escenario esc = opcionDe(plan, escenarioId);
+            if (esc == null) {
+                return Mono.<PlanMes>error(planNoEncontrado());
+            }
+            if (esc.id().equals(plan.escenarioActivoId())) {
+                return Mono.just(plan);
+            }
+            Escenario principal = plan.principal();
+            return enBorrador(plan)
+                    .then(principal == null || principal.id().equals(esc.id()) ? Mono.just(false) : tienePagos(principal))
+                    .flatMap(conPagos -> conPagos
+                            ? Mono.<PlanMes>error(DomainException.conflicto("MES_NO_BORRADOR", capital(plan) + " ya tiene pagos en la Opción "
+                            + principal.letra() + "; no cambia de opción"))
+                            : transaccion.enTransaccion(planes.usar(planId, esc.id()).thenReturn(true))
+                            .then(planes.porIdEnHogar(planId, ctx.hogar().id())));
+        }));
+    }
+
+    // --- Varias opciones (backend-opciones-mes) ---------------------------------------------------------------------
+
+    private static final String LETRAS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    private static final int NOTA_MAX = 60;
+
+    @Override
+    public Mono<PlanMes> duplicar(UUID planId, UUID desde, String nota) {
+        String limpia = nota == null ? "" : nota.strip();
+        if (limpia.length() > NOTA_MAX) {
+            return Mono.error(DomainException.datosInvalidos("La nota va hasta 60 caracteres"));
+        }
+        return contexto().flatMap(ctx -> copiar(planId, desde, limpia, ctx, null, true)
                 .then(planes.porIdEnHogar(planId, ctx.hogar().id())));
+    }
+
+    /**
+     * duplicarEscenario del dominio: la siguiente letra libre, los mismos items sin avanzar cuotas (con su credito), y
+     * {@code extra} al final si viene. Si otra persona tomo la letra al mismo tiempo, reintenta una vez (design D3).
+     */
+    private Mono<Escenario> copiar(UUID planId, UUID desde, String nota, Contexto ctx, ItemPlan extra, boolean reintentar) {
+        return planDelHogar(planId, ctx).flatMap(plan -> enBorrador(plan).then(Mono.defer(() -> {
+            Escenario origen = opcionDe(plan, desde);
+            if (origen == null) {
+                return Mono.<Escenario>error(planNoEncontrado());
+            }
+            Set<String> usadas = new HashSet<>();
+            plan.escenarios().forEach(e -> usadas.add(e.letra()));
+            String letra = LETRAS.chars().mapToObj(c -> String.valueOf((char) c)).filter(l -> !usadas.contains(l)).findFirst()
+                    .orElse(null);
+            if (letra == null) {
+                return Mono.<Escenario>error(DomainException.conflicto("MUCHAS_OPCIONES", "No caben más opciones en este mes"));
+            }
+            UUID id = UUID.randomUUID();
+            List<ItemPlan> items = new ArrayList<>(origen.items().stream()
+                    .map(i -> new ItemPlan(UUID.randomUUID(), id, i.categoriaId(), i.nombre(), i.monto(), i.diaVence(), i.tipo(),
+                            i.cuotaActual(), i.cuotaTotal(), i.orden(), i.creditoId()))
+                    .toList());
+            if (extra != null) {
+                int orden = items.stream().mapToInt(ItemPlan::orden).max().orElse(0) + 1;
+                items.add(new ItemPlan(UUID.randomUUID(), id, extra.categoriaId(), extra.nombre(), extra.monto(), extra.diaVence(),
+                        extra.tipo(), null, null, orden, extra.creditoId()));
+            }
+            Escenario nueva = new Escenario(id, plan.id(), letra, ctx.usuario(), nota, false, items);
+            return transaccion.enTransaccion(planes.crearEscenario(nueva))
+                    .onErrorResume(DomainException.class, ex -> reintentar && "LETRA_OCUPADA".equals(ex.codigo())
+                            ? copiar(planId, desde, nota, ctx, extra, false)
+                            : Mono.error("LETRA_OCUPADA".equals(ex.codigo())
+                            ? DomainException.conflicto("YA_EXISTE", "Otra persona acaba de crear una opción; intenta otra vez") : ex));
+        })));
+    }
+
+    /** Quitar una opcion (design D5): en Borrador, ni la que esta en uso ni la ultima vigente ni una con pagos. */
+    @Override
+    public Mono<Void> quitarOpcion(UUID planId, UUID escenarioId) {
+        return contexto().flatMap(ctx -> planDelHogar(planId, ctx).flatMap(plan -> enBorrador(plan).then(Mono.defer(() -> {
+            Escenario esc = opcionDe(plan, escenarioId);
+            if (esc == null) {
+                return Mono.<Void>error(planNoEncontrado());
+            }
+            if (esc.id().equals(plan.escenarioActivoId())) {
+                return Mono.<Void>error(DomainException.conflicto("OPCION_EN_USO", "Esa opción está en uso; primero usa otra"));
+            }
+            if (plan.escenarios().stream().noneMatch(e -> !e.archivado() && !e.id().equals(esc.id()))) {
+                return Mono.<Void>error(DomainException.conflicto("ULTIMA_OPCION", "El mes necesita al menos una opción"));
+            }
+            return tienePagos(esc).flatMap(conPagos -> conPagos
+                    ? Mono.<Void>error(DomainException.conflicto("OPCION_CON_PAGOS",
+                    "Esa opción ya tiene pagos este mes; no se puede quitar"))
+                    : transaccion.enTransaccion(planes.quitarEscenario(esc.id()).thenReturn(true)).then());
+        }))));
+    }
+
+    /**
+     * probarAbonoComoOpcion del dominio: crea el mes copiando el anterior si no tiene plan, y duplica la principal con el
+     * abono extra en Creditos, enlazado al credito.
+     */
+    @Override
+    public Mono<OpcionNueva> probarAbono(UUID creditoId, YearMonth ref, long abono) {
+        if (abono <= 0) {
+            return Mono.error(DomainException.datosInvalidos("Escribe el abono"));
+        }
+        return contexto().flatMap(ctx -> creditos.porIdEnHogar(creditoId, ctx.hogar().id())
+                .switchIfEmpty(Mono.error(CuentasUseCase::creditoNoEncontrado))
+                .flatMap(credito -> planes.deMes(ctx.hogar().id(), ref)
+                        .switchIfEmpty(Mono.defer(() -> crearPlan(ref, "COPIAR")))
+                        .zipWith(categorias.delHogar(ctx.hogar().id()).collectList())
+                        .flatMap(t -> {
+                            PlanMes plan = t.getT1();
+                            Escenario principal = plan.principal();
+                            if (principal == null) {
+                                return Mono.<OpcionNueva>error(planNoEncontrado());
+                            }
+                            ItemPlan abonoExtra = new ItemPlan(null, null, CuentasUseCase.categoriaDeCreditos(t.getT2()),
+                                    "Abono extra " + credito.nombre().toLowerCase(Locale.ROOT), abono, credito.diaPago(),
+                                    ItemPlan.Tipo.CREDITO, null, null, 0, credito.id());
+                            return copiar(plan.id(), principal.id(), "abono a crédito", ctx, abonoExtra, true)
+                                    .map(nueva -> new OpcionNueva(plan.id(), nueva.id()));
+                        })));
+    }
+
+    private Mono<PlanMes> planDelHogar(UUID planId, Contexto ctx) {
+        return planes.porIdEnHogar(planId, ctx.hogar().id()).switchIfEmpty(Mono.error(PlanUseCase::planNoEncontrado));
+    }
+
+    private static Escenario opcionDe(PlanMes plan, UUID escenarioId) {
+        return plan.escenarios().stream().filter(e -> e.id().equals(escenarioId)).findFirst().orElse(null);
+    }
+
+    /** Varias opciones solo en Borrador segun el estado efectivo (design D1 de backend-opciones-mes). */
+    private Mono<Void> enBorrador(PlanMes plan) {
+        if (plan.estado() == PlanMes.Estado.CERRADO) {
+            return Mono.error(mesCerrado());
+        }
+        if (plan.estadoEn(clock.hoy()) != PlanMes.Estado.BORRADOR) {
+            return Mono.error(DomainException.conflicto("MES_NO_BORRADOR", capital(plan) + " ya está en curso; su plan no gana opciones"));
+        }
+        return Mono.empty();
+    }
+
+    private Mono<Boolean> tienePagos(Escenario esc) {
+        return Flux.fromIterable(esc.items()).concatMap(i -> movimientos.hayDeItem(i.id())).any(Boolean::booleanValue);
+    }
+
+    private static String capital(PlanMes plan) {
+        String nombre = Formato.nombreMes(plan.ref().getMonthValue());
+        return Character.toUpperCase(nombre.charAt(0)) + nombre.substring(1);
     }
 
     /** {@code guardarItem} del dominio, mas los largos y las cuotas. */

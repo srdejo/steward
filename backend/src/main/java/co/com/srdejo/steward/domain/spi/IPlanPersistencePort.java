@@ -1,6 +1,7 @@
 package co.com.srdejo.steward.domain.spi;
 
 import co.com.srdejo.steward.domain.model.PlanMes;
+import co.com.srdejo.steward.domain.model.PlanMes.Escenario;
 import co.com.srdejo.steward.domain.model.PlanMes.ItemPlan;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -29,4 +30,13 @@ public interface IPlanPersistencePort {
     Mono<Void> quitarItem(UUID itemId);
 
     Mono<Void> usar(UUID planId, UUID escenarioId);
+
+    /**
+     * Agrega una opcion con sus items. Si su letra ya la tomo otra opcion del mismo plan (dos a la vez), falla con
+     * {@code LETRA_OCUPADA} para que el caso de uso reintente (design D3 de backend-opciones-mes).
+     */
+    Mono<Escenario> crearEscenario(Escenario escenario);
+
+    /** Borra la opcion con sus items (design D5 de backend-opciones-mes). */
+    Mono<Void> quitarEscenario(UUID escenarioId);
 }

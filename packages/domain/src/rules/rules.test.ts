@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { crearHogarVacio, crearSemilla, DANIEL, ESPOSA } from '../demo/seed';
 import type { EstadoHogar, MesRef } from '../model';
 import {
-  ReglaError, aceptarInvitacion, agregarCredito, actualizarSaldoCredito, agregarEvento, compararOpciones, crearMes, crearMesesDesdeAnual, cuadrarCuentas, cuentasDelHogar,
+  ReglaError, aceptarInvitacion, quitarEscenario, agregarCredito, actualizarSaldoCredito, agregarEvento, compararOpciones, crearMes, crearMesesDesdeAnual, cuadrarCuentas, cuentasDelHogar,
   cerrarMes, definirDiezmoEnHoy, diferenciaCuadre, duplicarEscenario, entregarDiezmo, guardarCategoria, invitar, loQueTraeElMes,
   marcarPago, marcarRecibido, planDe, planInicio, previsualizarDiezmo, previsualizarGasto, probarAbonoComoOpcion, registrarAporte,
   registrarGasto, repartoValido, resumenAnual, resumenMes, simularAbono, cuotasRestantes, porcentajePagado, usarEscenario,
@@ -154,7 +154,7 @@ describe('Planear (steward-planear)', () => {
   });
 
   it('duplicar crea la Opcion D del usuario actual', () => {
-    const s = duplicarEscenario(semilla(), { planId: 'plan-m1', escenarioId: 'plan-m1-a', creadoPor: ESPOSA });
+    const s = duplicarEscenario(semilla(), { planId: 'plan-m1', escenarioId: 'plan-m1-a', creadoPor: ESPOSA, hoy: HOY });
     const d = opciones(planDe(s, NOV)!).at(-1)!;
     expect(d.letra).toBe('D');
     expect(d.creadoPor).toBe(ESPOSA);
@@ -162,10 +162,47 @@ describe('Planear (steward-planear)', () => {
   });
 
   it('usar una opcion archiva las demas', () => {
-    const s = usarEscenario(semilla(), { planId: 'plan-m1', escenarioId: 'plan-m1-a' });
+    const s = usarEscenario(semilla(), { planId: 'plan-m1', escenarioId: 'plan-m1-a', hoy: HOY });
     const nov = planDe(s, NOV)!;
     expect(nov.escenarioActivoId).toBe('plan-m1-a');
     expect(nov.escenarios.filter((e) => e.archivado).map((e) => e.letra)).toEqual(['B', 'C']);
+  });
+
+  it('varias opciones solo en Borrador (backend-opciones-mes D1)', () => {
+    // Octubre es el mes en curso con la Opcion A en uso: Activo.
+    const octubre = planDe(semilla(), OCT)!;
+    const conB = { ...semilla(), planes: semilla().planes.map((p) => (p.id === octubre.id ? { ...p, escenarios: [...p.escenarios, { ...p.escenarios[0]!, id: 'oct-b', letra: 'B', archivado: true }] } : p)) };
+    expect(() => duplicarEscenario(semilla(), { planId: octubre.id, escenarioId: octubre.escenarioActivoId!, creadoPor: DANIEL, hoy: HOY })).toThrow(expect.objectContaining({ codigo: 'MES_NO_BORRADOR', message: 'Octubre ya está en curso; su plan no gana opciones' }));
+    expect(() => probarAbonoComoOpcion(semilla(), { creditoId: 'cred-libre', ref: OCT, abono: 1, creadoPor: DANIEL, hoy: HOY })).toThrow(expect.objectContaining({ codigo: 'MES_NO_BORRADOR' }));
+    expect(() => usarEscenario(conB, { planId: octubre.id, escenarioId: 'oct-b', hoy: HOY })).toThrow(expect.objectContaining({ codigo: 'MES_NO_BORRADOR' }));
+    // Volver a elegir la que esta en uso no cambia nada.
+    expect(planDe(usarEscenario(conB, { planId: octubre.id, escenarioId: octubre.escenarioActivoId!, hoy: HOY }), OCT)!.escenarioActivoId).toBe(octubre.escenarioActivoId);
+    expect(() => quitarEscenario(conB, { planId: octubre.id, escenarioId: 'oct-b', hoy: HOY })).toThrow(expect.objectContaining({ codigo: 'MES_NO_BORRADOR' }));
+    // Cerrado.
+    const cerrado = { ...semilla(), planes: semilla().planes.map((p) => (p.id === 'plan-m1' ? { ...p, estado: 'CERRADO' as const } : p)) };
+    expect(() => duplicarEscenario(cerrado, { planId: 'plan-m1', escenarioId: 'plan-m1-a', creadoPor: DANIEL, hoy: HOY })).toThrow(expect.objectContaining({ codigo: 'MES_CERRADO' }));
+  });
+
+  it('el mes en curso sin opcion elegida: no se cambia a otra si la principal ya tiene pagos', () => {
+    const base = semilla();
+    const octubre = planDe(base, OCT)!;
+    // Sin los pagos de la semilla: el unico pago es el de abajo.
+    const sinElegir = { ...base, movimientos: base.movimientos.filter((m) => m.itemId === null), planes: base.planes.map((p) => (p.id === octubre.id ? { ...p, estado: 'BORRADOR' as const, escenarioActivoId: null, escenarios: [...p.escenarios, { ...p.escenarios[0]!, id: 'oct-b', letra: 'B', items: [] }] } : p)) };
+    const pagado = marcarPago(sinElegir, { itemId: 'm0-mastercard', ref: OCT, monto: 1_500_000, usuarioId: DANIEL, origen: { tipo: 'NINGUNO' }, fecha: HOY, creadoPor: DANIEL });
+    expect(() => usarEscenario(pagado, { planId: octubre.id, escenarioId: 'oct-b', hoy: HOY })).toThrow(expect.objectContaining({ codigo: 'MES_NO_BORRADOR' }));
+    expect(planDe(usarEscenario(sinElegir, { planId: octubre.id, escenarioId: 'oct-b', hoy: HOY }), OCT)!.escenarioActivoId).toBe('oct-b');
+    expect(() => quitarEscenario(pagado, { planId: octubre.id, escenarioId: octubre.escenarios[0]!.id, hoy: HOY })).toThrow(expect.objectContaining({ codigo: 'OPCION_CON_PAGOS' }));
+  });
+
+  it('quitar una opcion: libera su letra; no la ultima ni la que esta en uso (backend-opciones-mes D5)', () => {
+    const s = quitarEscenario(semilla(), { planId: 'plan-m1', escenarioId: 'plan-m1-c', hoy: HOY });
+    expect(opciones(planDe(s, NOV)!).map((o) => o.letra)).toEqual(['A', 'B']);
+    const otra = duplicarEscenario(s, { planId: 'plan-m1', escenarioId: 'plan-m1-a', creadoPor: ESPOSA, hoy: HOY });
+    expect(opciones(planDe(otra, NOV)!).map((o) => o.letra)).toEqual(['A', 'B', 'C']);
+    const soloA = quitarEscenario(s, { planId: 'plan-m1', escenarioId: 'plan-m1-b', hoy: HOY });
+    expect(() => quitarEscenario(soloA, { planId: 'plan-m1', escenarioId: 'plan-m1-a', hoy: HOY })).toThrow(expect.objectContaining({ codigo: 'ULTIMA_OPCION' }));
+    const enUso = usarEscenario(semilla(), { planId: 'plan-m1', escenarioId: 'plan-m1-b', hoy: HOY });
+    expect(() => quitarEscenario(enUso, { planId: 'plan-m1', escenarioId: 'plan-m1-b', hoy: HOY })).toThrow(expect.objectContaining({ codigo: 'OPCION_EN_USO' }));
   });
 
   it('comparar resalta solo lo que cambia', () => {
@@ -258,7 +295,7 @@ describe('Cuentas (steward-cuentas)', () => {
   });
 
   it('probarlo como opcion crea un escenario con el abono', () => {
-    const r = probarAbonoComoOpcion(semilla(), { creditoId: 'cred-libre', ref: NOV, abono: 1_500_000, creadoPor: DANIEL });
+    const r = probarAbonoComoOpcion(semilla(), { creditoId: 'cred-libre', ref: NOV, abono: 1_500_000, creadoPor: DANIEL, hoy: HOY });
     const nueva = opciones(planDe(r.estado, NOV)!).find((e) => e.id === r.escenarioId)!;
     expect(nueva.letra).toBe('D');
     expect(nueva.items.find((i) => i.nombre === 'Abono extra libre inversión')?.monto).toBe(1_500_000);

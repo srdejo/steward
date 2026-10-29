@@ -9,7 +9,10 @@ import co.com.srdejo.steward.application.dto.FinanzasDtos.MovimientoResponse;
 import co.com.srdejo.steward.application.dto.FinanzasDtos.OrigenDto;
 import co.com.srdejo.steward.application.dto.FinanzasDtos.SaldoCreditoRequest;
 import co.com.srdejo.steward.application.dto.FinanzasDtos.TransferenciaRequest;
+import co.com.srdejo.steward.application.dto.PlanDtos.OpcionNuevaResponse;
+import co.com.srdejo.steward.application.dto.PlanDtos.ProbarAbonoRequest;
 import co.com.srdejo.steward.domain.api.ICuentasServicePort;
+import co.com.srdejo.steward.domain.api.IPlanServicePort;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -31,9 +34,11 @@ import java.util.UUID;
 public class CuentasController {
 
     private final ICuentasServicePort cuentas;
+    private final IPlanServicePort plan;
 
-    public CuentasController(ICuentasServicePort cuentas) {
+    public CuentasController(ICuentasServicePort cuentas, IPlanServicePort plan) {
         this.cuentas = cuentas;
+        this.plan = plan;
     }
 
     @PostMapping("/api/cuentas/cuadre")
@@ -56,6 +61,20 @@ public class CuentasController {
     @PutMapping("/api/creditos/{id}/saldo")
     public Mono<CreditoResponse> actualizarSaldo(@PathVariable UUID id, @RequestBody SaldoCreditoRequest r) {
         return cuentas.actualizarSaldo(id, r.saldo()).map(CreditoResponse::de);
+    }
+
+    /** "Probarlo como opcion de {mes}" (design D2 de backend-opciones-mes): una opcion nueva del mes con el abono extra. */
+    @PostMapping("/api/creditos/{id}/probar")
+    @ResponseStatus(HttpStatus.CREATED)
+    public Mono<OpcionNuevaResponse> probar(@PathVariable UUID id, @RequestBody ProbarAbonoRequest r) {
+        return Mono.fromCallable(() -> {
+                    if (r.mes() < 1 || r.mes() > 12) {
+                        throw co.com.srdejo.steward.domain.exception.DomainException.datosInvalidos("El mes va de 1 a 12");
+                    }
+                    return java.time.YearMonth.of(r.anio(), r.mes());
+                })
+                .flatMap(ref -> plan.probarAbono(id, ref, r.abono()))
+                .map(o -> new OpcionNuevaResponse(o.planId(), o.escenarioId()));
     }
 
     @PostMapping("/api/creditos/{id}/abonos")

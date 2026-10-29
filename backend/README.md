@@ -120,6 +120,7 @@ Todo es del hogar de la sesión. Montos en pesos enteros. El mes es siempre **el
 | `POST /api/transferencias` | "Mover dinero": `{"desde", "hacia", "monto"}` → 201 con la `TRANSFERENCIA`. 400 `MISMA_CUENTA` |
 | `POST /api/creditos` | `{"nombre", "entidad", "saldo", "totalOriginal", "cuota", "tasaEM" (0 a 10, hasta 2 decimales), "diaPago"}` → 201. Total original ≥ saldo. Si el mes en curso tiene plan y no está cerrado, su Opción A gana "Cuota {nombre}" enlazada al crédito |
 | `PUT /api/creditos/{id}/saldo` | `{"saldo"}` → el crédito, actualizado hoy. 404 `CREDITO_NO_ENCONTRADO` |
+| `POST /api/creditos/{id}/probar` | "Probarlo como opción": `{"anio", "mes", "abono"}` → 201 con `{planId, escenarioId}`. Crea el mes copiando el anterior si no tiene plan, y duplica la principal con "Abono extra {crédito}". 409 `MES_NO_BORRADOR` |
 | `POST /api/creditos/{id}/abonos` | `{"monto", "usuarioId", "origen"}` → 201 con el `ABONO_CREDITO`; baja el saldo. 400 `ABONO_MAYOR` si supera el saldo |
 | `POST /api/pagos` | "Marcar pago": `{"itemId", "monto", "usuarioId", "origen": {"tipo": "CUENTA" \| "EXTERNA" \| "NINGUNO", "cuentaId"?}}` → 201. El ítem tiene que estar en la opción principal del mes en curso (404 `ITEM_NO_ENCONTRADO`). Un variable se registra como `GASTO`. Un fijo ya pagado: 409 `YA_PAGADO` con "Ya lo pagó {nombre} el {dd mmm}". Pagar un ítem enlazado a un crédito baja su saldo en la parte de capital (la cuota menos el interés del mes) |
 | `POST /api/gastos` | `{"itemId"?, "monto", "nota" (≤ 120), "usuarioId", "origen"}` → 201; sin `itemId` es "No estaba planeado" |
@@ -138,13 +139,15 @@ En un mes Cerrado no se registra nada: 409 `MES_CERRADO`. **El backend no calcul
 | `POST /api/categorias` | `{"nombre"}` (1 a 40) → 201, después de las del sistema. 400 `RESERVADA` si es "Diezmo"; 409 `DUPLICADA` si ya existe en el hogar |
 | `PATCH /api/categorias/{id}` | `{"nombre"}` → la categoría renombrada (también las del sistema) |
 | `POST /api/planes` | `{"anio", "mes", "modo": "COPIAR" \| "FIJOS" \| "CERO"}` → 201 con el plan en Borrador y su Opción A. COPIAR trae la opción principal del mes anterior con las cuotas avanzadas; FIJOS deja los variables en $0. En los tres modos, cada crédito con saldo trae su cuota, y la de un crédito en $0 no se copia. 409 `YA_EXISTE` |
-| `POST /api/planes/{id}/usar` | `{"escenarioId"}` → el plan, con esa opción como la que se ejecuta |
+| `POST /api/planes/{id}/usar` | `{"escenarioId"}` → el plan, con esa opción como la que se ejecuta y las demás archivadas. Cambiar a otra solo en Borrador y si la principal no tiene pagos; si no, 409 `MES_NO_BORRADOR`. Volver a elegir la que está en uso no cambia nada |
+| `POST /api/planes/{id}/escenarios` | "+ Duplicar": `{"desde": escenarioId, "nota"?}` → 201 con el plan. La siguiente letra libre, los mismos ítems sin avanzar cuotas. Solo en Borrador (409 `MES_NO_BORRADOR`); 409 `MUCHAS_OPCIONES` con 26 |
+| `DELETE /api/planes/{id}/escenarios/{escenarioId}` | "Quitar opción" → 204; se borra con sus ítems. Solo en Borrador; 409 `ULTIMA_OPCION`, `OPCION_EN_USO` u `OPCION_CON_PAGOS` |
 | `POST /api/planes/{id}/escenarios/{escenarioId}/items` | `{"categoriaId", "nombre", "monto", "diaVence"?, "tipo": "FIJO" \| "VARIABLE" \| "CUOTA" \| "CREDITO", "cuota"?: {"actual", "total"}, "creditoId"?}` → 201. 404 `CATEGORIA_NO_ENCONTRADA` o `CREDITO_NO_ENCONTRADO` |
 | `PUT /api/planes/{id}/escenarios/{escenarioId}/items/{itemId}` | edita el ítem; sin `creditoId`, conserva el que tenía |
 | `DELETE /api/planes/{id}/escenarios/{escenarioId}/items/{itemId}` | 204; 409 `ITEM_CON_PAGOS` si ya tiene pagos o gastos |
 
 | `POST /api/cierres` | "Cerrar {mes}": `{"anio", "mes", "filas": [{"nombre", "plan"?, "real"}], "sinRegistrar", "sobrante", "aAhorro", "aSiguiente", "ultimoSeq"}` → 201. La foto la calcula la PWA con `vistaCierre`. El mes es el en curso o uno anterior (400 `DATOS_INVALIDOS`). 400 `REPARTO_INVALIDO` si el reparto no suma el sobrante; 409 `CIERRE_DESACTUALIZADO` si "Sin registrar" no es la suma de los ajustes del mes o hay un movimiento del mes con `seq` mayor que `ultimoSeq`; 409 `MES_CERRADO` si ya estaba cerrado |
 
-En esta etapa solo existe la Opción A: varias opciones llegan en la Etapa 7.
+**Varias opciones solo en Borrador** (design D1 de `backend-opciones-mes`): un mes futuro, o el mes en curso antes de elegir opción. Un mes Activo se edita en su opción en uso, pero no gana opciones ni cambia de opción.
 
 Un mes está **cerrado** si su plan está en Cerrado o tiene su cierre guardado (aunque no tenga plan). En un mes cerrado no se crea el plan, no se cambia, y "Recibí", "Entregado", pagos, gastos y aportes responden 409 `MES_CERRADO`. Cuadrar, mover y abonar siguen funcionando: son de las cuentas. `GET /api/finanzas` trae los cierres desde tres meses antes del mes en curso, para el "Sobrante de {mes}" del primer mes leído (design D3 y D4 de `backend-cierre-mes`).

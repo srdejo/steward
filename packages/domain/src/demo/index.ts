@@ -314,11 +314,14 @@ export function crearAdaptadorDemo(opciones: OpcionesDemo): Puertos {
       },
       async duplicar(planId, escenarioId) {
         const creadoPor = await usuarioActual();
-        await cambiar((s) => R.duplicarEscenario(s, { planId, escenarioId, creadoPor }));
+        await cambiar((s) => R.duplicarEscenario(s, { planId, escenarioId, creadoPor, hoy: hoy() }));
         return R.planPorId(estado!, planId).escenarios.at(-1)!.id;
       },
       async usar(planId, escenarioId) {
-        await cambiar((s) => R.usarEscenario(s, { planId, escenarioId }));
+        await cambiar((s) => R.usarEscenario(s, { planId, escenarioId, hoy: hoy() }));
+      },
+      async quitarOpcion(planId, escenarioId) {
+        await cambiar((s) => R.quitarEscenario(s, { planId, escenarioId, hoy: hoy() }));
       },
       async guardarItem(planId, escenarioId, item) {
         await cambiar((s) => R.guardarItem(s, { planId, escenarioId, item }));
@@ -387,7 +390,7 @@ export function crearAdaptadorDemo(opciones: OpcionesDemo): Puertos {
         const creadoPor = await usuarioActual();
         let resultado: { planId: Id; escenarioId: Id } | null = null;
         await cambiar((s) => {
-          const r = R.probarAbonoComoOpcion(s, { creditoId, ref, abono, creadoPor });
+          const r = R.probarAbonoComoOpcion(s, { creditoId, ref, abono, creadoPor, hoy: hoy() });
           resultado = { planId: r.planId, escenarioId: r.escenarioId };
           return r.estado;
         });

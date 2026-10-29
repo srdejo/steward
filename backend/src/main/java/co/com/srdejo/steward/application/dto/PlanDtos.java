@@ -33,6 +33,17 @@ public final class PlanDtos {
     public record UsarRequest(UUID escenarioId) {
     }
 
+    /** "+ Duplicar": la opcion de la que se copia y una nota opcional. */
+    public record DuplicarRequest(UUID desde, String nota) {
+    }
+
+    /** "Probarlo como opcion de {mes}". */
+    public record ProbarAbonoRequest(int anio, int mes, long abono) {
+    }
+
+    public record OpcionNuevaResponse(UUID planId, UUID escenarioId) {
+    }
+
     public record CuotaDto(int actual, int total) {
     }
 

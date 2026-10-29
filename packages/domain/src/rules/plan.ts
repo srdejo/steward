@@ -1,5 +1,5 @@
 import type { Escenario, EstadoHogar, EstadoMes, Fecha, Id, ItemPlan, MesRef, Pesos, PlanMes } from '../model';
-import { formatCop, nombreMes } from '../format';
+import { formatCop, nombreMes, nombreMesCapital } from '../format';
 import { libreAnualDelMes } from './anual';
 import { ReglaError, clonar, compararMes, mesDe, nuevoId, sumar, sumarMeses } from './base';
 import { cuotasDeCreditos } from './credito';
@@ -49,23 +49,65 @@ export function crearMes(estado: EstadoHogar, datos: { ref: MesRef; modo: ModoNu
   return s;
 }
 
-export function duplicarEscenario(estado: EstadoHogar, datos: { planId: Id; escenarioId: Id; creadoPor: Id; nota?: string }): EstadoHogar {
+/**
+ * Varias opciones solo mientras el mes sigue en Borrador segun su estado efectivo: un mes futuro, o el mes en curso antes
+ * de elegir opcion (design D1 de backend-opciones-mes). Asi los pagos de un mes Activo nunca quedan en una opcion archivada.
+ */
+function asegurarBorrador(plan: PlanMes, hoy: Fecha): void {
+  if (plan.estado === 'CERRADO') throw new ReglaError('MES_CERRADO', 'El mes está cerrado');
+  if (estadoEfectivo(plan, hoy) !== 'BORRADOR') {
+    throw new ReglaError('MES_NO_BORRADOR', `${nombreMesCapital(plan.ref.mes)} ya está en curso; su plan no gana opciones`);
+  }
+}
+
+/** Si alguno de los items de la opcion ya tiene pagos o gastos en su mes. */
+function tienePagos(estado: EstadoHogar, plan: PlanMes, esc: Escenario): boolean {
+  const ids = new Set(esc.items.map((i) => i.id));
+  return estado.movimientos.some((m) => (m.tipo === 'PAGO' || m.tipo === 'GASTO') && m.itemId !== null && ids.has(m.itemId) && m.ref.anio === plan.ref.anio && m.ref.mes === plan.ref.mes);
+}
+
+export function duplicarEscenario(estado: EstadoHogar, datos: { planId: Id; escenarioId: Id; creadoPor: Id; hoy: Fecha; nota?: string }): EstadoHogar {
   const s = clonar(estado);
   const plan = planPorId(s, datos.planId);
-  if (plan.estado === 'CERRADO') throw new ReglaError('MES_CERRADO', 'El mes está cerrado');
+  asegurarBorrador(plan, datos.hoy);
   const origen = escenario(plan, datos.escenarioId);
   plan.escenarios.push({ id: nuevoId(s, 'esc'), letra: siguienteLetra(plan), creadoPor: datos.creadoPor, nota: datos.nota ?? '', archivado: false, items: copiarItems(s, origen.items, false) });
   return s;
 }
 
-/** "Usar esta": queda como el plan del mes; las demas se archivan, no se borran. */
-export function usarEscenario(estado: EstadoHogar, datos: { planId: Id; escenarioId: Id }): EstadoHogar {
+/**
+ * "Usar esta": queda como el plan del mes; las demas se archivan, no se borran. En un mes Activo solo se puede volver a
+ * elegir la que ya esta en uso, y en Borrador no se cambia a otra si la principal ya tiene pagos (design D1).
+ */
+export function usarEscenario(estado: EstadoHogar, datos: { planId: Id; escenarioId: Id; hoy: Fecha }): EstadoHogar {
   const s = clonar(estado);
   const plan = planPorId(s, datos.planId);
   if (plan.estado === 'CERRADO') throw new ReglaError('MES_CERRADO', 'El mes está cerrado');
   escenario(plan, datos.escenarioId);
+  if (plan.escenarioActivoId === datos.escenarioId) return s;
+  asegurarBorrador(plan, datos.hoy);
+  const principal = escenarioPrincipal(plan);
+  if (principal && principal.id !== datos.escenarioId && tienePagos(s, plan, principal)) {
+    throw new ReglaError('MES_NO_BORRADOR', `${nombreMesCapital(plan.ref.mes)} ya tiene pagos en la Opción ${principal.letra}; no cambia de opción`);
+  }
   plan.escenarioActivoId = datos.escenarioId;
   for (const e of plan.escenarios) e.archivado = e.id !== datos.escenarioId;
+  return s;
+}
+
+/**
+ * Quitar una opcion que ya no sirve (design D5 de backend-opciones-mes): se borra con sus items. No se quita la ultima
+ * vigente, la que esta en uso ni una con pagos o gastos.
+ */
+export function quitarEscenario(estado: EstadoHogar, datos: { planId: Id; escenarioId: Id; hoy: Fecha }): EstadoHogar {
+  const s = clonar(estado);
+  const plan = planPorId(s, datos.planId);
+  asegurarBorrador(plan, datos.hoy);
+  const esc = escenario(plan, datos.escenarioId);
+  if (plan.escenarioActivoId === esc.id) throw new ReglaError('OPCION_EN_USO', 'Esa opción está en uso; primero usa otra');
+  if (!opciones(plan).some((o) => o.id !== esc.id)) throw new ReglaError('ULTIMA_OPCION', 'El mes necesita al menos una opción');
+  if (tienePagos(s, plan, esc)) throw new ReglaError('OPCION_CON_PAGOS', 'Esa opción ya tiene pagos este mes; no se puede quitar');
+  plan.escenarios = plan.escenarios.filter((e) => e.id !== esc.id);
   return s;
 }
 
@@ -262,15 +304,14 @@ export function loQueTraeElMes(estado: EstadoHogar, ref: MesRef): { nombre: stri
  * "Probarlo como opción de {mes}" (detalle de credito): una opcion nueva del mes, copia de la principal,
  * con el abono extra en Creditos. Si el mes no tiene plan, se crea copiando el anterior.
  */
-export function probarAbonoComoOpcion(estado: EstadoHogar, datos: { creditoId: Id; ref: MesRef; abono: Pesos; creadoPor: Id }): { estado: EstadoHogar; planId: Id; escenarioId: Id } {
+export function probarAbonoComoOpcion(estado: EstadoHogar, datos: { creditoId: Id; ref: MesRef; abono: Pesos; creadoPor: Id; hoy: Fecha }): { estado: EstadoHogar; planId: Id; escenarioId: Id } {
   if (!(datos.abono > 0)) throw new ReglaError('MONTO_INVALIDO', 'Escribe el abono');
   const credito = estado.creditos.find((c) => c.id === datos.creditoId);
   if (!credito) throw new ReglaError('NO_EXISTE', 'No existe el crédito');
   let s = planDe(estado, datos.ref) ? estado : crearMes(estado, { ref: datos.ref, modo: 'COPIAR', creadoPor: datos.creadoPor });
   const plan = planDe(s, datos.ref)!;
-  if (plan.estado !== 'BORRADOR') throw new ReglaError('MES_NO_BORRADOR', 'Ese mes ya no está en borrador');
   const base = escenarioPrincipal(plan)!;
-  s = duplicarEscenario(s, { planId: plan.id, escenarioId: base.id, creadoPor: datos.creadoPor, nota: 'abono a crédito' });
+  s = duplicarEscenario(s, { planId: plan.id, escenarioId: base.id, creadoPor: datos.creadoPor, hoy: datos.hoy, nota: 'abono a crédito' });
   const nueva = planDe(s, datos.ref)!.escenarios.at(-1)!;
   const categoriaCreditos = s.categorias.find((c) => c.tipo === 'CREDITO') ?? s.categorias[0]!;
   s = guardarItem(s, {

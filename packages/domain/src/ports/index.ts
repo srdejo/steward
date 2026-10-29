@@ -104,6 +104,8 @@ export interface PlanPort {
   loQueTrae(ref: MesRef): Promise<ReturnType<typeof loQueTraeElMes>>;
   crearMes(ref: MesRef, modo: ModoNuevoMes): Promise<void>;
   duplicar(planId: Id, escenarioId: Id): Promise<Id>;
+  /** "Quitar opción": solo en Borrador, ni la ultima vigente ni la que esta en uso ni una con pagos. */
+  quitarOpcion(planId: Id, escenarioId: Id): Promise<void>;
   usar(planId: Id, escenarioId: Id): Promise<void>;
   guardarItem(planId: Id, escenarioId: Id, item: Omit<ItemPlan, 'id'> & { id?: Id }): Promise<void>;
   quitarItem(planId: Id, escenarioId: Id, itemId: Id): Promise<void>;

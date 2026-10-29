@@ -219,8 +219,9 @@ public class BeanConfiguration {
     IPlanServicePort planServicePort(IHogarPersistencePort hogares, ICategoriaPersistencePort categorias,
                                      IPlanPersistencePort planes, IMovimientoPersistencePort movimientos,
                                      ICreditoPersistencePort creditos, ICierrePersistencePort cierres,
-                                     ICurrentUserPort usuarioActual, ITransaccionPort transaccion) {
-        return new PlanUseCase(hogares, categorias, planes, movimientos, creditos, cierres, usuarioActual, transaccion);
+                                     ICurrentUserPort usuarioActual, ITransaccionPort transaccion, IClockPort clock) {
+        return new PlanUseCase(hogares, categorias, planes, movimientos, creditos, cierres, usuarioActual, transaccion,
+                clock);
     }
 
     @Bean
