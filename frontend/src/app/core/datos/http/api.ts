@@ -186,6 +186,21 @@ export interface CierreApi {
   cerradoEn: string;
 }
 
+/** El plan anual: solo las celdas tocadas; las demas valen cero (design D5 de backend-plan-anual). */
+export interface AnualApi {
+  anio: number;
+  estado: 'BORRADOR' | 'CREADO';
+  celdas: { categoriaId: string; mes: number; monto: number }[];
+  eventos: { id: string; nombre: string; mes: number; monto: number; tipo: 'INGRESO' | 'GASTO'; usuarioId: string | null }[];
+}
+
+export interface ProyeccionApi {
+  usuarioId: string;
+  anio: number;
+  mes: number;
+  monto: number;
+}
+
 export interface FinanzasApi {
   mes: MesApi;
   diezmoEnHoy: 'SEPARADO' | 'AGRUPADO';
@@ -200,6 +215,9 @@ export interface FinanzasApi {
   creditos: CreditoApi[];
   /** Desde tres meses antes del mes en curso: el del mes anterior a los planes trae su "Sobrante de {mes}". */
   cierres: CierreApi[];
+  /** Desde el año del primer mes que se lee. */
+  anuales: AnualApi[];
+  proyecciones: ProyeccionApi[];
 }
 
 export type ItemPlanRequest = Omit<ItemPlanApi, 'id'>;
@@ -373,6 +391,26 @@ export class Api {
 
   aportar(datos: { usuarioId: string; monto: number; mes: MesApi; cuentaId: string | null; aplicaDiezmo: boolean }): Promise<MovimientoApi> {
     return this.pedir(this.http.post<MovimientoApi>('/api/aportes', datos));
+  }
+
+  crearAnual(anio: number): Promise<AnualApi> {
+    return this.pedir(this.http.post<AnualApi>('/api/anuales', { anio }));
+  }
+
+  ponerCelda(anio: number, categoriaId: string, mes: number, monto: number): Promise<void> {
+    return this.pedir(this.http.put<void>(`/api/anuales/${anio}/celdas`, { categoriaId, mes, monto }));
+  }
+
+  agregarEvento(anio: number, evento: Omit<AnualApi['eventos'][number], 'id'>): Promise<unknown> {
+    return this.pedir(this.http.post(`/api/anuales/${anio}/eventos`, evento));
+  }
+
+  ponerProyeccion(anio: number, usuarioId: string, mes: number, monto: number): Promise<void> {
+    return this.pedir(this.http.put<void>(`/api/anuales/${anio}/proyecciones`, { usuarioId, mes, monto }));
+  }
+
+  crearMesesDesdeAnual(anio: number): Promise<MesApi[]> {
+    return this.pedir(this.http.post<MesApi[]>(`/api/anuales/${anio}/crear-meses`, null));
   }
 
   duplicarOpcion(planId: string, desde: string): Promise<PlanApi> {

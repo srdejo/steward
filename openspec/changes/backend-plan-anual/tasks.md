@@ -21,13 +21,13 @@
 
 ## 3. PWA
 
-- [ ] 3.1 `api.ts` y `superposicion.ts` con anuales y proyecciones reales (D5). Verificar: tests de la superposición: el anual real en `resumenAnual`; una proyección tenue en `ingresosDelMes`; ningún anual de prueba.
-- [ ] 3.2 `PuertosConectados` según D6, sin `ETAPA_8` y con `demo` en `null`. Verificar:
+- [x] 3.1 `api.ts` y `superposicion.ts` con anuales y proyecciones reales (D5). Verificar: tests de la superposición: el anual real en `resumenAnual`; una proyección tenue en `ingresosDelMes`; ningún anual de prueba.
+- [x] 3.2 `PuertosConectados` según D6, sin `ETAPA_8` y con `demo` en `null`. Verificar:
   - tests en `conectado.spec.ts` de cada escritura del anual;
   - en modo conectado no hay aviso "Datos de prueba" ni sección de datos de prueba en Ajustes;
   - los tests que usaban `p.demo` en modo conectado se ajustan.
-- [ ] 3.3 Pantalla del anual: "Crear plan anual {año}" sin anual, y filas de aportes editables. Verificar: tests de pantalla en los dos modos.
-- [ ] 3.4 Recorrido conectado con el backend simulado: 2027 sin anual → crear → celda → evento → aporte proyectado → KPI → "Crear meses desde este plan" → los meses en Planear. Verificar: `npx ng test` en verde. Actualizar `frontend/README.md`. Commit.
+- [x] 3.3 Pantalla del anual: "Crear plan anual {año}" sin anual, y filas de aportes editables. Verificar: tests de pantalla en los dos modos.
+- [x] 3.4 Recorrido conectado con el backend simulado: 2027 sin anual → crear → celda → evento → aporte proyectado → KPI → "Crear meses desde este plan" → los meses en Planear. Verificar: `npx ng test` en verde. Actualizar `frontend/README.md`. Commit.
 
 ## 4. Verificación y cierre
 

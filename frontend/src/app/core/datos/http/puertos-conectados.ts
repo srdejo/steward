@@ -58,7 +58,7 @@ interface Dependencias {
  * - del backend: sesion, hogar, miembros, invitaciones, categorias, ingresos fijos, regla de diezmo, cuentas con su cuadre,
  *   creditos, el plan de cada mes con su Opcion A y todo lo registrado ("Recibi", "Entregado", pagos, gastos, aportes,
  *   ajustes, transferencias y abonos);
- * - del adaptador de prueba, con la persona real como titular: el plan anual;
+ * - ya nada es de prueba: el adaptador de prueba solo calcula las vistas sobre lo real (design D6 de backend-plan-anual);
  * - lo que llega en otras etapas (varias opciones, cerrar el mes, crear meses desde el anual) avisa sin cambiar nada.
  *
  * Las finanzas reales se superponen al estado de prueba en cada lectura, asi que Hoy, Planear, Cuentas y el Cierre
@@ -94,13 +94,9 @@ export class PuertosConectados implements Puertos {
     this.plan = this.crearPlan();
     this.cierre = this.crearCierre();
   }
-  /** Sin "Probar desde cero": el hogar es real (spec steward-ui-shell, modo conectado). */
+  /** Ya nada es de prueba en modo conectado: sin aviso ni "Restablecer" (design D6 de backend-plan-anual). */
   get demo() {
-    const demo = this.demoActual.demo!;
-    return {
-      restablecer: () => demo.restablecer(),
-      probarDesdeCero: () => Promise.reject(new ReglaError('NO_DISPONIBLE', 'En modo conectado el hogar es real')),
-    };
+    return null;
   }
 
   hoy(): Fecha {
@@ -361,8 +357,11 @@ export class PuertosConectados implements Puertos {
       loQueTrae: (ref) => demo().loQueTrae(ref),
       comparar: (ref) => demo().comparar(ref),
       anual: (anio) => demo().anual(anio),
-      agregarEvento: (anio, evento) => demo().agregarEvento(anio, evento),
-      editarMontoAnual: (anio, categoriaId, mes, monto) => demo().editarMontoAnual(anio, categoriaId, mes, monto),
+      // El plan anual en el backend (design D6 de backend-plan-anual); la cuadricula la calcula el dominio.
+      agregarEvento: (anio, evento) => escribir(api.agregarEvento(anio, { ...evento, usuarioId: evento.usuarioId ?? null })),
+      editarMontoAnual: (anio, categoriaId, mes, monto) => escribir(api.ponerCelda(anio, categoriaId, mes, monto)),
+      crearAnual: (anio) => escribir(api.crearAnual(anio)),
+      editarProyeccion: (usuarioId, ref, monto) => escribir(api.ponerProyeccion(ref.anio, usuarioId, ref.mes, monto)),
       crearMes: (ref, modo) => escribir(api.crearPlan(ref, modo)),
       guardarItem: (planId, escenarioId, item) => {
         const cuerpo = { categoriaId: item.categoriaId, nombre: item.nombre, monto: item.monto, diaVence: item.diaVence, tipo: item.tipo, cuota: item.cuota, creditoId: item.creditoId };
@@ -377,7 +376,7 @@ export class PuertosConectados implements Puertos {
         return [...plan.escenarios].sort((a, b) => a.letra.localeCompare(b.letra)).at(-1)!.id;
       },
       quitarOpcion: (planId, escenarioId) => escribir(api.quitarOpcion(planId, escenarioId)),
-      crearMesesDesdeAnual: () => Promise.reject(new ReglaError('ETAPA_8', 'Crear los meses desde el plan anual llega en una próxima versión.')),
+      crearMesesDesdeAnual: (anio) => escribir(api.crearMesesDesdeAnual(anio)),
     };
   }
 

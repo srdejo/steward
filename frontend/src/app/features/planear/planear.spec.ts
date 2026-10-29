@@ -55,6 +55,18 @@ describe('Planear (steward-planear)', () => {
     expect(a.texto()).not.toContain('Quitar opción');
   });
 
+  it('crear el plan anual 2028 vacío y editar una celda (backend-plan-anual)', async () => {
+    const p = await conSesion();
+    const a = await app('/planear/anual/2028');
+    await a.tocar('Crear plan anual 2028');
+    expect(a.texto()).toContain('Plan anual 2028');
+    await a.tocar(/.*/, '[aria-label="Gastos fijos · Marzo"]');
+    await a.escribir('Monto del mes', '800000');
+    await a.tocar('Guardar');
+    expect((await p.plan.anual(2028))!.gastos[0]!.valores[2]).toBe(800_000);
+    expect(a.raiz().querySelector('[aria-label="Aportes Daniel · Enero"]')).not.toBeNull();
+  });
+
   it('octubre (Activo) no ofrece + Duplicar', async () => {
     await conSesion();
     const a = await app('/planear/2026-10');

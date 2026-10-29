@@ -1,7 +1,8 @@
-import type { Categoria, CierreMes, Credito, Cuenta, EstadoHogar, IngresoFijo, ItemPlan, Movimiento, Origen, PlanMes, ReglaDiezmo } from '@steward/domain';
+import type { Categoria, CierreMes, Credito, PlanAnual, Cuenta, EstadoHogar, IngresoFijo, ItemPlan, Movimiento, Origen, PlanMes, ReglaDiezmo } from '@steward/domain';
 
 import {
   usuarioDe,
+  type AnualApi,
   type CategoriaApi,
   type CierreApi,
   type CreditoApi,
@@ -21,7 +22,7 @@ import {
  * - lo registrado es solo lo real: todos los movimientos de prueba se quitan;
  * - los cierres son los reales (design D5 de backend-cierre-mes): un mes cerrado muestra su foto y el siguiente su sobrante;
  * - los miembros reales entran a `usuarios` con su id, que es el que usan las hojas de Hoy al registrar.
- * Siguen de prueba el plan anual y las proyecciones.
+ * - el plan anual y los aportes proyectados son los reales (design D5 de backend-plan-anual): ya nada es de prueba.
  *
  * Es pura: no cambia `estado`, y el adaptador de prueba nunca la guarda.
  */
@@ -37,7 +38,8 @@ export function superponerFinanzas(estado: EstadoHogar, finanzas: FinanzasApi, m
     ...estado,
     secuencia: base + ultimo,
     usuarios: [...estado.usuarios, ...miembros.filter((m) => !ids.has(m.id)).map(usuarioDe)],
-    hogar: { ...estado.hogar, diezmoEnHoy: finanzas.diezmoEnHoy },
+    // Los miembros reales: el anual muestra una fila de aportes por cada uno.
+    hogar: { ...estado.hogar, diezmoEnHoy: finanzas.diezmoEnHoy, miembros: miembros.map((m) => ({ usuarioId: m.id, unidoEn: '' })) },
     categorias: finanzas.categorias.map(categoria),
     ingresosFijos: finanzas.ingresosFijos.map(ingresoFijo),
     reglas: finanzas.reglas.map(regla),
@@ -48,6 +50,8 @@ export function superponerFinanzas(estado: EstadoHogar, finanzas: FinanzasApi, m
     planes: finanzas.planes.map(plan),
     movimientos: reales,
     cierres: finanzas.cierres.map(cierre),
+    anuales: finanzas.anuales.map(anual),
+    proyecciones: finanzas.proyecciones.map((p) => ({ usuarioId: p.usuarioId, ref: { anio: p.anio, mes: p.mes }, monto: p.monto })),
   };
 }
 
@@ -61,6 +65,20 @@ export function regla(r: ReglaDiezmoApi): ReglaDiezmo {
 
 export function categoria(c: CategoriaApi): Categoria {
   return { id: c.id, nombre: c.nombre, color: c.color, orden: c.orden, tipo: c.tipo, sistema: c.sistema };
+}
+
+/** Las celdas tocadas, por categoria, en filas de 12 montos. */
+export function anual(a: AnualApi): PlanAnual {
+  const filas = new Map<string, number[]>();
+  for (const c of a.celdas) {
+    const montos = filas.get(c.categoriaId) ?? Array.from({ length: 12 }, () => 0);
+    montos[c.mes - 1] = c.monto;
+    filas.set(c.categoriaId, montos);
+  }
+  return {
+    anio: a.anio, estado: a.estado, filas: [...filas].map(([categoriaId, montos]) => ({ categoriaId, montos })),
+    eventos: a.eventos.map((e) => ({ id: e.id, nombre: e.nombre, mes: e.mes, monto: e.monto, tipo: e.tipo, usuarioId: e.usuarioId ?? null })),
+  };
 }
 
 export function cierre(c: CierreApi): CierreMes {

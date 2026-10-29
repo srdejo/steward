@@ -1,9 +1,10 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { formatMiles, nombreMesCapital, type FilaAnualVista, type TipoEvento } from '@steward/domain';
+import { formatMiles, mesDe, nombreMesCapital, type FilaAnualVista, type TipoEvento } from '@steward/domain';
 
 import { consulta, mensajeDeError } from '../../core/datos/consulta';
 import { PUERTOS } from '../../core/datos/puertos';
+import { Hoja } from '../../shared/components/hoja';
 import { Monto } from '../../shared/components/monto';
 import { MontoInput } from '../../shared/components/monto-input';
 import { Segmentado, type Opcion } from '../../shared/components/segmentado';
@@ -16,7 +17,7 @@ const MESES = Array.from({ length: 12 }, (_, i) => i + 1);
  */
 @Component({
   selector: 'app-anual-page',
-  imports: [RouterLink, Monto, MontoInput, Segmentado],
+  imports: [RouterLink, Hoja, Monto, MontoInput, Segmentado],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'flex flex-col gap-6 px-5 pt-6 pb-4 lg:px-10 lg:pt-8' },
   template: `
@@ -88,8 +89,14 @@ const MESES = Array.from({ length: 12 }, (_, i) => i + 1);
             @for (f of r.ingresos; track f.clave) {
               <tr class="border-b border-divisor" [class.italic]="f.tenue" [class.text-[#7A7D76]]="f.tenue">
                 <th scope="row" class="px-4 py-2.5 text-left font-sans text-[13px] font-normal">{{ f.nombre }}@if (f.detalle) {<span class="block text-[11px] not-italic">{{ f.detalle }}</span>}</th>
-                @for (v of f.valores; track $index) {
-                  <td class="px-1 py-2.5 text-right" [class.font-semibold]="destacar(f, v)">{{ celda(v) }}</td>
+                @for (v of f.valores; track $index; let i = $index) {
+                  <td class="px-1 py-2.5 text-right" [class.font-semibold]="destacar(f, v)">
+                    @if (editable(f)) {
+                      <button type="button" class="w-full text-right hover:text-acento" [attr.aria-label]="f.nombre + ' · ' + nombre(i + 1)" (click)="abrirCelda(f, i + 1, v)">{{ celda(v) }}</button>
+                    } @else {
+                      {{ celda(v) }}
+                    }
+                  </td>
                 }
               </tr>
             }
@@ -97,8 +104,14 @@ const MESES = Array.from({ length: 12 }, (_, i) => i + 1);
             @for (f of gastos(); track f.clave) {
               <tr class="border-b border-divisor" [class.text-secundario]="f.calculado" [class.bg-[#FBF7EC]]="f.clave === 'eventos'">
                 <th scope="row" class="px-4 py-2.5 text-left font-sans text-[13px] font-normal">{{ f.nombre }}@if (f.detalle) {<span class="block text-[11px] text-secundario">{{ f.detalle }}</span>}</th>
-                @for (v of f.valores; track $index) {
-                  <td class="px-1 py-2.5 text-right" [class.font-semibold]="destacar(f, v)">{{ celda(v) }}</td>
+                @for (v of f.valores; track $index; let i = $index) {
+                  <td class="px-1 py-2.5 text-right" [class.font-semibold]="destacar(f, v)">
+                    @if (editable(f)) {
+                      <button type="button" class="w-full text-right hover:text-acento" [attr.aria-label]="f.nombre + ' · ' + nombre(i + 1)" (click)="abrirCelda(f, i + 1, v)">{{ celda(v) }}</button>
+                    } @else {
+                      {{ celda(v) }}
+                    }
+                  </td>
                 }
               </tr>
             }
@@ -111,7 +124,14 @@ const MESES = Array.from({ length: 12 }, (_, i) => i + 1);
           </tbody>
         </table>
       </div>
-      <p class="text-[13px] text-secundario">Cada mes nace de su columna como "Opción A". Los cambios en un mes no modifican el plan anual; el anual se actualiza solo con el cierre de cada mes.</p>
+      <p class="text-[13px] text-secundario">Cada mes nace de su columna como "Opción A". Los cambios en un mes no modifican el plan anual.</p>
+
+      @if (editando(); as e) {
+        <app-hoja [titulo]="e.fila.nombre + ' · ' + nombre(e.mes)" (cerrar)="editando.set(null)">
+          <app-monto-input [etiqueta]="e.fila.tenue ? 'Aporte que esperas' : 'Monto del mes'" [grande]="true" [(valor)]="montoCelda" />
+          <button type="button" class="boton-grande" [disabled]="montoCelda() === null" (click)="guardarCelda(e.fila, e.mes)">Guardar</button>
+        </app-hoja>
+      }
       @if (mensaje()) {
         <p role="status" class="text-sm text-positivo">{{ mensaje() }}</p>
       }
@@ -121,6 +141,13 @@ const MESES = Array.from({ length: 12 }, (_, i) => i + 1);
     } @else if (!resumen.isLoading()) {
       <a routerLink="/planear" class="boton-texto self-start">‹ Planear</a>
       <p class="text-secundario">No hay plan anual para {{ anio() }}.</p>
+      @if (puedeCrear()) {
+        <!-- Vacio: las categorias del hogar en $0, para llenarlo a mano (backend-plan-anual). -->
+        <button type="button" class="boton-primario self-start" (click)="crearAnual()">Crear plan anual {{ anio() }}</button>
+      }
+      @if (error()) {
+        <p role="alert" class="text-sm text-negativo">{{ error() }}</p>
+      }
     }
   `,
 })
@@ -140,6 +167,34 @@ export class AnualPage {
     const r = this.resumen.value();
     return r ? [...r.gastos, r.diezmo, ...(r.eventos ? [r.eventos] : [])] : [];
   });
+
+  protected readonly editando = signal<{ fila: FilaAnualVista; mes: number } | null>(null);
+  protected readonly montoCelda = signal<number | null>(null);
+  protected readonly puedeCrear = computed(() => Number(this.anio()) >= mesDe(this.puertos.hoy()).anio);
+
+  /** Las filas de gasto por categoria y las de aportes proyectados; no el diezmo, los fijos ni los eventos. */
+  protected editable(f: FilaAnualVista): boolean {
+    return f.clave.startsWith('proy-') || (!f.calculado && f.clave !== 'eventos' && !f.clave.startsWith('fijo-') && !f.clave.startsWith('extra-'));
+  }
+
+  protected abrirCelda(f: FilaAnualVista, mes: number, valor: number): void {
+    this.montoCelda.set(valor);
+    this.editando.set({ fila: f, mes });
+  }
+
+  protected async guardarCelda(f: FilaAnualVista, mes: number): Promise<void> {
+    const anio = Number(this.anio());
+    const monto = this.montoCelda() ?? 0;
+    await this.ejecutar(async () => {
+      if (f.clave.startsWith('proy-')) await this.puertos.plan.editarProyeccion(f.clave.slice(5), { anio, mes }, monto);
+      else await this.puertos.plan.editarMontoAnual(anio, f.clave, mes, monto);
+      this.editando.set(null);
+    });
+  }
+
+  protected async crearAnual(): Promise<void> {
+    await this.ejecutar(() => this.puertos.plan.crearAnual(Number(this.anio())));
+  }
 
   protected readonly formulario = signal(false);
   protected readonly evNombre = signal('');

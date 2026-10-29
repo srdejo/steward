@@ -259,7 +259,7 @@ describe('pantallas en modo conectado (steward-acceso-onboarding, steward-ui-she
     expect(a.url()).toBe('/hoy');
   });
 
-  it('modo conectado en Ajustes: hogar real, aviso de datos de prueba y sin "Probar desde cero"', async () => {
+  it('modo conectado en Ajustes: hogar real, sin aviso ni sección de datos de prueba (backend-plan-anual)', async () => {
     conToken();
     const a = await app('/ajustes', async (estable) => {
       await responder('GET', '/api/sesion', sesionApi(), estable);
@@ -271,8 +271,8 @@ describe('pantallas en modo conectado (steward-acceso-onboarding, steward-ui-she
     }
     expect(a.texto()).toContain('Nuestra casa');
     expect(a.texto()).toContain('Ana María');
-    expect(a.texto()).toContain('Datos de prueba');
-    expect(a.texto()).toContain('Restablecer datos de prueba');
+    expect(a.texto()).not.toContain('Datos de prueba');
+    expect(a.texto()).not.toContain('Restablecer datos de prueba');
     expect(a.texto()).not.toContain('Probar desde cero');
   });
 });
@@ -312,8 +312,7 @@ describe('finanzas en el backend (steward-finanzas, design D5)', () => {
     expect(r.ingresos.find((l) => l.nombre === 'Salario Ana')).toMatchObject({ detalle: 'Fijo · llega el día 25', recibido: false });
     // El salario de prueba ya no esta: los ingresos fijos son los reales.
     expect(r.ingresos.some((l) => l.nombre === 'Salario Daniel')).toBe(false);
-    // Lo de prueba que se guarda (aqui, Restablecer) no lleva lo real.
-    await p.demo!.restablecer();
+    // Lo real nunca se guarda en el dispositivo.
     expect(localStorage.getItem(CLAVE_ESTADO) ?? '').not.toContain('Salario Ana');
   });
 
@@ -432,10 +431,9 @@ describe('finanzas en el backend (steward-finanzas, design D5)', () => {
     expect(req3.request.body).toEqual({ monto: 1_000_000, usuarioId: USUARIO.id, origen: { tipo: 'EXTERNA' } });
   });
 
-  it('restablecer los datos de prueba no toca los reales (steward-ui-shell)', async () => {
-    await p.demo!.restablecer();
+  it('en modo conectado no hay datos de prueba que restablecer (steward-ui-shell)', async () => {
+    expect(p.demo).toBeNull();
     expect((await p.ingresos.fijos()).map((f) => f.nombre)).toEqual(['Salario Ana']);
-    expect(await p.ingresos.regla()).toMatchObject({ porcentaje: 10 });
   });
 
   it('los aportes y Diezmo en Hoy van al backend (Etapa 4)', async () => {
@@ -579,9 +577,42 @@ describe('plan del mes y registros en el backend (steward-plan-mes, design D5)',
     expect(r4.request.body).toEqual({ nombre: 'Colegio' });
   });
 
-  it('lo que llega en otras etapas avisa sin cambiar nada', async () => {
-    await expect(p.plan.crearMesesDesdeAnual(2027)).rejects.toMatchObject({ codigo: 'ETAPA_8' });
-    expect((await p.plan.mes(OCT)).opciones).toHaveLength(1);
+  it('el plan anual real: crear, celda, evento, aporte proyectado y crear meses (backend-plan-anual)', async () => {
+    // Sin anual real, el de prueba (2027) no se ve.
+    expect(await p.plan.anual(2027)).toBeNull();
+    const crear = p.plan.crearAnual(2027);
+    const vacio = { anio: 2027, estado: 'BORRADOR' as const, celdas: [], eventos: [] };
+    finanzasPrueba.valor = finanzas({ planes: [PLAN_OCT], anuales: [vacio] });
+    const r1 = await responder('POST', '/api/anuales', vacio, tick, 201);
+    await crear;
+    expect(r1.request.body).toEqual({ anio: 2027 });
+    const r = (await p.plan.anual(2027))!;
+    expect(r.gastos.map((g) => g.nombre)).toEqual(['Gastos fijos', 'Tarjetas y cuotas', 'Variables', 'Créditos']);
+    expect(r.ingresos.filter((i) => i.tenue).map((i) => i.nombre)).toEqual(['Aportes Ana María']);
+
+    const celda = p.plan.editarMontoAnual(2027, 'cat-1', 1, 800_000);
+    const conCelda = { ...vacio, celdas: [{ categoriaId: 'cat-1', mes: 1, monto: 800_000 }] };
+    finanzasPrueba.valor = finanzas({ planes: [PLAN_OCT], anuales: [conCelda] });
+    const r2 = await responder('PUT', '/api/anuales/2027/celdas', null, tick, 204);
+    await celda;
+    expect(r2.request.body).toEqual({ categoriaId: 'cat-1', mes: 1, monto: 800_000 });
+    expect((await p.plan.anual(2027))!.gastos[0]!.valores[0]).toBe(800_000);
+
+    const evento = p.plan.agregarEvento(2027, { nombre: 'SOAT', mes: 3, monto: 1_200_000, tipo: 'GASTO', usuarioId: null });
+    const r3 = await responder('POST', '/api/anuales/2027/eventos', {}, tick, 201);
+    await evento;
+    expect(r3.request.body).toEqual({ nombre: 'SOAT', mes: 3, monto: 1_200_000, tipo: 'GASTO', usuarioId: null });
+
+    const proy = p.plan.editarProyeccion(USUARIO.id, { anio: 2027, mes: 1 }, 2_000_000);
+    finanzasPrueba.valor = finanzas({ planes: [PLAN_OCT], anuales: [conCelda], proyecciones: [{ usuarioId: USUARIO.id, anio: 2027, mes: 1, monto: 2_000_000 }] });
+    const r4 = await responder('PUT', '/api/anuales/2027/proyecciones', null, tick, 204);
+    await proy;
+    expect(r4.request.body).toEqual({ usuarioId: USUARIO.id, mes: 1, monto: 2_000_000 });
+    expect((await p.plan.anual(2027))!.ingresos.find((i) => i.tenue)!.valores[0]).toBe(2_000_000);
+
+    const meses = p.plan.crearMesesDesdeAnual(2027);
+    await responder('POST', '/api/anuales/2027/crear-meses', [{ anio: 2027, mes: 1 }], tick);
+    await meses;
   });
 
   it('cerrar octubre manda la foto del dominio con el último registro del mes (backend-cierre-mes)', async () => {
@@ -802,10 +833,42 @@ describe('pantallas con el plan real (backend-plan-mes-hoy)', () => {
     expect(a.raiz().querySelector('[data-testid="cierre-futuro"]')?.textContent).toContain('Noviembre se cierra cuando llegue.');
     expect(() => a.porTexto('Cerrar noviembre')).toThrow();
 
-    await a.ir('/planear/anual/2027');
+  });
+
+  it('recorrido de la Etapa 8: crear el anual, llenar una celda y el aporte proyectado (backend-plan-anual)', async () => {
+    finanzasPrueba.valor = finanzas({ planes: [PLAN_OCT] });
+    const a = await entrarA('/planear/anual/2027');
+    expect(a.texto()).toContain('No hay plan anual para 2027.');
+    a.porTexto('Crear plan anual 2027').click();
+    const vacio = { anio: 2027, estado: 'BORRADOR' as const, celdas: [], eventos: [] };
+    finanzasPrueba.valor = finanzas({ planes: [PLAN_OCT], anuales: [vacio] });
+    await responder('POST', '/api/anuales', vacio, a.estable, 201);
     await atenderHogar(a);
-    await a.tocar('Crear meses desde este plan');
-    expect(a.texto()).toContain('Crear los meses desde el plan anual llega en una próxima versión.');
+    expect(a.texto()).toContain('Plan anual 2027');
+    expect(a.texto()).not.toContain('Datos de prueba');
+
+    await a.tocar(/.*/, '[aria-label="Gastos fijos · Enero"]');
+    await a.escribir('Monto del mes', '800000');
+    a.porTexto('Guardar').click();
+    finanzasPrueba.valor = finanzas({ planes: [PLAN_OCT], anuales: [{ ...vacio, celdas: [{ categoriaId: 'cat-1', mes: 1, monto: 800_000 }] }] });
+    const r1 = await responder('PUT', '/api/anuales/2027/celdas', null, a.estable, 204);
+    expect(r1.request.body).toEqual({ categoriaId: 'cat-1', mes: 1, monto: 800_000 });
+    await atenderHogar(a);
+
+    await a.tocar(/.*/, '[aria-label="Aportes Ana María · Enero"]');
+    await a.escribir('Aporte que esperas', '2000000');
+    a.porTexto('Guardar').click();
+    finanzasPrueba.valor = finanzas({
+      planes: [PLAN_OCT], anuales: [{ ...vacio, celdas: [{ categoriaId: 'cat-1', mes: 1, monto: 800_000 }] }],
+      proyecciones: [{ usuarioId: USUARIO.id, anio: 2027, mes: 1, monto: 2_000_000 }],
+    });
+    const r2 = await responder('PUT', '/api/anuales/2027/proyecciones', null, a.estable, 204);
+    expect(r2.request.body).toEqual({ usuarioId: USUARIO.id, mes: 1, monto: 2_000_000 });
+    await atenderHogar(a);
+
+    a.porTexto('Crear meses desde este plan').click();
+    await responder('POST', '/api/anuales/2027/crear-meses', [], a.estable);
+    await atenderHogar(a);
   });
 
   it('recorrido de la Etapa 7: duplicar, quitar, probar un abono, comparar y usar (backend-opciones-mes)', async () => {
