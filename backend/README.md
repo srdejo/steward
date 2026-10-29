@@ -154,7 +154,7 @@ En un mes Cerrado no se registra nada: 409 `MES_CERRADO`. **El backend no calcul
 |---|---|
 | `POST /api/anuales` | `{"anio"}` → 201 con el anual vacío (año en curso o futuro). 409 `YA_EXISTE` |
 | `PUT /api/anuales/{anio}/celdas` | `{"categoriaId", "mes", "monto"}` → 204; reemplaza la celda. 404 `ANUAL_NO_ENCONTRADO` o `CATEGORIA_NO_ENCONTRADA` |
-| `POST /api/anuales/{anio}/eventos` | `{"nombre", "mes", "monto", "tipo": "INGRESO" | "GASTO", "usuarioId"?}` → 201 |
+| `POST /api/anuales/{anio}/eventos` | `{"nombre", "mes", "monto", "tipo": "INGRESO" \| "GASTO", "usuarioId"?}` → 201 |
 | `PUT /api/anuales/{anio}/proyecciones` | `{"usuarioId", "mes", "monto"}` → 204; 0 la quita. 404 `MIEMBRO_NO_ENCONTRADO` |
 | `POST /api/anuales/{anio}/crear-meses` | "Crear meses desde este plan" → los meses creados (`[{anio, mes}]`). Los que tienen plan o están cerrados no cambian |
 
