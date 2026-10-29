@@ -914,6 +914,8 @@ describe('pantallas con el plan real (backend-plan-mes-hoy)', () => {
     await atenderHogar(a);
     expect(a.texto()).toContain('Alguien registró algo en octubre; revisa el cierre otra vez');
     expect(a.texto()).toContain('No estaba planeado');
+    // El reparto se vuelve a proponer con el sobrante nuevo.
+    expect(a.raiz().querySelector('[data-testid="aviso-reparto"]')).toBeNull();
 
     // Repartir: todo a noviembre.
     const nuevo = (await TestBed.inject(PUERTOS).cierre.vista(OCT)).sobrante;

@@ -107,6 +107,8 @@ export class CierrePage {
   protected readonly aSiguiente = signal<number | null>(0);
   protected readonly guardando = signal(false);
   protected readonly error = signal('');
+  private readonly reproponer = signal(false);
+  private propuesto: number | null = null;
   protected readonly valido = computed(() => {
     const v = this.vista.value();
     return Boolean(v) && repartoValido(v!.sobrante, this.aAhorro() ?? 0, this.aSiguiente() ?? 0);
@@ -114,9 +116,16 @@ export class CierrePage {
 
   constructor() {
     // Por defecto todo lo que sobro va a ahorro; se ajusta moviendo una parte al mes siguiente.
+    // Si el cierre estaba desactualizado, se vuelve a proponer cuando llegue la vista con el sobrante nuevo.
     effect(() => {
       const v = this.vista.value();
-      if (v && !v.cerrado && this.aAhorro() === null) this.aAhorro.set(Math.max(0, v.sobrante));
+      if (!v || v.cerrado) return;
+      if (this.aAhorro() === null || (this.reproponer() && v.sobrante !== this.propuesto)) {
+        this.propuesto = v.sobrante;
+        this.reproponer.set(false);
+        this.aAhorro.set(Math.max(0, v.sobrante));
+        this.aSiguiente.set(0);
+      }
     });
   }
 
@@ -146,10 +155,7 @@ export class CierrePage {
     } catch (e) {
       this.error.set(mensajeDeError(e));
       // Las cifras ya se recalcularon: el reparto vuelve a proponerse con el sobrante nuevo.
-      if (e instanceof ReglaError && e.codigo === 'CIERRE_DESACTUALIZADO') {
-        this.aAhorro.set(null);
-        this.aSiguiente.set(0);
-      }
+      if (e instanceof ReglaError && e.codigo === 'CIERRE_DESACTUALIZADO') this.reproponer.set(true);
     } finally {
       this.guardando.set(false);
     }
