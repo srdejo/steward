@@ -49,9 +49,13 @@ La UI SHALL funcionar en uno de dos modos, elegido en la configuración del buil
 - en Ajustes, "Restablecer datos de prueba" MUST volver a los datos iniciales, y "Probar desde cero" MUST dejar un hogar vacío sin configurar, para recorrer el acceso y el onboarding.
 
 **Modo conectado:**
-- la sesión, el hogar, sus miembros y las invitaciones MUST venir del backend;
-- los módulos que aún no tienen backend (ingresos y diezmo, plan, movimientos, cuentas y cierre) SHALL seguir con el adaptador de prueba, guardado en el dispositivo;
-- "Restablecer datos de prueba" MUST afectar solo a esos módulos, y "Probar desde cero" MUST NOT mostrarse.
+- MUST venir del backend:
+  - la sesión, el hogar, sus miembros y las invitaciones;
+  - los ingresos fijos, las reglas de diezmo, "Diezmo en Hoy", los ingresos recibidos y los diezmos entregados;
+  - las cuentas (sin cuadre ni saldo estimado propios todavía).
+- Los módulos que aún no tienen backend SHALL seguir con el adaptador de prueba, guardado en el dispositivo: plan, pagos, gastos, aportes, créditos y cierre.
+- Las pantallas MUST mostrar los datos reales junto a los de prueba, con las cifras calculadas por las mismas reglas.
+- "Restablecer datos de prueba" MUST afectar solo a los módulos de prueba, y "Probar desde cero" MUST NOT mostrarse.
 
 En los dos modos, toda pantalla con sesión MUST mostrar un aviso discreto de "Datos de prueba" mientras algún módulo use el adaptador de prueba.
 
@@ -66,6 +70,10 @@ En los dos modos, toda pantalla con sesión MUST mostrar un aviso discreto de "D
 #### Scenario: Modo conectado
 - **WHEN** en modo conectado un miembro abre Ajustes
 - **THEN** ve el hogar y los miembros del backend, el aviso "Datos de prueba" sigue visible y no aparece "Probar desde cero"
+
+#### Scenario: Restablecer en modo conectado
+- **WHEN** en modo conectado se restablecen los datos de prueba
+- **THEN** los ingresos fijos, la regla de diezmo y las cuentas reales siguen iguales
 
 ### Requirement: Datos detrás de puertos
 Las pantallas MUST obtener y modificar los datos solo a través de puertos de datos (interfaces por módulo del handoff: hogar, ingresos, plan, movimientos, cuentas, cierre). El adaptador de prueba SHALL ser una implementación intercambiable de esos puertos: reemplazarlo por uno HTTP MUST NOT requerir cambios en las pantallas.
