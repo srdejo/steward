@@ -107,7 +107,7 @@ Todo es del hogar de la sesión. Montos en pesos enteros. El mes es siempre **el
 
 | Método y ruta | Qué hace |
 |---|---|
-| `GET /api/finanzas` | `{mes: {anio, mes}, diezmoEnHoy, categorias, ingresosFijos, reglas, cuentas, planes, movimientos, creditos}`: lo que la PWA superpone a sus datos de prueba. `ingresosFijos` son los activos de todos los miembros. 404 `SIN_HOGAR` |
+| `GET /api/finanzas` | `{mes: {anio, mes}, diezmoEnHoy, categorias, ingresosFijos, reglas, cuentas, planes, movimientos, creditos, cierres}`: lo que la PWA superpone a sus datos de prueba. `ingresosFijos` son los activos de todos los miembros. 404 `SIN_HOGAR` |
 | `PUT /api/regla-diezmo` | la regla propia: `{"activa", "porcentaje" (0 < p ≤ 100, hasta 2 decimales), "base": "BRUTO" \| "NETO", "aplicaAportes"}` |
 | `POST /api/ingresos-fijos` | `{"nombre", "bruto", "neto", "diaPago", "cuentaId"?}` → 201; bruto ≥ neto > 0, día de 1 a 31; 404 `CUENTA_NO_ENCONTRADA` si la cuenta no es del hogar |
 | `PUT /api/ingresos-fijos/{id}` | edita un ingreso propio y activo; 404 `INGRESO_NO_ENCONTRADO` si es de otra persona o de otro hogar |
@@ -143,4 +143,8 @@ En un mes Cerrado no se registra nada: 409 `MES_CERRADO`. **El backend no calcul
 | `PUT /api/planes/{id}/escenarios/{escenarioId}/items/{itemId}` | edita el ítem; sin `creditoId`, conserva el que tenía |
 | `DELETE /api/planes/{id}/escenarios/{escenarioId}/items/{itemId}` | 204; 409 `ITEM_CON_PAGOS` si ya tiene pagos o gastos |
 
-En esta etapa solo existe la Opción A: varias opciones llegan en la Etapa 7 y cerrar el mes en la Etapa 6.
+| `POST /api/cierres` | "Cerrar {mes}": `{"anio", "mes", "filas": [{"nombre", "plan"?, "real"}], "sinRegistrar", "sobrante", "aAhorro", "aSiguiente", "ultimoSeq"}` → 201. La foto la calcula la PWA con `vistaCierre`. El mes es el en curso o uno anterior (400 `DATOS_INVALIDOS`). 400 `REPARTO_INVALIDO` si el reparto no suma el sobrante; 409 `CIERRE_DESACTUALIZADO` si "Sin registrar" no es la suma de los ajustes del mes o hay un movimiento del mes con `seq` mayor que `ultimoSeq`; 409 `MES_CERRADO` si ya estaba cerrado |
+
+En esta etapa solo existe la Opción A: varias opciones llegan en la Etapa 7.
+
+Un mes está **cerrado** si su plan está en Cerrado o tiene su cierre guardado (aunque no tenga plan). En un mes cerrado no se crea el plan, no se cambia, y "Recibí", "Entregado", pagos, gastos y aportes responden 409 `MES_CERRADO`. Cuadrar, mover y abonar siguen funcionando: son de las cuentas. `GET /api/finanzas` trae los cierres desde tres meses antes del mes en curso, para el "Sobrante de {mes}" del primer mes leído (design D3 y D4 de `backend-cierre-mes`).

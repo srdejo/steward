@@ -1,6 +1,7 @@
 package co.com.srdejo.steward.application.dto;
 
 import co.com.srdejo.steward.application.dto.PlanDtos.CategoriaResponse;
+import co.com.srdejo.steward.application.dto.PlanDtos.CierreResponse;
 import co.com.srdejo.steward.application.dto.PlanDtos.PlanResponse;
 import co.com.srdejo.steward.domain.api.ICuentasServicePort.DatosCredito;
 import co.com.srdejo.steward.domain.api.ICuentasServicePort.SaldoBanco;
@@ -171,7 +172,8 @@ public final class FinanzasDtos {
     public record FinanzasResponse(MesResponse mes, String diezmoEnHoy, List<CategoriaResponse> categorias,
                                    List<IngresoResponse> ingresosFijos, List<ReglaResponse> reglas,
                                    List<CuentaResponse> cuentas, List<PlanResponse> planes,
-                                   List<MovimientoResponse> movimientos, List<CreditoResponse> creditos) {
+                                   List<MovimientoResponse> movimientos, List<CreditoResponse> creditos,
+                                   List<CierreResponse> cierres) {
 
         /** Los planes ya traen su estado efectivo (lo calcula el caso de uso). */
         public static FinanzasResponse de(Finanzas f, LocalDate hoy) {
@@ -182,7 +184,8 @@ public final class FinanzasDtos {
                     f.cuentas().stream().map(CuentaResponse::de).toList(),
                     f.planes().stream().map(p -> PlanResponse.de(p, hoy)).toList(),
                     f.movimientos().stream().map(MovimientoResponse::de).toList(),
-                    f.creditos().stream().map(CreditoResponse::de).toList());
+                    f.creditos().stream().map(CreditoResponse::de).toList(),
+                    f.cierres().stream().map(CierreResponse::de).toList());
         }
     }
 }

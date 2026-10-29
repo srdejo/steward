@@ -10,6 +10,8 @@ import java.time.LocalDate;
 public final class Formato {
 
     private static final String[] MESES = {"ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"};
+    private static final String[] NOMBRES = {"enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto",
+        "septiembre", "octubre", "noviembre", "diciembre"};
 
     private Formato() {
     }
@@ -21,6 +23,11 @@ public final class Formato {
             limpio = limpio.setScale(0);
         }
         return limpio.toPlainString().replace('.', ',') + "%";
+    }
+
+    /** {@code octubre}: el nombre del mes en minusculas, como {@code nombreMes} del dominio (sin mayuscula inicial). */
+    public static String nombreMes(int mes) {
+        return NOMBRES[mes - 1];
     }
 
     /** {@code 25 oct}, {@code 5 sep}: el dia sin cero a la izquierda y el mes en tres letras. */

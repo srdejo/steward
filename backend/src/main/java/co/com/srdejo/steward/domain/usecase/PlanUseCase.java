@@ -9,6 +9,7 @@ import co.com.srdejo.steward.domain.model.PlanMes;
 import co.com.srdejo.steward.domain.model.PlanMes.Escenario;
 import co.com.srdejo.steward.domain.model.PlanMes.ItemPlan;
 import co.com.srdejo.steward.domain.spi.ICategoriaPersistencePort;
+import co.com.srdejo.steward.domain.spi.ICierrePersistencePort;
 import co.com.srdejo.steward.domain.spi.ICreditoPersistencePort;
 import co.com.srdejo.steward.domain.spi.ICurrentUserPort;
 import co.com.srdejo.steward.domain.spi.IHogarPersistencePort;
@@ -40,17 +41,19 @@ public class PlanUseCase implements IPlanServicePort {
     private final IPlanPersistencePort planes;
     private final IMovimientoPersistencePort movimientos;
     private final ICreditoPersistencePort creditos;
+    private final ICierrePersistencePort cierres;
     private final ICurrentUserPort usuarioActual;
     private final ITransaccionPort transaccion;
 
     public PlanUseCase(IHogarPersistencePort hogares, ICategoriaPersistencePort categorias, IPlanPersistencePort planes,
                        IMovimientoPersistencePort movimientos, ICreditoPersistencePort creditos,
-                       ICurrentUserPort usuarioActual, ITransaccionPort transaccion) {
+                       ICierrePersistencePort cierres, ICurrentUserPort usuarioActual, ITransaccionPort transaccion) {
         this.hogares = hogares;
         this.categorias = categorias;
         this.planes = planes;
         this.movimientos = movimientos;
         this.creditos = creditos;
+        this.cierres = cierres;
         this.usuarioActual = usuarioActual;
         this.transaccion = transaccion;
     }
@@ -91,8 +94,11 @@ public class PlanUseCase implements IPlanServicePort {
 
     @Override
     public Mono<PlanMes> crearPlan(YearMonth ref, String modo) {
-        return Mono.fromCallable(() -> modoValido(modo)).flatMap(m -> contexto().flatMap(ctx -> planes
-                .deMes(ctx.hogar().id(), ref.minusMonths(1))
+        // Un mes cerrado sin plan no gana plan (design D3 de backend-cierre-mes).
+        return Mono.fromCallable(() -> modoValido(modo)).flatMap(m -> contexto().flatMap(ctx -> cierres
+                .estaCerrado(ctx.hogar().id(), ref)
+                .flatMap(cerrado -> cerrado ? Mono.<Boolean>error(mesCerrado()) : Mono.just(false))
+                .then(planes.deMes(ctx.hogar().id(), ref.minusMonths(1))
                 .map(anterior -> base(anterior, m))
                 .defaultIfEmpty(List.of())
                 .zipWith(Mono.zip(creditos.delHogar(ctx.hogar().id()).collectMap(Credito::id),
@@ -107,7 +113,7 @@ public class PlanUseCase implements IPlanServicePort {
                     PlanMes plan = new PlanMes(planId, ctx.hogar().id(), ref, PlanMes.Estado.BORRADOR, null,
                             List.of(new Escenario(escenarioId, planId, "A", ctx.usuario(), "", false, items)));
                     return transaccion.enTransaccion(planes.crear(plan));
-                })));
+                }))));
     }
 
     /**

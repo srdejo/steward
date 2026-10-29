@@ -1,12 +1,14 @@
 package co.com.srdejo.steward.infrastructure.configuration;
 
 import co.com.srdejo.steward.domain.api.IAuthServicePort;
+import co.com.srdejo.steward.domain.api.ICierreServicePort;
 import co.com.srdejo.steward.domain.api.ICuentasServicePort;
 import co.com.srdejo.steward.domain.api.IFinanzasServicePort;
 import co.com.srdejo.steward.domain.api.IHogarServicePort;
 import co.com.srdejo.steward.domain.api.IInvitacionServicePort;
 import co.com.srdejo.steward.domain.api.IPlanServicePort;
 import co.com.srdejo.steward.domain.spi.ICategoriaPersistencePort;
+import co.com.srdejo.steward.domain.spi.ICierrePersistencePort;
 import co.com.srdejo.steward.domain.spi.IClockPort;
 import co.com.srdejo.steward.domain.spi.ICreditoPersistencePort;
 import co.com.srdejo.steward.domain.spi.ICuentaPersistencePort;
@@ -24,6 +26,7 @@ import co.com.srdejo.steward.domain.spi.ITokenPort;
 import co.com.srdejo.steward.domain.spi.ITransaccionPort;
 import co.com.srdejo.steward.domain.spi.IUsuarioPersistencePort;
 import co.com.srdejo.steward.domain.usecase.AuthUseCase;
+import co.com.srdejo.steward.domain.usecase.CierreUseCase;
 import co.com.srdejo.steward.domain.usecase.CuentasUseCase;
 import co.com.srdejo.steward.domain.usecase.FinanzasUseCase;
 import co.com.srdejo.steward.domain.usecase.HogarUseCase;
@@ -32,6 +35,7 @@ import co.com.srdejo.steward.domain.usecase.PlanUseCase;
 import co.com.srdejo.steward.infrastructure.out.mail.ContactMailAdapter;
 import co.com.srdejo.steward.infrastructure.out.mail.LoggingMailAdapter;
 import co.com.srdejo.steward.infrastructure.out.r2dbc.CategoriaR2dbcAdapter;
+import co.com.srdejo.steward.infrastructure.out.r2dbc.CierreR2dbcAdapter;
 import co.com.srdejo.steward.infrastructure.out.r2dbc.CreditoR2dbcAdapter;
 import co.com.srdejo.steward.infrastructure.out.r2dbc.CuentaR2dbcAdapter;
 import co.com.srdejo.steward.infrastructure.out.r2dbc.HogarR2dbcAdapter;
@@ -128,6 +132,11 @@ public class BeanConfiguration {
     }
 
     @Bean
+    ICierrePersistencePort cierrePersistencePort(DatabaseClient db) {
+        return new CierreR2dbcAdapter(db);
+    }
+
+    @Bean
     IMovimientoPersistencePort movimientoPersistencePort(DatabaseClient db) {
         return new MovimientoR2dbcAdapter(db);
     }
@@ -184,10 +193,17 @@ public class BeanConfiguration {
                                              IIngresoFijoPersistencePort ingresos, ICuentaPersistencePort cuentas,
                                              IMovimientoPersistencePort movimientos, ICategoriaPersistencePort categorias,
                                              IPlanPersistencePort planes, ICreditoPersistencePort creditos,
-                                             IUsuarioPersistencePort usuarios, ICurrentUserPort usuarioActual,
-                                             ITransaccionPort transaccion, IClockPort clock) {
-        return new FinanzasUseCase(hogares, reglas, ingresos, cuentas, movimientos, categorias, planes, creditos, usuarios,
-                usuarioActual, transaccion, clock);
+                                             ICierrePersistencePort cierres, IUsuarioPersistencePort usuarios,
+                                             ICurrentUserPort usuarioActual, ITransaccionPort transaccion, IClockPort clock) {
+        return new FinanzasUseCase(hogares, reglas, ingresos, cuentas, movimientos, categorias, planes, creditos, cierres,
+                usuarios, usuarioActual, transaccion, clock);
+    }
+
+    @Bean
+    ICierreServicePort cierreServicePort(IHogarPersistencePort hogares, ICuentaPersistencePort cuentas,
+                                         ICierrePersistencePort cierres, IMovimientoPersistencePort movimientos,
+                                         ICurrentUserPort usuarioActual, ITransaccionPort transaccion, IClockPort clock) {
+        return new CierreUseCase(hogares, cuentas, cierres, movimientos, usuarioActual, transaccion, clock);
     }
 
     @Bean
@@ -202,9 +218,9 @@ public class BeanConfiguration {
     @Bean
     IPlanServicePort planServicePort(IHogarPersistencePort hogares, ICategoriaPersistencePort categorias,
                                      IPlanPersistencePort planes, IMovimientoPersistencePort movimientos,
-                                     ICreditoPersistencePort creditos, ICurrentUserPort usuarioActual,
-                                     ITransaccionPort transaccion) {
-        return new PlanUseCase(hogares, categorias, planes, movimientos, creditos, usuarioActual, transaccion);
+                                     ICreditoPersistencePort creditos, ICierrePersistencePort cierres,
+                                     ICurrentUserPort usuarioActual, ITransaccionPort transaccion) {
+        return new PlanUseCase(hogares, categorias, planes, movimientos, creditos, cierres, usuarioActual, transaccion);
     }
 
     @Bean

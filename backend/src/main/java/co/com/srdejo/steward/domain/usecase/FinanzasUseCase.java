@@ -2,6 +2,7 @@ package co.com.srdejo.steward.domain.usecase;
 
 import co.com.srdejo.steward.domain.api.IFinanzasServicePort;
 import co.com.srdejo.steward.domain.exception.DomainException;
+import co.com.srdejo.steward.domain.model.CierreMes;
 import co.com.srdejo.steward.domain.model.Credito;
 import co.com.srdejo.steward.domain.model.Cuenta;
 import co.com.srdejo.steward.domain.model.DiezmoEnHoy;
@@ -12,6 +13,7 @@ import co.com.srdejo.steward.domain.model.ObligacionDiezmo;
 import co.com.srdejo.steward.domain.model.PlanMes;
 import co.com.srdejo.steward.domain.model.ReglaDiezmo;
 import co.com.srdejo.steward.domain.spi.ICategoriaPersistencePort;
+import co.com.srdejo.steward.domain.spi.ICierrePersistencePort;
 import co.com.srdejo.steward.domain.spi.IClockPort;
 import co.com.srdejo.steward.domain.spi.ICreditoPersistencePort;
 import co.com.srdejo.steward.domain.spi.IPlanPersistencePort;
@@ -58,6 +60,7 @@ public class FinanzasUseCase implements IFinanzasServicePort {
     private final ICategoriaPersistencePort categorias;
     private final IPlanPersistencePort planes;
     private final ICreditoPersistencePort creditos;
+    private final ICierrePersistencePort cierres;
     private final IUsuarioPersistencePort usuarios;
     private final ICurrentUserPort usuarioActual;
     private final ITransaccionPort transaccion;
@@ -67,8 +70,9 @@ public class FinanzasUseCase implements IFinanzasServicePort {
     public FinanzasUseCase(IHogarPersistencePort hogares, IReglaDiezmoPersistencePort reglas,
                            IIngresoFijoPersistencePort ingresos, ICuentaPersistencePort cuentas,
                            IMovimientoPersistencePort movimientos, ICategoriaPersistencePort categorias,
-                           IPlanPersistencePort planes, ICreditoPersistencePort creditos, IUsuarioPersistencePort usuarios,
-                           ICurrentUserPort usuarioActual, ITransaccionPort transaccion, IClockPort clock) {
+                           IPlanPersistencePort planes, ICreditoPersistencePort creditos, ICierrePersistencePort cierres,
+                           IUsuarioPersistencePort usuarios, ICurrentUserPort usuarioActual, ITransaccionPort transaccion,
+                           IClockPort clock) {
         this.hogares = hogares;
         this.reglas = reglas;
         this.ingresos = ingresos;
@@ -77,6 +81,7 @@ public class FinanzasUseCase implements IFinanzasServicePort {
         this.categorias = categorias;
         this.planes = planes;
         this.creditos = creditos;
+        this.cierres = cierres;
         this.usuarios = usuarios;
         this.usuarioActual = usuarioActual;
         this.transaccion = transaccion;
@@ -107,13 +112,16 @@ public class FinanzasUseCase implements IFinanzasServicePort {
                                         p.escenarioActivoId(), p.escenarios()))
                                 .collectList(),
                         creditosConPagos(ctx.hogar().id()))
-                .flatMap(t -> {
+                .zipWith(cierres.desde(ctx.hogar().id(), desde.minusMonths(1)).collectList())
+                .flatMap(tc -> {
+                    var t = tc.getT1();
+                    List<CierreMes> cierresLeidos = tc.getT2();
                     // Las reglas de los miembros y de los duenos de lo registrado (aunque ya no esten).
                     Set<UUID> personas = new HashSet<>(t.getT5());
                     t.getT4().forEach(m -> personas.add(m.usuarioId()));
                     return reglas.dePersonas(personas).collectList()
                             .map(r -> new Finanzas(mes, t.getT1(), t.getT6(), t.getT2(), r, t.getT3(), t.getT7(), t.getT4(),
-                                    t.getT8()));
+                                    t.getT8(), cierresLeidos));
                 }));
     }
 
@@ -208,10 +216,10 @@ public class FinanzasUseCase implements IFinanzasServicePort {
                         "Ese gasto no está en el plan del mes")));
     }
 
+    /** Como asegurarAbierto del dominio: el plan del mes en CERRADO o el mes con su cierre (design D3 de backend-cierre-mes). */
     private Mono<Void> mesAbierto(Contexto ctx, YearMonth mes) {
-        return planes.deMes(ctx.hogar().id(), mes)
-                .filter(plan -> plan.estado() == PlanMes.Estado.CERRADO)
-                .flatMap(plan -> Mono.<Void>error(PlanUseCase.mesCerrado()));
+        return cierres.estaCerrado(ctx.hogar().id(), mes)
+                .flatMap(cerrado -> cerrado ? Mono.<Void>error(PlanUseCase.mesCerrado()) : Mono.empty());
     }
 
     private Mono<Movimiento> yaPagado(UUID itemId, YearMonth mes) {
@@ -311,7 +319,7 @@ public class FinanzasUseCase implements IFinanzasServicePort {
 
     @Override
     public Mono<Movimiento> recibir(UUID ingresoId) {
-        return contexto().flatMap(ctx -> ingresos.porIdEnHogar(ingresoId, ctx.hogar().id())
+        return contexto().flatMap(ctx -> mesAbierto(ctx, mesEnCurso()).then(ingresos.porIdEnHogar(ingresoId, ctx.hogar().id()))
                 .filter(IngresoFijo::activo)
                 .switchIfEmpty(Mono.error(FinanzasUseCase::ingresoNoEncontrado))
                 .flatMap(ingreso -> reglas.dePersona(ingreso.usuarioId())
@@ -332,7 +340,8 @@ public class FinanzasUseCase implements IFinanzasServicePort {
     @Override
     public Mono<Movimiento> entregar(List<UUID> obligaciones, UUID cuentaId) {
         Set<UUID> pedidas = obligaciones == null ? Set.of() : Set.copyOf(obligaciones);
-        return contexto().flatMap(ctx -> cuentaDelHogar(cuentaId, ctx.hogar().id())
+        return contexto().flatMap(ctx -> mesAbierto(ctx, mesEnCurso())
+                .then(cuentaDelHogar(cuentaId, ctx.hogar().id()))
                 .then(transaccion.enTransaccion(pendientesDe(ctx.hogar().id())
                         .filter(o -> pedidas.contains(o.id()))
                         .collectList()

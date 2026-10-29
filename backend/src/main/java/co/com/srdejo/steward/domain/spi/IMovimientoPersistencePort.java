@@ -48,6 +48,12 @@ public interface IMovimientoPersistencePort {
      */
     Flux<Movimiento> desde(UUID hogarId, YearMonth desde);
 
+    /**
+     * Para validar un cierre (design D1 de backend-cierre-mes): la suma de los ajustes de cuadre del mes y el orden del
+     * ultimo movimiento del mes (0 si no hay).
+     */
+    Mono<DelMes> paraCierre(UUID hogarId, YearMonth mes);
+
     /** El PAGO de ese item en ese mes, si ya lo hay. */
     Mono<Movimiento> pagoDe(UUID itemId, YearMonth mes);
 
@@ -55,5 +61,8 @@ public interface IMovimientoPersistencePort {
     Mono<Boolean> hayDeItem(UUID itemId);
 
     record Saldo(long saldo, long ultimoSeq) {
+    }
+
+    record DelMes(long ajustes, long ultimoSeq) {
     }
 }

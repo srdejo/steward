@@ -1,7 +1,9 @@
 package co.com.srdejo.steward.application.dto;
 
 import co.com.srdejo.steward.application.dto.FinanzasDtos.MesResponse;
+import co.com.srdejo.steward.domain.api.ICierreServicePort.DatosCierre;
 import co.com.srdejo.steward.domain.api.IPlanServicePort.DatosItem;
+import co.com.srdejo.steward.domain.model.CierreMes;
 import co.com.srdejo.steward.domain.model.Categoria;
 import co.com.srdejo.steward.domain.model.PlanMes;
 import co.com.srdejo.steward.domain.model.PlanMes.Escenario;
@@ -32,6 +34,33 @@ public final class PlanDtos {
     }
 
     public record CuotaDto(int actual, int total) {
+    }
+
+    public record FilaDto(String nombre, Long plan, long real) {
+    }
+
+    /** La foto que calcula la PWA con vistaCierre, el reparto y el orden del ultimo movimiento del mes que vio. */
+    public record CierreRequest(int anio, int mes, List<FilaDto> filas, long sinRegistrar, long sobrante, long aAhorro,
+                                long aSiguiente, long ultimoSeq) {
+
+        public DatosCierre datos() {
+            if (mes < 1 || mes > 12) {
+                throw co.com.srdejo.steward.domain.exception.DomainException.datosInvalidos("El mes va de 1 a 12");
+            }
+            return new DatosCierre(YearMonth.of(anio, mes), filas == null ? null : filas.stream()
+                    .map(f -> f == null ? null : new CierreMes.Fila(f.nombre(), f.plan(), f.real())).toList(),
+                    sinRegistrar, sobrante, aAhorro, aSiguiente, ultimoSeq);
+        }
+    }
+
+    public record CierreResponse(MesResponse ref, List<FilaDto> filas, long sinRegistrar, long sobrante, long aAhorro,
+                                 long aSiguiente, UUID cerradoPor, LocalDate cerradoEn) {
+
+        public static CierreResponse de(CierreMes c) {
+            return new CierreResponse(MesResponse.de(c.ref()),
+                    c.filas().stream().map(f -> new FilaDto(f.nombre(), f.plan(), f.real())).toList(), c.sinRegistrar(),
+                    c.sobrante(), c.aAhorro(), c.aSiguiente(), c.cerradoPor(), c.cerradoEn());
+        }
     }
 
     public record ItemRequest(UUID categoriaId, String nombre, long monto, Integer diaVence, String tipo, CuotaDto cuota,
