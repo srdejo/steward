@@ -1,17 +1,22 @@
 package co.com.srdejo.steward.infrastructure.input.rest;
 
+import co.com.srdejo.steward.application.dto.FinanzasDtos.AporteRequest;
 import co.com.srdejo.steward.application.dto.FinanzasDtos.CuentaRequest;
 import co.com.srdejo.steward.application.dto.FinanzasDtos.CuentaResponse;
 import co.com.srdejo.steward.application.dto.FinanzasDtos.DiezmoEnHoyRequest;
 import co.com.srdejo.steward.application.dto.FinanzasDtos.EntregaRequest;
 import co.com.srdejo.steward.application.dto.FinanzasDtos.FinanzasResponse;
+import co.com.srdejo.steward.application.dto.FinanzasDtos.GastoRequest;
 import co.com.srdejo.steward.application.dto.FinanzasDtos.IngresoRequest;
 import co.com.srdejo.steward.application.dto.FinanzasDtos.IngresoResponse;
 import co.com.srdejo.steward.application.dto.FinanzasDtos.MovimientoResponse;
 import co.com.srdejo.steward.application.dto.FinanzasDtos.ObligacionResponse;
+import co.com.srdejo.steward.application.dto.FinanzasDtos.OrigenDto;
+import co.com.srdejo.steward.application.dto.FinanzasDtos.PagoRequest;
 import co.com.srdejo.steward.application.dto.FinanzasDtos.ReglaRequest;
 import co.com.srdejo.steward.application.dto.FinanzasDtos.ReglaResponse;
 import co.com.srdejo.steward.domain.api.IFinanzasServicePort;
+import co.com.srdejo.steward.domain.spi.IClockPort;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -25,6 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.time.YearMonth;
 import java.util.UUID;
 
 /**
@@ -35,14 +41,16 @@ import java.util.UUID;
 public class FinanzasController {
 
     private final IFinanzasServicePort finanzas;
+    private final IClockPort clock;
 
-    public FinanzasController(IFinanzasServicePort finanzas) {
+    public FinanzasController(IFinanzasServicePort finanzas, IClockPort clock) {
         this.finanzas = finanzas;
+        this.clock = clock;
     }
 
     @GetMapping("/api/finanzas")
     public Mono<FinanzasResponse> leer() {
-        return finanzas.leer().map(FinanzasResponse::de);
+        return finanzas.leer().map(f -> FinanzasResponse.de(f, clock.hoy()));
     }
 
     @PutMapping("/api/regla-diezmo")
@@ -88,6 +96,32 @@ public class FinanzasController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public Mono<Void> definirDiezmoEnHoy(@RequestBody DiezmoEnHoyRequest r) {
         return finanzas.definirDiezmoEnHoy(r.modo());
+    }
+
+    @PostMapping("/api/pagos")
+    @ResponseStatus(HttpStatus.CREATED)
+    public Mono<MovimientoResponse> pagar(@RequestBody PagoRequest r) {
+        OrigenDto o = origen(r.origen());
+        return finanzas.pagar(r.itemId(), r.monto(), r.usuarioId(), o.tipo(), o.cuentaId()).map(MovimientoResponse::de);
+    }
+
+    @PostMapping("/api/gastos")
+    @ResponseStatus(HttpStatus.CREATED)
+    public Mono<MovimientoResponse> gastar(@RequestBody GastoRequest r) {
+        OrigenDto o = origen(r.origen());
+        return finanzas.gastar(r.itemId(), r.monto(), r.nota(), r.usuarioId(), o.tipo(), o.cuentaId())
+                .map(MovimientoResponse::de);
+    }
+
+    @PostMapping("/api/aportes")
+    @ResponseStatus(HttpStatus.CREATED)
+    public Mono<MovimientoResponse> aportar(@RequestBody AporteRequest r) {
+        YearMonth mes = r.mes() == null ? null : YearMonth.of(r.mes().anio(), r.mes().mes());
+        return finanzas.aportar(r.usuarioId(), r.monto(), mes, r.cuentaId(), r.aplicaDiezmo()).map(MovimientoResponse::de);
+    }
+
+    private static OrigenDto origen(OrigenDto o) {
+        return o == null ? new OrigenDto("NINGUNO", null) : o;
     }
 
     @PostMapping("/api/cuentas")

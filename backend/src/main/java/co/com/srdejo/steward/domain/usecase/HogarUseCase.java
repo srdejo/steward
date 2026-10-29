@@ -2,9 +2,11 @@ package co.com.srdejo.steward.domain.usecase;
 
 import co.com.srdejo.steward.domain.api.IHogarServicePort;
 import co.com.srdejo.steward.domain.exception.DomainException;
+import co.com.srdejo.steward.domain.model.Categoria;
 import co.com.srdejo.steward.domain.model.Hogar;
 import co.com.srdejo.steward.domain.model.VistaHogar;
 import co.com.srdejo.steward.domain.spi.IClockPort;
+import co.com.srdejo.steward.domain.spi.ICategoriaPersistencePort;
 import co.com.srdejo.steward.domain.spi.ICuentaPersistencePort;
 import co.com.srdejo.steward.domain.spi.ICurrentUserPort;
 import co.com.srdejo.steward.domain.spi.IHogarPersistencePort;
@@ -25,16 +27,19 @@ public class HogarUseCase implements IHogarServicePort {
     private final IInvitacionPersistencePort invitaciones;
     private final IIngresoFijoPersistencePort ingresos;
     private final ICuentaPersistencePort cuentas;
+    private final ICategoriaPersistencePort categorias;
     private final ICurrentUserPort usuarioActual;
     private final ITransaccionPort transaccion;
     private final IClockPort clock;
 
     public HogarUseCase(IHogarPersistencePort hogares, IInvitacionPersistencePort invitaciones,
-                        IIngresoFijoPersistencePort ingresos, ICuentaPersistencePort cuentas, ICurrentUserPort usuarioActual, ITransaccionPort transaccion, IClockPort clock) {
+                        IIngresoFijoPersistencePort ingresos, ICuentaPersistencePort cuentas,
+                        ICategoriaPersistencePort categorias, ICurrentUserPort usuarioActual, ITransaccionPort transaccion, IClockPort clock) {
         this.hogares = hogares;
         this.invitaciones = invitaciones;
         this.ingresos = ingresos;
         this.cuentas = cuentas;
+        this.categorias = categorias;
         this.usuarioActual = usuarioActual;
         this.transaccion = transaccion;
         this.clock = clock;
@@ -44,7 +49,9 @@ public class HogarUseCase implements IHogarServicePort {
     public Mono<VistaHogar> crear(String nombre) {
         return Mono.fromCallable(() -> nombreValido(nombre)).flatMap(limpio -> usuarioActual.usuarioId()
                 .flatMap(usuario -> transaccion.enTransaccion(
-                                hogares.crear(new Hogar(UUID.randomUUID(), limpio, false), usuario, clock.hoy()))
+                                hogares.crear(new Hogar(UUID.randomUUID(), limpio, false), usuario, clock.hoy())
+                                        // Nace con las categorias del sistema (spec steward-plan-mes).
+                                        .flatMap(hogar -> categorias.crearTodas(Categoria.delSistema(hogar.id())).thenReturn(hogar)))
                         .flatMap(hogar -> vista(hogar, usuario))));
     }
 

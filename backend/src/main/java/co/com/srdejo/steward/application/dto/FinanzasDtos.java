@@ -1,5 +1,7 @@
 package co.com.srdejo.steward.application.dto;
 
+import co.com.srdejo.steward.application.dto.PlanDtos.CategoriaResponse;
+import co.com.srdejo.steward.application.dto.PlanDtos.PlanResponse;
 import co.com.srdejo.steward.domain.api.IFinanzasServicePort.DatosIngreso;
 import co.com.srdejo.steward.domain.model.Cuenta;
 import co.com.srdejo.steward.domain.model.Finanzas;
@@ -85,14 +87,27 @@ public final class FinanzasDtos {
         }
     }
 
+    /** {@code origen}: CUENTA (con {@code cuentaId}), EXTERNA ("Su cuenta") o NINGUNO. */
+    public record OrigenDto(String tipo, UUID cuentaId) {
+    }
+
+    public record PagoRequest(UUID itemId, long monto, UUID usuarioId, OrigenDto origen) {
+    }
+
+    public record GastoRequest(UUID itemId, long monto, String nota, UUID usuarioId, OrigenDto origen) {
+    }
+
+    public record AporteRequest(UUID usuarioId, long monto, MesResponse mes, UUID cuentaId, boolean aplicaDiezmo) {
+    }
+
     public record MovimientoResponse(UUID id, String tipo, MesResponse ref, long monto, LocalDate fecha, UUID usuarioId,
                                      UUID creadoPor, UUID cuentaId, UUID ingresoFijoId, Long bruto, boolean aplicaDiezmo,
-                                     List<UUID> diezmoDe) {
+                                     List<UUID> diezmoDe, UUID itemId, String nota, String origen) {
 
         public static MovimientoResponse de(Movimiento m) {
             return new MovimientoResponse(m.id(), m.tipo().name(), MesResponse.de(m.ref()), m.monto(), m.fecha(),
                     m.usuarioId(), m.creadoPor(), m.cuentaId(), m.ingresoFijoId(), m.bruto(), m.aplicaDiezmo(),
-                    m.diezmoDe());
+                    m.diezmoDe(), m.itemId(), m.nota(), m.origen().name());
         }
     }
 
@@ -103,15 +118,19 @@ public final class FinanzasDtos {
         }
     }
 
-    public record FinanzasResponse(MesResponse mes, String diezmoEnHoy, List<IngresoResponse> ingresosFijos,
-                                   List<ReglaResponse> reglas, List<CuentaResponse> cuentas,
+    public record FinanzasResponse(MesResponse mes, String diezmoEnHoy, List<CategoriaResponse> categorias,
+                                   List<IngresoResponse> ingresosFijos, List<ReglaResponse> reglas,
+                                   List<CuentaResponse> cuentas, List<PlanResponse> planes,
                                    List<MovimientoResponse> movimientos) {
 
-        public static FinanzasResponse de(Finanzas f) {
+        /** Los planes ya traen su estado efectivo (lo calcula el caso de uso). */
+        public static FinanzasResponse de(Finanzas f, LocalDate hoy) {
             return new FinanzasResponse(MesResponse.de(f.mes()), f.diezmoEnHoy().name(),
+                    f.categorias().stream().map(CategoriaResponse::de).toList(),
                     f.ingresosFijos().stream().map(IngresoResponse::de).toList(),
                     f.reglas().stream().map(ReglaResponse::de).toList(),
                     f.cuentas().stream().map(CuentaResponse::de).toList(),
+                    f.planes().stream().map(p -> PlanResponse.de(p, hoy)).toList(),
                     f.movimientos().stream().map(MovimientoResponse::de).toList());
         }
     }

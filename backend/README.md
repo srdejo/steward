@@ -116,3 +116,24 @@ Todo es del hogar de la sesión. Montos en pesos enteros. El mes es siempre **el
 | `GET /api/diezmo/pendientes` | `[{id, monto, detalle, usuarioId, fecha}]`, p. ej. `700000` y `10% de Salario Daniel · recibido 25 oct` |
 | `POST /api/diezmo/entregas` | `{"obligaciones": [ids], "cuentaId"?}` → 201 con un movimiento por la suma; los ids que no están pendientes se ignoran. 409 `SIN_DIEZMO` si no queda ninguno |
 | `POST /api/cuentas` | `{"nombre", "titular": "YO" \| "CONJUNTA", "saldo"}` → 201; nace sin cuadrar. Cuadrar y mover llegan en la Etapa 5 |
+| `POST /api/pagos` | "Marcar pago": `{"itemId", "monto", "usuarioId", "origen": {"tipo": "CUENTA" \| "EXTERNA" \| "NINGUNO", "cuentaId"?}}` → 201. El ítem tiene que estar en la opción principal del mes en curso (404 `ITEM_NO_ENCONTRADO`). Un variable se registra como `GASTO`. Un fijo ya pagado: 409 `YA_PAGADO` con "Ya lo pagó {nombre} el {dd mmm}" |
+| `POST /api/gastos` | `{"itemId"?, "monto", "nota" (≤ 120), "usuarioId", "origen"}` → 201; sin `itemId` es "No estaba planeado" |
+| `POST /api/aportes` | `{"usuarioId", "monto", "mes": {"anio", "mes"}, "cuentaId"?, "aplicaDiezmo"}` → 201; el mes es el en curso o el siguiente. Con diezmo, genera la obligación `10% del aporte · 26 oct` |
+
+`GET /api/finanzas` también trae `categorias`, y `planes` y `movimientos` desde dos meses antes del mes en curso. Los planes vienen con sus opciones e ítems y su `estado` efectivo: un Borrador con opción elegida se lee Activo al llegar su mes.
+
+En un mes Cerrado no se registra nada: 409 `MES_CERRADO`. **El backend no calcula "Te queda libre", "Vs. plan" ni los aportes implícitos**: los calcula el cliente con `packages/domain` sobre estos datos (design D3 de `backend-plan-mes-hoy`).
+
+### Plan del mes y categorías
+
+| Método y ruta | Qué hace |
+|---|---|
+| `POST /api/categorias` | `{"nombre"}` (1 a 40) → 201, después de las del sistema. 400 `RESERVADA` si es "Diezmo"; 409 `DUPLICADA` si ya existe en el hogar |
+| `PATCH /api/categorias/{id}` | `{"nombre"}` → la categoría renombrada (también las del sistema) |
+| `POST /api/planes` | `{"anio", "mes", "modo": "COPIAR" \| "FIJOS" \| "CERO"}` → 201 con el plan en Borrador y su Opción A. COPIAR trae la opción principal del mes anterior con las cuotas avanzadas; FIJOS deja los variables en $0. 409 `YA_EXISTE` |
+| `POST /api/planes/{id}/usar` | `{"escenarioId"}` → el plan, con esa opción como la que se ejecuta |
+| `POST /api/planes/{id}/escenarios/{escenarioId}/items` | `{"categoriaId", "nombre", "monto", "diaVence"?, "tipo": "FIJO" \| "VARIABLE" \| "CUOTA" \| "CREDITO", "cuota"?: {"actual", "total"}}` → 201. 404 `CATEGORIA_NO_ENCONTRADA` |
+| `PUT /api/planes/{id}/escenarios/{escenarioId}/items/{itemId}` | edita el ítem |
+| `DELETE /api/planes/{id}/escenarios/{escenarioId}/items/{itemId}` | 204; 409 `ITEM_CON_PAGOS` si ya tiene pagos o gastos |
+
+En esta etapa solo existe la Opción A: varias opciones llegan en la Etapa 7 y cerrar el mes en la Etapa 6.

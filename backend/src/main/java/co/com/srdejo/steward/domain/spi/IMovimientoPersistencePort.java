@@ -23,6 +23,21 @@ public interface IMovimientoPersistencePort {
      */
     Mono<Movimiento> registrarEntrega(Movimiento entrega);
 
+    /**
+     * Registra un pago, un gasto o un aporte. Un segundo PAGO del mismo item en el mes falla con {@code YA_PAGADO}
+     * (indice unico), aunque lleguen dos a la vez.
+     */
+    Mono<Movimiento> registrar(Movimiento movimiento);
+
     /** Los movimientos del mes, con {@code diezmoDe} lleno en las entregas, en orden de registro. */
     Flux<Movimiento> delMes(UUID hogarId, YearMonth mes);
+
+    /** Los movimientos desde ese mes en adelante, en orden de registro. */
+    Flux<Movimiento> desde(UUID hogarId, YearMonth desde);
+
+    /** El PAGO de ese item en ese mes, si ya lo hay. */
+    Mono<Movimiento> pagoDe(UUID itemId, YearMonth mes);
+
+    /** Si el item tiene pagos o gastos (cualquier mes). */
+    Mono<Boolean> hayDeItem(UUID itemId);
 }

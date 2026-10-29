@@ -10,6 +10,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
+import java.time.YearMonth;
 import java.util.List;
 import java.util.UUID;
 
@@ -44,6 +45,18 @@ public interface IFinanzasServicePort {
 
     /** {@code conjunta} falso: a nombre de quien la crea. */
     Mono<Cuenta> crearCuenta(String nombre, boolean conjunta, long saldo);
+
+    /**
+     * "Marcar pago" de un item de la opcion principal del mes en curso. {@code origen}: CUENTA (con {@code cuentaId}),
+     * EXTERNA ("Su cuenta") o NINGUNO.
+     */
+    Mono<Movimiento> pagar(UUID itemId, long monto, UUID usuarioId, String origen, UUID cuentaId);
+
+    /** "Registrar gasto" del mes en curso; {@code itemId} null es "No estaba planeado". */
+    Mono<Movimiento> gastar(UUID itemId, long monto, String nota, UUID usuarioId, String origen, UUID cuentaId);
+
+    /** "+ Aporte" para el mes en curso o el siguiente. */
+    Mono<Movimiento> aportar(UUID usuarioId, long monto, YearMonth mes, UUID cuentaId, boolean aplicaDiezmo);
 
     record DatosIngreso(String nombre, long bruto, long neto, int diaPago, UUID cuentaId) {
     }
