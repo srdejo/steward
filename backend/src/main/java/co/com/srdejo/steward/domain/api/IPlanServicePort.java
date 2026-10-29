@@ -28,7 +28,8 @@ public interface IPlanServicePort {
     Mono<PlanMes> usar(UUID planId, UUID escenarioId);
 
     /** {@code tipo}: FIJO, VARIABLE, CUOTA o CREDITO. Cuota actual y total van juntas o ninguna. */
+    /** {@code creditoId}: el credito del hogar al que corresponde; al editar, null conserva el que tenia. */
     record DatosItem(UUID categoriaId, String nombre, long monto, Integer diaVence, String tipo, Integer cuotaActual,
-                     Integer cuotaTotal) {
+                     Integer cuotaTotal, UUID creditoId) {
     }
 }

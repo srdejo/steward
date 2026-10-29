@@ -2,10 +2,10 @@ package co.com.srdejo.steward.domain.usecase;
 
 import co.com.srdejo.steward.domain.api.IFinanzasServicePort;
 import co.com.srdejo.steward.domain.exception.DomainException;
+import co.com.srdejo.steward.domain.model.Credito;
 import co.com.srdejo.steward.domain.model.Cuenta;
 import co.com.srdejo.steward.domain.model.DiezmoEnHoy;
 import co.com.srdejo.steward.domain.model.Finanzas;
-import co.com.srdejo.steward.domain.model.Hogar;
 import co.com.srdejo.steward.domain.model.IngresoFijo;
 import co.com.srdejo.steward.domain.model.Movimiento;
 import co.com.srdejo.steward.domain.model.ObligacionDiezmo;
@@ -13,6 +13,7 @@ import co.com.srdejo.steward.domain.model.PlanMes;
 import co.com.srdejo.steward.domain.model.ReglaDiezmo;
 import co.com.srdejo.steward.domain.spi.ICategoriaPersistencePort;
 import co.com.srdejo.steward.domain.spi.IClockPort;
+import co.com.srdejo.steward.domain.spi.ICreditoPersistencePort;
 import co.com.srdejo.steward.domain.spi.IPlanPersistencePort;
 import co.com.srdejo.steward.domain.spi.IUsuarioPersistencePort;
 import co.com.srdejo.steward.domain.spi.ICuentaPersistencePort;
@@ -22,6 +23,7 @@ import co.com.srdejo.steward.domain.spi.IIngresoFijoPersistencePort;
 import co.com.srdejo.steward.domain.spi.IMovimientoPersistencePort;
 import co.com.srdejo.steward.domain.spi.IReglaDiezmoPersistencePort;
 import co.com.srdejo.steward.domain.spi.ITransaccionPort;
+import co.com.srdejo.steward.domain.usecase.Registro.Contexto;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -41,7 +43,8 @@ import java.util.stream.Collectors;
  * ({@code marcarRecibido}), las obligaciones ({@code diezmosPendientes}, con la regla actual del dueno, design D3) y
  * "Entregado" ({@code entregarDiezmo}), y los registros de Hoy: {@code marcarPago}, {@code registrarGasto} y
  * {@code registrarAporte}. Pagos y gastos son del mes en curso del backend; los aportes, de este mes o el siguiente. Las
- * vistas (libre, vs. plan, aportes implicitos) las calcula el cliente con el dominio compartido (design D3).
+ * vistas (libre, vs. plan, aportes implicitos) las calcula el cliente con el dominio compartido (design D3). Pagar la cuota
+ * de un credito baja su saldo (design D4 de backend-cuentas-creditos).
  */
 public class FinanzasUseCase implements IFinanzasServicePort {
 
@@ -54,16 +57,18 @@ public class FinanzasUseCase implements IFinanzasServicePort {
     private final IMovimientoPersistencePort movimientos;
     private final ICategoriaPersistencePort categorias;
     private final IPlanPersistencePort planes;
+    private final ICreditoPersistencePort creditos;
     private final IUsuarioPersistencePort usuarios;
     private final ICurrentUserPort usuarioActual;
     private final ITransaccionPort transaccion;
     private final IClockPort clock;
+    private final Registro registro;
 
     public FinanzasUseCase(IHogarPersistencePort hogares, IReglaDiezmoPersistencePort reglas,
                            IIngresoFijoPersistencePort ingresos, ICuentaPersistencePort cuentas,
                            IMovimientoPersistencePort movimientos, ICategoriaPersistencePort categorias,
-                           IPlanPersistencePort planes, IUsuarioPersistencePort usuarios, ICurrentUserPort usuarioActual,
-                           ITransaccionPort transaccion, IClockPort clock) {
+                           IPlanPersistencePort planes, ICreditoPersistencePort creditos, IUsuarioPersistencePort usuarios,
+                           ICurrentUserPort usuarioActual, ITransaccionPort transaccion, IClockPort clock) {
         this.hogares = hogares;
         this.reglas = reglas;
         this.ingresos = ingresos;
@@ -71,15 +76,20 @@ public class FinanzasUseCase implements IFinanzasServicePort {
         this.movimientos = movimientos;
         this.categorias = categorias;
         this.planes = planes;
+        this.creditos = creditos;
         this.usuarios = usuarios;
         this.usuarioActual = usuarioActual;
         this.transaccion = transaccion;
         this.clock = clock;
+        this.registro = new Registro(hogares, cuentas, usuarioActual, clock);
     }
 
     // --- Lectura ---------------------------------------------------------------------------------------------------
 
-    /** Planes y movimientos desde dos meses antes del mes en curso: los que muestra la app (design D4). */
+    /**
+     * Planes y movimientos desde dos meses antes del mes en curso: los que muestra la app (design D4), mas lo que todavia
+     * cuenta en el saldo estimado de una cuenta (design D2 de backend-cuentas-creditos).
+     */
     @Override
     public Mono<Finanzas> leer() {
         YearMonth mes = mesEnCurso();
@@ -95,14 +105,28 @@ public class FinanzasUseCase implements IFinanzasServicePort {
                         planes.desde(ctx.hogar().id(), desde)
                                 .map(p -> new PlanMes(p.id(), p.hogarId(), p.ref(), p.estadoEn(clock.hoy()),
                                         p.escenarioActivoId(), p.escenarios()))
-                                .collectList())
+                                .collectList(),
+                        creditosConPagos(ctx.hogar().id()))
                 .flatMap(t -> {
                     // Las reglas de los miembros y de los duenos de lo registrado (aunque ya no esten).
                     Set<UUID> personas = new HashSet<>(t.getT5());
                     t.getT4().forEach(m -> personas.add(m.usuarioId()));
                     return reglas.dePersonas(personas).collectList()
-                            .map(r -> new Finanzas(mes, t.getT1(), t.getT6(), t.getT2(), r, t.getT3(), t.getT7(), t.getT4()));
+                            .map(r -> new Finanzas(mes, t.getT1(), t.getT6(), t.getT2(), r, t.getT3(), t.getT7(), t.getT4(),
+                                    t.getT8()));
                 }));
+    }
+
+    /** Los creditos con sus ultimos pagos, que salen de lo registrado (design D4 de backend-cuentas-creditos). */
+    private Mono<List<Credito>> creditosConPagos(UUID hogarId) {
+        return movimientos.ultimosDeCreditos(hogarId, Credito.ULTIMOS_PAGOS)
+                .collectMultimap(Movimiento::creditoId)
+                .flatMap(pagos -> creditos.delHogar(hogarId)
+                        .map(c -> c.conPagos(pagos.getOrDefault(c.id(), List.of()).stream()
+                                .map(m -> new Credito.Pago(m.fecha(), m.monto(), m.tipo() == Movimiento.Tipo.ABONO_CREDITO
+                                        ? Credito.Pago.Tipo.ABONO : Credito.Pago.Tipo.CUOTA))
+                                .toList()))
+                        .collectList());
     }
 
     // --- Registros de Hoy -------------------------------------------------------------------------------------------
@@ -110,9 +134,9 @@ public class FinanzasUseCase implements IFinanzasServicePort {
     @Override
     public Mono<Movimiento> pagar(UUID itemId, long monto, UUID usuarioId, String origen, UUID cuentaId) {
         YearMonth mes = mesEnCurso();
-        return Mono.fromCallable(() -> montoValido(monto, "El valor pagado debe ser mayor que cero"))
+        return Mono.fromCallable(() -> Registro.montoValido(monto, "El valor pagado debe ser mayor que cero"))
                 .flatMap(m -> contexto().flatMap(ctx -> itemDelMes(ctx, mes, itemId)
-                        .flatMap(item -> registroValido(ctx, usuarioId, origen, cuentaId)
+                        .flatMap(item -> registro.origenValido(ctx, usuarioId, origen, cuentaId)
                                 .flatMap(o -> {
                                     // Un variable acumula como gasto; un fijo, cuota o credito se paga una vez (marcarPago).
                                     boolean variable = item.tipo() == PlanMes.ItemPlan.Tipo.VARIABLE;
@@ -120,7 +144,12 @@ public class FinanzasUseCase implements IFinanzasServicePort {
                                             variable ? Movimiento.Tipo.GASTO : Movimiento.Tipo.PAGO, mes, m, clock.hoy(),
                                             usuarioId, ctx.usuario(), o.cuentaId(), null, null, false, List.of(), item.id(),
                                             "", o.origen());
-                                    Mono<Movimiento> registrar = movimientos.registrar(pago)
+                                    // La cuota de un credito baja su saldo en la parte de capital, en la misma
+                                    // transaccion: si el pago no pasa (YA_PAGADO), el saldo no cambia.
+                                    UUID credito = variable ? null : item.creditoId();
+                                    Mono<Movimiento> registrar = (credito == null ? movimientos.registrar(pago)
+                                            : transaccion.enTransaccion(movimientos.registrar(pago.conCredito(credito))
+                                            .flatMap(g -> creditos.pagarCuota(credito, m).thenReturn(g))))
                                             .onErrorResume(DomainException.class, ex -> "YA_PAGADO".equals(ex.codigo())
                                                     ? yaPagado(item.id(), mes) : Mono.error(ex));
                                     return variable ? registrar : movimientos.pagoDe(item.id(), mes)
@@ -133,7 +162,7 @@ public class FinanzasUseCase implements IFinanzasServicePort {
     public Mono<Movimiento> gastar(UUID itemId, long monto, String nota, UUID usuarioId, String origen, UUID cuentaId) {
         YearMonth mes = mesEnCurso();
         return Mono.fromCallable(() -> {
-                    montoValido(monto, "El gasto debe ser mayor que cero");
+                    Registro.montoValido(monto, "El gasto debe ser mayor que cero");
                     String limpia = nota == null ? "" : nota.strip();
                     if (limpia.length() > NOTA_MAX) {
                         throw DomainException.datosInvalidos("La nota va hasta 120 caracteres");
@@ -144,7 +173,7 @@ public class FinanzasUseCase implements IFinanzasServicePort {
                         // "No estaba planeado": sin item, pero el mes tampoco puede estar cerrado.
                         ? mesAbierto(ctx, mes).thenReturn(Optional.<UUID>empty())
                         : itemDelMes(ctx, mes, itemId).map(i -> Optional.of(i.id())))
-                        .flatMap(item -> registroValido(ctx, usuarioId, origen, cuentaId)
+                        .flatMap(item -> registro.origenValido(ctx, usuarioId, origen, cuentaId)
                                 .flatMap(o -> movimientos.registrar(new Movimiento(UUID.randomUUID(), ctx.hogar().id(),
                                         Movimiento.Tipo.GASTO, mes, monto, clock.hoy(), usuarioId, ctx.usuario(), o.cuentaId(),
                                         null, null, false, List.of(), item.orElse(null), limpia, o.origen()))))));
@@ -154,27 +183,20 @@ public class FinanzasUseCase implements IFinanzasServicePort {
     public Mono<Movimiento> aportar(UUID usuarioId, long monto, YearMonth mes, UUID cuentaId, boolean aplicaDiezmo) {
         YearMonth enCurso = mesEnCurso();
         return Mono.fromCallable(() -> {
-                    montoValido(monto, "El aporte debe ser mayor que cero");
+                    Registro.montoValido(monto, "El aporte debe ser mayor que cero");
                     if (mes == null || !(mes.equals(enCurso) || mes.equals(enCurso.plusMonths(1)))) {
                         throw DomainException.datosInvalidos("El aporte es para este mes o el siguiente");
                     }
                     return mes;
                 })
                 .flatMap(ref -> contexto().flatMap(ctx -> mesAbierto(ctx, ref)
-                        .then(registroValido(ctx, usuarioId, cuentaId == null ? "NINGUNO" : "CUENTA", cuentaId))
+                        .then(registro.origenValido(ctx, usuarioId, cuentaId == null ? "NINGUNO" : "CUENTA", cuentaId))
                         .flatMap(o -> movimientos.registrar(new Movimiento(UUID.randomUUID(), ctx.hogar().id(),
                                 Movimiento.Tipo.APORTE, ref, monto, clock.hoy(), usuarioId, ctx.usuario(), o.cuentaId(), null,
                                 null, aplicaDiezmo, List.of(), null, "", o.origen())))));
     }
 
     private static final int NOTA_MAX = 120;
-
-    private static long montoValido(long monto, String mensaje) {
-        if (monto <= 0) {
-            throw DomainException.datosInvalidos(mensaje);
-        }
-        return monto;
-    }
 
     /** El item tiene que estar en la opcion principal del plan del mes, y el mes no puede estar cerrado. */
     private Mono<PlanMes.ItemPlan> itemDelMes(Contexto ctx, YearMonth mes, UUID itemId) {
@@ -192,29 +214,6 @@ public class FinanzasUseCase implements IFinanzasServicePort {
                 .flatMap(plan -> Mono.<Void>error(PlanUseCase.mesCerrado()));
     }
 
-    /** Quien pago (o aporto) es del hogar, y el origen es una cuenta del hogar, "Su cuenta" o ninguno. */
-    private Mono<OrigenValido> registroValido(Contexto ctx, UUID usuarioId, String origen, UUID cuentaId) {
-        Movimiento.Origen tipo;
-        try {
-            tipo = Movimiento.Origen.valueOf(origen);
-        } catch (IllegalArgumentException | NullPointerException ex) {
-            return Mono.error(DomainException.datosInvalidos("El origen es CUENTA, EXTERNA o NINGUNO"));
-        }
-        Mono<Void> miembro = hogares.miembros(ctx.hogar().id())
-                .filter(m -> m.usuario().id().equals(usuarioId))
-                .next()
-                .switchIfEmpty(Mono.error(() -> DomainException.noEncontrado("MIEMBRO_NO_ENCONTRADO",
-                        "Esa persona no es del hogar")))
-                .then();
-        if (tipo != Movimiento.Origen.CUENTA) {
-            return miembro.thenReturn(new OrigenValido(tipo, null));
-        }
-        if (cuentaId == null) {
-            return Mono.error(DomainException.datosInvalidos("Elige la cuenta"));
-        }
-        return miembro.then(cuentaDelHogar(cuentaId, ctx.hogar().id())).thenReturn(new OrigenValido(tipo, cuentaId));
-    }
-
     private Mono<Movimiento> yaPagado(UUID itemId, YearMonth mes) {
         return movimientos.pagoDe(itemId, mes).flatMap(this::yaPagado);
     }
@@ -226,9 +225,6 @@ public class FinanzasUseCase implements IFinanzasServicePort {
                 .defaultIfEmpty("alguien")
                 .flatMap(nombre -> Mono.error(DomainException.conflicto("YA_PAGADO",
                         "Ya lo pagó " + nombre + " el " + Formato.fechaCorta(previo.fecha()))));
-    }
-
-    private record OrigenValido(Movimiento.Origen origen, UUID cuentaId) {
     }
 
     // --- Regla de diezmo --------------------------------------------------------------------------------------------
@@ -308,12 +304,7 @@ public class FinanzasUseCase implements IFinanzasServicePort {
     }
 
     private Mono<Void> cuentaDelHogar(UUID cuentaId, UUID hogarId) {
-        if (cuentaId == null) {
-            return Mono.empty();
-        }
-        return cuentas.porIdEnHogar(cuentaId, hogarId)
-                .switchIfEmpty(Mono.error(() -> DomainException.noEncontrado("CUENTA_NO_ENCONTRADA", "Esa cuenta no existe")))
-                .then();
+        return registro.cuentaDelHogar(cuentaId, hogarId);
     }
 
     // --- Recibir y diezmo -------------------------------------------------------------------------------------------
@@ -427,13 +418,11 @@ public class FinanzasUseCase implements IFinanzasServicePort {
     // --- Comun ------------------------------------------------------------------------------------------------------
 
     private YearMonth mesEnCurso() {
-        return YearMonth.from(clock.hoy());
+        return registro.mesEnCurso();
     }
 
     private Mono<Contexto> contexto() {
-        return usuarioActual.usuarioId().flatMap(usuario -> hogares.hogarDe(usuario)
-                .switchIfEmpty(Mono.error(HogarUseCase::sinHogar))
-                .map(hogar -> new Contexto(usuario, hogar)));
+        return registro.contexto();
     }
 
     static DomainException ingresoNoEncontrado() {
@@ -442,8 +431,5 @@ public class FinanzasUseCase implements IFinanzasServicePort {
 
     static DomainException sinDiezmo() {
         return DomainException.conflicto("SIN_DIEZMO", "No hay diezmo pendiente");
-    }
-
-    private record Contexto(UUID usuario, Hogar hogar) {
     }
 }

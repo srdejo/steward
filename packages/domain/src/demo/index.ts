@@ -369,6 +369,9 @@ export function crearAdaptadorDemo(opciones: OpcionesDemo): Puertos {
         const c = (await leerEstado()).creditos.find((x) => x.id === id);
         return c ? { credito: c, cuotasRestantes: R.cuotasRestantes(c), porcentajePagado: R.porcentajePagado(c) } : null;
       },
+      async agregarCredito(datos) {
+        await cambiar((s) => R.agregarCredito(s, { ...datos, fecha: hoy() }));
+      },
       async actualizarSaldo(creditoId, saldo) {
         await cambiar((s) => R.actualizarSaldoCredito(s, { creditoId, saldo, fecha: hoy() }));
       },

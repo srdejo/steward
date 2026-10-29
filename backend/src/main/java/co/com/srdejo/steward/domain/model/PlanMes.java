@@ -62,9 +62,15 @@ public record PlanMes(UUID id, UUID hogarId, YearMonth ref, Estado estado, UUID 
      * @param cuotaActual compras a cuotas: cuota actual y total ("cuota 4 de 12"); los dos null si no aplica.
      */
     public record ItemPlan(UUID id, UUID escenarioId, UUID categoriaId, String nombre, long monto, Integer diaVence,
-                           Tipo tipo, Integer cuotaActual, Integer cuotaTotal, int orden) {
+                           Tipo tipo, Integer cuotaActual, Integer cuotaTotal, int orden, UUID creditoId) {
 
         public static final int NOMBRE_MAX = 60;
+
+        /** Sin credito enlazado. */
+        public ItemPlan(UUID id, UUID escenarioId, UUID categoriaId, String nombre, long monto, Integer diaVence,
+                        Tipo tipo, Integer cuotaActual, Integer cuotaTotal, int orden) {
+            this(id, escenarioId, categoriaId, nombre, monto, diaVence, tipo, cuotaActual, cuotaTotal, orden, null);
+        }
 
         public enum Tipo {
             FIJO,

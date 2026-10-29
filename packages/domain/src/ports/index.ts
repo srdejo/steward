@@ -7,7 +7,7 @@ import type {
   ItemPlan, MesRef, Origen, Pesos, PlanMes, ReglaDiezmo, TipoCategoria, Usuario,
 } from '../model';
 import type {
-  FiltroTitular, ModoNuevoMes, ResumenAnual, ResumenMes, ResumenMesPlan, VistaCierre, VistaCuenta, VistaOpcion,
+  DatosCredito, FiltroTitular, ModoNuevoMes, ResumenAnual, ResumenMes, ResumenMesPlan, VistaCierre, VistaCuenta, VistaOpcion,
 } from '../rules';
 import type { compararOpciones, loQueTraeElMes } from '../rules';
 
@@ -128,6 +128,8 @@ export interface CuentasPort {
   cuadrar(saldos: { cuentaId: Id; saldoBanco: Pesos }[]): Promise<void>;
   creditos(): Promise<VistaCredito[]>;
   credito(id: Id): Promise<VistaCredito | null>;
+  /** "+ Agregar" en Creditos: su cuota entra al plan del mes en curso. */
+  agregarCredito(datos: DatosCredito): Promise<void>;
   actualizarSaldo(creditoId: Id, saldo: Pesos): Promise<void>;
   registrarAbono(creditoId: Id, monto: Pesos, origen: Origen): Promise<void>;
   simular(creditoId: Id, abono: Pesos): Promise<{ cuotasMenos: number; interesesMenos: Pesos } | null>;

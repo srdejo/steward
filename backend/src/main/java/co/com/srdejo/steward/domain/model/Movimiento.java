@@ -16,17 +16,25 @@ import java.util.UUID;
  * @param itemId        PAGO y GASTO: el item del plan (null = "No estaba planeado").
  * @param nota          GASTO: la nota.
  * @param origen        EXTERNA = "Su cuenta", fuera de la app: un pago o gasto asi es un aporte implicito.
+ * @param cuentaDestinoId TRANSFERENCIA: la cuenta a la que llega (la de origen va en {@code cuentaId}).
+ * @param creditoId     PAGO de un item enlazado a un credito, y ABONO_CREDITO.
+ * @param seq           orden de registro, que asigna la base (0 antes de guardarlo): el saldo estimado suma lo
+ *                      registrado despues del ultimo cuadre (design D1 de backend-cuentas-creditos).
  */
 public record Movimiento(UUID id, UUID hogarId, Tipo tipo, YearMonth ref, long monto, LocalDate fecha, UUID usuarioId,
                          UUID creadoPor, UUID cuentaId, UUID ingresoFijoId, Long bruto, boolean aplicaDiezmo,
-                         List<UUID> diezmoDe, UUID itemId, String nota, Origen origen) {
+                         List<UUID> diezmoDe, UUID itemId, String nota, Origen origen, UUID cuentaDestinoId,
+                         UUID creditoId, long seq) {
 
     public enum Tipo {
         INGRESO_FIJO,
         DIEZMO_ENTREGADO,
         APORTE,
         PAGO,
-        GASTO
+        GASTO,
+        AJUSTE_CUADRE,
+        TRANSFERENCIA,
+        ABONO_CREDITO
     }
 
     public enum Origen {
@@ -42,6 +50,24 @@ public record Movimiento(UUID id, UUID hogarId, Tipo tipo, YearMonth ref, long m
         if (origen == null || (origen == Origen.CUENTA && cuentaId == null)) {
             origen = cuentaId == null ? Origen.NINGUNO : Origen.CUENTA;
         }
+    }
+
+    /** Los de Hoy (Etapa 4): sin cuenta destino ni credito. */
+    public Movimiento(UUID id, UUID hogarId, Tipo tipo, YearMonth ref, long monto, LocalDate fecha, UUID usuarioId,
+                      UUID creadoPor, UUID cuentaId, UUID ingresoFijoId, Long bruto, boolean aplicaDiezmo,
+                      List<UUID> diezmoDe, UUID itemId, String nota, Origen origen) {
+        this(id, hogarId, tipo, ref, monto, fecha, usuarioId, creadoPor, cuentaId, ingresoFijoId, bruto, aplicaDiezmo,
+                diezmoDe, itemId, nota, origen, null, null, 0);
+    }
+
+    public Movimiento conSeq(long nuevo) {
+        return new Movimiento(id, hogarId, tipo, ref, monto, fecha, usuarioId, creadoPor, cuentaId, ingresoFijoId, bruto,
+                aplicaDiezmo, diezmoDe, itemId, nota, origen, cuentaDestinoId, creditoId, nuevo);
+    }
+
+    public Movimiento conCredito(UUID credito) {
+        return new Movimiento(id, hogarId, tipo, ref, monto, fecha, usuarioId, creadoPor, cuentaId, ingresoFijoId, bruto,
+                aplicaDiezmo, diezmoDe, itemId, nota, origen, cuentaDestinoId, credito, seq);
     }
 
     /** Los de ingresos y diezmo (Etapa 3): sin item ni nota, y el origen sale de la cuenta. */

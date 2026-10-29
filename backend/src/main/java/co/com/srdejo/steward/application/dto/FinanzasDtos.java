@@ -2,7 +2,10 @@ package co.com.srdejo.steward.application.dto;
 
 import co.com.srdejo.steward.application.dto.PlanDtos.CategoriaResponse;
 import co.com.srdejo.steward.application.dto.PlanDtos.PlanResponse;
+import co.com.srdejo.steward.domain.api.ICuentasServicePort.DatosCredito;
+import co.com.srdejo.steward.domain.api.ICuentasServicePort.SaldoBanco;
 import co.com.srdejo.steward.domain.api.IFinanzasServicePort.DatosIngreso;
+import co.com.srdejo.steward.domain.model.Credito;
 import co.com.srdejo.steward.domain.model.Cuenta;
 import co.com.srdejo.steward.domain.model.Finanzas;
 import co.com.srdejo.steward.domain.model.IngresoFijo;
@@ -64,7 +67,7 @@ public final class FinanzasDtos {
         }
 
         /** {@code 10.00} sale como {@code 10} (no {@code 1E+1}) y {@code 12.50} como {@code 12.5}. */
-        private static BigDecimal sinCeros(BigDecimal valor) {
+        static BigDecimal sinCeros(BigDecimal valor) {
             BigDecimal limpio = valor.stripTrailingZeros();
             return limpio.scale() < 0 ? limpio.setScale(0) : limpio;
         }
@@ -79,11 +82,57 @@ public final class FinanzasDtos {
         }
     }
 
+    /** {@code seqCuadre}: el orden del ultimo movimiento incluido en {@code saldoCuadre} (design D1 de backend-cuentas-creditos). */
     public record CuentaResponse(UUID id, String nombre, UUID titularId, long saldoCuadre, LocalDate fechaCuadre,
-                                 boolean cuadrada) {
+                                 boolean cuadrada, long seqCuadre) {
 
         public static CuentaResponse de(Cuenta c) {
-            return new CuentaResponse(c.id(), c.nombre(), c.titularId(), c.saldoCuadre(), c.fechaCuadre(), c.cuadrada());
+            return new CuentaResponse(c.id(), c.nombre(), c.titularId(), c.saldoCuadre(), c.fechaCuadre(), c.cuadrada(),
+                    c.seqCuadre());
+        }
+    }
+
+    public record CuadreRequest(List<SaldoRequest> saldos) {
+
+        public List<SaldoBanco> datos() {
+            return saldos == null ? List.of() : saldos.stream()
+                    .map(s -> s == null ? null : new SaldoBanco(s.cuentaId(), s.saldoBanco()))
+                    .toList();
+        }
+    }
+
+    public record SaldoRequest(UUID cuentaId, long saldoBanco) {
+    }
+
+    public record TransferenciaRequest(UUID desde, UUID hacia, long monto) {
+    }
+
+    public record CreditoRequest(String nombre, String entidad, long saldo, long totalOriginal, long cuota,
+                                 @NotNull(message = "Escribe la tasa") BigDecimal tasaEM, int diaPago) {
+
+        public DatosCredito datos() {
+            return new DatosCredito(nombre, entidad, saldo, totalOriginal, cuota, tasaEM, diaPago);
+        }
+    }
+
+    public record SaldoCreditoRequest(long saldo) {
+    }
+
+    public record AbonoRequest(long monto, UUID usuarioId, OrigenDto origen) {
+    }
+
+    public record PagoCreditoResponse(LocalDate fecha, long monto, String tipo) {
+    }
+
+    /** {@code pagos}: los ultimos, del mas reciente al mas antiguo (salen de lo registrado). */
+    public record CreditoResponse(UUID id, String nombre, String entidad, long saldo, LocalDate saldoActualizadoEn,
+                                  long cuota, BigDecimal tasaEM, int diaPago, long totalOriginal,
+                                  List<PagoCreditoResponse> pagos) {
+
+        public static CreditoResponse de(Credito c) {
+            return new CreditoResponse(c.id(), c.nombre(), c.entidad(), c.saldo(), c.saldoActualizadoEn(), c.cuota(),
+                    ReglaResponse.sinCeros(c.tasaEm()), c.diaPago(), c.totalOriginal(),
+                    c.pagos().stream().map(p -> new PagoCreditoResponse(p.fecha(), p.monto(), p.tipo().name())).toList());
         }
     }
 
@@ -102,12 +151,13 @@ public final class FinanzasDtos {
 
     public record MovimientoResponse(UUID id, String tipo, MesResponse ref, long monto, LocalDate fecha, UUID usuarioId,
                                      UUID creadoPor, UUID cuentaId, UUID ingresoFijoId, Long bruto, boolean aplicaDiezmo,
-                                     List<UUID> diezmoDe, UUID itemId, String nota, String origen) {
+                                     List<UUID> diezmoDe, UUID itemId, String nota, String origen, UUID cuentaDestinoId,
+                                     UUID creditoId, long seq) {
 
         public static MovimientoResponse de(Movimiento m) {
             return new MovimientoResponse(m.id(), m.tipo().name(), MesResponse.de(m.ref()), m.monto(), m.fecha(),
                     m.usuarioId(), m.creadoPor(), m.cuentaId(), m.ingresoFijoId(), m.bruto(), m.aplicaDiezmo(),
-                    m.diezmoDe(), m.itemId(), m.nota(), m.origen().name());
+                    m.diezmoDe(), m.itemId(), m.nota(), m.origen().name(), m.cuentaDestinoId(), m.creditoId(), m.seq());
         }
     }
 
@@ -121,7 +171,7 @@ public final class FinanzasDtos {
     public record FinanzasResponse(MesResponse mes, String diezmoEnHoy, List<CategoriaResponse> categorias,
                                    List<IngresoResponse> ingresosFijos, List<ReglaResponse> reglas,
                                    List<CuentaResponse> cuentas, List<PlanResponse> planes,
-                                   List<MovimientoResponse> movimientos) {
+                                   List<MovimientoResponse> movimientos, List<CreditoResponse> creditos) {
 
         /** Los planes ya traen su estado efectivo (lo calcula el caso de uso). */
         public static FinanzasResponse de(Finanzas f, LocalDate hoy) {
@@ -131,7 +181,8 @@ public final class FinanzasDtos {
                     f.reglas().stream().map(ReglaResponse::de).toList(),
                     f.cuentas().stream().map(CuentaResponse::de).toList(),
                     f.planes().stream().map(p -> PlanResponse.de(p, hoy)).toList(),
-                    f.movimientos().stream().map(MovimientoResponse::de).toList());
+                    f.movimientos().stream().map(MovimientoResponse::de).toList(),
+                    f.creditos().stream().map(CreditoResponse::de).toList());
         }
     }
 }

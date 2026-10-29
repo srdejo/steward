@@ -3,11 +3,13 @@ package co.com.srdejo.steward.domain.usecase;
 import co.com.srdejo.steward.domain.api.IPlanServicePort;
 import co.com.srdejo.steward.domain.exception.DomainException;
 import co.com.srdejo.steward.domain.model.Categoria;
+import co.com.srdejo.steward.domain.model.Credito;
 import co.com.srdejo.steward.domain.model.Hogar;
 import co.com.srdejo.steward.domain.model.PlanMes;
 import co.com.srdejo.steward.domain.model.PlanMes.Escenario;
 import co.com.srdejo.steward.domain.model.PlanMes.ItemPlan;
 import co.com.srdejo.steward.domain.spi.ICategoriaPersistencePort;
+import co.com.srdejo.steward.domain.spi.ICreditoPersistencePort;
 import co.com.srdejo.steward.domain.spi.ICurrentUserPort;
 import co.com.srdejo.steward.domain.spi.IHogarPersistencePort;
 import co.com.srdejo.steward.domain.spi.IMovimientoPersistencePort;
@@ -16,14 +18,20 @@ import co.com.srdejo.steward.domain.spi.ITransaccionPort;
 import reactor.core.publisher.Mono;
 
 import java.time.YearMonth;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
  * Categorias y plan del mes (spec steward-plan-mes). Reproduce {@code guardarCategoria}, {@code crearMes},
  * {@code guardarItem}, {@code quitarItem} y {@code usarEscenario} del dominio compartido. En la Etapa 4 solo existe la
- * Opcion A. Todo se resuelve desde el hogar de la sesion.
+ * Opcion A. Todo se resuelve desde el hogar de la sesion. Los creditos con saldo traen su cuota a cada mes nuevo (design D5
+ * de backend-cuentas-creditos).
  */
 public class PlanUseCase implements IPlanServicePort {
 
@@ -31,15 +39,18 @@ public class PlanUseCase implements IPlanServicePort {
     private final ICategoriaPersistencePort categorias;
     private final IPlanPersistencePort planes;
     private final IMovimientoPersistencePort movimientos;
+    private final ICreditoPersistencePort creditos;
     private final ICurrentUserPort usuarioActual;
     private final ITransaccionPort transaccion;
 
     public PlanUseCase(IHogarPersistencePort hogares, ICategoriaPersistencePort categorias, IPlanPersistencePort planes,
-                       IMovimientoPersistencePort movimientos, ICurrentUserPort usuarioActual, ITransaccionPort transaccion) {
+                       IMovimientoPersistencePort movimientos, ICreditoPersistencePort creditos,
+                       ICurrentUserPort usuarioActual, ITransaccionPort transaccion) {
         this.hogares = hogares;
         this.categorias = categorias;
         this.planes = planes;
         this.movimientos = movimientos;
+        this.creditos = creditos;
         this.usuarioActual = usuarioActual;
         this.transaccion = transaccion;
     }
@@ -84,17 +95,46 @@ public class PlanUseCase implements IPlanServicePort {
                 .deMes(ctx.hogar().id(), ref.minusMonths(1))
                 .map(anterior -> base(anterior, m))
                 .defaultIfEmpty(List.of())
-                .flatMap(base -> {
+                .zipWith(Mono.zip(creditos.delHogar(ctx.hogar().id()).collectMap(Credito::id),
+                        categorias.delHogar(ctx.hogar().id()).collectList()))
+                .flatMap(t -> {
                     UUID planId = UUID.randomUUID();
                     UUID escenarioId = UUID.randomUUID();
-                    List<ItemPlan> items = base.stream()
+                    List<ItemPlan> items = conCuotas(t.getT1().stream()
                             .map(i -> new ItemPlan(UUID.randomUUID(), escenarioId, i.categoriaId(), i.nombre(), i.monto(),
-                                    i.diaVence(), i.tipo(), i.cuotaActual(), i.cuotaTotal(), i.orden()))
-                            .toList();
+                                    i.diaVence(), i.tipo(), i.cuotaActual(), i.cuotaTotal(), i.orden(), i.creditoId()))
+                            .toList(), escenarioId, t.getT2().getT1(), t.getT2().getT2());
                     PlanMes plan = new PlanMes(planId, ctx.hogar().id(), ref, PlanMes.Estado.BORRADOR, null,
                             List.of(new Escenario(escenarioId, planId, "A", ctx.usuario(), "", false, items)));
                     return transaccion.enTransaccion(planes.crear(plan));
                 })));
+    }
+
+    /**
+     * Como {@code crearMes} del dominio con creditos: no se copia la cuota de un credito ya pagado (saldo en cero), y
+     * cada credito con saldo sin item en la opcion gana su cuota.
+     */
+    private static List<ItemPlan> conCuotas(List<ItemPlan> copiados, UUID escenarioId, Map<UUID, Credito> creditos,
+                                            List<Categoria> cats) {
+        List<ItemPlan> items = new ArrayList<>(copiados.stream()
+                .filter(i -> i.creditoId() == null
+                        || (creditos.containsKey(i.creditoId()) && creditos.get(i.creditoId()).saldo() > 0))
+                .toList());
+        Set<UUID> enlazados = new HashSet<>();
+        items.forEach(i -> enlazados.add(i.creditoId()));
+        int orden = items.stream().mapToInt(ItemPlan::orden).max().orElse(0);
+        for (Credito c : creditos.values().stream().sorted(Comparator.comparing(Credito::nombre)).toList()) {
+            if (c.saldo() > 0 && !enlazados.contains(c.id())) {
+                items.add(cuotaDe(c, escenarioId, CuentasUseCase.categoriaDeCreditos(cats), ++orden));
+            }
+        }
+        return items;
+    }
+
+    /** El item de la cuota de un credito: Creditos, tipo CREDITO, "Cuota {nombre}", su cuota y su dia de pago. */
+    static ItemPlan cuotaDe(Credito c, UUID escenarioId, UUID categoriaId, int orden) {
+        return new ItemPlan(UUID.randomUUID(), escenarioId, categoriaId, c.nombreCuota(), c.cuota(), c.diaPago(),
+                ItemPlan.Tipo.CREDITO, null, null, orden, c.id());
     }
 
     private enum Modo { COPIAR, FIJOS, CERO }
@@ -118,11 +158,11 @@ public class PlanUseCase implements IPlanServicePort {
         }
         return principal.items().stream()
                 .map(i -> i.cuotaActual() == null ? i : new ItemPlan(i.id(), i.escenarioId(), i.categoriaId(), i.nombre(),
-                        i.monto(), i.diaVence(), i.tipo(), i.cuotaActual() + 1, i.cuotaTotal(), i.orden()))
+                        i.monto(), i.diaVence(), i.tipo(), i.cuotaActual() + 1, i.cuotaTotal(), i.orden(), i.creditoId()))
                 .filter(i -> i.cuotaActual() == null || i.cuotaActual() <= i.cuotaTotal())
                 .map(i -> modo == Modo.FIJOS && i.tipo() == ItemPlan.Tipo.VARIABLE
                         ? new ItemPlan(i.id(), i.escenarioId(), i.categoriaId(), i.nombre(), 0, i.diaVence(), i.tipo(),
-                        i.cuotaActual(), i.cuotaTotal(), i.orden())
+                        i.cuotaActual(), i.cuotaTotal(), i.orden(), i.creditoId())
                         : i)
                 .toList();
     }
@@ -134,9 +174,11 @@ public class PlanUseCase implements IPlanServicePort {
         return Mono.fromCallable(() -> itemValido(datos)).flatMap(d -> contexto()
                 .flatMap(ctx -> escenarioEditable(planId, escenarioId, ctx)
                         .flatMap(esc -> categoriaDelHogar(d.categoriaId(), ctx)
+                                .then(creditoDelHogar(d.creditoId(), ctx))
                                 .then(planes.crearItem(new ItemPlan(UUID.randomUUID(), esc.id(), d.categoriaId(), d.nombre(),
                                         d.monto(), d.diaVence(), tipo(d.tipo()), d.cuotaActual(), d.cuotaTotal(),
-                                        esc.items().stream().mapToInt(ItemPlan::orden).max().orElse(0) + 1))))));
+                                        esc.items().stream().mapToInt(ItemPlan::orden).max().orElse(0) + 1,
+                                        d.creditoId()))))));
     }
 
     @Override
@@ -145,9 +187,12 @@ public class PlanUseCase implements IPlanServicePort {
                 .flatMap(ctx -> escenarioEditable(planId, escenarioId, ctx)
                         .flatMap(esc -> itemDe(esc, itemId)
                                 .flatMap(actual -> categoriaDelHogar(d.categoriaId(), ctx)
+                                        .then(creditoDelHogar(d.creditoId(), ctx))
+                                        // Sin credito en la edicion, conserva el que tenia.
                                         .then(planes.actualizarItem(new ItemPlan(actual.id(), esc.id(), d.categoriaId(),
                                                 d.nombre(), d.monto(), d.diaVence(), tipo(d.tipo()), d.cuotaActual(),
-                                                d.cuotaTotal(), actual.orden())))))));
+                                                d.cuotaTotal(), actual.orden(),
+                                                d.creditoId() == null ? actual.creditoId() : d.creditoId())))))));
     }
 
     @Override
@@ -189,7 +234,8 @@ public class PlanUseCase implements IPlanServicePort {
                 || (d.cuotaActual() != null && (d.cuotaActual() < 1 || d.cuotaActual() > d.cuotaTotal()))) {
             throw DomainException.datosInvalidos("La cuota actual va de 1 al total de cuotas");
         }
-        return new DatosItem(d.categoriaId(), nombre, d.monto(), d.diaVence(), d.tipo(), d.cuotaActual(), d.cuotaTotal());
+        return new DatosItem(d.categoriaId(), nombre, d.monto(), d.diaVence(), d.tipo(), d.cuotaActual(), d.cuotaTotal(),
+                d.creditoId());
     }
 
     private static ItemPlan.Tipo tipo(String tipo) {
@@ -217,6 +263,15 @@ public class PlanUseCase implements IPlanServicePort {
     private Mono<Void> categoriaDelHogar(UUID categoriaId, Contexto ctx) {
         return categorias.porIdEnHogar(categoriaId, ctx.hogar().id())
                 .switchIfEmpty(Mono.error(PlanUseCase::categoriaNoEncontrada))
+                .then();
+    }
+
+    private Mono<Void> creditoDelHogar(UUID creditoId, Contexto ctx) {
+        if (creditoId == null) {
+            return Mono.empty();
+        }
+        return creditos.porIdEnHogar(creditoId, ctx.hogar().id())
+                .switchIfEmpty(Mono.error(CuentasUseCase::creditoNoEncontrado))
                 .then();
     }
 

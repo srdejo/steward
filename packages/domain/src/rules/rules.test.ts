@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { crearHogarVacio, crearSemilla, DANIEL, ESPOSA } from '../demo/seed';
 import type { EstadoHogar, MesRef } from '../model';
 import {
-  ReglaError, aceptarInvitacion, agregarEvento, compararOpciones, crearMes, crearMesesDesdeAnual, cuadrarCuentas, cuentasDelHogar,
+  ReglaError, aceptarInvitacion, agregarCredito, actualizarSaldoCredito, agregarEvento, compararOpciones, crearMes, crearMesesDesdeAnual, cuadrarCuentas, cuentasDelHogar,
   cerrarMes, definirDiezmoEnHoy, diferenciaCuadre, duplicarEscenario, entregarDiezmo, guardarCategoria, invitar, loQueTraeElMes,
   marcarPago, marcarRecibido, planDe, planInicio, previsualizarDiezmo, previsualizarGasto, probarAbonoComoOpcion, registrarAporte,
   registrarGasto, repartoValido, resumenAnual, resumenMes, simularAbono, cuotasRestantes, porcentajePagado, usarEscenario,
@@ -132,7 +132,18 @@ describe('Planear (steward-planear)', () => {
     expect(dic.escenarios[0]!.items.find((i) => i.nombre === 'Compra a cuotas')?.cuota).toEqual({ actual: 6, total: 12 });
     const fijos = crearMes(semilla(), { ref: DIC, modo: 'FIJOS', creadoPor: DANIEL });
     expect(planDe(fijos, DIC)!.escenarios[0]!.items.filter((i) => i.tipo === 'VARIABLE').every((i) => i.monto === 0)).toBe(true);
-    expect(planDe(crearMes(semilla(), { ref: DIC, modo: 'CERO', creadoPor: DANIEL }), DIC)!.escenarios[0]!.items).toEqual([]);
+    // Desde cero trae solo la cuota del credito con saldo (backend-cuentas-creditos D5).
+    expect(planDe(crearMes(semilla(), { ref: DIC, modo: 'CERO', creadoPor: DANIEL }), DIC)!.escenarios[0]!.items.map((i) => [i.nombre, i.creditoId])).toEqual([
+      ['Cuota libre inversión', 'cred-libre'],
+    ]);
+  });
+
+  it('crear el mes con creditos: sin duplicar la cuota, y sin la de un credito pagado', () => {
+    const copiar = planDe(crearMes(semilla(), { ref: DIC, modo: 'COPIAR', creadoPor: DANIEL }), DIC)!.escenarios[0]!.items;
+    expect(copiar.filter((i) => i.creditoId === 'cred-libre').map((i) => i.nombre)).toEqual(['Cuota libre inversión']);
+    const pagado = actualizarSaldoCredito(semilla(), { creditoId: 'cred-libre', saldo: 0, fecha: HOY });
+    expect(planDe(crearMes(pagado, { ref: DIC, modo: 'COPIAR', creadoPor: DANIEL }), DIC)!.escenarios[0]!.items.some((i) => i.creditoId)).toBe(false);
+    expect(planDe(crearMes(pagado, { ref: DIC, modo: 'CERO', creadoPor: DANIEL }), DIC)!.escenarios[0]!.items).toEqual([]);
   });
 
   it('opciones de noviembre: libre antes y despues del cierre de octubre, diezmo calculado', () => {
@@ -219,6 +230,31 @@ describe('Cuentas (steward-cuentas)', () => {
     expect(simularAbono(c, 1_500_000)).toEqual({ cuotasMenos: 5, interesesMenos: 1_200_000 });
     const s2 = simularAbono(c, 2_000_000)!;
     expect(s2.cuotasMenos).toBeGreaterThan(5);
+  });
+
+  it('agregar credito: su cuota entra a la opcion principal del mes en curso', () => {
+    const datos = { nombre: 'Moto', entidad: 'Bancolombia', saldo: 14_250_000, totalOriginal: 20_000_000, cuota: 500_000, tasaEM: 1.6, diaPago: 15, fecha: HOY };
+    const s = agregarCredito(semilla(), datos);
+    const credito = s.creditos.find((c) => c.nombre === 'Moto')!;
+    expect(credito).toMatchObject({ entidad: 'Bancolombia', saldo: 14_250_000, saldoActualizadoEn: HOY, pagos: [] });
+    expect(porcentajePagado(credito)).toBe(29);
+    const oct = planDe(s, OCT)!;
+    const principal = oct.escenarios.find((e) => e.id === oct.escenarioActivoId)!;
+    expect(principal.items.find((i) => i.creditoId === credito.id)).toMatchObject({ nombre: 'Cuota moto', monto: 500_000, diaVence: 15, tipo: 'CREDITO', categoriaId: 'cat-creditos' });
+    // Sin plan en el mes en curso no se crea ninguno.
+    const enero = agregarCredito(semilla(), { ...datos, fecha: '2027-01-10' });
+    expect(enero.planes.length).toBe(semilla().planes.length);
+    expect(() => agregarCredito(semilla(), { ...datos, totalOriginal: 10_000_000 })).toThrow(ReglaError);
+    expect(() => agregarCredito(semilla(), { ...datos, cuota: 0 })).toThrow(ReglaError);
+    expect(() => agregarCredito(semilla(), { ...datos, nombre: ' ' })).toThrow(ReglaError);
+    expect(() => agregarCredito(semilla(), { ...datos, diaPago: 32 })).toThrow(ReglaError);
+  });
+
+  it('agregar credito con el mes cerrado no toca el plan', () => {
+    const base = semilla();
+    const cerrado = { ...base, planes: base.planes.map((p) => (p.ref.mes === 10 ? { ...p, estado: 'CERRADO' as const } : p)) };
+    const s = agregarCredito(cerrado, { nombre: 'Moto', entidad: '', saldo: 1_000_000, totalOriginal: 1_000_000, cuota: 100_000, tasaEM: 0, diaPago: 5, fecha: HOY });
+    expect(planDe(s, OCT)!.escenarios.flatMap((e) => e.items).some((i) => i.nombre === 'Cuota moto')).toBe(false);
   });
 
   it('probarlo como opcion crea un escenario con el abono', () => {

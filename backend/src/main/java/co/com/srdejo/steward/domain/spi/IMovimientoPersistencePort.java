@@ -1,5 +1,6 @@
 package co.com.srdejo.steward.domain.spi;
 
+import co.com.srdejo.steward.domain.model.Cuenta;
 import co.com.srdejo.steward.domain.model.Movimiento;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -29,10 +30,22 @@ public interface IMovimientoPersistencePort {
      */
     Mono<Movimiento> registrar(Movimiento movimiento);
 
+    /**
+     * Saldo estimado de la cuenta, como {@code saldoEstimado} del dominio: su ultimo cuadre mas el efecto de lo registrado
+     * despues, y el orden del ultimo movimiento del hogar que se miro (el {@code seqCuadre} de un cuadre ahora).
+     */
+    Mono<Saldo> saldoEstimado(Cuenta cuenta);
+
+    /** Los ultimos movimientos de cada credito del hogar (cuotas y abonos), del mas reciente al mas antiguo. */
+    Flux<Movimiento> ultimosDeCreditos(UUID hogarId, int porCredito);
+
     /** Los movimientos del mes, con {@code diezmoDe} lleno en las entregas, en orden de registro. */
     Flux<Movimiento> delMes(UUID hogarId, YearMonth mes);
 
-    /** Los movimientos desde ese mes en adelante, en orden de registro. */
+    /**
+     * Los movimientos desde ese mes en adelante, mas los de antes que todavia cuentan en el saldo estimado de alguna cuenta
+     * del hogar, en orden de registro.
+     */
     Flux<Movimiento> desde(UUID hogarId, YearMonth desde);
 
     /** El PAGO de ese item en ese mes, si ya lo hay. */
@@ -40,4 +53,7 @@ public interface IMovimientoPersistencePort {
 
     /** Si el item tiene pagos o gastos (cualquier mes). */
     Mono<Boolean> hayDeItem(UUID itemId);
+
+    record Saldo(long saldo, long ultimoSeq) {
+    }
 }

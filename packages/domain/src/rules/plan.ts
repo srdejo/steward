@@ -2,6 +2,7 @@ import type { Escenario, EstadoHogar, EstadoMes, Fecha, Id, ItemPlan, MesRef, Pe
 import { formatCop, nombreMes } from '../format';
 import { libreAnualDelMes } from './anual';
 import { ReglaError, clonar, compararMes, mesDe, nuevoId, sumar, sumarMeses } from './base';
+import { cuotasDeCreditos } from './credito';
 import { anualDe, categoria, cierreDe, escenario, escenarioPrincipal, nombreUsuario, opciones, planDe, planPorId } from './consultas';
 import { diezmoPlaneado, ingresosDelMes, totalIngresos, type LineaIngreso } from './ingresos';
 
@@ -37,6 +38,9 @@ export function crearMes(estado: EstadoHogar, datos: { ref: MesRef; modo: ModoNu
   let items: ItemPlan[] = [];
   if (datos.modo === 'COPIAR') items = copiarItems(s, base, true);
   if (datos.modo === 'FIJOS') items = copiarItems(s, base, true).map((i) => (i.tipo === 'VARIABLE' ? { ...i, monto: 0 } : i));
+  // Los creditos con saldo traen su cuota en los tres modos; la de un credito ya pagado no se copia.
+  const pagados = new Set(s.creditos.filter((c) => c.saldo <= 0).map((c) => c.id));
+  items = cuotasDeCreditos(s, items.filter((i) => !i.creditoId || !pagados.has(i.creditoId)));
   const id = nuevoId(s, 'plan');
   s.planes.push({
     id, ref: datos.ref, estado: 'BORRADOR', escenarioActivoId: null,

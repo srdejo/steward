@@ -34,11 +34,12 @@ public final class PlanDtos {
     public record CuotaDto(int actual, int total) {
     }
 
-    public record ItemRequest(UUID categoriaId, String nombre, long monto, Integer diaVence, String tipo, CuotaDto cuota) {
+    public record ItemRequest(UUID categoriaId, String nombre, long monto, Integer diaVence, String tipo, CuotaDto cuota,
+                              UUID creditoId) {
 
         public DatosItem datos() {
             return new DatosItem(categoriaId, nombre, monto, diaVence, tipo, cuota == null ? null : cuota.actual(),
-                    cuota == null ? null : cuota.total());
+                    cuota == null ? null : cuota.total(), creditoId);
         }
     }
 
@@ -50,11 +51,11 @@ public final class PlanDtos {
     }
 
     public record ItemResponse(UUID id, UUID categoriaId, String nombre, long monto, Integer diaVence, String tipo,
-                               CuotaDto cuota) {
+                               CuotaDto cuota, UUID creditoId) {
 
         public static ItemResponse de(ItemPlan i) {
             return new ItemResponse(i.id(), i.categoriaId(), i.nombre(), i.monto(), i.diaVence(), i.tipo().name(),
-                    i.cuotaActual() == null ? null : new CuotaDto(i.cuotaActual(), i.cuotaTotal()));
+                    i.cuotaActual() == null ? null : new CuotaDto(i.cuotaActual(), i.cuotaTotal()), i.creditoId());
         }
     }
 
