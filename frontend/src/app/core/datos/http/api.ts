@@ -57,6 +57,72 @@ export interface InvitacionRecibidaApi {
   email: string;
 }
 
+export interface MesApi {
+  anio: number;
+  mes: number;
+}
+
+export interface IngresoFijoApi {
+  id: string;
+  usuarioId: string;
+  nombre: string;
+  bruto: number;
+  neto: number;
+  diaPago: number;
+  cuentaId: string | null;
+  activo: boolean;
+}
+
+export interface ReglaDiezmoApi {
+  usuarioId: string;
+  activa: boolean;
+  porcentaje: number;
+  base: 'BRUTO' | 'NETO';
+  aplicaAportes: boolean;
+}
+
+export interface CuentaApi {
+  id: string;
+  nombre: string;
+  titularId: string | null;
+  saldoCuadre: number;
+  fechaCuadre: string;
+  cuadrada: boolean;
+}
+
+export interface MovimientoApi {
+  id: string;
+  tipo: 'INGRESO_FIJO' | 'DIEZMO_ENTREGADO';
+  ref: MesApi;
+  monto: number;
+  fecha: string;
+  usuarioId: string;
+  creadoPor: string;
+  cuentaId: string | null;
+  ingresoFijoId: string | null;
+  bruto: number | null;
+  aplicaDiezmo: boolean;
+  diezmoDe: string[];
+}
+
+/** Lo que la PWA superpone a sus datos de prueba (design D5 de backend-ingresos-diezmo). */
+export interface FinanzasApi {
+  mes: MesApi;
+  diezmoEnHoy: 'SEPARADO' | 'AGRUPADO';
+  ingresosFijos: IngresoFijoApi[];
+  reglas: ReglaDiezmoApi[];
+  cuentas: CuentaApi[];
+  movimientos: MovimientoApi[];
+}
+
+export interface IngresoFijoRequest {
+  nombre: string;
+  bruto: number;
+  neto: number;
+  diaPago: number;
+  cuentaId: string | null;
+}
+
 /**
  * Cliente del backend. Convierte los errores HTTP en ReglaError con el `codigo` y el `mensaje` de la API, para que
  * las pantallas los muestren igual que los del adaptador de prueba.
@@ -133,6 +199,44 @@ export class Api {
 
   aceptar(token: string, nombre: string, diezmoAportes: boolean): Promise<SesionApi> {
     return this.pedir(this.http.post<SesionApi>(`/api/invitaciones/${encodeURIComponent(token)}/aceptar`, { nombre, diezmoAportes }));
+  }
+
+  // --- Finanzas (spec steward-finanzas) ---
+
+  finanzas(): Promise<FinanzasApi> {
+    return this.pedir(this.http.get<FinanzasApi>('/api/finanzas'));
+  }
+
+  guardarRegla(regla: Omit<ReglaDiezmoApi, 'usuarioId'>): Promise<ReglaDiezmoApi> {
+    return this.pedir(this.http.put<ReglaDiezmoApi>('/api/regla-diezmo', regla));
+  }
+
+  crearIngreso(datos: IngresoFijoRequest): Promise<IngresoFijoApi> {
+    return this.pedir(this.http.post<IngresoFijoApi>('/api/ingresos-fijos', datos));
+  }
+
+  editarIngreso(id: string, datos: IngresoFijoRequest): Promise<IngresoFijoApi> {
+    return this.pedir(this.http.put<IngresoFijoApi>(`/api/ingresos-fijos/${encodeURIComponent(id)}`, datos));
+  }
+
+  quitarIngreso(id: string): Promise<void> {
+    return this.pedir(this.http.delete<void>(`/api/ingresos-fijos/${encodeURIComponent(id)}`));
+  }
+
+  recibido(ingresoId: string): Promise<MovimientoApi> {
+    return this.pedir(this.http.post<MovimientoApi>(`/api/ingresos-fijos/${encodeURIComponent(ingresoId)}/recibido`, null));
+  }
+
+  entregarDiezmo(obligaciones: string[], cuentaId: string | null): Promise<MovimientoApi> {
+    return this.pedir(this.http.post<MovimientoApi>('/api/diezmo/entregas', { obligaciones, cuentaId }));
+  }
+
+  definirDiezmoEnHoy(modo: 'SEPARADO' | 'AGRUPADO'): Promise<void> {
+    return this.pedir(this.http.put<void>('/api/hogar/diezmo-en-hoy', { modo }));
+  }
+
+  crearCuenta(nombre: string, titular: 'YO' | 'CONJUNTA', saldo: number): Promise<CuentaApi> {
+    return this.pedir(this.http.post<CuentaApi>('/api/cuentas', { nombre, titular, saldo }));
   }
 
   private async pedir<T>(peticion: Observable<T>): Promise<T> {

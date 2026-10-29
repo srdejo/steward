@@ -109,4 +109,18 @@ describe('adaptador demo (steward-ui-shell: modo demo)', () => {
     const recargado = crearAdaptadorDemo({ storage, ahora, titular });
     expect((await recargado.sesion.actual())?.usuario.inicial).toBe('A');
   });
+
+  it('superponer: los datos reales se ven en las vistas y nunca se guardan (modo conectado)', async () => {
+    const storage = storageEnMemoria();
+    const real = { id: 'ing-real', usuarioId: 'u-daniel', nombre: 'Salario real', bruto: 1_000_000, neto: 1_000_000, diaPago: 30, cuentaId: null, activo: true };
+    const p = crearAdaptadorDemo({ storage, ahora, superponer: (s) => ({ ...s, ingresosFijos: [...s.ingresosFijos, real] }) });
+    await p.sesion.iniciar('GOOGLE');
+
+    expect((await p.movimientos.resumenMes(OCT)).ingresos.map((l) => l.nombre)).toContain('Salario real');
+    expect((await p.ingresos.fijos()).map((f) => f.id)).toContain('ing-real');
+    // Un cambio del adaptador se aplica sobre el estado de prueba: lo real no llega al storage.
+    await p.movimientos.registrarGasto({ monto: 85_000, itemId: null, nota: 'Farmacia', usuarioId: 'u-daniel', origen: { tipo: 'NINGUNO' }, ref: OCT });
+    expect(storage.datos[CLAVE_ESTADO]).toContain('Farmacia');
+    expect(storage.datos[CLAVE_ESTADO]).not.toContain('Salario real');
+  });
 });

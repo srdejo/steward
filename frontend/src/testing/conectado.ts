@@ -1,11 +1,13 @@
-import { provideHttpClient, withInterceptors } from '@angular/common/http';
+import { HttpResponse, provideHttpClient, withInterceptors, type HttpInterceptorFn } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting, type TestRequest } from '@angular/common/http/testing';
 import type { EnvironmentProviders, Provider } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, withComponentInputBinding } from '@angular/router';
 import { storageEnMemoria } from '@steward/domain/demo';
+import { of } from 'rxjs';
 
 import { routes } from '../app/app.routes';
+import type { FinanzasApi } from '../app/core/datos/http/api';
 import { authInterceptor } from '../app/core/datos/http/auth.interceptor';
 import { providePuertosConectados } from '../app/core/datos/puertos';
 import { GOOGLE_IDENTITY_LOADER, type GoogleAccountsId } from '../app/core/sesion/google-identity';
@@ -32,11 +34,28 @@ export class GoogleDePrueba implements GoogleAccountsId {
   }
 }
 
+/** Finanzas sin nada, del mes de AHORA (octubre 2026). */
+export function finanzasVacias(): FinanzasApi {
+  return { mes: { anio: 2026, mes: 10 }, diezmoEnHoy: 'SEPARADO', ingresosFijos: [], reglas: [], cuentas: [], movimientos: [] };
+}
+
+/**
+ * Lo que responde `GET /api/finanzas`. La app la relee al iniciar sesion y tras cada escritura real, asi que los tests
+ * la dejan como quedaria en el backend antes de responder la escritura. Las escrituras si pasan por HttpTestingController.
+ */
+export const finanzasPrueba: { valor: FinanzasApi } = { valor: finanzasVacias() };
+
+const finanzasDePrueba: HttpInterceptorFn = (req, next) =>
+  req.method === 'GET' && req.url === '/api/finanzas'
+    ? of(new HttpResponse({ status: 200, body: structuredClone(finanzasPrueba.valor) }))
+    : next(req);
+
 /** La app en modo conectado: HTTP de prueba, Google de prueba y los datos de prueba en memoria. */
 export function provideConectadoPrueba(google = new GoogleDePrueba()): (EnvironmentProviders | Provider)[] {
+  finanzasPrueba.valor = finanzasVacias();
   return [
     provideRouter(routes, withComponentInputBinding()),
-    provideHttpClient(withInterceptors([authInterceptor])),
+    provideHttpClient(withInterceptors([authInterceptor, finanzasDePrueba])),
     provideHttpClientTesting(),
     providePuertosConectados({ storage: storageEnMemoria(), ahora: AHORA }),
     { provide: GOOGLE_IDENTITY_LOADER, useValue: () => Promise.resolve(google) },

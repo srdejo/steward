@@ -1,6 +1,8 @@
 import type {
+  CuentasPort,
   Fecha,
   HogarPort,
+  IngresosPort,
   Invitacion,
   InvitacionRecibida,
   Preferencias,
@@ -19,9 +21,12 @@ import {
   type HogarApi,
   type InvitacionApi,
   type InvitacionEnviadaApi,
+  type FinanzasApi,
   type InvitacionRecibidaApi,
   type SesionApi,
+  type UsuarioApi,
 } from './api';
+import { ingresoFijo, regla, superponerFinanzas } from './superposicion';
 import type { TokenSesion } from './token-sesion';
 
 /** Lo que agrega el modo conectado a la invitacion: si el correo salio y el enlace para copiar (spec "Correo caido"). */
@@ -43,9 +48,14 @@ interface Dependencias {
 }
 
 /**
- * Puertos del modo conectado (design D9): sesion, hogar, miembros e invitaciones del backend; ingresos, plan,
- * movimientos, cuentas, cierre, categorias y "Diezmo en Hoy" del adaptador de prueba, con la persona real como
- * titular. El adaptador de prueba se rehace cuando cambia el usuario, asi que los modulos se leen con getters.
+ * Puertos del modo conectado (design D9 de backend-acceso-hogar y D5 de backend-ingresos-diezmo):
+ * - del backend: sesion, hogar, miembros, invitaciones, ingresos fijos, regla de diezmo, "Recibi", "Entregado",
+ *   "Diezmo en Hoy" y las cuentas;
+ * - del adaptador de prueba, con la persona real como titular: plan, pagos, gastos, aportes, creditos y cierre.
+ *
+ * Las finanzas reales se superponen al estado de prueba en cada lectura, asi que Hoy, Planear y Cuentas calculan con las
+ * reglas del dominio sobre datos mezclados. El adaptador de prueba se rehace cuando cambia el usuario, asi que los
+ * modulos que siguen en el se leen con getters.
  */
 export class PuertosConectados implements Puertos {
   private demoActual: Puertos;
@@ -53,28 +63,30 @@ export class PuertosConectados implements Puertos {
   private dejarDemo: () => void;
   private readonly oyentes = new Set<() => void>();
   private preferenciasLocales: Preferencias = { faceIdAlAbrir: false, ocultarMontos: false };
+  /** Lo ultimo leido de `GET /api/finanzas`; null sin sesion o sin hogar. */
+  private finanzas: FinanzasApi | null = null;
+  /** Nombres de los miembros reales (titulares de cuentas), de la ultima lectura del hogar. */
+  private miembrosReales: UsuarioApi[] = [];
 
   readonly sesion: SesionPort;
   readonly hogar: HogarPort;
+  readonly ingresos: IngresosPort;
+  readonly cuentas: CuentasPort;
 
   constructor(private readonly d: Dependencias) {
     this.demoActual = this.nuevoDemo(null);
     this.dejarDemo = this.demoActual.suscribir(() => this.avisar());
     this.sesion = this.crearSesion();
     this.hogar = this.crearHogar();
+    this.ingresos = this.crearIngresos();
+    this.cuentas = this.crearCuentas();
   }
 
-  get ingresos() {
-    return this.demoActual.ingresos;
-  }
   get movimientos() {
     return this.demoActual.movimientos;
   }
   get plan() {
     return this.demoActual.plan;
-  }
-  get cuentas() {
-    return this.demoActual.cuentas;
   }
   get cierre() {
     return this.demoActual.cierre;
@@ -114,8 +126,23 @@ export class PuertosConectados implements Puertos {
 
   async aceptarMia(id: string, nombre: string, diezmoAportes: boolean): Promise<Sesion> {
     const s = await this.d.api.aceptarMia(id, nombre, diezmoAportes);
-    this.avisar();
+    await this.recargarFinanzas();
     return this.aSesion(s);
+  }
+
+  /** Relee las finanzas reales y avisa a las pantallas. Sin sesion o sin hogar, no hay nada que superponer. */
+  private async recargarFinanzas(): Promise<void> {
+    if (!this.d.tokens.leer()) {
+      this.finanzas = null;
+    } else {
+      try {
+        this.finanzas = await this.d.api.finanzas();
+      } catch (e) {
+        if (!(e instanceof ReglaError && e.codigo === 'SIN_HOGAR')) throw e;
+        this.finanzas = null;
+      }
+    }
+    this.avisar();
   }
 
   private async conSesionNueva(s: SesionApi): Promise<ResultadoLogin> {
@@ -132,6 +159,7 @@ export class PuertosConectados implements Puertos {
       storage: this.d.storage,
       ahora: this.d.ahora,
       titular: titular ? { nombre: titular.nombre, email: titular.email, inicial: titular.inicial } : undefined,
+      superponer: (s) => (this.finanzas ? superponerFinanzas(s, this.finanzas, this.miembrosReales) : s),
     });
   }
 
@@ -144,7 +172,9 @@ export class PuertosConectados implements Puertos {
       this.demoActual = this.nuevoDemo(usuario);
       this.dejarDemo = this.demoActual.suscribir(() => this.avisar());
       this.preferenciasLocales = (await this.demoActual.sesion.actual())?.preferencias ?? this.preferenciasLocales;
-      this.avisar();
+      this.miembrosReales = [s.usuario];
+      // Las pantallas no calculan con datos mezclados hasta tener las finanzas reales de esta persona.
+      await this.recargarFinanzas().catch(() => this.avisar());
     }
     return { usuario, hogarConfigurado: s.hogarConfigurado, preferencias: this.preferenciasLocales };
   }
@@ -168,6 +198,7 @@ export class PuertosConectados implements Puertos {
       },
       cerrar: async () => {
         this.d.tokens.borrar();
+        this.finanzas = null;
         this.avisar();
       },
       // Face ID y "Ocultar montos" son del dispositivo: se guardan con el adaptador de prueba.
@@ -183,6 +214,12 @@ export class PuertosConectados implements Puertos {
     const conAviso = async <T>(accion: Promise<T>): Promise<T> => {
       const r = await accion;
       this.avisar();
+      return r;
+    };
+    // Crear el hogar, unirse o salir cambian las finanzas que se superponen.
+    const conFinanzas = async <T>(accion: Promise<T>): Promise<T> => {
+      const r = await accion;
+      await this.recargarFinanzas();
       return r;
     };
     return {
@@ -204,7 +241,7 @@ export class PuertosConectados implements Puertos {
           await conAviso(api.renombrarHogar(nombre));
         } catch (e) {
           if (!(e instanceof ReglaError && e.codigo === 'SIN_HOGAR')) throw e;
-          await conAviso(api.crearHogar(nombre));
+          await conFinanzas(api.crearHogar(nombre));
         }
       },
       completarOnboarding: async () => {
@@ -224,21 +261,101 @@ export class PuertosConectados implements Puertos {
         }
       },
       aceptar: async (token, nombre, diezmoAportes) => {
-        const s = await conAviso(api.aceptar(token, nombre, diezmoAportes));
+        const s = await conFinanzas(api.aceptar(token, nombre, diezmoAportes));
         return this.aSesion(s);
       },
       salir: async () => {
-        await conAviso(api.salir());
+        await conFinanzas(api.salir());
       },
       categorias: () => this.demoActual.hogar.categorias(),
       guardarCategoria: (datos) => this.demoActual.hogar.guardarCategoria(datos),
-      definirDiezmoEnHoy: (modo) => this.demoActual.hogar.definirDiezmoEnHoy(modo),
+      definirDiezmoEnHoy: async (modo) => {
+        await conFinanzas(api.definirDiezmoEnHoy(modo));
+      },
     };
   }
 
+  /** Ingresos fijos, regla, "Recibi" y "Entregado" en el backend; los aportes siguen en el adaptador de prueba (Etapa 4). */
+  private crearIngresos(): IngresosPort {
+    const api = this.d.api;
+    const escribir = async (accion: Promise<unknown>): Promise<void> => {
+      await accion;
+      await this.recargarFinanzas();
+    };
+    return {
+      fijos: async (todos = false) =>
+        (this.finanzas?.ingresosFijos ?? []).filter((f) => f.activo && (todos || f.usuarioId === this.titularId)).map(ingresoFijo),
+      guardarFijo: (datos) => {
+        const cuerpo = { nombre: datos.nombre, bruto: datos.bruto, neto: datos.neto, diaPago: datos.diaPago, cuentaId: datos.cuentaId };
+        return escribir(datos.id ? api.editarIngreso(datos.id, cuerpo) : api.crearIngreso(cuerpo));
+      },
+      quitarFijo: (id) => escribir(api.quitarIngreso(id)),
+      regla: async () => {
+        const r = this.finanzas?.reglas.find((x) => x.usuarioId === this.titularId);
+        return r ? regla(r) : null;
+      },
+      guardarRegla: (datos) => escribir(api.guardarRegla(datos)),
+      marcarRecibido: async (ingresoFijoId, ref) => {
+        this.mesDelBackend(ref);
+        try {
+          await escribir(api.recibido(ingresoFijoId));
+        } catch (e) {
+          // Ya estaba recibido (otro miembro, otra pestana): se muestra el mensaje con el ingreso ya como recibido.
+          if (e instanceof ReglaError && e.codigo === 'YA_RECIBIDO') await this.recargarFinanzas();
+          throw e;
+        }
+      },
+      registrarAporte: (datos) => this.demoActual.ingresos.registrarAporte(datos),
+      entregarDiezmo: async (obligaciones, ref, cuentaId) => {
+        // Las obligaciones de ingresos recibidos son reales; las de aportes, todavia de prueba.
+        const reales = new Set((this.finanzas?.movimientos ?? []).map((m) => m.id));
+        const delBackend = obligaciones.filter((id) => reales.has(id));
+        const dePrueba = obligaciones.filter((id) => !reales.has(id));
+        if (delBackend.length) {
+          this.mesDelBackend(ref);
+          const cuentaReal = cuentaId && this.finanzas?.cuentas.some((c) => c.id === cuentaId) ? cuentaId : null;
+          await escribir(api.entregarDiezmo(delBackend, cuentaReal));
+        }
+        if (dePrueba.length) await this.demoActual.ingresos.entregarDiezmo(dePrueba, ref, cuentaId);
+      },
+    };
+  }
+
+  /** Cuentas reales; cuadrar y mover llegan en la Etapa 5, y los creditos siguen de prueba. */
+  private crearCuentas(): CuentasPort {
+    const etapa5 = () => Promise.reject(new ReglaError('ETAPA_5', 'Cuadrar y mover dinero llegan en una próxima versión.'));
+    return {
+      cuentas: (filtro) => this.demoActual.cuentas.cuentas(filtro),
+      agregar: async (datos) => {
+        if (datos.titularId !== null && datos.titularId !== this.titularId) {
+          throw new ReglaError('SOLO_TUYAS', 'Solo puedes agregar cuentas a tu nombre o conjuntas.');
+        }
+        await this.d.api.crearCuenta(datos.nombre, datos.titularId === null ? 'CONJUNTA' : 'YO', datos.saldo);
+        await this.recargarFinanzas();
+      },
+      mover: etapa5,
+      diferencia: (cuentaId, saldoBanco) => this.demoActual.cuentas.diferencia(cuentaId, saldoBanco),
+      cuadrar: etapa5,
+      creditos: () => this.demoActual.cuentas.creditos(),
+      credito: (id) => this.demoActual.cuentas.credito(id),
+      actualizarSaldo: (id, saldo) => this.demoActual.cuentas.actualizarSaldo(id, saldo),
+      registrarAbono: (id, monto, origen) => this.demoActual.cuentas.registrarAbono(id, monto, origen),
+      simular: (id, abono) => this.demoActual.cuentas.simular(id, abono),
+      probarComoOpcion: (id, ref, abono) => this.demoActual.cuentas.probarComoOpcion(id, ref, abono),
+    };
+  }
+
+  /** "Recibi" y "Entregado" son del mes en curso del backend (design D4). */
+  private mesDelBackend(ref: { anio: number; mes: number }): void {
+    const mes = this.finanzas?.mes;
+    if (mes && (mes.anio !== ref.anio || mes.mes !== ref.mes)) {
+      throw new ReglaError('MES_NO_DISPONIBLE', 'Solo se puede registrar en el mes en curso.');
+    }
+  }
+
   private async vista(h: HogarApi): Promise<VistaHogar> {
-    // "Diezmo en Hoy" sigue en el adaptador de prueba hasta la Etapa 3.
-    const diezmoEnHoy = (await this.demoActual.hogar.obtener()).hogar.diezmoEnHoy;
+    if (h.miembros.length) this.miembrosReales = h.miembros.map((m) => m.usuario);
+    const diezmoEnHoy = this.finanzas?.diezmoEnHoy ?? 'SEPARADO';
     const invitaciones = h.invitaciones.map(invitacion);
     return {
       hogar: {

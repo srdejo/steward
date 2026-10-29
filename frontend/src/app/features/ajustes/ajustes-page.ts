@@ -16,7 +16,8 @@ import { Segmentado, type Opcion } from '../../shared/components/segmentado';
 
 type Dialogo =
   | { tipo: 'invitar' }
-  | { tipo: 'ingreso'; ingreso: IngresoFijo }
+  /** `ingreso` null: "+ Agregar ingreso fijo", para quien no lo configuro en el onboarding. */
+  | { tipo: 'ingreso'; ingreso: IngresoFijo | null }
   | { tipo: 'aportes' }
   | { tipo: 'categoria'; categoria: Categoria | null }
   | { tipo: 'confirmar'; accion: 'salir' | 'restablecer' | 'desde-cero' };
@@ -72,6 +73,7 @@ const CONFIRMACIONES = {
             <span class="text-[13px]"><app-monto [valor]="f.neto" /> ›</span>
           </button>
         }
+        <button type="button" class="h-[46px] text-left text-sm font-semibold text-acento" (click)="abrir({ tipo: 'ingreso', ingreso: null })">+ Agregar ingreso fijo</button>
         <button type="button" class="flex items-center justify-between gap-3 py-3 text-left" (click)="abrir({ tipo: 'aportes' })">
           <span class="flex flex-col gap-0.5"><span class="text-[15px]">Aportes variables</span><span class="text-xs text-diezmo">Contratos, negocio · {{ textoDiezmoAportes() }}</span></span>
           <span class="text-[13px] text-secundario">Editar ›</span>
@@ -146,10 +148,10 @@ const CONFIRMACIONES = {
           </app-hoja>
         }
         @case ('ingreso') {
-          <app-hoja [titulo]="'Editar ' + d.ingreso.nombre" (cerrar)="cerrar()">
+          <app-hoja [titulo]="d.ingreso ? 'Editar ' + d.ingreso.nombre : 'Nuevo ingreso fijo'" (cerrar)="cerrar()">
             <label class="flex flex-col gap-2">
               <span class="rotulo">Nombre</span>
-              <input class="campo" [value]="texto()" (input)="texto.set($any($event.target).value)" />
+              <input class="campo" placeholder="Ej: Salario" [value]="texto()" (input)="texto.set($any($event.target).value)" />
             </label>
             <div class="grid grid-cols-2 gap-2.5">
               <app-monto-input etiqueta="Bruto" [(valor)]="bruto" />
@@ -159,7 +161,7 @@ const CONFIRMACIONES = {
               <span class="rotulo">Día de pago</span>
               <input class="campo" inputmode="numeric" [value]="dia()" (input)="dia.set(+$any($event.target).value.replace(/\\D/g, '') || 1)" />
             </label>
-            <ng-container [ngTemplateOutlet]="pie" [ngTemplateOutletContext]="{ boton: 'Guardar', listo: !!texto().trim() && !!neto() }" />
+            <ng-container [ngTemplateOutlet]="pie" [ngTemplateOutletContext]="{ boton: d.ingreso ? 'Guardar' : 'Agregar ingreso', listo: !!texto().trim() && !!neto() }" />
           </app-hoja>
         }
         @case ('aportes') {
@@ -260,10 +262,10 @@ export class AjustesPage {
     this.mensaje.set('');
     this.texto.set('');
     if (d.tipo === 'ingreso') {
-      this.texto.set(d.ingreso.nombre);
-      this.bruto.set(d.ingreso.bruto);
-      this.neto.set(d.ingreso.neto);
-      this.dia.set(d.ingreso.diaPago);
+      this.texto.set(d.ingreso?.nombre ?? '');
+      this.bruto.set(d.ingreso?.bruto ?? null);
+      this.neto.set(d.ingreso?.neto ?? null);
+      this.dia.set(d.ingreso?.diaPago ?? 1);
     }
     if (d.tipo === 'categoria' && d.categoria) this.texto.set(d.categoria.nombre);
     if (d.tipo === 'aportes') {
@@ -304,7 +306,7 @@ export class AjustesPage {
           this.mensaje.set(`Invitación enviada a ${this.texto().trim()}.`);
           break;
         case 'ingreso':
-          await this.puertos.ingresos.guardarFijo({ id: d.ingreso.id, nombre: this.texto(), bruto: this.bruto() ?? this.neto()!, neto: this.neto()!, diaPago: this.dia(), cuentaId: d.ingreso.cuentaId });
+          await this.puertos.ingresos.guardarFijo({ id: d.ingreso?.id, nombre: this.texto(), bruto: this.bruto() ?? this.neto()!, neto: this.neto()!, diaPago: this.dia(), cuentaId: d.ingreso?.cuentaId ?? null });
           break;
         case 'aportes':
           await this.puertos.ingresos.guardarRegla({ activa: this.reglaActiva(), porcentaje: this.porcentaje() || 10, base: this.base() ?? 'BRUTO', aplicaAportes: this.reglaActiva() && this.aplicaAportes() });

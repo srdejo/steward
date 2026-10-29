@@ -93,7 +93,9 @@ En la PWA, el adaptador sigue recibiendo `ref` por el puerto. Si no es el mes de
    - `ingresosFijos`, `reglas` y `cuentas`;
    - `hogar.diezmoEnHoy`;
    - los movimientos INGRESO_FIJO y DIEZMO_ENTREGADO, con los del backend del mes en curso.
-3. Traduce los ids de usuario. El de la sesión pasa a ser `DANIEL`, porque el plan de prueba está a su nombre. Los demás miembros reales entran a `usuarios` con su id y su nombre.
+3. Conserva los ids reales. Los miembros reales entran a `usuarios` con su id y su nombre, tomados de la última lectura del hogar.
+   - No se traducen a `DANIEL`: desde la Etapa 2, las hojas de Hoy ya registran pagos, gastos y aportes con el id real de la sesión.
+   - Los ingresos, las reglas y las cuentas reales usan el `titularId` real, y los puertos `ingresos.fijos()` y `regla()` filtran con él.
 4. Les pone a los movimientos reales una secuencia mayor que la de las cuentas reales, para que el saldo estimado (aproximado + movimientos posteriores) salga con las reglas del dominio.
 
 `ingresos` y `cuentas` dejan de ser getters al demo:

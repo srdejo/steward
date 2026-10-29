@@ -43,21 +43,21 @@
 
 ## 4. PWA: superposición y puertos conectados
 
-- [ ] 4.1 `packages/domain`: opción `superponer` en `crearAdaptadorDemo`, aplicada en cada lectura y sin persistir (D5). Verificar:
+- [x] 4.1 `packages/domain`: opción `superponer` en `crearAdaptadorDemo`, aplicada en cada lectura y sin persistir (D5). Verificar:
   - un test de que una superposición que cambia `ingresosFijos` se ve en `resumenMes`, y no queda guardada en el storage;
   - los 42 tests siguen en verde.
-- [ ] 4.2 `api.ts`: tipos y llamadas de finanzas, regla, ingresos, recibido, pendientes, entregas, diezmo en Hoy y cuentas, con `aReglaError` para los códigos nuevos. `PuertosConectados`:
+- [x] 4.2 `api.ts`: tipos y llamadas de finanzas, regla, ingresos, recibido, pendientes, entregas, diezmo en Hoy y cuentas, con `aReglaError` para los códigos nuevos. `PuertosConectados`:
   - lee y guarda las finanzas al iniciar la sesión y después de cada escritura;
   - arma la superposición con la traducción de ids (el usuario de la sesión pasa a `DANIEL`) y la secuencia de los movimientos reales;
   - conecta `ingresos` y `cuentas` y `hogar.definirDiezmoEnHoy` según la tabla de D5.
   
   Verificar: tests en `conectado.spec.ts` para recibir, entregar, guardar regla e ingreso, agregar cuenta, `ETAPA_5` en cuadrar y mover, y aportes que siguen locales.
-- [ ] 4.3 Pantallas:
+- [x] 4.3 Pantallas:
   - en Cuentas, en modo conectado, "Cuadrar cuentas" y "Mover dinero" muestran que llegan en una próxima versión sin cambiar nada;
   - en Ajustes, "+ Agregar ingreso fijo", con la misma hoja de edición que un ingreso existente, y "Restablecer datos de prueba" no toca los datos reales.
   
   Verificar: tests de Cuentas (aviso), Ajustes (agregar ingreso, en demo y en conectado) y ui-shell ("Restablecer en modo conectado").
-- [ ] 4.4 Recorridos conectados en los tests de la PWA, con el backend simulado:
+- [x] 4.4 Recorridos conectados en los tests de la PWA, con el backend simulado:
   - onboarding 1 a 5, con "Pasos 2 a 4 en el backend" y "Volver al paso 3";
   - Hoy con "Salario recibido", "Entregado" y `YA_RECIBIDO`;
   - Ajustes con "Editar el salario en modo conectado".

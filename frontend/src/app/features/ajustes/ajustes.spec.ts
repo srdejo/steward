@@ -32,6 +32,21 @@ describe('Ajustes (steward-ajustes)', () => {
     expect(tarjetas[0]!.textContent).toContain('2 ingresos recibidos');
   });
 
+  it('+ Agregar ingreso fijo: lo crea y Hoy lo muestra por recibir', async () => {
+    await conSesion();
+    const a = await app('/ajustes');
+    await a.tocar('+ Agregar ingreso fijo');
+    expect(a.texto()).toContain('Nuevo ingreso fijo');
+    await a.escribir('Nombre', 'Prima');
+    await a.escribir('Entra (neto)', '1000000');
+    await a.escribir('Día de pago', '30');
+    await a.tocar('Agregar ingreso');
+    expect(a.texto()).toContain('Prima Fijo · diezmo 10% del bruto $1.000.000 ›');
+    await a.ir('/hoy');
+    expect(a.texto()).toContain('Prima');
+    expect(a.texto()).toContain('llega el día 30');
+  });
+
   it('una categoría nueva queda disponible al agregar gastos al plan', async () => {
     await conSesion();
     const a = await app('/ajustes');

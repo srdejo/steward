@@ -3,7 +3,7 @@ import { RouterLink } from '@angular/router';
 import { formatCop, formatTasa, sumar, type FiltroTitular, type Id } from '@steward/domain';
 
 import { consulta, mensajeDeError } from '../../core/datos/consulta';
-import { PUERTOS } from '../../core/datos/puertos';
+import { PUERTOS, puertosConectados } from '../../core/datos/puertos';
 import { MiembrosHogar } from '../../core/layout/miembros';
 import { Fila } from '../../shared/components/fila';
 import { Hoja } from '../../shared/components/hoja';
@@ -28,9 +28,18 @@ const CONJUNTA = '__conjunta__';
       </div>
 
       <div class="grid grid-cols-2 gap-2">
-        <a routerLink="/cuentas/cuadrar" class="boton h-[46px] rounded-xl bg-acento text-sm text-white">Cuadrar cuentas</a>
-        <button type="button" class="boton h-[46px] rounded-xl border border-[#D9D8D2] bg-superficie text-sm" (click)="hoja.set('mover')">Mover dinero</button>
+        @if (conectado) {
+          <!-- Modo conectado: las cuentas son reales y cuadrar y mover llegan en la Etapa 5 (spec steward-cuentas). -->
+          <button type="button" class="boton h-[46px] rounded-xl bg-acento text-sm text-white" (click)="pronto.set(true)">Cuadrar cuentas</button>
+          <button type="button" class="boton h-[46px] rounded-xl border border-[#D9D8D2] bg-superficie text-sm" (click)="pronto.set(true)">Mover dinero</button>
+        } @else {
+          <a routerLink="/cuentas/cuadrar" class="boton h-[46px] rounded-xl bg-acento text-sm text-white">Cuadrar cuentas</a>
+          <button type="button" class="boton h-[46px] rounded-xl border border-[#D9D8D2] bg-superficie text-sm" (click)="hoja.set('mover')">Mover dinero</button>
+        }
       </div>
+      @if (pronto()) {
+        <p role="status" class="rounded-xl bg-nota px-4 py-3 text-[13px] text-[#3B3D39]">Cuadrar cuentas y mover dinero llegan en una próxima versión. Por ahora tus cuentas muestran el saldo aproximado.</p>
+      }
 
       <section class="flex flex-col gap-2" aria-labelledby="titulo-cuentas">
         <div class="flex items-center justify-between">
@@ -101,6 +110,8 @@ const CONJUNTA = '__conjunta__';
 export class CuentasPage {
   private readonly puertos = inject(PUERTOS);
   private readonly miembros = inject(MiembrosHogar);
+  protected readonly conectado = puertosConectados(this.puertos) !== null;
+  protected readonly pronto = signal(false);
 
   protected readonly filtro = signal<FiltroTitular>('TODAS');
   protected readonly datos = consulta(() => this.filtro(), (p, f) => p.cuentas.cuentas(f));

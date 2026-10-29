@@ -38,6 +38,12 @@ export interface OpcionesDemo {
    * que todavia usan datos de prueba.
    */
   titular?: Pick<Usuario, 'nombre' | 'email' | 'inicial'>;
+  /**
+   * Modo conectado (design D5 de backend-ingresos-diezmo): reemplaza al leer partes del estado con los datos reales del
+   * backend (ingresos, reglas, cuentas, ingresos recibidos y diezmos entregados). Se aplica en cada lectura y nunca se
+   * guarda: los cambios del adaptador se aplican sobre el estado de prueba sin superponer.
+   */
+  superponer?: (s: EstadoHogar) => EstadoHogar;
 }
 
 function tokenAleatorio(): string {
@@ -96,9 +102,10 @@ export function crearAdaptadorDemo(opciones: OpcionesDemo): Puertos {
     return carga;
   }
 
+  /** El estado que ven las pantallas: el de prueba con los datos reales superpuestos, si los hay. */
   async function leerEstado(): Promise<EstadoHogar> {
     await cargar();
-    return estado!;
+    return opciones.superponer ? opciones.superponer(estado!) : estado!;
   }
 
   function avisar(): void {
@@ -107,8 +114,9 @@ export function crearAdaptadorDemo(opciones: OpcionesDemo): Puertos {
 
   /** Aplica una regla, guarda y avisa. Si la regla lanza, el estado no cambia. */
   async function cambiar(regla: (s: EstadoHogar) => EstadoHogar): Promise<void> {
-    const actual = await leerEstado();
-    estado = regla(actual);
+    await cargar();
+    // Sobre el estado de prueba, sin superponer: lo real nunca se guarda en el dispositivo.
+    estado = regla(estado!);
     await escribir(CLAVE_ESTADO, estado);
     avisar();
   }
@@ -208,7 +216,8 @@ export function crearAdaptadorDemo(opciones: OpcionesDemo): Puertos {
         };
       },
       async aceptar(t, nombre, diezmoAportes) {
-        const s = await leerEstado();
+        await cargar();
+        const s = estado!;
         const r = R.aceptarInvitacion(s, { token: t, nombre, diezmoAportes, fecha: hoy() });
         estado = r.estado;
         await escribir(CLAVE_ESTADO, estado);
