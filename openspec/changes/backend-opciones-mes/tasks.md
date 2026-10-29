@@ -31,7 +31,7 @@
 
 ## 4. Verificación y cierre
 
-- [ ] 4.1 Desplegar con `local-deploy.ps1 -Project steward` (con `powershell.exe -File`) y recorrer en `steward.test`, con dos personas de prueba, por el acceso de desarrollo:
+- [x] 4.1 Desplegar con `local-deploy.ps1 -Project steward` (con `powershell.exe -File`) y recorrer en `steward.test`, con dos personas de prueba, por el acceso de desarrollo:
   1. un hogar con un crédito y el plan de noviembre en Borrador;
   2. una persona duplica la Opción A dos veces y quita una de las copias; la otra prueba un abono de $2.000.000 desde el crédito;
   3. las dos ven las tres opciones con su autor, y Comparar resalta solo lo que cambia;
