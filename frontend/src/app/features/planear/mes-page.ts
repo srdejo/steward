@@ -8,6 +8,7 @@ import {
 import { consulta, mensajeDeError } from '../../core/datos/consulta';
 import { PUERTOS } from '../../core/datos/puertos';
 import { Encabezado } from '../../shared/components/encabezado';
+import { Hoja } from '../../shared/components/hoja';
 import { Icono } from '../../shared/components/icono';
 import { Kpi } from '../../shared/components/kpi';
 import { Monto } from '../../shared/components/monto';
@@ -20,7 +21,7 @@ import { MontoInput } from '../../shared/components/monto-input';
  */
 @Component({
   selector: 'app-mes-page',
-  imports: [NgTemplateOutlet, RouterLink, Encabezado, Icono, Kpi, Monto, MontoInput],
+  imports: [NgTemplateOutlet, RouterLink, Encabezado, Hoja, Icono, Kpi, Monto, MontoInput],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'flex flex-col gap-[18px] px-5 pt-6 pb-4' },
   template: `
@@ -91,7 +92,18 @@ import { MontoInput } from '../../shared/components/monto-input';
                 <app-kpi etiqueta="Ingresos" [valor]="o.totalIngresos" />
                 <app-kpi etiqueta="Gastos" [valor]="o.totalGastos" />
               </div>
+              @if (puedeQuitar(v.opciones.length, o)) {
+                <!-- Quitar una opcion que ya no sirve: ni la ultima ni la que esta en uso (backend-opciones-mes D5). -->
+                <button type="button" class="boton-texto self-start text-sm font-normal text-negativo" (click)="confirmarQuitar.set(true)">Quitar opción</button>
+              }
             </section>
+
+            @if (confirmarQuitar()) {
+              <app-hoja [titulo]="'¿Quitar la Opción ' + o.escenario.letra + '?'" (cerrar)="confirmarQuitar.set(false)">
+                <p class="text-sm text-[#3B3D39]">Se borran sus gastos. Las demás opciones no cambian.</p>
+                <button type="button" class="boton-grande bg-negativo" [disabled]="guardando()" (click)="quitar(o)">Quitar opción {{ o.escenario.letra }}</button>
+              </app-hoja>
+            }
 
             <ng-container [ngTemplateOutlet]="detalle" [ngTemplateOutletContext]="{ $implicit: o, editable: true }" />
 
@@ -258,6 +270,22 @@ export class MesPage {
       const id = await this.puertos.plan.duplicar(plan.id, o.escenario.id);
       this.elegida.set(id);
     });
+  }
+
+  protected readonly confirmarQuitar = signal(false);
+
+  protected puedeQuitar(vigentes: number, o: VistaOpcion): boolean {
+    return vigentes > 1 && o.escenario.id !== this.vista.value()?.plan?.escenarioActivoId;
+  }
+
+  protected async quitar(o: VistaOpcion): Promise<void> {
+    const plan = this.vista.value()?.plan;
+    if (!plan) return;
+    await this.ejecutar(async () => {
+      await this.puertos.plan.quitarOpcion(plan.id, o.escenario.id);
+      this.elegida.set(null);
+    });
+    this.confirmarQuitar.set(false);
   }
 
   protected async usar(o: VistaOpcion): Promise<void> {

@@ -25,9 +25,9 @@
 
 ## 3. PWA
 
-- [ ] 3.1 `api.ts`: `duplicarOpcion`, `quitarOpcion` y `probarAbono`. `PuertosConectados` según D4, sin `ETAPA_7`. Verificar: tests en `conectado.spec.ts` de duplicar (cuerpo y id devuelto), quitar, probar un abono y `MES_NO_BORRADOR` propagado.
-- [ ] 3.2 Pantallas: fuera los avisos de "+ Duplicar", Comparar y "Probarlo como opción" en modo conectado, y el mensaje de `MES_NO_BORRADOR`. "Quitar opción" con su hoja de confirmación (D5), en los dos modos. Verificar: tests de pantalla en modo conectado; en modo demo, "+ Duplicar" en el mes en curso muestra el mensaje, y quitar la Opción C de noviembre la quita; sin "Quitar opción" con una sola opción ni en la que está en uso.
-- [ ] 3.3 Recorrido conectado con el backend simulado: noviembre en Borrador → "+ Duplicar" dos veces → quitar la C → probar un abono desde el crédito → Comparar con solo Créditos resaltada → "Usar B" → las demás archivadas. Verificar: `npx ng test` en verde. Actualizar `frontend/README.md`. Commit.
+- [x] 3.1 `api.ts`: `duplicarOpcion`, `quitarOpcion` y `probarAbono`. `PuertosConectados` según D4, sin `ETAPA_7`. Verificar: tests en `conectado.spec.ts` de duplicar (cuerpo y id devuelto), quitar, probar un abono y `MES_NO_BORRADOR` propagado.
+- [x] 3.2 Pantallas: fuera los avisos de "+ Duplicar", Comparar y "Probarlo como opción" en modo conectado, y el mensaje de `MES_NO_BORRADOR`. "Quitar opción" con su hoja de confirmación (D5), en los dos modos. Verificar: tests de pantalla en modo conectado; en modo demo, octubre (Activo) no ofrece "+ Duplicar", y quitar la Opción C de noviembre la quita; sin "Quitar opción" con una sola opción ni en la que está en uso.
+- [x] 3.3 Recorrido conectado con el backend simulado: noviembre en Borrador → "+ Duplicar" dos veces → quitar la C → probar un abono desde el crédito → Comparar con solo Créditos resaltada → "Usar B" → las demás archivadas. Verificar: `npx ng test` en verde. Actualizar `frontend/README.md`. Commit.
 
 ## 4. Verificación y cierre
 
@@ -36,7 +36,7 @@
   2. una persona duplica la Opción A dos veces y quita una de las copias; la otra prueba un abono de $2.000.000 desde el crédito;
   3. las dos ven las tres opciones con su autor, y Comparar resalta solo lo que cambia;
   4. "Usar" una deja las demás archivadas para las dos;
-  5. en octubre (Activo), "+ Duplicar" muestra que el mes ya está en curso.
+  5. octubre (Activo) no ofrece "+ Duplicar".
   
   Verificar: el criterio de cierre de la Etapa 7, sin errores en la consola. Borrar las personas y el hogar de prueba al terminar.
 - [ ] 4.2 `docs/ROADMAP.md`: marcar la Etapa 7. Verificar: `openspec validate backend-opciones-mes --strict` sin errores. Commit.

@@ -42,6 +42,25 @@ describe('Planear (steward-planear)', () => {
     expect(nov.opciones.at(-1)!.escenario.creadoPor).toBe('u-daniel');
   });
 
+  it('quitar una opción: con confirmación, nunca la última ni la que está en uso (backend-opciones-mes)', async () => {
+    const p = await conSesion();
+    const a = await app('/planear/2026-11');
+    await a.tocar(/Opción C/, '[role="tab"]');
+    await a.tocar('Quitar opción');
+    await a.tocar('Quitar opción C');
+    expect((await p.plan.mes(NOV)).opciones.map((o) => o.escenario.letra)).toEqual(['A', 'B']);
+    await a.tocar(/Opción B/, '[role="tab"]');
+    await a.tocar('Quitar opción');
+    await a.tocar('Quitar opción B');
+    expect(a.texto()).not.toContain('Quitar opción');
+  });
+
+  it('octubre (Activo) no ofrece + Duplicar', async () => {
+    await conSesion();
+    const a = await app('/planear/2026-10');
+    expect(a.texto()).not.toContain('+ Duplicar');
+  });
+
   it('el diezmo se ve calculado y no se puede editar', async () => {
     await conSesion();
     const a = await app('/planear/2026-11');

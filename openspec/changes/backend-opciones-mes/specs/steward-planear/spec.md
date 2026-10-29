@@ -3,7 +3,7 @@
 ### Requirement: Mes en borrador con escenarios
 Un mes en Borrador SHALL mostrar sus opciones (A, B, …) con quién propuso cada una, el total que cada una "dejaría libre" y sus ingresos y gastos por categoría. El diezmo MUST verse calculado y bloqueado ("Calculado · 10% de Salario Daniel"). Cualquiera puede crear o duplicar una opción, y quitar una que ya no sirva ("Quitar opción", con confirmación), salvo la última y la que está en uso. "Usar opción X" MUST dejarla como el plan que se activa al iniciar el mes, y las demás opciones se archivan, no se borran.
 
-Varias opciones existen solo mientras el mes está en Borrador: en un mes Activo, "+ Duplicar" MUST mostrar que el mes ya está en curso y que su plan no gana opciones, sin crear nada.
+Varias opciones existen solo mientras el mes está en Borrador: un mes Activo MUST NOT ofrecer "+ Duplicar" ni "Quitar opción". Si el mes deja de estar en Borrador mientras la pantalla está abierta, la acción MUST mostrar "{Mes} ya está en curso; su plan no gana opciones" sin crear nada.
 
 En modo conectado:
 - las opciones, sus ítems, "+ Duplicar", "Quitar opción" y "Usar opción X" MUST guardarse en el backend;
@@ -38,8 +38,8 @@ En modo conectado:
 - **THEN** "Quitar opción" no se ofrece
 
 #### Scenario: Duplicar en un mes Activo
-- **WHEN** octubre es el mes en curso con la Opción A en uso y se toca "+ Duplicar"
-- **THEN** se ve que octubre ya está en curso y su plan no gana opciones, y octubre sigue con solo la Opción A
+- **WHEN** octubre es el mes en curso con la Opción A en uso y se abre octubre en Planear
+- **THEN** no se ofrece "+ Duplicar", y octubre sigue con solo la Opción A
 
 ### Requirement: Comparar escenarios
 Comparar SHALL mostrar las opciones de un mes lado a lado, resaltando solo las filas que cambian, con el total "Queda libre" de cada una y un botón "Usar {X}" por opción. Está diseñada para web; con menos de 1024 px de ancho MUST desplazarse en horizontal, sin comprimir las columnas.

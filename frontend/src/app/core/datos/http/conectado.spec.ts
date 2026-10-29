@@ -430,7 +430,6 @@ describe('finanzas en el backend (steward-finanzas, design D5)', () => {
     const req3 = await responder('POST', '/api/creditos/cred-1/abonos', registro({ tipo: 'ABONO_CREDITO' }), tick, 201);
     await abono;
     expect(req3.request.body).toEqual({ monto: 1_000_000, usuarioId: USUARIO.id, origen: { tipo: 'EXTERNA' } });
-    await expect(p.cuentas.probarComoOpcion('cred-1', { anio: 2026, mes: 11 }, 1)).rejects.toMatchObject({ codigo: 'ETAPA_7' });
   });
 
   it('restablecer los datos de prueba no toca los reales (steward-ui-shell)', async () => {
@@ -581,9 +580,7 @@ describe('plan del mes y registros en el backend (steward-plan-mes, design D5)',
   });
 
   it('lo que llega en otras etapas avisa sin cambiar nada', async () => {
-    await expect(p.plan.duplicar('plan-oct', 'esc-a')).rejects.toMatchObject({ codigo: 'ETAPA_7' });
     await expect(p.plan.crearMesesDesdeAnual(2027)).rejects.toMatchObject({ codigo: 'ETAPA_8' });
-    await expect(p.cuentas.probarComoOpcion('cred-1', { anio: 2026, mes: 11 }, 1)).rejects.toMatchObject({ codigo: 'ETAPA_7' });
     expect((await p.plan.mes(OCT)).opciones).toHaveLength(1);
   });
 
@@ -794,15 +791,10 @@ describe('pantallas con el plan real (backend-plan-mes-hoy)', () => {
     return a;
   }
 
-  it('avisos: Duplicar, Comparar, Cerrar, Crear meses y Probarlo como opción', async () => {
+  it('avisos: Cerrar un mes futuro y Crear meses desde el anual', async () => {
     finanzasPrueba.valor = finanzas({ planes: [{ ...PLAN_OCT, estado: 'BORRADOR', escenarioActivoId: null }], creditos: [CREDITO] });
-    const a = await entrarA('/planear/2026-10');
-    await a.tocar('+ Duplicar');
-    expect(a.texto()).toContain('Varias opciones por mes llegan en una próxima versión.');
-
-    await a.ir('/planear/2026-10/comparar');
-    await atenderHogar(a);
-    expect(a.texto()).toContain('Comparar varias opciones llega en una próxima versión');
+    const a = await entrarA('/planear/2026-10/comparar');
+    expect(a.texto()).not.toContain('llega en una próxima versión');
 
     // Un mes futuro no se cierra (backend-cierre-mes).
     await a.ir('/planear/2026-11/cierre');
@@ -814,12 +806,71 @@ describe('pantallas con el plan real (backend-plan-mes-hoy)', () => {
     await atenderHogar(a);
     await a.tocar('Crear meses desde este plan');
     expect(a.texto()).toContain('Crear los meses desde el plan anual llega en una próxima versión.');
+  });
 
+  it('recorrido de la Etapa 7: duplicar, quitar, probar un abono, comparar y usar (backend-opciones-mes)', async () => {
+    const NOV = { anio: 2026, mes: 11 };
+    const a0 = { ...PLAN_OCT.escenarios[0]!, id: 'nov-a', items: PLAN_OCT.escenarios[0]!.items.map((i) => ({ ...i, id: 'nov-' + i.id })) };
+    const copia = (id: string, letra: string, extra: typeof a0.items = []) => ({ ...a0, id, letra, items: [...a0.items.map((i) => ({ ...i, id: id + i.id })), ...extra] });
+    const nov = (escenarios: (typeof a0)[], activo: string | null = null): PlanApi => ({ id: 'plan-nov', ref: NOV, estado: 'BORRADOR', escenarioActivoId: activo, escenarios });
+    finanzasPrueba.valor = finanzas({ planes: [PLAN_OCT, nov([a0])], creditos: [CREDITO] });
+    const a = await entrarA('/planear/2026-11');
+    expect(a.texto()).not.toContain('Quitar opción');
+
+    // + Duplicar dos veces: B y C.
+    a.porTexto('+ Duplicar').click();
+    finanzasPrueba.valor = finanzas({ planes: [PLAN_OCT, nov([a0, copia('nov-b', 'B')])], creditos: [CREDITO] });
+    const d1 = await responder('POST', '/api/planes/plan-nov/escenarios', finanzasPrueba.valor.planes[1]!, a.estable, 201);
+    expect(d1.request.body).toEqual({ desde: 'nov-a' });
+    await atenderHogar(a);
+    a.porTexto('+ Duplicar').click();
+    finanzasPrueba.valor = finanzas({ planes: [PLAN_OCT, nov([a0, copia('nov-b', 'B'), copia('nov-c', 'C')])], creditos: [CREDITO] });
+    await responder('POST', '/api/planes/plan-nov/escenarios', finanzasPrueba.valor.planes[1]!, a.estable, 201);
+    await atenderHogar(a);
+    expect(a.porTexto(/Opción C/, '[role="tab"]').getAttribute('aria-selected')).toBe('true');
+
+    // Quitar la C, con su confirmación.
+    await a.tocar('Quitar opción');
+    expect(a.texto()).toContain('¿Quitar la Opción C?');
+    a.porTexto('Quitar opción C').click();
+    finanzasPrueba.valor = finanzas({ planes: [PLAN_OCT, nov([a0, copia('nov-b', 'B')])], creditos: [CREDITO] });
+    await responder('DELETE', '/api/planes/plan-nov/escenarios/nov-c', null, a.estable, 204);
+    await atenderHogar(a);
+    expect(() => a.porTexto(/Opción C/, '[role="tab"]')).toThrow();
+
+    // Probar un abono como opción de noviembre desde el crédito: la nueva C.
     await a.ir('/cuentas/credito/cred-1');
     await atenderHogar(a);
     await a.escribir('Abono', '2000000');
-    await a.tocar(/Probarlo como opción/);
-    expect(a.texto()).toContain('Probar un abono como opción llega en una próxima versión.');
+    a.porTexto(/Probarlo como opción de noviembre/).click();
+    const abono = { id: 'it-abono', categoriaId: 'cat-4', nombre: 'Abono extra libre inversión', monto: 2_000_000, diaVence: 15, tipo: 'CREDITO' as const, cuota: null, creditoId: 'cred-1' };
+    finanzasPrueba.valor = finanzas({ planes: [PLAN_OCT, nov([a0, copia('nov-b', 'B'), copia('nov-c', 'C', [abono])])], creditos: [CREDITO] });
+    const pr = await responder('POST', '/api/creditos/cred-1/probar', { planId: 'plan-nov', escenarioId: 'nov-c' }, a.estable, 201);
+    expect(pr.request.body).toEqual({ anio: 2026, mes: 11, abono: 2_000_000 });
+    await atenderHogar(a);
+    expect(a.url()).toBe('/planear/2026-11');
+
+    // Comparar: solo Créditos cambia; usar la C.
+    const c = await TestBed.inject(PUERTOS).plan.comparar(NOV);
+    expect(c.letras).toEqual(['A', 'B', 'C']);
+    expect(c.filas.map((x) => x.nombre)).toEqual(['Créditos']);
+    await a.ir('/planear/2026-11/comparar');
+    await atenderHogar(a);
+    a.porTexto('Usar C').click();
+    finanzasPrueba.valor = finanzas({ planes: [PLAN_OCT, nov([{ ...a0, archivado: true }, { ...copia('nov-b', 'B'), archivado: true }, copia('nov-c', 'C', [abono])], 'nov-c')], creditos: [CREDITO] });
+    const us = await responder('POST', '/api/planes/plan-nov/usar', finanzasPrueba.valor.planes[1]!, a.estable);
+    expect(us.request.body).toEqual({ escenarioId: 'nov-c' });
+    await atenderHogar(a);
+    expect((await TestBed.inject(PUERTOS).plan.mes(NOV)).opciones.map((o) => o.escenario.letra)).toEqual(['C']);
+  });
+
+  it('un mes que ya no está en Borrador: el mensaje del backend', async () => {
+    finanzasPrueba.valor = finanzas({ planes: [{ ...PLAN_OCT, estado: 'BORRADOR', escenarioActivoId: null }] });
+    const a = await entrarA('/planear/2026-10');
+    a.porTexto('+ Duplicar').click();
+    await responder('POST', '/api/planes/plan-oct/escenarios', { codigo: 'MES_NO_BORRADOR', mensaje: 'Octubre ya está en curso; su plan no gana opciones' }, a.estable, 409);
+    await atenderHogar(a);
+    expect(a.texto()).toContain('Octubre ya está en curso; su plan no gana opciones');
   });
 
   it('recorrido de la Etapa 5: crédito con su cuota, pagarla, abonar y cuadrar (backend-cuentas-creditos)', async () => {

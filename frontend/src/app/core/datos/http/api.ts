@@ -375,6 +375,18 @@ export class Api {
     return this.pedir(this.http.post<MovimientoApi>('/api/aportes', datos));
   }
 
+  duplicarOpcion(planId: string, desde: string): Promise<PlanApi> {
+    return this.pedir(this.http.post<PlanApi>(`/api/planes/${encodeURIComponent(planId)}/escenarios`, { desde }));
+  }
+
+  quitarOpcion(planId: string, escenarioId: string): Promise<void> {
+    return this.pedir(this.http.delete<void>(`/api/planes/${encodeURIComponent(planId)}/escenarios/${encodeURIComponent(escenarioId)}`));
+  }
+
+  probarAbono(creditoId: string, ref: MesApi, abono: number): Promise<{ planId: string; escenarioId: string }> {
+    return this.pedir(this.http.post<{ planId: string; escenarioId: string }>(`/api/creditos/${encodeURIComponent(creditoId)}/probar`, { ...ref, abono }));
+  }
+
   cerrarMes(datos: Omit<CierreApi, 'ref' | 'cerradoPor' | 'cerradoEn'> & MesApi & { ultimoSeq: number }): Promise<CierreApi> {
     return this.pedir(this.http.post<CierreApi>('/api/cierres', datos));
   }

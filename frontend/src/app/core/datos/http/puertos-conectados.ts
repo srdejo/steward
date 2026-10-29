@@ -355,7 +355,6 @@ export class PuertosConectados implements Puertos {
       await accion;
       await this.recargarFinanzas();
     };
-    const etapa7 = () => Promise.reject(new ReglaError('ETAPA_7', 'Varias opciones por mes llegan en una próxima versión.'));
     return {
       inicio: () => demo().inicio(),
       mes: (ref) => demo().mes(ref),
@@ -371,7 +370,13 @@ export class PuertosConectados implements Puertos {
       },
       quitarItem: (planId, escenarioId, itemId) => escribir(api.quitarItem(planId, escenarioId, itemId)),
       usar: (planId, escenarioId) => escribir(api.usarOpcion(planId, escenarioId)),
-      duplicar: etapa7,
+      // Varias opciones solo en Borrador (design D4 de backend-opciones-mes): la nueva es la de la letra mas alta.
+      duplicar: async (planId, escenarioId) => {
+        const plan = await api.duplicarOpcion(planId, escenarioId);
+        await this.recargarFinanzas();
+        return [...plan.escenarios].sort((a, b) => a.letra.localeCompare(b.letra)).at(-1)!.id;
+      },
+      quitarOpcion: (planId, escenarioId) => escribir(api.quitarOpcion(planId, escenarioId)),
       crearMesesDesdeAnual: () => Promise.reject(new ReglaError('ETAPA_8', 'Crear los meses desde el plan anual llega en una próxima versión.')),
     };
   }
@@ -412,7 +417,11 @@ export class PuertosConectados implements Puertos {
       },
       simular: (id, abono) => this.demoActual.cuentas.simular(id, abono),
       // El plan del mes ya es real y solo tiene la Opcion A: probar un abono como opcion llega despues.
-      probarComoOpcion: () => Promise.reject(new ReglaError('ETAPA_7', 'Probar un abono como opción llega en una próxima versión.')),
+      probarComoOpcion: async (creditoId, ref, abono) => {
+        const r = await api.probarAbono(creditoId, ref, abono);
+        await this.recargarFinanzas();
+        return r;
+      },
     };
   }
 
