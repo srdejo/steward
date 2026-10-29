@@ -143,7 +143,8 @@ Un miembro SHALL poder leer en una sola llamada:
 - las cuentas, cada una con el orden de registro de su último cuadre;
 - los créditos, con sus últimos pagos;
 - los planes de los meses, desde dos meses antes del mes en curso en adelante, con sus opciones e ítems (y el crédito de cada ítem enlazado) y su estado efectivo;
-- los movimientos de esos mismos meses, más los de cualquier mes que todavía cuenten en el saldo estimado de alguna cuenta: ingresos recibidos, diezmos entregados (con lo que cubre cada entrega), pagos, gastos, aportes, ajustes de cuadre, transferencias y abonos, con su orden de registro, su origen, su nota, su cuenta destino y su crédito.
+- los movimientos de esos mismos meses, más los de cualquier mes que todavía cuenten en el saldo estimado de alguna cuenta: ingresos recibidos, diezmos entregados (con lo que cubre cada entrega), pagos, gastos, aportes, ajustes de cuadre, transferencias y abonos, con su orden de registro, su origen, su nota, su cuenta destino y su crédito;
+- los cierres desde tres meses antes del mes en curso (el del mes anterior a los que se leen trae el "Sobrante de {mes}" del primero), con sus filas, "Sin registrar", el sobrante, el reparto, quién cerró y la fecha.
 
 Sin hogar, MUST responder 404 `SIN_HOGAR`.
 
@@ -158,6 +159,10 @@ Sin hogar, MUST responder 404 `SIN_HOGAR`.
 #### Scenario: Un crédito con su cuota pagada
 - **WHEN** Daniel pagó "Cuota libre inversión" y Esposa lee las finanzas
 - **THEN** ve "Libre inversión" con el saldo ya rebajado y la cuota en sus últimos pagos
+
+#### Scenario: Un mes cerrado
+- **WHEN** Daniel cerró octubre con $1.166.000 al mes siguiente y Esposa lee las finanzas
+- **THEN** ve el cierre de octubre con sus filas, su sobrante y el reparto, y el plan de octubre en Cerrado
 
 ### Requirement: Aislamiento de las finanzas
 Todo lo de esta capacidad SHALL resolverse a partir del hogar del usuario de la sesión. Ingresos, cuentas, créditos, movimientos y obligaciones de otro hogar MUST NOT poder leerse ni modificarse. Un id ajeno MUST responder igual que uno inexistente. Sin sesión, MUST responder 401.
@@ -309,3 +314,25 @@ Cada crédito SHALL mostrar sus últimos pagos (las cuotas pagadas y los abonos,
 #### Scenario: Actualizar saldo
 - **WHEN** el banco dice que el saldo es $13.900.000 y se actualiza
 - **THEN** el crédito queda con $13.900.000, actualizado hoy
+
+### Requirement: Registros en un mes cerrado
+En un mes cerrado, estos registros MUST responder 409 `MES_CERRADO` y no registrar nada, como `asegurarAbierto` del dominio:
+- "Recibí";
+- "Entregado";
+- marcar un pago;
+- registrar un gasto;
+- registrar un aporte para ese mes.
+
+Cuadrar cuentas, mover dinero y registrar un abono a un crédito no dependen del plan del mes y MUST seguir funcionando aunque el mes en curso esté cerrado. Sus movimientos no cambian el cierre guardado.
+
+#### Scenario: Recibir en un mes cerrado
+- **WHEN** octubre está cerrado y se marca recibido "Salario Daniel" en octubre
+- **THEN** responde 409 `MES_CERRADO` y no queda ningún ingreso nuevo
+
+#### Scenario: Aporte para el mes siguiente
+- **WHEN** el 30 oct octubre ya está cerrado y se registra un aporte para noviembre
+- **THEN** el aporte queda en noviembre
+
+#### Scenario: Cuadrar con el mes cerrado
+- **WHEN** octubre está cerrado y el 30 oct se cuadra Davivienda con una diferencia
+- **THEN** la cuenta queda cuadrada y el cierre de octubre guardado no cambia
