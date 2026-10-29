@@ -39,4 +39,4 @@
   5. octubre (Activo) no ofrece "+ Duplicar".
   
   Verificar: el criterio de cierre de la Etapa 7, sin errores en la consola. Borrar las personas y el hogar de prueba al terminar.
-- [ ] 4.2 `docs/ROADMAP.md`: marcar la Etapa 7. Verificar: `openspec validate backend-opciones-mes --strict` sin errores. Commit.
+- [x] 4.2 `docs/ROADMAP.md`: marcar la Etapa 7. Verificar: `openspec validate backend-opciones-mes --strict` sin errores. Commit.

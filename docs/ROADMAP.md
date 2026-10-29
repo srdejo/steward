@@ -9,7 +9,7 @@ Las etapas 2 a 9 siguen el "Orden sugerido de implementación" del handoff. Conv
 **Criterio de cierre**: dos miembros del mismo hogar entran a `steward.test` con Google y comparten un plan del mes. Uno marca un pago o registra un aporte, y el otro lo ve al abrir la app.
 **Alcance**: Etapa 2, Etapa 3, Etapa 4
 
-**Cumplido el 2026-10-28** en `steward.test`, con el acceso de desarrollo porque Google no acepta `.test` como origen. Con Google real se verifica al encender el VPS (Etapa 9). El siguiente objetivo está por definir. Con las Etapas 5 y 6 hechas, todo el mes es real; lo que sigue con datos de prueba es el plan anual (Etapa 8), y faltan varias opciones por mes (Etapa 7) y la producción (Etapa 9).
+**Cumplido el 2026-10-28** en `steward.test`, con el acceso de desarrollo porque Google no acepta `.test` como origen. Con Google real se verifica al encender el VPS (Etapa 9). El siguiente objetivo está por definir. Con las Etapas 5, 6 y 7 hechas, todo el mes es real, con varias opciones; lo que sigue con datos de prueba es el plan anual (Etapa 8), y falta la producción (Etapa 9).
 
 ## Objetivos cumplidos
 
@@ -21,6 +21,7 @@ Las etapas 2 a 9 siguen el "Orden sugerido de implementación" del handoff. Conv
 - 2026-10-28 — Plan del mes y Hoy en el backend (Etapa 4) y objetivo "Hogar en la nube con un plan del mes usable": dos personas crean el plan de octubre, una paga Internet desde su cuenta, la otra registra un aporte y un gasto, y las dos ven las mismas cifras de "Te queda libre" y "Vs. plan" (cambio OpenSpec `backend-plan-mes-hoy`)
 - 2026-10-29 — Cuentas, cuadre y créditos en el backend (Etapa 5): dos personas agregan un crédito y su cuota aparece en Hoy; pagarla desde Davivienda deja el crédito en $13.978.000, mueven $100.000 al efectivo, cuadran Davivienda con $50.000 de "Gastos sin registrar" que el Cierre muestra, y un abono deja el crédito en $12.978.000, igual para las dos (cambio OpenSpec `backend-cuentas-creditos`)
 - 2026-10-29 — Cierre de mes en el backend (Etapa 6): una persona cierra octubre repartiendo el sobrante ($300.000 a ahorro y $100.000 a noviembre); si la otra registró algo mientras tanto, el cierre se recalcula antes de guardarse; las dos ven octubre Cerrado y en solo lectura, y noviembre trae "Sobrante de octubre" (cambio OpenSpec `backend-cierre-mes`)
+- 2026-10-29 — Varias opciones por mes en el backend (Etapa 7): en noviembre (Borrador) una persona duplica la Opción A y quita una copia, la otra prueba un abono de $2.000.000 desde el crédito, las dos comparan A, B y C con solo Créditos resaltada, y "Usar B" archiva las demás para las dos (cambio OpenSpec `backend-opciones-mes`)
 
 ## Etapa 1 — Infra de despliegue ✅
 
@@ -101,11 +102,16 @@ Cambio OpenSpec `backend-cierre-mes`.
 
 Sin "Reabrir" un mes cerrado, y el "A ahorro" no mueve dinero a una cuenta (queda anotado en el cierre).
 
-## Etapa 7 — Escenarios y comparar
+## Etapa 7 — Escenarios y comparar ✅
 
-- [ ] Varias opciones por mes futuro, Comparar lado a lado y "Usar esta" (las demás se archivan).
+**Criterio de cierre**: dos personas proponen opciones distintas para noviembre (una duplicando y otra probando un abono a un crédito), las comparan lado a lado con las mismas cifras, y "Usar {X}" deja esa como el plan de noviembre y archiva las demás.
 
-En modo conectado, hoy cada mes tiene solo la Opción A (el esquema ya admite varias); "+ Duplicar", Comparar y "Probarlo como opción" de un crédito (ya real desde la Etapa 5) avisan que llegan después.
+Cambio OpenSpec `backend-opciones-mes`.
+
+- [x] Varias opciones por mes solo en Borrador (un mes futuro, o el mes en curso antes de elegir opción): "+ Duplicar", "Quitar opción", "Probarlo como opción" de un crédito, Comparar lado a lado y "Usar esta" (las demás se archivan). Un mes Activo no gana opciones ni cambia de opción, y tampoco se cambia de opción si la principal ya tiene pagos (195 tests en JVM y 149 de contrato en modo AOT).
+- [x] Recorrido del criterio de cierre en `steward.test` con dos personas, por el acceso de desarrollo.
+
+Sin crear una opción en blanco ni desarchivar opciones.
 
 ## Etapa 8 — Plan anual
 
