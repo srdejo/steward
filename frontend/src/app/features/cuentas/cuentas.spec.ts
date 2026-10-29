@@ -86,4 +86,35 @@ describe('Cuentas (steward-cuentas)', () => {
     expect(a.texto()).toContain('Libre inversión $13.250.000');
     expect(a.texto()).toContain('Abono · 26 oct $1.000.000');
   });
+
+  it('el abono pide de dónde sale y baja esa cuenta', async () => {
+    const p = await conSesion();
+    const a = await app('/cuentas/credito/cred-libre');
+    await a.tocar('Registrar abono');
+    await a.escribir('¿Cuánto abonaste?', '1000000');
+    await a.tocar('Davivienda', 'app-hoja [role="radio"]');
+    await a.tocar('Guardar');
+    expect((await p.cuentas.cuentas()).cuentas.find((c) => c.cuenta.nombre === 'Davivienda')?.saldo).toBe(3_150_000);
+  });
+
+  it('agregar un crédito: su cuota entra al plan del mes (Agregar crédito)', async () => {
+    const p = await conSesion();
+    const a = await app('/cuentas');
+    await a.tocar('+ Agregar', '[aria-label="Agregar crédito"]');
+    await a.escribir('Nombre', 'Moto');
+    await a.escribir('Entidad', 'Bancolombia');
+    await a.escribir('Saldo', '14250000');
+    await a.escribir('Total original', '20000000');
+    await a.escribir('Tasa (% EM)', '1,6');
+    await a.escribir('Día de pago', '15');
+    expect(a.porTexto<HTMLButtonElement>('Agregar crédito').disabled).toBe(true);
+    await a.escribir('Cuota', '500000');
+    await a.tocar('Agregar crédito');
+    expect(a.texto()).toContain('Moto Cuota $500.000 · 1,6% EM');
+    const credito = (await p.cuentas.creditos()).find((c) => c.credito.nombre === 'Moto')!;
+    expect(credito.porcentajePagado).toBe(29);
+    const oct = await p.plan.mes(OCT);
+    const cuotas = oct.opciones.flatMap((o) => o.grupos.flatMap((g) => g.items)).filter((i) => i.nombre === 'Cuota moto');
+    expect(cuotas.map((i) => i.monto)).toEqual([500_000]);
+  });
 });

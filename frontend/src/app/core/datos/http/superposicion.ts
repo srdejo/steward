@@ -1,8 +1,9 @@
-import type { Categoria, Cuenta, EstadoHogar, IngresoFijo, ItemPlan, Movimiento, Origen, PlanMes, ReglaDiezmo } from '@steward/domain';
+import type { Categoria, Credito, Cuenta, EstadoHogar, IngresoFijo, ItemPlan, Movimiento, Origen, PlanMes, ReglaDiezmo } from '@steward/domain';
 
 import {
   usuarioDe,
   type CategoriaApi,
+  type CreditoApi,
   type FinanzasApi,
   type IngresoFijoApi,
   type MovimientoApi,
@@ -13,33 +14,36 @@ import {
 
 /**
  * Superpone las finanzas reales del backend al estado de prueba (design D5 de backend-ingresos-diezmo y de
- * backend-plan-mes-hoy), para que Hoy, Planear, Cuentas y el Cierre calculen con las reglas del dominio:
- * - categorias, ingresos fijos, reglas, cuentas, "Diezmo en Hoy" y los planes son los reales;
+ * backend-plan-mes-hoy, D2 y D7 de backend-cuentas-creditos), para que Hoy, Planear, Cuentas y el Cierre calculen con las
+ * reglas del dominio:
+ * - categorias, ingresos fijos, reglas, cuentas, creditos, "Diezmo en Hoy" y los planes son los reales;
  * - lo registrado es solo lo real: todos los movimientos de prueba se quitan;
  * - no hay cierres reales hasta la Etapa 6, asi que los de prueba tampoco se ven;
  * - los miembros reales entran a `usuarios` con su id, que es el que usan las hojas de Hoy al registrar.
- * Siguen de prueba los creditos, el plan anual y las proyecciones.
+ * Siguen de prueba el plan anual y las proyecciones.
  *
  * Es pura: no cambia `estado`, y el adaptador de prueba nunca la guarda.
  */
 export function superponerFinanzas(estado: EstadoHogar, finanzas: FinanzasApi, miembros: UsuarioApi[]): EstadoHogar {
-  // Las cuentas reales arrancan despues de todo lo de prueba, y lo registrado despues de ellas: asi el saldo estimado
-  // (ultimo cuadre + movimientos posteriores) suma lo real y no lo de prueba.
+  // El orden real de registro (seq) va despues de todo lo de prueba, igual para las cuentas: asi el saldo estimado
+  // (ultimo cuadre + lo registrado despues) es el mismo que usa el backend al cuadrar.
   const base = estado.secuencia;
-  const reales = finanzas.movimientos.map((m, i) => movimiento(m, base + i + 1));
+  const reales = finanzas.movimientos.map((m) => movimiento(m, base + m.seq));
+  const ultimo = Math.max(0, ...finanzas.movimientos.map((m) => m.seq), ...finanzas.cuentas.map((c) => c.seqCuadre));
   const ids = new Set(estado.usuarios.map((u) => u.id));
 
   return {
     ...estado,
-    secuencia: base + reales.length,
+    secuencia: base + ultimo,
     usuarios: [...estado.usuarios, ...miembros.filter((m) => !ids.has(m.id)).map(usuarioDe)],
     hogar: { ...estado.hogar, diezmoEnHoy: finanzas.diezmoEnHoy },
     categorias: finanzas.categorias.map(categoria),
     ingresosFijos: finanzas.ingresosFijos.map(ingresoFijo),
     reglas: finanzas.reglas.map(regla),
     cuentas: finanzas.cuentas.map(
-      (c): Cuenta => ({ id: c.id, nombre: c.nombre, titularId: c.titularId, saldoCuadre: c.saldoCuadre, fechaCuadre: c.fechaCuadre, cuadrada: c.cuadrada, seqCuadre: base }),
+      (c): Cuenta => ({ id: c.id, nombre: c.nombre, titularId: c.titularId, saldoCuadre: c.saldoCuadre, fechaCuadre: c.fechaCuadre, cuadrada: c.cuadrada, seqCuadre: base + c.seqCuadre }),
     ),
+    creditos: finanzas.creditos.map(credito),
     planes: finanzas.planes.map(plan),
     movimientos: reales,
     cierres: [],
@@ -58,6 +62,13 @@ export function categoria(c: CategoriaApi): Categoria {
   return { id: c.id, nombre: c.nombre, color: c.color, orden: c.orden, tipo: c.tipo, sistema: c.sistema };
 }
 
+export function credito(c: CreditoApi): Credito {
+  return {
+    id: c.id, nombre: c.nombre, entidad: c.entidad, saldo: c.saldo, saldoActualizadoEn: c.saldoActualizadoEn, cuota: c.cuota,
+    tasaEM: c.tasaEM, diaPago: c.diaPago, totalOriginal: c.totalOriginal, pagos: c.pagos.map((p) => ({ ...p })),
+  };
+}
+
 function plan(p: PlanApi): PlanMes {
   return {
     id: p.id,
@@ -70,8 +81,7 @@ function plan(p: PlanApi): PlanMes {
       creadoPor: e.creadoPor,
       nota: e.nota,
       archivado: e.archivado,
-      // El vinculo con un credito llega en la Etapa 5.
-      items: e.items.map((i): ItemPlan => ({ id: i.id, categoriaId: i.categoriaId, nombre: i.nombre, monto: i.monto, diaVence: i.diaVence, tipo: i.tipo, cuota: i.cuota, creditoId: null })),
+      items: e.items.map((i): ItemPlan => ({ id: i.id, categoriaId: i.categoriaId, nombre: i.nombre, monto: i.monto, diaVence: i.diaVence, tipo: i.tipo, cuota: i.cuota, creditoId: i.creditoId ?? null })),
     })),
   };
 }
@@ -98,7 +108,7 @@ function movimiento(m: MovimientoApi, seq: number): Movimiento {
     bruto: m.bruto,
     aplicaDiezmo: m.aplicaDiezmo,
     diezmoDe: m.diezmoDe,
-    cuentaDestinoId: null,
-    creditoId: null,
+    cuentaDestinoId: m.cuentaDestinoId ?? null,
+    creditoId: m.creditoId ?? null,
   };
 }

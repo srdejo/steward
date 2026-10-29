@@ -7,6 +7,8 @@ import { PUERTOS } from '../../core/datos/puertos';
 import { Hoja } from '../../shared/components/hoja';
 import { Monto } from '../../shared/components/monto';
 import { MontoInput } from '../../shared/components/monto-input';
+import { Segmentado } from '../../shared/components/segmentado';
+import { opcionesDeHoja } from '../hoy/opciones-hoja';
 
 /** Abono que muestra el simulador al abrir (el de la Opción C de los artboards). */
 const ABONO_INICIAL = 1_500_000;
@@ -17,7 +19,7 @@ const ABONO_INICIAL = 1_500_000;
  */
 @Component({
   selector: 'app-credito-page',
-  imports: [RouterLink, Hoja, Monto, MontoInput],
+  imports: [RouterLink, Hoja, Monto, MontoInput, Segmentado],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'flex flex-col gap-5 px-5 pt-6 pb-4' },
   template: `
@@ -89,6 +91,10 @@ const ABONO_INICIAL = 1_500_000;
       @if (hoja(); as h) {
         <app-hoja [titulo]="h === 'saldo' ? 'Actualizar saldo' : 'Registrar abono'" (cerrar)="hoja.set(null)">
           <app-monto-input [etiqueta]="h === 'saldo' ? 'Saldo que dice el banco' : '¿Cuánto abonaste?'" [grande]="true" [(valor)]="monto" />
+          @if (h === 'abono') {
+            <!-- Desde donde salio el abono, como en Marcar pago (spec steward-cuentas). -->
+            <app-segmentado etiqueta="Desde · Opcional" [chips]="true" [opcional]="true" [opciones]="opciones.desde()" [(valor)]="desde" />
+          }
           <button type="button" class="boton-grande" [disabled]="monto() === null" (click)="guardar(h)">Guardar</button>
         </app-hoja>
       }
@@ -112,6 +118,8 @@ export class CreditoPage {
   protected readonly simulacion = consulta(() => ({ id: this.id(), abono: this.abono() ?? 0 }), (p, x) => p.cuentas.simular(x.id, x.abono));
   protected readonly hoja = signal<'saldo' | 'abono' | null>(null);
   protected readonly monto = signal<number | null>(null);
+  protected readonly opciones = opcionesDeHoja();
+  protected readonly desde = signal<string | null>(null);
   protected readonly error = signal('');
 
   protected fecha(f: string): string {
@@ -132,9 +140,10 @@ export class CreditoPage {
   protected async guardar(tipo: 'saldo' | 'abono'): Promise<void> {
     await this.ejecutar(async () => {
       if (tipo === 'saldo') await this.puertos.cuentas.actualizarSaldo(this.id(), this.monto()!);
-      else await this.puertos.cuentas.registrarAbono(this.id(), this.monto()!, { tipo: 'NINGUNO' });
+      else await this.puertos.cuentas.registrarAbono(this.id(), this.monto()!, this.opciones.origen(this.desde()));
       this.hoja.set(null);
       this.monto.set(null);
+      this.desde.set(null);
     });
   }
 

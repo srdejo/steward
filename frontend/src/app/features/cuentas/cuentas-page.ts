@@ -3,7 +3,7 @@ import { RouterLink } from '@angular/router';
 import { formatCop, formatTasa, sumar, type FiltroTitular, type Id } from '@steward/domain';
 
 import { consulta, mensajeDeError } from '../../core/datos/consulta';
-import { PUERTOS, puertosConectados } from '../../core/datos/puertos';
+import { PUERTOS } from '../../core/datos/puertos';
 import { MiembrosHogar } from '../../core/layout/miembros';
 import { Fila } from '../../shared/components/fila';
 import { Hoja } from '../../shared/components/hoja';
@@ -28,18 +28,9 @@ const CONJUNTA = '__conjunta__';
       </div>
 
       <div class="grid grid-cols-2 gap-2">
-        @if (conectado) {
-          <!-- Modo conectado: las cuentas son reales y cuadrar y mover llegan en la Etapa 5 (spec steward-cuentas). -->
-          <button type="button" class="boton h-[46px] rounded-xl bg-acento text-sm text-white" (click)="pronto.set(true)">Cuadrar cuentas</button>
-          <button type="button" class="boton h-[46px] rounded-xl border border-[#D9D8D2] bg-superficie text-sm" (click)="pronto.set(true)">Mover dinero</button>
-        } @else {
-          <a routerLink="/cuentas/cuadrar" class="boton h-[46px] rounded-xl bg-acento text-sm text-white">Cuadrar cuentas</a>
-          <button type="button" class="boton h-[46px] rounded-xl border border-[#D9D8D2] bg-superficie text-sm" (click)="hoja.set('mover')">Mover dinero</button>
-        }
+        <a routerLink="/cuentas/cuadrar" class="boton h-[46px] rounded-xl bg-acento text-sm text-white">Cuadrar cuentas</a>
+        <button type="button" class="boton h-[46px] rounded-xl border border-[#D9D8D2] bg-superficie text-sm" (click)="hoja.set('mover')">Mover dinero</button>
       </div>
-      @if (pronto()) {
-        <p role="status" class="rounded-xl bg-nota px-4 py-3 text-[13px] text-[#3B3D39]">Cuadrar cuentas y mover dinero llegan en una próxima versión. Por ahora tus cuentas muestran el saldo aproximado.</p>
-      }
 
       <section class="flex flex-col gap-2" aria-labelledby="titulo-cuentas">
         <div class="flex items-center justify-between">
@@ -61,9 +52,12 @@ const CONJUNTA = '__conjunta__';
       <section class="flex flex-col gap-1" aria-labelledby="titulo-creditos">
         <div class="flex items-center justify-between">
           <h2 id="titulo-creditos" class="text-base font-semibold">Créditos</h2>
-          @if (deuda(); as total) {
-            <span class="text-xs text-secundario">Debes <app-monto [valor]="total" /></span>
-          }
+          <div class="flex items-center gap-3">
+            @if (deuda(); as total) {
+              <span class="text-xs text-secundario">Debes <app-monto [valor]="total" /></span>
+            }
+            <button type="button" class="boton-texto font-semibold" aria-label="Agregar crédito" (click)="hoja.set('credito')">+ Agregar</button>
+          </div>
         </div>
         @for (c of creditos.value() ?? []; track c.credito.id) {
           <a [routerLink]="['/cuentas/credito', c.credito.id]" class="block hover:bg-superficie">
@@ -94,6 +88,37 @@ const CONJUNTA = '__conjunta__';
       </app-hoja>
     }
 
+    @if (hoja() === 'credito') {
+      <!-- "+ Agregar" en Créditos: su cuota entra al plan del mes en curso (spec steward-cuentas, "Agregar crédito"). -->
+      <app-hoja titulo="Nuevo crédito" (cerrar)="cerrarHoja()">
+        <label class="flex flex-col gap-2">
+          <span class="rotulo">Nombre</span>
+          <input class="campo" placeholder="Ej: Libre inversión" [value]="nombre()" (input)="nombre.set($any($event.target).value)" />
+        </label>
+        <label class="flex flex-col gap-2">
+          <span class="rotulo">Entidad</span>
+          <input class="campo" placeholder="Ej: Bancolombia" [value]="entidad()" (input)="entidad.set($any($event.target).value)" />
+        </label>
+        <app-monto-input etiqueta="Saldo" [(valor)]="saldo" />
+        <app-monto-input etiqueta="Total original" [(valor)]="totalOriginal" />
+        <app-monto-input etiqueta="Cuota" [(valor)]="cuota" />
+        <div class="grid grid-cols-2 gap-3">
+          <label class="flex flex-col gap-2">
+            <span class="rotulo">Tasa (% EM)</span>
+            <input class="campo" inputmode="decimal" placeholder="1,6" [value]="tasaTexto()" (input)="tasaTexto.set($any($event.target).value)" />
+          </label>
+          <label class="flex flex-col gap-2">
+            <span class="rotulo">Día de pago</span>
+            <input class="campo" inputmode="numeric" placeholder="15" [value]="diaTexto()" (input)="diaTexto.set($any($event.target).value)" />
+          </label>
+        </div>
+        @if (error()) {
+          <p role="alert" class="text-sm text-negativo">{{ error() }}</p>
+        }
+        <button type="button" class="boton-grande" [disabled]="!creditoCompleto()" (click)="agregarCredito()">Agregar crédito</button>
+      </app-hoja>
+    }
+
     @if (hoja() === 'mover') {
       <app-hoja titulo="Mover dinero" (cerrar)="cerrarHoja()">
         <app-segmentado etiqueta="Desde" [chips]="true" [opciones]="opcionesCuenta()" [(valor)]="desde" />
@@ -110,8 +135,6 @@ const CONJUNTA = '__conjunta__';
 export class CuentasPage {
   private readonly puertos = inject(PUERTOS);
   private readonly miembros = inject(MiembrosHogar);
-  protected readonly conectado = puertosConectados(this.puertos) !== null;
-  protected readonly pronto = signal(false);
 
   protected readonly filtro = signal<FiltroTitular>('TODAS');
   protected readonly datos = consulta(() => this.filtro(), (p, f) => p.cuentas.cuentas(f));
@@ -119,13 +142,27 @@ export class CuentasPage {
   protected readonly creditos = consulta(() => null, (p) => p.cuentas.creditos());
   protected readonly deuda = computed(() => sumar((this.creditos.value() ?? []).map((c) => c.credito.saldo)));
 
-  protected readonly hoja = signal<'agregar' | 'mover' | null>(null);
+  protected readonly hoja = signal<'agregar' | 'mover' | 'credito' | null>(null);
   protected readonly nombre = signal('');
   protected readonly titular = signal<string | null>(CONJUNTA);
   protected readonly saldo = signal<number | null>(null);
   protected readonly desde = signal<Id | null>(null);
   protected readonly hacia = signal<Id | null>(null);
   protected readonly error = signal('');
+  protected readonly entidad = signal('');
+  protected readonly totalOriginal = signal<number | null>(null);
+  protected readonly cuota = signal<number | null>(null);
+  protected readonly tasaTexto = signal('');
+  protected readonly diaTexto = signal('');
+  private readonly tasaEM = computed(() => {
+    const t = Number(this.tasaTexto().trim().replace(',', '.') || '0');
+    return Number.isFinite(t) ? t : NaN;
+  });
+  private readonly dia = computed(() => Number(this.diaTexto().trim()));
+  /** El total original es opcional: si falta, es el saldo. */
+  protected readonly creditoCompleto = computed(
+    () => !!this.nombre().trim() && this.saldo() !== null && !!this.cuota() && Number.isInteger(this.dia()) && this.dia() >= 1 && !Number.isNaN(this.tasaEM()),
+  );
 
   protected readonly titulares = computed<Opcion<string>[]>(() => [
     ...this.miembros.miembros().map((m) => ({ valor: m.usuario.id, etiqueta: m.usuario.nombre })),
@@ -148,11 +185,26 @@ export class CuentasPage {
     this.desde.set(null);
     this.hacia.set(null);
     this.error.set('');
+    this.entidad.set('');
+    this.totalOriginal.set(null);
+    this.cuota.set(null);
+    this.tasaTexto.set('');
+    this.diaTexto.set('');
   }
 
   protected async agregar(): Promise<void> {
     const titular = this.titular();
     await this.ejecutar(() => this.puertos.cuentas.agregar({ nombre: this.nombre(), titularId: titular === CONJUNTA ? null : titular, saldo: this.saldo()! }));
+  }
+
+  protected async agregarCredito(): Promise<void> {
+    const saldo = this.saldo()!;
+    await this.ejecutar(() =>
+      this.puertos.cuentas.agregarCredito({
+        nombre: this.nombre(), entidad: this.entidad(), saldo, totalOriginal: this.totalOriginal() ?? saldo, cuota: this.cuota()!,
+        tasaEM: this.tasaEM(), diaPago: this.dia(),
+      }),
+    );
   }
 
   protected async mover(): Promise<void> {

@@ -53,10 +53,12 @@ interface Dependencias {
 }
 
 /**
- * Puertos del modo conectado (design D9 de backend-acceso-hogar y D5 de backend-ingresos-diezmo y backend-plan-mes-hoy):
- * - del backend: sesion, hogar, miembros, invitaciones, categorias, ingresos fijos, regla de diezmo, cuentas, el plan de
- *   cada mes con su Opcion A y todo lo registrado ("Recibi", "Entregado", pagos, gastos y aportes);
- * - del adaptador de prueba, con la persona real como titular: creditos, plan anual y cierre;
+ * Puertos del modo conectado (design D9 de backend-acceso-hogar, D5 de backend-ingresos-diezmo y backend-plan-mes-hoy, y
+ * D7 de backend-cuentas-creditos):
+ * - del backend: sesion, hogar, miembros, invitaciones, categorias, ingresos fijos, regla de diezmo, cuentas con su cuadre,
+ *   creditos, el plan de cada mes con su Opcion A y todo lo registrado ("Recibi", "Entregado", pagos, gastos, aportes,
+ *   ajustes, transferencias y abonos);
+ * - del adaptador de prueba, con la persona real como titular: plan anual y cierre;
  * - lo que llega en otras etapas (varias opciones, cerrar el mes, crear meses desde el anual) avisa sin cambiar nada.
  *
  * Las finanzas reales se superponen al estado de prueba en cada lectura, asi que Hoy, Planear, Cuentas y el Cierre
@@ -368,7 +370,7 @@ export class PuertosConectados implements Puertos {
       editarMontoAnual: (anio, categoriaId, mes, monto) => demo().editarMontoAnual(anio, categoriaId, mes, monto),
       crearMes: (ref, modo) => escribir(api.crearPlan(ref, modo)),
       guardarItem: (planId, escenarioId, item) => {
-        const cuerpo = { categoriaId: item.categoriaId, nombre: item.nombre, monto: item.monto, diaVence: item.diaVence, tipo: item.tipo, cuota: item.cuota };
+        const cuerpo = { categoriaId: item.categoriaId, nombre: item.nombre, monto: item.monto, diaVence: item.diaVence, tipo: item.tipo, cuota: item.cuota, creditoId: item.creditoId };
         return escribir(item.id ? api.editarItem(planId, escenarioId, item.id, cuerpo) : api.crearItem(planId, escenarioId, cuerpo));
       },
       quitarItem: (planId, escenarioId, itemId) => escribir(api.quitarItem(planId, escenarioId, itemId)),
@@ -378,9 +380,16 @@ export class PuertosConectados implements Puertos {
     };
   }
 
-  /** Cuentas reales; cuadrar y mover llegan en la Etapa 5, y los creditos siguen de prueba. */
+  /**
+   * Cuentas y creditos reales (design D7 de backend-cuentas-creditos): las escrituras van al backend y releen las
+   * finanzas; las vistas (saldo estimado, diferencia del cuadre, simulador) las calcula el dominio sobre lo superpuesto.
+   */
   private crearCuentas(): CuentasPort {
-    const etapa5 = () => Promise.reject(new ReglaError('ETAPA_5', 'Cuadrar y mover dinero llegan en una próxima versión.'));
+    const api = this.d.api;
+    const escribir = async (accion: Promise<unknown>): Promise<void> => {
+      await accion;
+      await this.recargarFinanzas();
+    };
     return {
       cuentas: (filtro) => this.demoActual.cuentas.cuentas(filtro),
       agregar: async (datos) => {
@@ -390,13 +399,21 @@ export class PuertosConectados implements Puertos {
         await this.d.api.crearCuenta(datos.nombre, datos.titularId === null ? 'CONJUNTA' : 'YO', datos.saldo);
         await this.recargarFinanzas();
       },
-      mover: etapa5,
+      mover: (datos) => {
+        if (datos.desde === datos.hacia) return Promise.reject(new ReglaError('MISMA_CUENTA', 'Elige dos cuentas distintas'));
+        return escribir(api.transferir(datos));
+      },
       diferencia: (cuentaId, saldoBanco) => this.demoActual.cuentas.diferencia(cuentaId, saldoBanco),
-      cuadrar: etapa5,
+      cuadrar: (saldos) => escribir(api.cuadrar(saldos)),
       creditos: () => this.demoActual.cuentas.creditos(),
       credito: (id) => this.demoActual.cuentas.credito(id),
-      actualizarSaldo: (id, saldo) => this.demoActual.cuentas.actualizarSaldo(id, saldo),
-      registrarAbono: (id, monto, origen) => this.demoActual.cuentas.registrarAbono(id, monto, origen),
+      agregarCredito: (datos) => escribir(api.crearCredito(datos)),
+      actualizarSaldo: (id, saldo) => escribir(api.actualizarSaldoCredito(id, saldo)),
+      registrarAbono: async (id, monto, origen) => {
+        const usuarioId = this.titularId;
+        if (!usuarioId) throw new ReglaError('SIN_SESION', 'Inicia sesión otra vez');
+        await escribir(api.abonar(id, { monto, usuarioId, origen: origenApi(origen) }));
+      },
       simular: (id, abono) => this.demoActual.cuentas.simular(id, abono),
       // El plan del mes ya es real y solo tiene la Opcion A: probar un abono como opcion llega despues.
       probarComoOpcion: () => Promise.reject(new ReglaError('ETAPA_7', 'Probar un abono como opción llega en una próxima versión.')),

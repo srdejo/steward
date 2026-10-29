@@ -44,7 +44,7 @@ export const CATEGORIAS_SISTEMA: CategoriaApi[] = [
 
 /** Finanzas sin plan ni registros, del mes de AHORA (octubre 2026). */
 export function finanzasVacias(): FinanzasApi {
-  return { mes: { anio: 2026, mes: 10 }, diezmoEnHoy: 'SEPARADO', categorias: CATEGORIAS_SISTEMA.map((c) => ({ ...c })), ingresosFijos: [], reglas: [], cuentas: [], planes: [], movimientos: [] };
+  return { mes: { anio: 2026, mes: 10 }, diezmoEnHoy: 'SEPARADO', categorias: CATEGORIAS_SISTEMA.map((c) => ({ ...c })), ingresosFijos: [], reglas: [], cuentas: [], planes: [], movimientos: [], creditos: [] };
 }
 
 /**

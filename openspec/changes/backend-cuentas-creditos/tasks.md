@@ -46,17 +46,17 @@
 
 ## 5. PWA
 
-- [ ] 5.1 `api.ts`: tipos y llamadas de cuadre, transferencias, créditos, saldo y abonos. `superposicion.ts` reemplaza los créditos, aplica `seq` y `seqCuadre` reales, y pone `creditoId` y `cuentaDestinoId` (D2, D7). Verificar: tests de la superposición:
+- [x] 5.1 `api.ts`: tipos y llamadas de cuadre, transferencias, créditos, saldo y abonos. `superposicion.ts` reemplaza los créditos, aplica `seq` y `seqCuadre` reales, y pone `creditoId` y `cuentaDestinoId` (D2, D7). Verificar: tests de la superposición:
   - el saldo estimado de una cuenta con un cuadre real, y con un movimiento de un mes fuera de la ventana;
   - los créditos de prueba no se ven.
-- [ ] 5.2 `PuertosConectados.cuentas` según D7. Se quita `ETAPA_5`, y `probarComoOpcion` sigue con `ETAPA_7`. Verificar: tests en `conectado.spec.ts` para cuadrar, mover, agregar crédito, actualizar saldo y abonar, cada uno releyendo las finanzas.
-- [ ] 5.3 Pantallas:
+- [x] 5.2 `PuertosConectados.cuentas` según D7. Se quita `ETAPA_5`, y `probarComoOpcion` sigue con `ETAPA_7`. Verificar: tests en `conectado.spec.ts` para cuadrar, mover, agregar crédito, actualizar saldo y abonar, cada uno releyendo las finanzas.
+- [x] 5.3 Pantallas:
   - "+ Agregar" en Créditos con su hoja;
   - selector de origen en "Registrar abono";
   - fuera el aviso `pronto` de Cuadrar y Mover en modo conectado.
   
   Verificar: tests de la hoja (botón deshabilitado sin cuota) en modo demo y en modo conectado. Los tests de Cuentas existentes siguen en verde.
-- [ ] 5.4 Recorrido conectado con el backend simulado: agregar un crédito con el plan activo → la cuota en Hoy → pagarla → saldo $13.978.000 → abono desde una cuenta → cuadrar con diferencia → "Sin registrar" en el Cierre. Verificar: `npx ng test` en verde. Actualizar `frontend/README.md` (qué es real y qué de prueba). Commit.
+- [x] 5.4 Recorrido conectado con el backend simulado: agregar un crédito con el plan activo → la cuota en Hoy → pagarla → saldo $13.978.000 → abono desde una cuenta → cuadrar con diferencia → "Sin registrar" en el Cierre. Verificar: `npx ng test` en verde. Actualizar `frontend/README.md` (qué es real y qué de prueba). Commit.
 
 ## 6. Verificación y cierre
 

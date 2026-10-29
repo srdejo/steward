@@ -88,13 +88,15 @@ export interface CuentaApi {
   saldoCuadre: number;
   fechaCuadre: string;
   cuadrada: boolean;
+  /** Orden del ultimo movimiento incluido en `saldoCuadre` (design D1 de backend-cuentas-creditos). */
+  seqCuadre: number;
 }
 
 export type OrigenApi = 'CUENTA' | 'EXTERNA' | 'NINGUNO';
 
 export interface MovimientoApi {
   id: string;
-  tipo: 'INGRESO_FIJO' | 'DIEZMO_ENTREGADO' | 'APORTE' | 'PAGO' | 'GASTO';
+  tipo: 'INGRESO_FIJO' | 'DIEZMO_ENTREGADO' | 'APORTE' | 'PAGO' | 'GASTO' | 'AJUSTE_CUADRE' | 'TRANSFERENCIA' | 'ABONO_CREDITO';
   ref: MesApi;
   monto: number;
   fecha: string;
@@ -108,6 +110,12 @@ export interface MovimientoApi {
   itemId: string | null;
   nota: string;
   origen: OrigenApi;
+  /** TRANSFERENCIA: la cuenta a la que llega (la de origen va en `cuentaId`). */
+  cuentaDestinoId: string | null;
+  /** PAGO de la cuota de un credito y ABONO_CREDITO. */
+  creditoId: string | null;
+  /** Orden de registro: el saldo estimado suma lo registrado despues del ultimo cuadre. */
+  seq: number;
 }
 
 export interface CategoriaApi {
@@ -127,6 +135,7 @@ export interface ItemPlanApi {
   diaVence: number | null;
   tipo: 'FIJO' | 'VARIABLE' | 'CUOTA' | 'CREDITO';
   cuota: { actual: number; total: number } | null;
+  creditoId: string | null;
 }
 
 export interface EscenarioApi {
@@ -147,7 +156,24 @@ export interface PlanApi {
   escenarios: EscenarioApi[];
 }
 
-/** Lo que la PWA superpone a sus datos de prueba (design D5 de backend-ingresos-diezmo y de backend-plan-mes-hoy). */
+/**
+ * Lo que la PWA superpone a sus datos de prueba (design D5 de backend-ingresos-diezmo y de backend-plan-mes-hoy, D2 de
+ * backend-cuentas-creditos).
+ */
+export interface CreditoApi {
+  id: string;
+  nombre: string;
+  entidad: string;
+  saldo: number;
+  saldoActualizadoEn: string;
+  cuota: number;
+  tasaEM: number;
+  diaPago: number;
+  totalOriginal: number;
+  /** Los ultimos, del mas reciente al mas antiguo. */
+  pagos: { fecha: string; monto: number; tipo: 'CUOTA' | 'ABONO' }[];
+}
+
 export interface FinanzasApi {
   mes: MesApi;
   diezmoEnHoy: 'SEPARADO' | 'AGRUPADO';
@@ -157,7 +183,9 @@ export interface FinanzasApi {
   cuentas: CuentaApi[];
   /** Desde dos meses antes del mes en curso. */
   planes: PlanApi[];
+  /** Los de esos meses, mas los de antes que todavia cuentan en el saldo estimado de una cuenta. */
   movimientos: MovimientoApi[];
+  creditos: CreditoApi[];
 }
 
 export type ItemPlanRequest = Omit<ItemPlanApi, 'id'>;
@@ -331,6 +359,26 @@ export class Api {
 
   aportar(datos: { usuarioId: string; monto: number; mes: MesApi; cuentaId: string | null; aplicaDiezmo: boolean }): Promise<MovimientoApi> {
     return this.pedir(this.http.post<MovimientoApi>('/api/aportes', datos));
+  }
+
+  cuadrar(saldos: { cuentaId: string; saldoBanco: number }[]): Promise<CuentaApi[]> {
+    return this.pedir(this.http.post<CuentaApi[]>('/api/cuentas/cuadre', { saldos }));
+  }
+
+  transferir(datos: { desde: string; hacia: string; monto: number }): Promise<MovimientoApi> {
+    return this.pedir(this.http.post<MovimientoApi>('/api/transferencias', datos));
+  }
+
+  crearCredito(datos: Omit<CreditoApi, 'id' | 'saldoActualizadoEn' | 'pagos'>): Promise<CreditoApi> {
+    return this.pedir(this.http.post<CreditoApi>('/api/creditos', datos));
+  }
+
+  actualizarSaldoCredito(id: string, saldo: number): Promise<CreditoApi> {
+    return this.pedir(this.http.put<CreditoApi>(`/api/creditos/${encodeURIComponent(id)}/saldo`, { saldo }));
+  }
+
+  abonar(id: string, datos: { monto: number; usuarioId: string; origen: OrigenRequest }): Promise<MovimientoApi> {
+    return this.pedir(this.http.post<MovimientoApi>(`/api/creditos/${encodeURIComponent(id)}/abonos`, datos));
   }
 
   private async pedir<T>(peticion: Observable<T>): Promise<T> {

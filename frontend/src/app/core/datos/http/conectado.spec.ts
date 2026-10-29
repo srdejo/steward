@@ -4,7 +4,7 @@ import { ReglaError, type Puertos } from '@steward/domain';
 
 import { GoogleDePrueba, USUARIO, finanzasPrueba, finanzasVacias, hogarApi, http, provideConectadoPrueba, responder } from '../../../../testing/conectado';
 import { CLAVE_ESTADO } from '@steward/domain/demo';
-import type { FinanzasApi, MovimientoApi, PlanApi } from './api';
+import type { CreditoApi, FinanzasApi, MovimientoApi, PlanApi } from './api';
 import { provideAppPrueba } from '../../../../testing/demo';
 import { app } from '../../../../testing/harness';
 import { PUERTOS, puertosConectados } from '../puertos';
@@ -285,6 +285,7 @@ const REGLA = { usuarioId: USUARIO.id, activa: true, porcentaje: 10, base: 'BRUT
 const RECIBIDO: MovimientoApi = {
   id: 'mov-1', tipo: 'INGRESO_FIJO', ref: OCT, monto: 6_288_000, fecha: '2026-10-26', usuarioId: USUARIO.id, creadoPor: USUARIO.id,
   cuentaId: null, ingresoFijoId: 'ing-1', bruto: 7_000_000, aplicaDiezmo: true, diezmoDe: [], itemId: null, nota: '', origen: 'NINGUNO',
+  cuentaDestinoId: null, creditoId: null, seq: 1,
 };
 
 function finanzas(extra: Partial<FinanzasApi> = {}): FinanzasApi {
@@ -364,9 +365,9 @@ describe('finanzas en el backend (steward-finanzas, design D5)', () => {
     await quitar;
   });
 
-  it('cuentas: agregar a mi nombre o conjunta; cuadrar y mover todavía no', async () => {
+  it('cuentas: agregar a mi nombre o conjunta, cuadrar y mover (backend-cuentas-creditos)', async () => {
     const mia = p.cuentas.agregar({ nombre: 'Nu', titularId: USUARIO.id, saldo: 300_000 });
-    finanzasPrueba.valor = finanzas({ cuentas: [{ id: 'cta-1', nombre: 'Nu', titularId: USUARIO.id, saldoCuadre: 300_000, fechaCuadre: '2026-10-26', cuadrada: false }] });
+    finanzasPrueba.valor = finanzas({ cuentas: [{ id: 'cta-1', nombre: 'Nu', titularId: USUARIO.id, saldoCuadre: 300_000, fechaCuadre: '2026-10-26', cuadrada: false, seqCuadre: 0 }] });
     const req = await responder('POST', '/api/cuentas', { id: 'cta-1' }, tick, 201);
     await mia;
     expect(req.request.body).toEqual({ nombre: 'Nu', titular: 'YO', saldo: 300_000 });
@@ -379,8 +380,57 @@ describe('finanzas en el backend (steward-finanzas, design D5)', () => {
     expect(req2.request.body).toMatchObject({ titular: 'CONJUNTA' });
 
     await expect(p.cuentas.agregar({ nombre: 'Ajena', titularId: 'otro', saldo: 1 })).rejects.toMatchObject({ codigo: 'SOLO_TUYAS' });
-    await expect(p.cuentas.cuadrar([{ cuentaId: 'cta-1', saldoBanco: 1 }])).rejects.toMatchObject({ codigo: 'ETAPA_5' });
-    await expect(p.cuentas.mover({ desde: 'cta-1', hacia: 'cta-2', monto: 1 })).rejects.toMatchObject({ codigo: 'ETAPA_5' });
+
+    const cuadrar = p.cuentas.cuadrar([{ cuentaId: 'cta-1', saldoBanco: 250_000 }]);
+    const req3 = await responder('POST', '/api/cuentas/cuadre', [], tick);
+    await cuadrar;
+    expect(req3.request.body).toEqual({ saldos: [{ cuentaId: 'cta-1', saldoBanco: 250_000 }] });
+
+    const mover = p.cuentas.mover({ desde: 'cta-1', hacia: 'cta-2', monto: 50_000 });
+    const req4 = await responder('POST', '/api/transferencias', registro({ tipo: 'TRANSFERENCIA' }), tick, 201);
+    await mover;
+    expect(req4.request.body).toEqual({ desde: 'cta-1', hacia: 'cta-2', monto: 50_000 });
+    await expect(p.cuentas.mover({ desde: 'cta-1', hacia: 'cta-1', monto: 1 })).rejects.toMatchObject({ codigo: 'MISMA_CUENTA' });
+  });
+
+  it('el saldo estimado usa el orden real y el último cuadre, aunque lo registrado sea de un mes viejo', async () => {
+    finanzasPrueba.valor = finanzas({
+      cuentas: [{ id: 'cta-1', nombre: 'Nu', titularId: USUARIO.id, saldoCuadre: 300_000, fechaCuadre: '2026-10-20', cuadrada: true, seqCuadre: 5 }],
+      movimientos: [
+        registro({ id: 'antes', monto: 40_000, origen: 'CUENTA', cuentaId: 'cta-1', seq: 4 }),
+        registro({ id: 'junio', monto: 25_000, origen: 'CUENTA', cuentaId: 'cta-1', seq: 7, ref: { anio: 2026, mes: 6 } }),
+      ],
+    });
+    // Cualquier escritura relee las finanzas.
+    const relee = p.cuentas.agregar({ nombre: 'Otra', titularId: null, saldo: 0 });
+    await responder('POST', '/api/cuentas', { id: 'cta-2' }, tick, 201);
+    await relee;
+    const { cuentas } = await p.cuentas.cuentas();
+    expect(cuentas.map((c) => [c.cuenta.nombre, c.saldo])).toEqual([['Nu', 275_000]]);
+  });
+
+  it('créditos reales: los de prueba no se ven; agregar, saldo y abono van al backend', async () => {
+    expect(await p.cuentas.creditos()).toEqual([]);
+    const datos = { nombre: 'Libre inversión', entidad: 'Bancolombia', saldo: 14_250_000, totalOriginal: 20_000_000, cuota: 500_000, tasaEM: 1.6, diaPago: 15 };
+    const agregar = p.cuentas.agregarCredito(datos);
+    const credito = { ...datos, id: 'cred-1', saldoActualizadoEn: '2026-10-26', pagos: [{ fecha: '2026-10-26', monto: 500_000, tipo: 'CUOTA' as const }] };
+    finanzasPrueba.valor = finanzas({ creditos: [credito] });
+    const req = await responder('POST', '/api/creditos', credito, tick, 201);
+    await agregar;
+    expect(req.request.body).toEqual(datos);
+    const [vista] = await p.cuentas.creditos();
+    expect(vista).toMatchObject({ porcentajePagado: 29, credito: { nombre: 'Libre inversión', pagos: [{ tipo: 'CUOTA', monto: 500_000 }] } });
+
+    const saldo = p.cuentas.actualizarSaldo('cred-1', 13_900_000);
+    const req2 = await responder('PUT', '/api/creditos/cred-1/saldo', credito, tick);
+    await saldo;
+    expect(req2.request.body).toEqual({ saldo: 13_900_000 });
+
+    const abono = p.cuentas.registrarAbono('cred-1', 1_000_000, { tipo: 'EXTERNA' });
+    const req3 = await responder('POST', '/api/creditos/cred-1/abonos', registro({ tipo: 'ABONO_CREDITO' }), tick, 201);
+    await abono;
+    expect(req3.request.body).toEqual({ monto: 1_000_000, usuarioId: USUARIO.id, origen: { tipo: 'EXTERNA' } });
+    await expect(p.cuentas.probarComoOpcion('cred-1', { anio: 2026, mes: 11 }, 1)).rejects.toMatchObject({ codigo: 'ETAPA_7' });
   });
 
   it('restablecer los datos de prueba no toca los reales (steward-ui-shell)', async () => {
@@ -414,14 +464,19 @@ const PLAN_OCT: PlanApi = {
   escenarios: [{
     id: 'esc-a', letra: 'A', creadoPor: USUARIO.id, nota: '', archivado: false,
     items: [
-      { id: 'it-internet', categoriaId: 'cat-1', nombre: 'Internet', monto: 120_000, diaVence: 28, tipo: 'FIJO', cuota: null },
-      { id: 'it-mercado', categoriaId: 'cat-3', nombre: 'Mercado', monto: 320_000, diaVence: null, tipo: 'VARIABLE', cuota: null },
+      { id: 'it-internet', categoriaId: 'cat-1', nombre: 'Internet', monto: 120_000, diaVence: 28, tipo: 'FIJO', cuota: null, creditoId: null },
+      { id: 'it-mercado', categoriaId: 'cat-3', nombre: 'Mercado', monto: 320_000, diaVence: null, tipo: 'VARIABLE', cuota: null, creditoId: null },
     ],
   }],
 };
 
+const CREDITO: CreditoApi = {
+  id: 'cred-1', nombre: 'Libre inversión', entidad: 'Bancolombia', saldo: 14_250_000, saldoActualizadoEn: '2026-10-26', cuota: 500_000,
+  tasaEM: 1.6, diaPago: 15, totalOriginal: 20_000_000, pagos: [],
+};
+
 function registro(extra: Partial<MovimientoApi>): MovimientoApi {
-  return { ...RECIBIDO, id: 'mov-x', tipo: 'GASTO', monto: 0, ingresoFijoId: null, bruto: null, aplicaDiezmo: false, ...extra };
+  return { ...RECIBIDO, id: 'mov-x', tipo: 'GASTO', monto: 0, ingresoFijoId: null, bruto: null, aplicaDiezmo: false, seq: 2, ...extra };
 }
 
 describe('plan del mes y registros en el backend (steward-plan-mes, design D5)', () => {
@@ -503,7 +558,7 @@ describe('plan del mes y registros en el backend (steward-plan-mes, design D5)',
     const agregar = p.plan.guardarItem('plan-oct', 'esc-a', item);
     const r2 = await responder('POST', '/api/planes/plan-oct/escenarios/esc-a/items', { ...item, id: 'it-luz' }, tick, 201);
     await agregar;
-    expect(r2.request.body).toEqual({ categoriaId: 'cat-1', nombre: 'Luz', monto: 50_000, diaVence: 10, tipo: 'FIJO', cuota: null });
+    expect(r2.request.body).toEqual({ categoriaId: 'cat-1', nombre: 'Luz', monto: 50_000, diaVence: 10, tipo: 'FIJO', cuota: null, creditoId: null });
 
     const editar = p.plan.guardarItem('plan-oct', 'esc-a', { ...item, id: 'it-luz', monto: 60_000 });
     await responder('PUT', '/api/planes/plan-oct/escenarios/esc-a/items/it-luz', item, tick);
@@ -654,14 +709,26 @@ describe('pantallas con finanzas reales (backend-ingresos-diezmo)', () => {
     await atenderHogar(a);
   });
 
-  it('Cuentas: las reales, y cuadrar y mover avisan que llegan después', async () => {
-    finanzasPrueba.valor = finanzas({ cuentas: [{ id: 'cta-1', nombre: 'Nu', titularId: USUARIO.id, saldoCuadre: 300_000, fechaCuadre: '2026-10-26', cuadrada: false }] });
+  it('Cuentas: las reales, sin créditos de prueba, y cuadrar va al backend', async () => {
+    finanzasPrueba.valor = finanzas({ cuentas: [{ id: 'cta-1', nombre: 'Nu', titularId: USUARIO.id, saldoCuadre: 300_000, fechaCuadre: '2026-10-26', cuadrada: false, seqCuadre: 0 }] });
     const a = await entrarA('/cuentas');
     expect(a.raiz().querySelector('[data-cuenta="Nu"]')?.textContent).toContain('Ana María');
     expect(a.raiz().querySelector('[data-cuenta="Davivienda"]')).toBeNull();
+    expect(a.texto()).toContain('Sin créditos.');
     await a.tocar('Cuadrar cuentas');
+    expect(a.url()).toBe('/cuentas/cuadrar');
+    await atenderHogar(a);
+    await a.escribir('[data-cuenta="Nu"] input', '250000');
+    a.porTexto('Guardar saldos').click();
+    finanzasPrueba.valor = finanzas({
+      cuentas: [{ id: 'cta-1', nombre: 'Nu', titularId: USUARIO.id, saldoCuadre: 250_000, fechaCuadre: '2026-10-26', cuadrada: true, seqCuadre: 3 }],
+      movimientos: [registro({ id: 'aj', tipo: 'AJUSTE_CUADRE', monto: 50_000, origen: 'CUENTA', cuentaId: 'cta-1', nota: 'Gastos sin registrar', seq: 3 })],
+    });
+    const req = await responder('POST', '/api/cuentas/cuadre', [], a.estable);
+    expect(req.request.body).toEqual({ saldos: [{ cuentaId: 'cta-1', saldoBanco: 250_000 }] });
+    await atenderHogar(a);
     expect(a.url()).toBe('/cuentas');
-    expect(a.texto()).toContain('llegan en una próxima versión');
+    expect(a.raiz().querySelector('[data-cuenta="Nu"]')?.textContent?.replace(/\s+/g, ' ')).toContain('cuadrada hoy $250.000');
   });
 });
 
@@ -687,7 +754,7 @@ describe('pantallas con el plan real (backend-plan-mes-hoy)', () => {
   }
 
   it('avisos: Duplicar, Comparar, Cerrar, Crear meses y Probarlo como opción', async () => {
-    finanzasPrueba.valor = finanzas({ planes: [{ ...PLAN_OCT, estado: 'BORRADOR', escenarioActivoId: null }] });
+    finanzasPrueba.valor = finanzas({ planes: [{ ...PLAN_OCT, estado: 'BORRADOR', escenarioActivoId: null }], creditos: [CREDITO] });
     const a = await entrarA('/planear/2026-10');
     await a.tocar('+ Duplicar');
     expect(a.texto()).toContain('Varias opciones por mes llegan en una próxima versión.');
@@ -706,11 +773,86 @@ describe('pantallas con el plan real (backend-plan-mes-hoy)', () => {
     await a.tocar('Crear meses desde este plan');
     expect(a.texto()).toContain('Crear los meses desde el plan anual llega en una próxima versión.');
 
-    await a.ir('/cuentas/credito/cred-libre');
+    await a.ir('/cuentas/credito/cred-1');
     await atenderHogar(a);
     await a.escribir('Abono', '2000000');
     await a.tocar(/Probarlo como opción/);
     expect(a.texto()).toContain('Probar un abono como opción llega en una próxima versión.');
+  });
+
+  it('recorrido de la Etapa 5: crédito con su cuota, pagarla, abonar y cuadrar (backend-cuentas-creditos)', async () => {
+    const DAVIVIENDA = { id: 'cta-d', nombre: 'Davivienda', titularId: USUARIO.id, saldoCuadre: 4_000_000, fechaCuadre: '2026-10-01', cuadrada: false, seqCuadre: 0 };
+    const CUOTA = { id: 'it-cuota', categoriaId: 'cat-4', nombre: 'Cuota libre inversión', monto: 500_000, diaVence: 15, tipo: 'CREDITO' as const, cuota: null, creditoId: 'cred-1' };
+    const conCuota: PlanApi = { ...PLAN_OCT, escenarios: [{ ...PLAN_OCT.escenarios[0]!, items: [...PLAN_OCT.escenarios[0]!.items, CUOTA] }] };
+    finanzasPrueba.valor = finanzas({ planes: [PLAN_OCT], cuentas: [DAVIVIENDA] });
+    const a = await entrarA('/cuentas');
+
+    // + Agregar crédito: su cuota entra a la Opción A de octubre.
+    await a.tocar('+ Agregar', '[aria-label="Agregar crédito"]');
+    await a.escribir('Nombre', 'Libre inversión');
+    await a.escribir('Entidad', 'Bancolombia');
+    await a.escribir('Saldo', '14250000');
+    await a.escribir('Total original', '20000000');
+    await a.escribir('Cuota', '500000');
+    await a.escribir('Tasa (% EM)', '1,6');
+    await a.escribir('Día de pago', '15');
+    a.porTexto('Agregar crédito').click();
+    finanzasPrueba.valor = finanzas({ planes: [conCuota], cuentas: [DAVIVIENDA], creditos: [CREDITO] });
+    const crear = await responder('POST', '/api/creditos', CREDITO, a.estable, 201);
+    expect(crear.request.body).toMatchObject({ nombre: 'Libre inversión', tasaEM: 1.6, diaPago: 15, totalOriginal: 20_000_000 });
+    await atenderHogar(a);
+    expect(a.texto()).toContain('Libre inversión Cuota $500.000 · 1,6% EM');
+    await a.ir('/hoy');
+    await atenderHogar(a);
+    expect(a.texto()).toContain('Cuota libre inversión');
+
+    // Pagarla desde Davivienda: el crédito baja en la parte de capital y la cuenta en la cuota.
+    const pagar = TestBed.inject(PUERTOS).movimientos.marcarPago({
+      itemId: 'it-cuota', ref: OCT, monto: 500_000, usuarioId: USUARIO.id, origen: { tipo: 'CUENTA', cuentaId: 'cta-d' },
+    });
+    const pago = registro({ id: 'mov-c', tipo: 'PAGO', monto: 500_000, itemId: 'it-cuota', origen: 'CUENTA', cuentaId: 'cta-d', creditoId: 'cred-1', seq: 1 });
+    const conPago = { ...CREDITO, saldo: 13_978_000, pagos: [{ fecha: '2026-10-26', monto: 500_000, tipo: 'CUOTA' as const }] };
+    finanzasPrueba.valor = finanzas({ planes: [conCuota], cuentas: [DAVIVIENDA], creditos: [conPago], movimientos: [pago] });
+    await responder('POST', '/api/pagos', pago, a.estable, 201);
+    await pagar;
+    await a.ir('/cuentas');
+    await atenderHogar(a);
+    expect(a.texto()).toContain('$13.978.000');
+    expect(a.raiz().querySelector('[data-cuenta="Davivienda"]')?.textContent?.replace(/\s+/g, ' ')).toContain('≈ $3.500.000');
+
+    // Abono desde Davivienda.
+    await a.ir('/cuentas/credito/cred-1');
+    await atenderHogar(a);
+    await a.tocar('Registrar abono');
+    await a.escribir('¿Cuánto abonaste?', '1000000');
+    await a.tocar('Davivienda', 'app-hoja [role="radio"]');
+    a.porTexto('Guardar').click();
+    const abono = registro({ id: 'mov-ab', tipo: 'ABONO_CREDITO', monto: 1_000_000, origen: 'CUENTA', cuentaId: 'cta-d', creditoId: 'cred-1', seq: 2 });
+    const conAbono = { ...conPago, saldo: 12_978_000, pagos: [{ fecha: '2026-10-26', monto: 1_000_000, tipo: 'ABONO' as const }, ...conPago.pagos] };
+    finanzasPrueba.valor = finanzas({ planes: [conCuota], cuentas: [DAVIVIENDA], creditos: [conAbono], movimientos: [pago, abono] });
+    const req = await responder('POST', '/api/creditos/cred-1/abonos', abono, a.estable, 201);
+    expect(req.request.body).toEqual({ monto: 1_000_000, usuarioId: USUARIO.id, origen: { tipo: 'CUENTA', cuentaId: 'cta-d' } });
+    await atenderHogar(a);
+    expect(a.texto()).toContain('$12.978.000');
+    expect(a.texto()).toContain('Abono · 26 oct $1.000.000');
+
+    // Cuadrar Davivienda (estima $2.500.000) en $2.450.000: $50.000 sin registrar en el Cierre.
+    await a.ir('/cuentas/cuadrar');
+    await atenderHogar(a);
+    await a.escribir('[data-cuenta="Davivienda"] input', '2450000');
+    expect(a.raiz().querySelector('[data-testid="sin-registrar"]')!.textContent!.trim()).toBe('$50.000');
+    a.porTexto('Guardar saldos').click();
+    const ajuste = registro({ id: 'mov-aj', tipo: 'AJUSTE_CUADRE', monto: 50_000, origen: 'CUENTA', cuentaId: 'cta-d', nota: 'Gastos sin registrar', seq: 3 });
+    finanzasPrueba.valor = finanzas({
+      planes: [conCuota], creditos: [conAbono], movimientos: [pago, abono, ajuste],
+      cuentas: [{ ...DAVIVIENDA, saldoCuadre: 2_450_000, fechaCuadre: '2026-10-26', cuadrada: true, seqCuadre: 3 }],
+    });
+    await responder('POST', '/api/cuentas/cuadre', [], a.estable);
+    await atenderHogar(a);
+    expect(a.raiz().querySelector('[data-cuenta="Davivienda"]')?.textContent?.replace(/\s+/g, ' ')).toContain('cuadrada hoy $2.450.000');
+    await a.ir('/planear/2026-10/cierre');
+    await atenderHogar(a);
+    expect(a.texto().replace(/\s+/g, ' ')).toContain('Sin registrar de cuadrar cuentas — 50.000');
   });
 
   it('Hoy sin plan → Mes sin plan → Desde cero → agregar un gasto → Usar opción A', async () => {
