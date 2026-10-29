@@ -81,13 +81,25 @@ En modo conectado, Comparar MUST mostrar las opciones reales del mes, y "Usar {X
 - **THEN** solo la fila Créditos aparece resaltada, B "deja libre" $2.000.000 menos que A, y los dos ven noviembre con la B como plan
 
 ### Requirement: Plan anual
-El plan anual SHALL mostrar una cuadrícula de 12 meses por categoría, con los fijos llenos automáticamente, los eventos del año (primas, SOAT, predial, matrícula, renta, Navidad) con "+ Evento del año", y los aportes proyectados en tono tenue. MUST mostrar los KPI: libre proyectado del año, mes más apretado y diezmo del año. "Crear meses desde este plan" SHALL crear cada mes en Borrador con su columna como Opción A. Editar un mes después MUST NOT modificar el anual.
+Si el año no tiene plan anual, SHALL ofrecer "Crear plan anual {año}" (año en curso o futuro), que lo crea vacío. El plan anual SHALL mostrar una cuadrícula de 12 meses por categoría (todas las del hogar), con los fijos llenos automáticamente, los eventos del año (primas, SOAT, predial, matrícula, renta, Navidad) con "+ Evento del año", y los aportes proyectados en tono tenue: una fila por miembro, editable, con lo que cada uno espera aportar cada mes. MUST mostrar los KPI: libre proyectado del año, mes más apretado y diezmo del año. "Crear meses desde este plan" SHALL crear cada mes en Borrador con su columna como Opción A. Editar un mes después MUST NOT modificar el anual.
 
-En modo conectado, el plan anual sigue con el adaptador de prueba hasta la Etapa 8, y "Crear meses desde este plan" MUST mostrar que llega en una próxima versión, sin crear meses.
+En modo conectado, el plan anual, sus celdas, eventos y proyecciones, y "Crear meses desde este plan" MUST guardarse en el backend, y los dos miembros MUST ver la misma cuadrícula y los mismos KPI.
 
 #### Scenario: Evento del año
 - **WHEN** se agrega un evento SOAT en marzo de $1.200.000
 - **THEN** la columna de marzo y el KPI de libre proyectado bajan $1.200.000
+
+#### Scenario: Crear el anual vacío
+- **WHEN** 2027 no tiene plan anual y Daniel toca "Crear plan anual 2027"
+- **THEN** se ve la cuadrícula de 2027 con cada categoría del hogar en $0, una fila de aportes por miembro en $0 y "Crear meses desde este plan"
+
+#### Scenario: Aporte proyectado tenue
+- **WHEN** Esposa pone $2.000.000 en su fila de aportes de enero de 2027
+- **THEN** la celda se ve tenue, el libre de enero sube $2.000.000, y enero en Planear muestra "Aportes Esposa" proyectado
+
+#### Scenario: Crear meses en modo conectado
+- **WHEN** en modo conectado se toca "Crear meses desde este plan" en 2027
+- **THEN** los meses de 2027 sin plan aparecen en Planear en Borrador para los dos miembros
 
 ### Requirement: Cierre de mes
 Cierre SHALL mostrar la tabla plan vs. real por categoría, la fila "Sin registrar" (la suma de los ajustes de cuadre) y lo que sobró. El sobrante MUST poder repartirse entre "A ahorro" y "Pasar a {mes siguiente}", con una suma igual al sobrante. "Cerrar {mes}" SHALL dejar el mes Cerrado y en solo lectura, y lo pasado aparece como ingreso del mes siguiente ("Sobrante de octubre").

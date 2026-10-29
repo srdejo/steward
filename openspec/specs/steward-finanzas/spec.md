@@ -144,7 +144,8 @@ Un miembro SHALL poder leer en una sola llamada:
 - los créditos, con sus últimos pagos;
 - los planes de los meses, desde dos meses antes del mes en curso en adelante, con sus opciones e ítems (y el crédito de cada ítem enlazado) y su estado efectivo;
 - los movimientos de esos mismos meses, más los de cualquier mes que todavía cuenten en el saldo estimado de alguna cuenta: ingresos recibidos, diezmos entregados (con lo que cubre cada entrega), pagos, gastos, aportes, ajustes de cuadre, transferencias y abonos, con su orden de registro, su origen, su nota, su cuenta destino y su crédito;
-- los cierres desde tres meses antes del mes en curso (el del mes anterior a los que se leen trae el "Sobrante de {mes}" del primero), con sus filas, "Sin registrar", el sobrante, el reparto, quién cerró y la fecha.
+- los cierres desde tres meses antes del mes en curso (el del mes anterior a los que se leen trae el "Sobrante de {mes}" del primero), con sus filas, "Sin registrar", el sobrante, el reparto, quién cerró y la fecha;
+- los planes anuales desde el año del primer mes que se lee, con sus celdas y eventos, y los aportes proyectados de esos años.
 
 Sin hogar, MUST responder 404 `SIN_HOGAR`.
 
@@ -163,6 +164,10 @@ Sin hogar, MUST responder 404 `SIN_HOGAR`.
 #### Scenario: Un mes cerrado
 - **WHEN** Daniel cerró octubre con $1.166.000 al mes siguiente y Esposa lee las finanzas
 - **THEN** ve el cierre de octubre con sus filas, su sobrante y el reparto, y el plan de octubre en Cerrado
+
+#### Scenario: El plan anual
+- **WHEN** Daniel creó el plan anual 2027 con un evento y Esposa proyectó sus aportes, y Esposa lee las finanzas
+- **THEN** ve el plan anual 2027 con sus celdas, el evento y las proyecciones de los dos
 
 ### Requirement: Aislamiento de las finanzas
 Todo lo de esta capacidad SHALL resolverse a partir del hogar del usuario de la sesión. Ingresos, cuentas, créditos, movimientos y obligaciones de otro hogar MUST NOT poder leerse ni modificarse. Un id ajeno MUST responder igual que uno inexistente. Sin sesión, MUST responder 401.

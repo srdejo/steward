@@ -54,10 +54,10 @@ La UI SHALL funcionar en uno de dos modos, elegido en la configuración del buil
   - los ingresos fijos, las reglas de diezmo y "Diezmo en Hoy";
   - las categorías, los planes de los meses con todas sus opciones, y lo registrado (ingresos recibidos, pagos, gastos, aportes, diezmos entregados, ajustes de cuadre, transferencias y abonos);
   - las cuentas, con su cuadre y su saldo estimado, y los créditos;
-  - los cierres de mes.
-- Los módulos que aún no tienen backend SHALL seguir con el adaptador de prueba, guardado en el dispositivo: el plan anual.
-- Las pantallas MUST mostrar los datos reales junto a los de prueba, con las cifras calculadas por las mismas reglas. Los planes, los movimientos, las categorías, los créditos y los cierres de prueba MUST NOT mezclarse con los reales: en modo conectado solo se ven los reales.
-- "Restablecer datos de prueba" MUST afectar solo a los módulos de prueba, y "Probar desde cero" MUST NOT mostrarse.
+  - los cierres de mes;
+  - el plan anual y los aportes proyectados.
+- Ningún módulo usa ya el adaptador de prueba: los datos de ejemplo MUST NOT verse en modo conectado, y las cifras se calculan con las mismas reglas del dominio sobre lo real.
+- "Restablecer datos de prueba" y "Probar desde cero" MUST NOT mostrarse.
 
 En los dos modos, toda pantalla con sesión MUST mostrar un aviso discreto de "Datos de prueba" mientras algún módulo use el adaptador de prueba.
 
@@ -71,11 +71,11 @@ En los dos modos, toda pantalla con sesión MUST mostrar un aviso discreto de "D
 
 #### Scenario: Modo conectado
 - **WHEN** en modo conectado un miembro abre Ajustes
-- **THEN** ve el hogar y los miembros del backend, el aviso "Datos de prueba" sigue visible y no aparece "Probar desde cero"
+- **THEN** ve el hogar y los miembros del backend, sin el aviso "Datos de prueba" ni la sección de datos de prueba
 
 #### Scenario: Restablecer en modo conectado
-- **WHEN** en modo conectado se restablecen los datos de prueba
-- **THEN** los ingresos fijos, la regla de diezmo, las cuentas, los créditos, los planes, los cierres y lo registrado siguen iguales
+- **WHEN** en modo conectado un miembro abre Ajustes
+- **THEN** no aparece "Restablecer datos de prueba", porque no hay datos de prueba que restablecer
 
 ### Requirement: Datos detrás de puertos
 Las pantallas MUST obtener y modificar los datos solo a través de puertos de datos (interfaces por módulo del handoff: hogar, ingresos, plan, movimientos, cuentas, cierre). El adaptador de prueba SHALL ser una implementación intercambiable de esos puertos: reemplazarlo por uno HTTP MUST NOT requerir cambios en las pantallas.
