@@ -46,7 +46,7 @@ Cambio OpenSpec `backend-acceso-hogar`.
 - [x] Shell de la PWA Angular con los tokens del diseño y la pantalla de Acceso (Etapa 1.5).
 - [x] PWA en modo conectado: acceso, onboarding (pasos 1 y 5), invitación recibida y miembros en Ajustes contra el backend; el resto sigue con datos de prueba.
 - [x] `local-deploy.ps1 -Project steward` despliega backend y web juntos en `steward.test`.
-- [ ] Recorrido del criterio de cierre en `steward.test` con dos cuentas de Google.
+- [x] Recorrido del criterio de cierre en `steward.test` con dos personas, por el acceso de desarrollo porque Google no acepta `.test` como origen. Con Google real queda para el primer encendido en el VPS.
 
 ## Etapa 3 — Onboarding, ingresos fijos y diezmo
 

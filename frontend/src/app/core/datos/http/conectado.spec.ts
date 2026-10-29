@@ -177,7 +177,7 @@ describe('pantallas en modo conectado (steward-acceso-onboarding, steward-ui-she
     await responder('GET', '/api/mis-invitaciones', [MIA], a.estable);
     expect(a.texto()).toContain('Daniel te invitó a Jimenez Navarro');
     expect(a.porTexto('Prefiero crear mi hogar')).toBeTruthy();
-    await a.escribir('Tu nombre', 'Ana María');
+    // El nombre viene de la cuenta: unirse sin escribirlo no se queda en "Escribe tu nombre".
     a.porTexto('Unirme al hogar').click();
     const aceptar = await responder('POST', '/api/mis-invitaciones/inv-1/aceptar', sesionApi(), a.estable);
     expect(aceptar.request.body).toEqual({ nombre: 'Ana María', diezmoAportes: false });

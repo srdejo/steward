@@ -116,7 +116,7 @@
   - `.\infra\deploy.ps1 -Projects steward -WhatIf` con `BackendEnabled` en `$true` solo en memoria (parámetro de prueba), que muestra los pasos nativos en orden, rollback incluido;
   - con la configuración real, `-WhatIf` sigue mostrando solo la página "Próximamente";
   - `-WhatIf` de otro proyecto con jar (denti-caja) da la misma salida que antes.
-- [ ] 7.3 Recorrido de la Etapa 2 en `steward.test` (JVM, `.\infra\local-deploy.ps1 -Project steward`), con dos personas por el acceso de desarrollo (7.7), porque Google no acepta `.test` como origen:
+- [x] 7.3 Recorrido de la Etapa 2 en `steward.test` (JVM, `.\infra\local-deploy.ps1 -Project steward`), con dos personas por el acceso de desarrollo (7.7), porque Google no acepta `.test` como origen:
   1. Daniel entra, crea "Nuestra casa" e invita al correo de la segunda persona;
   2. la segunda persona abre el enlace (del correo, o del log si contact no corre en local), entra y se une;
   3. los dos ven dos miembros en Ajustes;

@@ -105,6 +105,12 @@ export class InvitacionPage {
       if (!inv.token || pendiente?.token !== inv.token) return;
       untracked(() => void this.continuarTrasLogin(pendiente));
     });
+    // Modo conectado con sesion: el nombre parte del de la cuenta (en demo la sesion es siempre la de Daniel).
+    if (this.conectado) void this.sesion.cargar();
+    effect(() => {
+      const propio = this.conectado ? this.sesion.usuario()?.nombre : undefined;
+      if (propio && !untracked(this.nombre)) this.nombre.set(propio);
+    });
   }
 
   private async continuarTrasLogin(pendiente: UnirmePendiente): Promise<void> {
