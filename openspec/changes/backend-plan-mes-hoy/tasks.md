@@ -41,12 +41,12 @@
 
 ## 4. PWA
 
-- [ ] 4.1 `api.ts`: tipos y llamadas de categorías, planes, ítems, usar, pagos, gastos y aportes. `superposicion.ts` reemplaza `categorias`, `planes` y todos los `movimientos`, y deja `cierres` vacío (D5). Verificar:
+- [x] 4.1 `api.ts`: tipos y llamadas de categorías, planes, ítems, usar, pagos, gastos y aportes. `superposicion.ts` reemplaza `categorias`, `planes` y todos los `movimientos`, y deja `cierres` vacío (D5). Verificar:
   - tests de la superposición: el plan real se ve en `resumenMes`, un pago `EXTERNA` cuenta como aporte implícito, y nada real llega al storage;
   - los demás tests siguen en verde.
-- [ ] 4.2 `PuertosConectados` según la tabla de D5: `movimientos`, `plan` y las categorías de `hogar` al backend, `registrarAporte` al backend, `entregarDiezmo` sin reparto, y los rechazos `ETAPA_6`, `ETAPA_7` y `ETAPA_8`. `YA_PAGADO` relee las finanzas antes de propagarse. Verificar: tests en `conectado.spec.ts` para cada escritura y cada rechazo.
-- [ ] 4.3 Pantallas: el aviso de "llega en una próxima versión" donde se llama a lo bloqueado (Mes en borrador "+ Duplicar", Comparar, Plan anual "Crear meses", Cierre "Cerrar {mes}", Detalle de crédito "Probarlo como opción"), y el mensaje de `ITEM_CON_PAGOS` en la hoja del ítem. Verificar: tests de cada aviso en modo conectado, y que en modo demo todo sigue igual (los tests existentes de Planear, Cuentas y Cierre en verde).
-- [ ] 4.4 Recorridos conectados con el backend simulado:
+- [x] 4.2 `PuertosConectados` según la tabla de D5: `movimientos`, `plan` y las categorías de `hogar` al backend, `registrarAporte` al backend, `entregarDiezmo` sin reparto, y los rechazos `ETAPA_6`, `ETAPA_7` y `ETAPA_8`. `YA_PAGADO` relee las finanzas antes de propagarse. Verificar: tests en `conectado.spec.ts` para cada escritura y cada rechazo.
+- [x] 4.3 Pantallas: el aviso de "llega en una próxima versión" donde se llama a lo bloqueado (Mes en borrador "+ Duplicar", Comparar, Plan anual "Crear meses", Cierre "Cerrar {mes}", Detalle de crédito "Probarlo como opción"), (Comparar no rechaza: calcula sobre lo real y muestra el aviso). `ITEM_CON_PAGOS` no tiene pantalla: ninguna permite quitar ítems todavía, y el puerto propaga el error si alguna lo hace. Verificar: tests de cada aviso en modo conectado, y que en modo demo todo sigue igual (los tests existentes de Planear, Cuentas y Cierre en verde).
+- [x] 4.4 Recorridos conectados con el backend simulado:
   - Hoy sin plan → Mes sin plan → "Desde cero" → agregar ítems → "Usar opción A";
   - el criterio de cierre de la spec `steward-hoy` (pago bajo el plan, aporte y gasto no planeado, con las cifras de "Vs. plan" y "Te queda libre");
   - "Lo pagó el otro miembro hace un momento";

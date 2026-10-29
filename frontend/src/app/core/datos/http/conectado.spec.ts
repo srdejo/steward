@@ -4,7 +4,7 @@ import { ReglaError, type Puertos } from '@steward/domain';
 
 import { GoogleDePrueba, USUARIO, finanzasPrueba, finanzasVacias, hogarApi, http, provideConectadoPrueba, responder } from '../../../../testing/conectado';
 import { CLAVE_ESTADO } from '@steward/domain/demo';
-import type { FinanzasApi, MovimientoApi } from './api';
+import type { FinanzasApi, MovimientoApi, PlanApi } from './api';
 import { provideAppPrueba } from '../../../../testing/demo';
 import { app } from '../../../../testing/harness';
 import { PUERTOS, puertosConectados } from '../puertos';
@@ -284,7 +284,7 @@ const SALARIO = { id: 'ing-1', usuarioId: USUARIO.id, nombre: 'Salario Ana', bru
 const REGLA = { usuarioId: USUARIO.id, activa: true, porcentaje: 10, base: 'BRUTO' as const, aplicaAportes: false };
 const RECIBIDO: MovimientoApi = {
   id: 'mov-1', tipo: 'INGRESO_FIJO', ref: OCT, monto: 6_288_000, fecha: '2026-10-26', usuarioId: USUARIO.id, creadoPor: USUARIO.id,
-  cuentaId: null, ingresoFijoId: 'ing-1', bruto: 7_000_000, aplicaDiezmo: true, diezmoDe: [],
+  cuentaId: null, ingresoFijoId: 'ing-1', bruto: 7_000_000, aplicaDiezmo: true, diezmoDe: [], itemId: null, nota: '', origen: 'NINGUNO',
 };
 
 function finanzas(extra: Partial<FinanzasApi> = {}): FinanzasApi {
@@ -311,7 +311,8 @@ describe('finanzas en el backend (steward-finanzas, design D5)', () => {
     expect(r.ingresos.find((l) => l.nombre === 'Salario Ana')).toMatchObject({ detalle: 'Fijo · llega el día 25', recibido: false });
     // El salario de prueba ya no esta: los ingresos fijos son los reales.
     expect(r.ingresos.some((l) => l.nombre === 'Salario Daniel')).toBe(false);
-    await p.movimientos.registrarGasto({ monto: 1_000, itemId: null, nota: 'Pan', usuarioId: USUARIO.id, origen: { tipo: 'NINGUNO' }, ref: OCT });
+    // Lo de prueba que se guarda (aqui, Restablecer) no lleva lo real.
+    await p.demo!.restablecer();
     expect(localStorage.getItem(CLAVE_ESTADO) ?? '').not.toContain('Salario Ana');
   });
 
@@ -388,8 +389,13 @@ describe('finanzas en el backend (steward-finanzas, design D5)', () => {
     expect(await p.ingresos.regla()).toMatchObject({ porcentaje: 10 });
   });
 
-  it('los aportes siguen en el dispositivo (Etapa 4) y Diezmo en Hoy va al backend', async () => {
-    await p.ingresos.registrarAporte({ usuarioId: USUARIO.id, monto: 500_000, ref: OCT, cuentaId: null, aplicaDiezmo: false });
+  it('los aportes y Diezmo en Hoy van al backend (Etapa 4)', async () => {
+    const aportar = p.ingresos.registrarAporte({ usuarioId: USUARIO.id, monto: 500_000, ref: OCT, cuentaId: null, aplicaDiezmo: false });
+    const aporte: MovimientoApi = { ...RECIBIDO, id: 'mov-a', tipo: 'APORTE', monto: 500_000, ingresoFijoId: null, bruto: null, aplicaDiezmo: false };
+    finanzasPrueba.valor = finanzas({ movimientos: [aporte] });
+    const reqAporte = await responder('POST', '/api/aportes', aporte, tick, 201);
+    await aportar;
+    expect(reqAporte.request.body).toEqual({ usuarioId: USUARIO.id, monto: 500_000, mes: OCT, cuentaId: null, aplicaDiezmo: false });
     const r = await p.movimientos.resumenMes(OCT);
     expect(r.ingresos.find((l) => l.tipo === 'APORTES' && l.usuarioId === USUARIO.id)?.monto).toBe(500_000);
 
@@ -398,6 +404,124 @@ describe('finanzas en el backend (steward-finanzas, design D5)', () => {
     const req = await responder('PUT', '/api/hogar/diezmo-en-hoy', null, tick, 204);
     await agrupar;
     expect(req.request.body).toEqual({ modo: 'AGRUPADO' });
+  });
+});
+
+// --- Plan del mes y registros de Hoy en el backend (backend-plan-mes-hoy, design D5) -----------------------------
+
+const PLAN_OCT: PlanApi = {
+  id: 'plan-oct', ref: OCT, estado: 'ACTIVO', escenarioActivoId: 'esc-a',
+  escenarios: [{
+    id: 'esc-a', letra: 'A', creadoPor: USUARIO.id, nota: '', archivado: false,
+    items: [
+      { id: 'it-internet', categoriaId: 'cat-1', nombre: 'Internet', monto: 120_000, diaVence: 28, tipo: 'FIJO', cuota: null },
+      { id: 'it-mercado', categoriaId: 'cat-3', nombre: 'Mercado', monto: 320_000, diaVence: null, tipo: 'VARIABLE', cuota: null },
+    ],
+  }],
+};
+
+function registro(extra: Partial<MovimientoApi>): MovimientoApi {
+  return { ...RECIBIDO, id: 'mov-x', tipo: 'GASTO', monto: 0, ingresoFijoId: null, bruto: null, aplicaDiezmo: false, ...extra };
+}
+
+describe('plan del mes y registros en el backend (steward-plan-mes, design D5)', () => {
+  let p: Puertos;
+  beforeEach(async () => {
+    TestBed.configureTestingModule({ providers: provideConectadoPrueba() });
+    p = TestBed.inject(PUERTOS);
+    conToken();
+    finanzasPrueba.valor = finanzas({ planes: [PLAN_OCT] });
+    const sesion = p.sesion.actual();
+    await responder('GET', '/api/sesion', sesionApi(), tick);
+    await sesion;
+  });
+  afterEach(() => http().verify());
+
+  it('el plan real reemplaza al de prueba y lo registrado de prueba no se ve', async () => {
+    const r = await p.movimientos.resumenMes(OCT);
+    expect([...r.porPagar, ...r.yaPagado].map((i) => i.item.nombre).sort()).toEqual(['Internet', 'Mercado']);
+    expect(r.plan).toBe(440_000 + 700_000); // los items + el diezmo calculado del salario
+    expect(r.noPlaneados).toHaveLength(0);
+    expect((await p.hogar.categorias()).map((c) => c.nombre)).toEqual(['Gastos fijos', 'Tarjetas y cuotas', 'Variables', 'Créditos']);
+    expect(await p.cierre.vista(OCT)).toMatchObject({ cerrado: false });
+  });
+
+  it('un pago desde "Su cuenta" cuenta como aporte de quien pagó', async () => {
+    const pagar = p.movimientos.marcarPago({ itemId: 'it-internet', ref: OCT, monto: 100_000, usuarioId: USUARIO.id, origen: { tipo: 'EXTERNA' } });
+    const pago = registro({ id: 'mov-p', tipo: 'PAGO', monto: 100_000, itemId: 'it-internet', origen: 'EXTERNA' });
+    finanzasPrueba.valor = finanzas({ planes: [PLAN_OCT], movimientos: [pago] });
+    const req = await responder('POST', '/api/pagos', pago, tick, 201);
+    await pagar;
+    expect(req.request.body).toEqual({ itemId: 'it-internet', monto: 100_000, usuarioId: USUARIO.id, origen: { tipo: 'EXTERNA' } });
+    const r = await p.movimientos.resumenMes(OCT);
+    expect(r.yaPagado.map((i) => i.item.nombre)).toEqual(['Internet']);
+    expect(r.vsPlan).toBe(-20_000);
+    expect(r.ingresos.find((l) => l.tipo === 'APORTES')).toMatchObject({ monto: 100_000, detalle: '1 pago directo' });
+    expect(localStorage.getItem(CLAVE_ESTADO) ?? '').not.toContain('it-internet');
+  });
+
+  it('YA_PAGADO: relee y propaga el mensaje con quién pagó', async () => {
+    const pagar = p.movimientos.marcarPago({ itemId: 'it-internet', ref: OCT, monto: 120_000, usuarioId: USUARIO.id, origen: { tipo: 'NINGUNO' } })
+      .catch((e: unknown) => e);
+    finanzasPrueba.valor = finanzas({ planes: [PLAN_OCT], movimientos: [registro({ tipo: 'PAGO', monto: 120_000, itemId: 'it-internet', usuarioId: 'u-otro' })] });
+    await responder('POST', '/api/pagos', { codigo: 'YA_PAGADO', mensaje: 'Ya lo pagó Esposa el 26 oct' }, tick, 409);
+    expect(await pagar).toMatchObject({ codigo: 'YA_PAGADO', message: 'Ya lo pagó Esposa el 26 oct' });
+    expect((await p.movimientos.resumenMes(OCT)).yaPagado.map((i) => i.item.nombre)).toEqual(['Internet']);
+  });
+
+  it('gasto no planeado, con su origen y nota', async () => {
+    const gastar = p.movimientos.registrarGasto({ monto: 85_000, itemId: null, nota: 'Farmacia', usuarioId: USUARIO.id, origen: { tipo: 'CUENTA', cuentaId: 'cta-1' }, ref: OCT });
+    const req = await responder('POST', '/api/gastos', registro({ monto: 85_000, nota: 'Farmacia' }), tick, 201);
+    await gastar;
+    expect(req.request.body).toEqual({ itemId: null, monto: 85_000, nota: 'Farmacia', usuarioId: USUARIO.id, origen: { tipo: 'CUENTA', cuentaId: 'cta-1' } });
+  });
+
+  it('crear el mes, editar la Opción A, usarla, y las categorías', async () => {
+    const crear = p.plan.crearMes({ anio: 2026, mes: 11 }, 'COPIAR');
+    const r1 = await responder('POST', '/api/planes', PLAN_OCT, tick, 201);
+    await crear;
+    expect(r1.request.body).toEqual({ anio: 2026, mes: 11, modo: 'COPIAR' });
+
+    const item = { categoriaId: 'cat-1', nombre: 'Luz', monto: 50_000, diaVence: 10, tipo: 'FIJO' as const, cuota: null, creditoId: null };
+    const agregar = p.plan.guardarItem('plan-oct', 'esc-a', item);
+    const r2 = await responder('POST', '/api/planes/plan-oct/escenarios/esc-a/items', { ...item, id: 'it-luz' }, tick, 201);
+    await agregar;
+    expect(r2.request.body).toEqual({ categoriaId: 'cat-1', nombre: 'Luz', monto: 50_000, diaVence: 10, tipo: 'FIJO', cuota: null });
+
+    const editar = p.plan.guardarItem('plan-oct', 'esc-a', { ...item, id: 'it-luz', monto: 60_000 });
+    await responder('PUT', '/api/planes/plan-oct/escenarios/esc-a/items/it-luz', item, tick);
+    await editar;
+    const quitar = p.plan.quitarItem('plan-oct', 'esc-a', 'it-luz');
+    await responder('DELETE', '/api/planes/plan-oct/escenarios/esc-a/items/it-luz', null, tick, 204);
+    await quitar;
+    const usar = p.plan.usar('plan-oct', 'esc-a');
+    const r3 = await responder('POST', '/api/planes/plan-oct/usar', PLAN_OCT, tick);
+    await usar;
+    expect(r3.request.body).toEqual({ escenarioId: 'esc-a' });
+
+    const nueva = p.hogar.guardarCategoria({ nombre: 'Educación' });
+    await responder('POST', '/api/categorias', { id: 'cat-5' }, tick, 201);
+    await nueva;
+    const renombrar = p.hogar.guardarCategoria({ id: 'cat-5', nombre: 'Colegio' });
+    const r4 = await responder('PATCH', '/api/categorias/cat-5', { id: 'cat-5' }, tick);
+    await renombrar;
+    expect(r4.request.body).toEqual({ nombre: 'Colegio' });
+  });
+
+  it('lo que llega en otras etapas avisa sin cambiar nada', async () => {
+    await expect(p.plan.duplicar('plan-oct', 'esc-a')).rejects.toMatchObject({ codigo: 'ETAPA_7' });
+    await expect(p.plan.crearMesesDesdeAnual(2027)).rejects.toMatchObject({ codigo: 'ETAPA_8' });
+    await expect(p.cierre.cerrar(OCT, { aAhorro: 0, aSiguiente: 0 })).rejects.toMatchObject({ codigo: 'ETAPA_6' });
+    await expect(p.cuentas.probarComoOpcion('cred-1', { anio: 2026, mes: 11 }, 1)).rejects.toMatchObject({ codigo: 'ETAPA_7' });
+    expect((await p.plan.mes(OCT)).opciones).toHaveLength(1);
+  });
+
+  it('el diezmo de un aporte se entrega en el backend, junto con el del salario', async () => {
+    // Ya no hay obligaciones de prueba: todas van al backend en una sola entrega.
+    const entregar = p.ingresos.entregarDiezmo(['mov-1', 'mov-a'], OCT, null);
+    const req = await responder('POST', '/api/diezmo/entregas', registro({ tipo: 'DIEZMO_ENTREGADO' }), tick, 201);
+    await entregar;
+    expect(req.request.body).toEqual({ obligaciones: ['mov-1', 'mov-a'], cuentaId: null });
   });
 });
 
@@ -521,5 +645,150 @@ describe('pantallas con finanzas reales (backend-ingresos-diezmo)', () => {
     await a.tocar('Cuadrar cuentas');
     expect(a.url()).toBe('/cuentas');
     expect(a.texto()).toContain('llegan en una próxima versión');
+  });
+});
+
+describe('pantallas con el plan real (backend-plan-mes-hoy)', () => {
+  beforeEach(() => TestBed.configureTestingModule({ providers: provideConectadoPrueba() }));
+  afterEach(() => http().verify());
+
+  async function atenderHogar(a: Awaited<ReturnType<typeof app>>): Promise<void> {
+    for (let i = 0; i < 4; i++) {
+      http().match((r) => r.method === 'GET' && r.url === '/api/hogar').forEach((r) => r.flush(hogarApi({ configurado: true })));
+      http().match((r) => r.method === 'GET' && r.url === '/api/sesion').forEach((r) => r.flush(sesionApi()));
+      await a.estable();
+    }
+  }
+
+  async function entrarA(ruta: string) {
+    conToken();
+    const a = await app(ruta, async (estable) => {
+      await responder('GET', '/api/sesion', sesionApi(), estable);
+    });
+    await atenderHogar(a);
+    return a;
+  }
+
+  it('avisos: Duplicar, Comparar, Cerrar, Crear meses y Probarlo como opción', async () => {
+    finanzasPrueba.valor = finanzas({ planes: [{ ...PLAN_OCT, estado: 'BORRADOR', escenarioActivoId: null }] });
+    const a = await entrarA('/planear/2026-10');
+    await a.tocar('+ Duplicar');
+    expect(a.texto()).toContain('Varias opciones por mes llegan en una próxima versión.');
+
+    await a.ir('/planear/2026-10/comparar');
+    await atenderHogar(a);
+    expect(a.texto()).toContain('Comparar varias opciones llega en una próxima versión');
+
+    await a.ir('/planear/2026-10/cierre');
+    await atenderHogar(a);
+    await a.tocar('Cerrar octubre');
+    expect(a.texto()).toContain('Cerrar el mes llega en una próxima versión.');
+
+    await a.ir('/planear/anual/2027');
+    await atenderHogar(a);
+    await a.tocar('Crear meses desde este plan');
+    expect(a.texto()).toContain('Crear los meses desde el plan anual llega en una próxima versión.');
+
+    await a.ir('/cuentas/credito/cred-libre');
+    await atenderHogar(a);
+    await a.escribir('Abono', '2000000');
+    await a.tocar(/Probarlo como opción/);
+    expect(a.texto()).toContain('Probar un abono como opción llega en una próxima versión.');
+  });
+
+  it('Hoy sin plan → Mes sin plan → Desde cero → agregar un gasto → Usar opción A', async () => {
+    finanzasPrueba.valor = finanzas();
+    const a = await entrarA('/hoy');
+    expect(a.texto()).toContain('Este mes no tiene plan');
+    await a.tocar(/^Planear octubre/i);
+    await atenderHogar(a);
+    expect(a.url()).toBe('/planear/2026-10');
+
+    a.porTexto(/Empezar desde cero/).click();
+    const vacio: PlanApi = { ...PLAN_OCT, estado: 'BORRADOR', escenarioActivoId: null, escenarios: [{ ...PLAN_OCT.escenarios[0]!, items: [] }] };
+    finanzasPrueba.valor = finanzas({ planes: [vacio] });
+    const crear = await responder('POST', '/api/planes', vacio, a.estable, 201);
+    expect(crear.request.body).toEqual({ anio: 2026, mes: 10, modo: 'CERO' });
+    await atenderHogar(a);
+
+    await a.escribir('Nombre del gasto', 'Internet');
+    a.porTexto('+ Agregar').click();
+    finanzasPrueba.valor = finanzas({ planes: [{ ...vacio, escenarios: [{ ...vacio.escenarios[0]!, items: [{ ...PLAN_OCT.escenarios[0]!.items[0]!, monto: 0 }] }] }] });
+    const item = await responder('POST', '/api/planes/plan-oct/escenarios/esc-a/items', { id: 'it-internet' }, a.estable, 201);
+    expect(item.request.body).toMatchObject({ categoriaId: 'cat-1', nombre: 'Internet', monto: 0, tipo: 'FIJO' });
+    await atenderHogar(a);
+
+    a.porTexto('Usar opción A').click();
+    finanzasPrueba.valor = finanzas({ planes: [PLAN_OCT] });
+    const usar = await responder('POST', '/api/planes/plan-oct/usar', PLAN_OCT, a.estable);
+    expect(usar.request.body).toEqual({ escenarioId: 'esc-a' });
+    await atenderHogar(a);
+    expect(a.url()).toBe('/planear');
+  });
+
+  it('criterio de cierre: pago bajo el plan, aporte y gasto no planeado cuadran en Hoy', async () => {
+    finanzasPrueba.valor = finanzas({ planes: [PLAN_OCT] });
+    const a = await entrarA('/hoy');
+    const libre = () => a.raiz().querySelector('[data-testid="libre"]')!.textContent!.trim();
+    // Ingresos $6.288.000 (salario por recibir); comprometido: Internet $120.000 + Mercado $320.000 + diezmo $700.000.
+    expect(libre()).toBe('$5.148.000');
+
+    // Daniel paga Internet por $100.000 (plan $120.000) desde la hoja de pago.
+    await a.ir('/hoy/pagar/it-internet');
+    await atenderHogar(a);
+    await a.escribir('Valor pagado', '100000');
+    a.porTexto('Marcar pagado').click();
+    const pago = registro({ id: 'mov-p', tipo: 'PAGO', monto: 100_000, itemId: 'it-internet', origen: 'NINGUNO' });
+    finanzasPrueba.valor = finanzas({ planes: [PLAN_OCT], movimientos: [pago] });
+    await responder('POST', '/api/pagos', pago, a.estable, 201);
+    await atenderHogar(a);
+
+    // Un aporte de $500.000 y un gasto no planeado de $85.000.
+    const p = TestBed.inject(PUERTOS);
+    const aporte = registro({ id: 'mov-a', tipo: 'APORTE', monto: 500_000 });
+    const aportar = p.ingresos.registrarAporte({ usuarioId: USUARIO.id, monto: 500_000, ref: OCT, cuentaId: null, aplicaDiezmo: false });
+    finanzasPrueba.valor = finanzas({ planes: [PLAN_OCT], movimientos: [pago, aporte] });
+    await responder('POST', '/api/aportes', aporte, a.estable, 201);
+    await aportar;
+    const gasto = registro({ id: 'mov-g', tipo: 'GASTO', monto: 85_000, nota: 'Farmacia' });
+    const gastar = p.movimientos.registrarGasto({ monto: 85_000, itemId: null, nota: 'Farmacia', usuarioId: USUARIO.id, origen: { tipo: 'NINGUNO' }, ref: OCT });
+    finanzasPrueba.valor = finanzas({ planes: [PLAN_OCT], movimientos: [pago, aporte, gasto] });
+    await responder('POST', '/api/gastos', gasto, a.estable, 201);
+    await gastar;
+
+    await a.ir('/hoy');
+    await atenderHogar(a);
+    // Vs. plan: −$20.000 por Internet y +$85.000 por el gasto; libre: +$500.000 del aporte y −$85.000 del gasto.
+    const r = await p.movimientos.resumenMes(OCT);
+    expect(r.vsPlan).toBe(65_000);
+    expect(libre()).toBe('$5.563.000');
+  });
+
+  it('lo pagó el otro miembro hace un momento: aviso e Internet en Ya pagado', async () => {
+    finanzasPrueba.valor = finanzas({ planes: [PLAN_OCT] });
+    const a = await entrarA('/hoy/pagar/it-internet');
+    a.porTexto('Marcar pagado').click();
+    // El otro miembro (aqui, la misma cuenta desde otro dispositivo) lo pago el 26 oct.
+    finanzasPrueba.valor = finanzas({ planes: [PLAN_OCT], movimientos: [registro({ tipo: 'PAGO', monto: 120_000, itemId: 'it-internet' })] });
+    await responder('POST', '/api/pagos', { codigo: 'YA_PAGADO', mensaje: 'Ya lo pagó Ana María el 26 oct' }, a.estable, 409);
+    await atenderHogar(a);
+    expect(a.raiz().querySelector('[data-testid="ya-pagado"]')?.textContent).toContain('Ya lo pagó Ana María el 26 oct');
+    const r = await TestBed.inject(PUERTOS).movimientos.resumenMes(OCT);
+    expect(r.yaPagado.map((i) => i.item.nombre)).toEqual(['Internet']);
+  });
+
+  it('una categoría nueva queda disponible al agregar un gasto', async () => {
+    finanzasPrueba.valor = finanzas({ planes: [{ ...PLAN_OCT, estado: 'BORRADOR', escenarioActivoId: null }] });
+    const a = await entrarA('/ajustes');
+    await a.tocar('+ Nueva');
+    await a.escribir('Nombre', 'Educación');
+    a.porTexto('Crear categoría').click();
+    finanzasPrueba.valor = { ...finanzasPrueba.valor, categorias: [...finanzasPrueba.valor.categorias, { id: 'cat-5', nombre: 'Educación', color: '#8D8F88', orden: 5, tipo: 'OTRO', sistema: false }] };
+    const req = await responder('POST', '/api/categorias', { id: 'cat-5' }, a.estable, 201);
+    expect(req.request.body).toEqual({ nombre: 'Educación' });
+    await a.ir('/planear/2026-10');
+    await atenderHogar(a);
+    const opciones = [...a.raiz().querySelectorAll('select[aria-label="Categoría del gasto"] option')].map((o) => o.textContent?.trim());
+    expect(opciones).toContain('Educación');
   });
 });

@@ -7,7 +7,7 @@ import { storageEnMemoria } from '@steward/domain/demo';
 import { of } from 'rxjs';
 
 import { routes } from '../app/app.routes';
-import type { FinanzasApi } from '../app/core/datos/http/api';
+import type { CategoriaApi, FinanzasApi } from '../app/core/datos/http/api';
 import { authInterceptor } from '../app/core/datos/http/auth.interceptor';
 import { providePuertosConectados } from '../app/core/datos/puertos';
 import { GOOGLE_IDENTITY_LOADER, type GoogleAccountsId } from '../app/core/sesion/google-identity';
@@ -34,9 +34,17 @@ export class GoogleDePrueba implements GoogleAccountsId {
   }
 }
 
-/** Finanzas sin nada, del mes de AHORA (octubre 2026). */
+/** Las cuatro del sistema, como las crea el backend con cada hogar. */
+export const CATEGORIAS_SISTEMA: CategoriaApi[] = [
+  { id: 'cat-1', nombre: 'Gastos fijos', color: '#E2551B', orden: 1, tipo: 'FIJO', sistema: true },
+  { id: 'cat-2', nombre: 'Tarjetas y cuotas', color: '#7C4DDB', orden: 2, tipo: 'TARJETA', sistema: true },
+  { id: 'cat-3', nombre: 'Variables', color: '#8D8F88', orden: 3, tipo: 'VARIABLE', sistema: true },
+  { id: 'cat-4', nombre: 'Créditos', color: '#2E6B45', orden: 4, tipo: 'CREDITO', sistema: true },
+];
+
+/** Finanzas sin plan ni registros, del mes de AHORA (octubre 2026). */
 export function finanzasVacias(): FinanzasApi {
-  return { mes: { anio: 2026, mes: 10 }, diezmoEnHoy: 'SEPARADO', ingresosFijos: [], reglas: [], cuentas: [], movimientos: [] };
+  return { mes: { anio: 2026, mes: 10 }, diezmoEnHoy: 'SEPARADO', categorias: CATEGORIAS_SISTEMA.map((c) => ({ ...c })), ingresosFijos: [], reglas: [], cuentas: [], planes: [], movimientos: [] };
 }
 
 /**

@@ -6,7 +6,7 @@ Tiene dos **modos de datos** (`src/app/config/modo.ts`):
 
 | Modo | Build | Qué viene del backend | Qué sigue con datos de prueba |
 |---|---|---|---|
-| **conectado** | `production` (lo que publica `local-deploy.ps1`) y `conectado` | sesión (Google), hogar, miembros, invitaciones, ingresos fijos, regla de diezmo, "Recibí" y "Entregado", "Diezmo en Hoy" y las cuentas (sin cuadrar ni mover todavía) | plan, pagos, gastos, aportes, créditos, cierre y categorías |
+| **conectado** | `production` (lo que publica `local-deploy.ps1`) y `conectado` | sesión (Google), hogar, miembros, invitaciones, categorías, ingresos fijos, regla de diezmo, "Diezmo en Hoy", las cuentas (sin cuadrar ni mover todavía), el plan de cada mes con su Opción A y todo lo registrado ("Recibí", "Entregado", pagos, gastos y aportes) | créditos, plan anual y cierre. Lo que llega en otras etapas (varias opciones, cerrar el mes, crear meses desde el anual) avisa "llega en una próxima versión" |
 | **demo** | `demo` y `development` (`npm start`) | nada | todo |
 
 Los datos de prueba viven en el navegador (`localStorage`, clave `steward-demo/v1`) y se restablecen desde Ajustes. Mientras algún módulo los use, se ve el aviso "Datos de prueba". En modo conectado no existe "Probar desde cero" y la sesión es un JWT en `localStorage` (`steward/sesion`).
@@ -50,11 +50,11 @@ Las pantallas solo hablan con `PUERTOS` (`Puertos` de `@steward/domain`), así q
 
 `PuertosConectados` relee las finanzas al iniciar sesión y después de cada escritura real.
 
-Para pasar otro módulo, por ejemplo los pagos y gastos en la Etapa 4:
+Para pasar otro módulo, por ejemplo los créditos en la Etapa 5:
 
 1. Agregar sus llamadas a `Api` (`core/datos/http/api.ts`), con los tipos del contrato del backend (`backend/README.md`).
 2. En `PuertosConectados`, cambiar sus escrituras para que vayan por HTTP y relean las finanzas.
-3. En `superposicion.ts`, superponer los movimientos reales de ese tipo.
+3. En `superposicion.ts`, superponer esa parte del estado con lo real.
 4. Probarlo con `HttpTestingController` como en `core/datos/http/conectado.spec.ts`. Ahí `GET /api/finanzas` lo responde `finanzasPrueba` (`testing/conectado.ts`), que cada test deja como quedaría en el backend.
 
 Los errores del backend (`{codigo, mensaje}`) llegan a las pantallas como `ReglaError`, igual que los del adaptador de prueba.

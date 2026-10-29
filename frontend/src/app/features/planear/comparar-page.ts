@@ -3,7 +3,7 @@ import { Router, RouterLink } from '@angular/router';
 import { formatMesAnio, formatNumero, mesDe, nombreMes, parseClaveMes, type FilaComparacion, type Pesos } from '@steward/domain';
 
 import { consulta, mensajeDeError } from '../../core/datos/consulta';
-import { PUERTOS } from '../../core/datos/puertos';
+import { PUERTOS, puertosConectados } from '../../core/datos/puertos';
 
 /**
  * Comparar.dc.html (web): las opciones lado a lado, resaltando solo las filas que cambian, con "Queda libre"
@@ -26,6 +26,11 @@ import { PUERTOS } from '../../core/datos/puertos';
         Mostrar solo lo que cambia
       </label>
     </div>
+
+    @if (conectado) {
+      <!-- Modo conectado: solo existe la Opción A hasta la Etapa 7 (spec steward-planear). -->
+      <p role="status" class="rounded-xl bg-nota px-4 py-3 text-[13px] text-[#3B3D39]">Comparar varias opciones llega en una próxima versión. Por ahora cada mes tiene solo la Opción A.</p>
+    }
 
     @if (comparacion.value(); as c) {
       <div class="overflow-x-auto rounded-[14px] border border-borde bg-superficie" data-testid="tabla-comparar" tabindex="0" role="region" aria-label="Opciones lado a lado">
@@ -84,6 +89,7 @@ import { PUERTOS } from '../../core/datos/puertos';
 export class CompararPage {
   private readonly puertos = inject(PUERTOS);
   private readonly router = inject(Router);
+  protected readonly conectado = puertosConectados(this.puertos) !== null;
 
   /** Parametro de la ruta (`/planear/:mes/comparar`). */
   readonly mes = input.required<string>();

@@ -90,9 +90,11 @@ export interface CuentaApi {
   cuadrada: boolean;
 }
 
+export type OrigenApi = 'CUENTA' | 'EXTERNA' | 'NINGUNO';
+
 export interface MovimientoApi {
   id: string;
-  tipo: 'INGRESO_FIJO' | 'DIEZMO_ENTREGADO';
+  tipo: 'INGRESO_FIJO' | 'DIEZMO_ENTREGADO' | 'APORTE' | 'PAGO' | 'GASTO';
   ref: MesApi;
   monto: number;
   fecha: string;
@@ -103,16 +105,66 @@ export interface MovimientoApi {
   bruto: number | null;
   aplicaDiezmo: boolean;
   diezmoDe: string[];
+  itemId: string | null;
+  nota: string;
+  origen: OrigenApi;
 }
 
-/** Lo que la PWA superpone a sus datos de prueba (design D5 de backend-ingresos-diezmo). */
+export interface CategoriaApi {
+  id: string;
+  nombre: string;
+  color: string;
+  orden: number;
+  tipo: 'FIJO' | 'TARJETA' | 'VARIABLE' | 'CREDITO' | 'OTRO';
+  sistema: boolean;
+}
+
+export interface ItemPlanApi {
+  id: string;
+  categoriaId: string;
+  nombre: string;
+  monto: number;
+  diaVence: number | null;
+  tipo: 'FIJO' | 'VARIABLE' | 'CUOTA' | 'CREDITO';
+  cuota: { actual: number; total: number } | null;
+}
+
+export interface EscenarioApi {
+  id: string;
+  letra: string;
+  creadoPor: string;
+  nota: string;
+  archivado: boolean;
+  items: ItemPlanApi[];
+}
+
+export interface PlanApi {
+  id: string;
+  ref: MesApi;
+  /** El efectivo: un Borrador con opcion elegida se lee Activo al llegar su mes. */
+  estado: 'BORRADOR' | 'ACTIVO' | 'CERRADO';
+  escenarioActivoId: string | null;
+  escenarios: EscenarioApi[];
+}
+
+/** Lo que la PWA superpone a sus datos de prueba (design D5 de backend-ingresos-diezmo y de backend-plan-mes-hoy). */
 export interface FinanzasApi {
   mes: MesApi;
   diezmoEnHoy: 'SEPARADO' | 'AGRUPADO';
+  categorias: CategoriaApi[];
   ingresosFijos: IngresoFijoApi[];
   reglas: ReglaDiezmoApi[];
   cuentas: CuentaApi[];
+  /** Desde dos meses antes del mes en curso. */
+  planes: PlanApi[];
   movimientos: MovimientoApi[];
+}
+
+export type ItemPlanRequest = Omit<ItemPlanApi, 'id'>;
+
+export interface OrigenRequest {
+  tipo: OrigenApi;
+  cuentaId?: string;
 }
 
 export interface IngresoFijoRequest {
@@ -239,6 +291,48 @@ export class Api {
     return this.pedir(this.http.post<CuentaApi>('/api/cuentas', { nombre, titular, saldo }));
   }
 
+  // --- Plan del mes y registros de Hoy (spec steward-plan-mes y steward-finanzas) ---
+
+  crearCategoria(nombre: string): Promise<CategoriaApi> {
+    return this.pedir(this.http.post<CategoriaApi>('/api/categorias', { nombre }));
+  }
+
+  renombrarCategoria(id: string, nombre: string): Promise<CategoriaApi> {
+    return this.pedir(this.http.patch<CategoriaApi>(`/api/categorias/${encodeURIComponent(id)}`, { nombre }));
+  }
+
+  crearPlan(ref: MesApi, modo: 'COPIAR' | 'FIJOS' | 'CERO'): Promise<PlanApi> {
+    return this.pedir(this.http.post<PlanApi>('/api/planes', { anio: ref.anio, mes: ref.mes, modo }));
+  }
+
+  usarOpcion(planId: string, escenarioId: string): Promise<PlanApi> {
+    return this.pedir(this.http.post<PlanApi>(`/api/planes/${encodeURIComponent(planId)}/usar`, { escenarioId }));
+  }
+
+  crearItem(planId: string, escenarioId: string, item: ItemPlanRequest): Promise<ItemPlanApi> {
+    return this.pedir(this.http.post<ItemPlanApi>(`${rutaItems(planId, escenarioId)}`, item));
+  }
+
+  editarItem(planId: string, escenarioId: string, itemId: string, item: ItemPlanRequest): Promise<ItemPlanApi> {
+    return this.pedir(this.http.put<ItemPlanApi>(`${rutaItems(planId, escenarioId)}/${encodeURIComponent(itemId)}`, item));
+  }
+
+  quitarItem(planId: string, escenarioId: string, itemId: string): Promise<void> {
+    return this.pedir(this.http.delete<void>(`${rutaItems(planId, escenarioId)}/${encodeURIComponent(itemId)}`));
+  }
+
+  pagar(datos: { itemId: string; monto: number; usuarioId: string; origen: OrigenRequest }): Promise<MovimientoApi> {
+    return this.pedir(this.http.post<MovimientoApi>('/api/pagos', datos));
+  }
+
+  gastar(datos: { itemId: string | null; monto: number; nota: string; usuarioId: string; origen: OrigenRequest }): Promise<MovimientoApi> {
+    return this.pedir(this.http.post<MovimientoApi>('/api/gastos', datos));
+  }
+
+  aportar(datos: { usuarioId: string; monto: number; mes: MesApi; cuentaId: string | null; aplicaDiezmo: boolean }): Promise<MovimientoApi> {
+    return this.pedir(this.http.post<MovimientoApi>('/api/aportes', datos));
+  }
+
   private async pedir<T>(peticion: Observable<T>): Promise<T> {
     try {
       return await firstValueFrom(peticion);
@@ -257,6 +351,10 @@ export function aReglaError(e: unknown): unknown {
     status: e.status,
     campos: cuerpo.campos ?? {},
   });
+}
+
+function rutaItems(planId: string, escenarioId: string): string {
+  return `/api/planes/${encodeURIComponent(planId)}/escenarios/${encodeURIComponent(escenarioId)}/items`;
 }
 
 export function usuarioDe(u: UsuarioApi): Usuario {
