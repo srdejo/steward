@@ -35,7 +35,7 @@
 
 ## 4. Verificación y cierre
 
-- [ ] 4.1 Desplegar con `local-deploy.ps1 -Project steward` (con `powershell.exe -File`) y recorrer en `steward.test`, con dos personas de prueba, por el acceso de desarrollo:
+- [x] 4.1 Desplegar con `local-deploy.ps1 -Project steward` (con `powershell.exe -File`) y recorrer en `steward.test`, con dos personas de prueba, por el acceso de desarrollo:
   1. un hogar con el plan de octubre, un aporte y un pago;
   2. una persona abre el Cierre y la otra registra un gasto: al cerrar sale "Alguien registró algo en octubre" y la tabla ya lo incluye;
   3. cierra octubre repartiendo el sobrante;
@@ -43,4 +43,4 @@
   5. al crear noviembre, sus ingresos traen "Sobrante de octubre".
   
   Verificar: el criterio de cierre de la Etapa 6, sin errores en la consola. Borrar las personas y el hogar de prueba al terminar.
-- [ ] 4.2 `docs/ROADMAP.md`: marcar la Etapa 6. Verificar: `openspec validate backend-cierre-mes --strict` sin errores. Commit.
+- [x] 4.2 `docs/ROADMAP.md`: marcar la Etapa 6. Verificar: `openspec validate backend-cierre-mes --strict` sin errores. Commit.

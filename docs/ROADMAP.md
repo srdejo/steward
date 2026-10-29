@@ -9,7 +9,7 @@ Las etapas 2 a 9 siguen el "Orden sugerido de implementación" del handoff. Conv
 **Criterio de cierre**: dos miembros del mismo hogar entran a `steward.test` con Google y comparten un plan del mes. Uno marca un pago o registra un aporte, y el otro lo ve al abrir la app.
 **Alcance**: Etapa 2, Etapa 3, Etapa 4
 
-**Cumplido el 2026-10-28** en `steward.test`, con el acceso de desarrollo porque Google no acepta `.test` como origen. Con Google real se verifica al encender el VPS (Etapa 9). El siguiente objetivo está por definir. Con la Etapa 5 hecha, lo único que sigue con datos de prueba en el mes es el cierre (Etapa 6); después, varias opciones (Etapa 7) y el plan anual (Etapa 8).
+**Cumplido el 2026-10-28** en `steward.test`, con el acceso de desarrollo porque Google no acepta `.test` como origen. Con Google real se verifica al encender el VPS (Etapa 9). El siguiente objetivo está por definir. Con las Etapas 5 y 6 hechas, todo el mes es real; lo que sigue con datos de prueba es el plan anual (Etapa 8), y faltan varias opciones por mes (Etapa 7) y la producción (Etapa 9).
 
 ## Objetivos cumplidos
 
@@ -20,6 +20,7 @@ Las etapas 2 a 9 siguen el "Orden sugerido de implementación" del handoff. Conv
 - 2026-10-28 — Ingresos fijos, regla y diezmo al recibir en el backend (Etapa 3): un hogar nuevo completa el onboarding en `steward.test`, y al marcar el salario como recibido los dos miembros ven "Disponible para diezmar $700.000" (cambio OpenSpec `backend-ingresos-diezmo`)
 - 2026-10-28 — Plan del mes y Hoy en el backend (Etapa 4) y objetivo "Hogar en la nube con un plan del mes usable": dos personas crean el plan de octubre, una paga Internet desde su cuenta, la otra registra un aporte y un gasto, y las dos ven las mismas cifras de "Te queda libre" y "Vs. plan" (cambio OpenSpec `backend-plan-mes-hoy`)
 - 2026-10-29 — Cuentas, cuadre y créditos en el backend (Etapa 5): dos personas agregan un crédito y su cuota aparece en Hoy; pagarla desde Davivienda deja el crédito en $13.978.000, mueven $100.000 al efectivo, cuadran Davivienda con $50.000 de "Gastos sin registrar" que el Cierre muestra, y un abono deja el crédito en $12.978.000, igual para las dos (cambio OpenSpec `backend-cuentas-creditos`)
+- 2026-10-29 — Cierre de mes en el backend (Etapa 6): una persona cierra octubre repartiendo el sobrante ($300.000 a ahorro y $100.000 a noviembre); si la otra registró algo mientras tanto, el cierre se recalcula antes de guardarse; las dos ven octubre Cerrado y en solo lectura, y noviembre trae "Sobrante de octubre" (cambio OpenSpec `backend-cierre-mes`)
 
 ## Etapa 1 — Infra de despliegue ✅
 
@@ -88,11 +89,17 @@ Cambio OpenSpec `backend-cuentas-creditos`.
 
 Sin editar ni borrar créditos o cuentas, ni enlazar a mano un ítem con un crédito desde Planear (la API ya admite `creditoId`).
 
-## Etapa 6 — Cierre de mes
+## Etapa 6 — Cierre de mes ✅
 
-- [ ] Plan vs. real por categoría, "Sin registrar", y reparto del sobrante entre ahorro y el mes siguiente; el mes queda en solo lectura.
+**Criterio de cierre**: una persona cierra el mes repartiendo el sobrante entre ahorro y el mes siguiente; las dos ven el mes Cerrado, en solo lectura, con el reparto, y el mes siguiente muestra el ingreso "Sobrante de {mes}".
 
-En modo conectado, hoy Cierre ya muestra el plan vs. real con lo real, pero "Cerrar {mes}" avisa que llega después. El backend ya guarda el estado Cerrado y no deja registrar en un mes cerrado.
+Cambio OpenSpec `backend-cierre-mes`.
+
+- [x] Plan vs. real por categoría, "Sin registrar", y reparto del sobrante entre ahorro y el mes siguiente; el mes queda en solo lectura. La foto la calcula la PWA con el dominio compartido; el backend comprueba el reparto, "Sin registrar" y que nadie haya registrado algo en el mes después de calcularla, y la guarda (183 tests en JVM y 137 de contrato en modo AOT).
+- [x] Se cierra el mes en curso o uno anterior, una sola vez; "Recibí" y "Entregado" también respetan el mes cerrado.
+- [x] Recorrido del criterio de cierre en `steward.test` con dos personas, por el acceso de desarrollo.
+
+Sin "Reabrir" un mes cerrado, y el "A ahorro" no mueve dinero a una cuenta (queda anotado en el cierre).
 
 ## Etapa 7 — Escenarios y comparar
 
