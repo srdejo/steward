@@ -1,8 +1,9 @@
-import type { Categoria, Credito, Cuenta, EstadoHogar, IngresoFijo, ItemPlan, Movimiento, Origen, PlanMes, ReglaDiezmo } from '@steward/domain';
+import type { Categoria, CierreMes, Credito, Cuenta, EstadoHogar, IngresoFijo, ItemPlan, Movimiento, Origen, PlanMes, ReglaDiezmo } from '@steward/domain';
 
 import {
   usuarioDe,
   type CategoriaApi,
+  type CierreApi,
   type CreditoApi,
   type FinanzasApi,
   type IngresoFijoApi,
@@ -18,7 +19,7 @@ import {
  * reglas del dominio:
  * - categorias, ingresos fijos, reglas, cuentas, creditos, "Diezmo en Hoy" y los planes son los reales;
  * - lo registrado es solo lo real: todos los movimientos de prueba se quitan;
- * - no hay cierres reales hasta la Etapa 6, asi que los de prueba tampoco se ven;
+ * - los cierres son los reales (design D5 de backend-cierre-mes): un mes cerrado muestra su foto y el siguiente su sobrante;
  * - los miembros reales entran a `usuarios` con su id, que es el que usan las hojas de Hoy al registrar.
  * Siguen de prueba el plan anual y las proyecciones.
  *
@@ -46,7 +47,7 @@ export function superponerFinanzas(estado: EstadoHogar, finanzas: FinanzasApi, m
     creditos: finanzas.creditos.map(credito),
     planes: finanzas.planes.map(plan),
     movimientos: reales,
-    cierres: [],
+    cierres: finanzas.cierres.map(cierre),
   };
 }
 
@@ -60,6 +61,13 @@ export function regla(r: ReglaDiezmoApi): ReglaDiezmo {
 
 export function categoria(c: CategoriaApi): Categoria {
   return { id: c.id, nombre: c.nombre, color: c.color, orden: c.orden, tipo: c.tipo, sistema: c.sistema };
+}
+
+export function cierre(c: CierreApi): CierreMes {
+  return {
+    ref: { anio: c.ref.anio, mes: c.ref.mes }, filas: c.filas.map((f) => ({ nombre: f.nombre, plan: f.plan ?? null, real: f.real })),
+    sinRegistrar: c.sinRegistrar, sobrante: c.sobrante, aAhorro: c.aAhorro, aSiguiente: c.aSiguiente, cerradoPor: c.cerradoPor, cerradoEn: c.cerradoEn,
+  };
 }
 
 export function credito(c: CreditoApi): Credito {

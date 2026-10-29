@@ -174,6 +174,18 @@ export interface CreditoApi {
   pagos: { fecha: string; monto: number; tipo: 'CUOTA' | 'ABONO' }[];
 }
 
+/** La foto del cierre que guardo el backend (design D1 de backend-cierre-mes). */
+export interface CierreApi {
+  ref: MesApi;
+  filas: { nombre: string; plan: number | null; real: number }[];
+  sinRegistrar: number;
+  sobrante: number;
+  aAhorro: number;
+  aSiguiente: number;
+  cerradoPor: string;
+  cerradoEn: string;
+}
+
 export interface FinanzasApi {
   mes: MesApi;
   diezmoEnHoy: 'SEPARADO' | 'AGRUPADO';
@@ -186,6 +198,8 @@ export interface FinanzasApi {
   /** Los de esos meses, mas los de antes que todavia cuentan en el saldo estimado de una cuenta. */
   movimientos: MovimientoApi[];
   creditos: CreditoApi[];
+  /** Desde tres meses antes del mes en curso: el del mes anterior a los planes trae su "Sobrante de {mes}". */
+  cierres: CierreApi[];
 }
 
 export type ItemPlanRequest = Omit<ItemPlanApi, 'id'>;
@@ -359,6 +373,10 @@ export class Api {
 
   aportar(datos: { usuarioId: string; monto: number; mes: MesApi; cuentaId: string | null; aplicaDiezmo: boolean }): Promise<MovimientoApi> {
     return this.pedir(this.http.post<MovimientoApi>('/api/aportes', datos));
+  }
+
+  cerrarMes(datos: Omit<CierreApi, 'ref' | 'cerradoPor' | 'cerradoEn'> & MesApi & { ultimoSeq: number }): Promise<CierreApi> {
+    return this.pedir(this.http.post<CierreApi>('/api/cierres', datos));
   }
 
   cuadrar(saldos: { cuentaId: string; saldoBanco: number }[]): Promise<CuentaApi[]> {

@@ -6,10 +6,10 @@ Tiene dos **modos de datos** (`src/app/config/modo.ts`):
 
 | Modo | Build | Qué viene del backend | Qué sigue con datos de prueba |
 |---|---|---|---|
-| **conectado** | `production` (lo que publica `local-deploy.ps1`) y `conectado` | sesión (Google), hogar, miembros, invitaciones, categorías, ingresos fijos, regla de diezmo, "Diezmo en Hoy", las cuentas con su cuadre y "Mover dinero", los créditos, el plan de cada mes con su Opción A y todo lo registrado ("Recibí", "Entregado", pagos, gastos, aportes, ajustes de cuadre, transferencias y abonos) | plan anual y cierre. Lo que llega en otras etapas (varias opciones, "Probarlo como opción", cerrar el mes, crear meses desde el anual) avisa "llega en una próxima versión" |
+| **conectado** | `production` (lo que publica `local-deploy.ps1`) y `conectado` | sesión (Google), hogar, miembros, invitaciones, categorías, ingresos fijos, regla de diezmo, "Diezmo en Hoy", las cuentas con su cuadre y "Mover dinero", los créditos, el plan de cada mes con su Opción A y todo lo registrado ("Recibí", "Entregado", pagos, gastos, aportes, ajustes de cuadre, transferencias y abonos) y los cierres de mes (un mes cerrado queda en solo lectura y su sobrante pasa al siguiente) | el plan anual. Lo que llega en otras etapas (varias opciones, "Probarlo como opción", crear meses desde el anual) avisa "llega en una próxima versión" |
 | **demo** | `demo` y `development` (`npm start`) | nada | todo |
 
-**Al pasar a la Etapa 4, el plan de prueba desaparece en modo conectado.** Hoy y Planear muestran solo los planes reales. Un hogar que todavía no tiene el plan del mes en curso (por ejemplo, "Jimenez Navarro" en `steward.test`) ve en Hoy "Este mes no tiene plan" y lo crea desde Planear, con "Empezar desde cero" o "Solo fijos e ingresos". Siguen de prueba el plan anual (incluidos los aportes proyectados) y el cierre.
+**Al pasar a la Etapa 4, el plan de prueba desaparece en modo conectado.** Hoy y Planear muestran solo los planes reales. Un hogar que todavía no tiene el plan del mes en curso (por ejemplo, "Jimenez Navarro" en `steward.test`) ve en Hoy "Este mes no tiene plan" y lo crea desde Planear, con "Empezar desde cero" o "Solo fijos e ingresos". Sigue de prueba el plan anual (incluidos los aportes proyectados).
 
 **Al pasar a la Etapa 5, los créditos de prueba también desaparecen.** Cuentas muestra "Sin créditos." hasta que se agregan con "+ Agregar" en Créditos. La cuota de un crédito entra sola al plan del mes en curso (si ya tiene plan) y a los meses que se creen después.
 
@@ -54,7 +54,7 @@ Las pantallas solo hablan con `PUERTOS` (`Puertos` de `@steward/domain`), así q
 
 `PuertosConectados` relee las finanzas al iniciar sesión y después de cada escritura real.
 
-Para pasar otro módulo, por ejemplo el cierre en la Etapa 6:
+Para pasar otro módulo, por ejemplo el plan anual en la Etapa 8:
 
 1. Agregar sus llamadas a `Api` (`core/datos/http/api.ts`), con los tipos del contrato del backend (`backend/README.md`).
 2. En `PuertosConectados`, cambiar sus escrituras para que vayan por HTTP y relean las finanzas.

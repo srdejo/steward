@@ -1,9 +1,9 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import { claveMes, formatCop, formatNumero, mesDe, nombreMes, nombreMesCapital, parseClaveMes, repartoValido, sumarMeses } from '@steward/domain';
+import { ReglaError, claveMes, compararMes, formatCop, formatNumero, mesDe, nombreMes, nombreMesCapital, parseClaveMes, repartoValido, sumarMeses } from '@steward/domain';
 
 import { consulta, mensajeDeError } from '../../core/datos/consulta';
-import { PUERTOS } from '../../core/datos/puertos';
+import { PUERTOS, puertosConectados } from '../../core/datos/puertos';
 import { Monto } from '../../shared/components/monto';
 import { MontoInput } from '../../shared/components/monto-input';
 
@@ -78,7 +78,12 @@ import { MontoInput } from '../../shared/components/monto-input';
         @if (error()) {
           <p role="alert" class="text-sm text-negativo">{{ error() }}</p>
         }
-        <button type="button" class="boton-grande" [disabled]="!valido() || guardando()" (click)="cerrar()">Cerrar {{ nombreMin() }}</button>
+        @if (puedeCerrar()) {
+          <button type="button" class="boton-grande" [disabled]="!valido() || guardando()" (click)="cerrar()">Cerrar {{ nombreMin() }}</button>
+        } @else {
+          <!-- Modo conectado: un mes futuro no se cierra (spec steward-planear). -->
+          <p class="text-xs text-secundario" data-testid="cierre-futuro">{{ nombreCapital() }} se cierra cuando llegue.</p>
+        }
       }
     }
   `,
@@ -93,6 +98,8 @@ export class CierrePage {
   protected readonly nombreCapital = computed(() => nombreMesCapital(this.ref().mes));
   protected readonly nombreMin = computed(() => nombreMes(this.ref().mes));
   protected readonly siguiente = computed(() => nombreMes(sumarMeses(this.ref(), 1).mes));
+  private readonly conectado = puertosConectados(this.puertos) !== null;
+  protected readonly puedeCerrar = computed(() => !this.conectado || compararMes(this.ref(), mesDe(this.puertos.hoy())) <= 0);
   protected readonly volver = computed(() => (claveMes(this.ref()) === claveMes(mesDe(this.puertos.hoy())) ? '/hoy' : '/planear'));
 
   protected readonly vista = consulta(() => this.ref(), (p, ref) => p.cierre.vista(ref));
@@ -138,6 +145,11 @@ export class CierrePage {
       await this.router.navigate(['/planear', siguiente]);
     } catch (e) {
       this.error.set(mensajeDeError(e));
+      // Las cifras ya se recalcularon: el reparto vuelve a proponerse con el sobrante nuevo.
+      if (e instanceof ReglaError && e.codigo === 'CIERRE_DESACTUALIZADO') {
+        this.aAhorro.set(null);
+        this.aSiguiente.set(0);
+      }
     } finally {
       this.guardando.set(false);
     }

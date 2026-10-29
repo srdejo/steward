@@ -583,9 +583,50 @@ describe('plan del mes y registros en el backend (steward-plan-mes, design D5)',
   it('lo que llega en otras etapas avisa sin cambiar nada', async () => {
     await expect(p.plan.duplicar('plan-oct', 'esc-a')).rejects.toMatchObject({ codigo: 'ETAPA_7' });
     await expect(p.plan.crearMesesDesdeAnual(2027)).rejects.toMatchObject({ codigo: 'ETAPA_8' });
-    await expect(p.cierre.cerrar(OCT, { aAhorro: 0, aSiguiente: 0 })).rejects.toMatchObject({ codigo: 'ETAPA_6' });
     await expect(p.cuentas.probarComoOpcion('cred-1', { anio: 2026, mes: 11 }, 1)).rejects.toMatchObject({ codigo: 'ETAPA_7' });
     expect((await p.plan.mes(OCT)).opciones).toHaveLength(1);
+  });
+
+  it('cerrar octubre manda la foto del dominio con el último registro del mes (backend-cierre-mes)', async () => {
+    finanzasPrueba.valor = finanzas({ planes: [PLAN_OCT], movimientos: [registro({ id: 'mov-g', monto: 85_000, nota: 'Farmacia', seq: 7 }), registro({ id: 'nov', seq: 9, ref: { anio: 2026, mes: 11 }, tipo: 'APORTE', monto: 1 })] });
+    const relee = p.cuentas.agregar({ nombre: 'Otra', titularId: null, saldo: 0 });
+    await responder('POST', '/api/cuentas', { id: 'cta-x' }, tick, 201);
+    await relee;
+    const vista = await p.cierre.vista(OCT);
+    expect(vista.cerrado).toBe(false);
+
+    const cerrar = p.cierre.cerrar(OCT, { aAhorro: Math.max(0, vista.sobrante), aSiguiente: 0 });
+    finanzasPrueba.valor = { ...finanzasPrueba.valor, planes: [{ ...PLAN_OCT, estado: 'CERRADO' }], cierres: [{
+      ref: OCT, filas: vista.filas, sinRegistrar: 0, sobrante: vista.sobrante, aAhorro: Math.max(0, vista.sobrante), aSiguiente: 0, cerradoPor: USUARIO.id, cerradoEn: '2026-10-31',
+    }] };
+    const req = await responder('POST', '/api/cierres', finanzasPrueba.valor.cierres[0]!, tick, 201);
+    await cerrar;
+    expect(req.request.body).toMatchObject({ anio: 2026, mes: 10, ultimoSeq: 7, sinRegistrar: 0, sobrante: vista.sobrante, filas: vista.filas });
+    expect((await p.cierre.vista(OCT)).cerrado).toBe(true);
+    // Pagar en el mes cerrado lo rechaza el backend.
+    const pagar = p.movimientos.marcarPago({ itemId: 'it-internet', ref: OCT, monto: 1, usuarioId: USUARIO.id, origen: { tipo: 'NINGUNO' } }).catch((e: unknown) => e);
+    await responder('POST', '/api/pagos', { codigo: 'MES_CERRADO', mensaje: 'El mes está cerrado' }, tick, 409);
+    expect(await pagar).toMatchObject({ codigo: 'MES_CERRADO' });
+  });
+
+  it('un cierre desactualizado relee antes de propagar el error', async () => {
+    const cerrar = p.cierre.cerrar(OCT, { aAhorro: 0, aSiguiente: 0 }).catch((e: unknown) => e);
+    finanzasPrueba.valor = finanzas({ planes: [PLAN_OCT], movimientos: [registro({ id: 'mov-g', monto: 85_000, seq: 3 })] });
+    await responder('POST', '/api/cierres', { codigo: 'CIERRE_DESACTUALIZADO', mensaje: 'Alguien registró algo en octubre; revisa el cierre otra vez' }, tick, 409);
+    expect(await cerrar).toMatchObject({ codigo: 'CIERRE_DESACTUALIZADO' });
+    expect((await p.cierre.vista(OCT)).filas.find((x) => x.nombre === 'No estaba planeado')?.real).toBe(85_000);
+  });
+
+  it('un mes cerrado: su foto, y el sobrante en el mes siguiente (superposición)', async () => {
+    finanzasPrueba.valor = finanzas({
+      planes: [{ ...PLAN_OCT, estado: 'CERRADO' }],
+      cierres: [{ ref: OCT, filas: [{ nombre: 'Ingresos', plan: 1, real: 2 }], sinRegistrar: 0, sobrante: 3_166_000, aAhorro: 2_000_000, aSiguiente: 1_166_000, cerradoPor: USUARIO.id, cerradoEn: '2026-10-31' }],
+    });
+    const relee = p.cuentas.agregar({ nombre: 'Otra', titularId: null, saldo: 0 });
+    await responder('POST', '/api/cuentas', { id: 'cta-x' }, tick, 201);
+    await relee;
+    expect(await p.cierre.vista(OCT)).toMatchObject({ cerrado: true, sobrante: 3_166_000, aSiguiente: 1_166_000, filas: [{ nombre: 'Ingresos', plan: 1, real: 2 }] });
+    expect(await p.plan.loQueTrae({ anio: 2026, mes: 11 })).toContainEqual(expect.objectContaining({ nombre: 'Sobrante de octubre', monto: 1_166_000 }));
   });
 
   it('el diezmo de un aporte se entrega en el backend, junto con el del salario', async () => {
@@ -763,10 +804,11 @@ describe('pantallas con el plan real (backend-plan-mes-hoy)', () => {
     await atenderHogar(a);
     expect(a.texto()).toContain('Comparar varias opciones llega en una próxima versión');
 
-    await a.ir('/planear/2026-10/cierre');
+    // Un mes futuro no se cierra (backend-cierre-mes).
+    await a.ir('/planear/2026-11/cierre');
     await atenderHogar(a);
-    await a.tocar('Cerrar octubre');
-    expect(a.texto()).toContain('Cerrar el mes llega en una próxima versión.');
+    expect(a.raiz().querySelector('[data-testid="cierre-futuro"]')?.textContent).toContain('Noviembre se cierra cuando llegue.');
+    expect(() => a.porTexto('Cerrar noviembre')).toThrow();
 
     await a.ir('/planear/anual/2027');
     await atenderHogar(a);
@@ -853,6 +895,49 @@ describe('pantallas con el plan real (backend-plan-mes-hoy)', () => {
     await a.ir('/planear/2026-10/cierre');
     await atenderHogar(a);
     expect(a.texto().replace(/\s+/g, ' ')).toContain('Sin registrar de cuadrar cuentas — 50.000');
+  });
+
+  it('recorrido de la Etapa 6: cerrar octubre, octubre en solo lectura y el sobrante en noviembre (backend-cierre-mes)', async () => {
+    const aporte = registro({ id: 'mov-a', tipo: 'APORTE', monto: 500_000, seq: 4 });
+    const pago = registro({ id: 'mov-p', tipo: 'PAGO', monto: 120_000, itemId: 'it-internet', seq: 5 });
+    finanzasPrueba.valor = finanzas({ planes: [PLAN_OCT], movimientos: [aporte, pago] });
+    const a = await entrarA('/planear/2026-10/cierre');
+    const sobrante = (await TestBed.inject(PUERTOS).cierre.vista(OCT)).sobrante;
+    expect(sobrante).toBeGreaterThan(0);
+
+    // Alguien registró algo mientras tanto: el mensaje, las cifras nuevas y el mes sigue abierto.
+    a.porTexto('Cerrar octubre').click();
+    const gasto = registro({ id: 'mov-g', monto: 85_000, nota: 'Farmacia', seq: 6 });
+    finanzasPrueba.valor = finanzas({ planes: [PLAN_OCT], movimientos: [aporte, pago, gasto] });
+    const r1 = await responder('POST', '/api/cierres', { codigo: 'CIERRE_DESACTUALIZADO', mensaje: 'Alguien registró algo en octubre; revisa el cierre otra vez' }, a.estable, 409);
+    expect(r1.request.body).toMatchObject({ ultimoSeq: 5 });
+    await atenderHogar(a);
+    expect(a.texto()).toContain('Alguien registró algo en octubre; revisa el cierre otra vez');
+    expect(a.texto()).toContain('No estaba planeado');
+
+    // Repartir: todo a noviembre.
+    const nuevo = (await TestBed.inject(PUERTOS).cierre.vista(OCT)).sobrante;
+    await a.escribir('A ahorro', '0');
+    await a.escribir('Pasar a noviembre', String(nuevo));
+    a.porTexto('Cerrar octubre').click();
+    const v = await TestBed.inject(PUERTOS).cierre.vista(OCT);
+    finanzasPrueba.valor = finanzas({
+      planes: [{ ...PLAN_OCT, estado: 'CERRADO' }], movimientos: [aporte, pago, gasto],
+      cierres: [{ ref: OCT, filas: v.filas, sinRegistrar: 0, sobrante: nuevo, aAhorro: 0, aSiguiente: nuevo, cerradoPor: USUARIO.id, cerradoEn: '2026-10-26' }],
+    });
+    const r2 = await responder('POST', '/api/cierres', finanzasPrueba.valor.cierres[0]!, a.estable, 201);
+    expect(r2.request.body).toMatchObject({ ultimoSeq: 6, aAhorro: 0, aSiguiente: nuevo });
+    await atenderHogar(a);
+    expect(a.url()).toBe('/planear/2026-11');
+    expect(a.texto()).toContain('Sobrante de octubre');
+
+    await a.ir('/planear/2026-10/cierre');
+    await atenderHogar(a);
+    expect(a.texto()).toContain('El mes está cerrado: queda en solo lectura.');
+    const pagar = TestBed.inject(PUERTOS).movimientos.marcarPago({ itemId: 'it-mercado', ref: OCT, monto: 1, usuarioId: USUARIO.id, origen: { tipo: 'NINGUNO' } }).catch((e: unknown) => e);
+    await responder('POST', '/api/pagos', { codigo: 'MES_CERRADO', mensaje: 'El mes está cerrado' }, a.estable, 409);
+    expect(await pagar).toMatchObject({ codigo: 'MES_CERRADO' });
+    await atenderHogar(a);
   });
 
   it('Hoy sin plan → Mes sin plan → Desde cero → agregar un gasto → Usar opción A', async () => {

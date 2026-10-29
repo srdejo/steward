@@ -25,13 +25,13 @@
 
 ## 3. PWA
 
-- [ ] 3.1 `api.ts`: `CierreApi` en `FinanzasApi`, y `cerrarMes`. `superposicion.ts` pone los cierres reales (D5). Verificar: tests de la superposición:
+- [x] 3.1 `api.ts`: `CierreApi` en `FinanzasApi`, y `cerrarMes`. `superposicion.ts` pone los cierres reales (D5). Verificar: tests de la superposición:
   - un mes cerrado muestra su foto en `vistaCierre`;
   - el mes siguiente trae "Sobrante de {mes}" en sus ingresos;
   - los cierres de prueba no se ven.
-- [ ] 3.2 `PuertosConectados.cierre.cerrar` según D5: el cuerpo con la vista del dominio y `ultimoSeq`; con `CIERRE_DESACTUALIZADO`, relee antes de propagar. Fuera `ETAPA_6`. Verificar: tests en `conectado.spec.ts` del cuerpo enviado, del error desactualizado y de un registro en un mes cerrado (`MES_CERRADO` desde el backend).
-- [ ] 3.3 Pantalla de Cierre: sin "Cerrar {mes}" para un mes futuro en modo conectado, y el mensaje de `CIERRE_DESACTUALIZADO`. Verificar: tests de pantalla en modo conectado; los de Cierre en modo demo siguen en verde.
-- [ ] 3.4 Recorrido conectado con el backend simulado: Cierre de octubre → repartir → "Cerrar octubre" → octubre Cerrado, Hoy sin "Marcar pago" para octubre, y noviembre con "Sobrante de octubre". Verificar: `npx ng test` en verde. Actualizar `frontend/README.md`. Commit.
+- [x] 3.2 `PuertosConectados.cierre.cerrar` según D5: el cuerpo con la vista del dominio y `ultimoSeq`; con `CIERRE_DESACTUALIZADO`, relee antes de propagar. Fuera `ETAPA_6`. Verificar: tests en `conectado.spec.ts` del cuerpo enviado, del error desactualizado y de un registro en un mes cerrado (`MES_CERRADO` desde el backend).
+- [x] 3.3 Pantalla de Cierre: sin "Cerrar {mes}" para un mes futuro en modo conectado, y el mensaje de `CIERRE_DESACTUALIZADO`. Verificar: tests de pantalla en modo conectado; los de Cierre en modo demo siguen en verde.
+- [x] 3.4 Recorrido conectado con el backend simulado: Cierre de octubre → repartir → "Cerrar octubre" → octubre Cerrado, Hoy sin "Marcar pago" para octubre, y noviembre con "Sobrante de octubre". Verificar: `npx ng test` en verde. Actualizar `frontend/README.md`. Commit.
 
 ## 4. Verificación y cierre
 

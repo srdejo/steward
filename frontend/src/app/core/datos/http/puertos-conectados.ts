@@ -58,7 +58,7 @@ interface Dependencias {
  * - del backend: sesion, hogar, miembros, invitaciones, categorias, ingresos fijos, regla de diezmo, cuentas con su cuadre,
  *   creditos, el plan de cada mes con su Opcion A y todo lo registrado ("Recibi", "Entregado", pagos, gastos, aportes,
  *   ajustes, transferencias y abonos);
- * - del adaptador de prueba, con la persona real como titular: plan anual y cierre;
+ * - del adaptador de prueba, con la persona real como titular: el plan anual;
  * - lo que llega en otras etapas (varias opciones, cerrar el mes, crear meses desde el anual) avisa sin cambiar nada.
  *
  * Las finanzas reales se superponen al estado de prueba en cada lectura, asi que Hoy, Planear, Cuentas y el Cierre
@@ -92,11 +92,7 @@ export class PuertosConectados implements Puertos {
     this.cuentas = this.crearCuentas();
     this.movimientos = this.crearMovimientos();
     this.plan = this.crearPlan();
-    this.cierre = {
-      // Plan vs. real con lo real; cerrar el mes llega en la Etapa 6.
-      vista: (ref) => this.demoActual.cierre.vista(ref),
-      cerrar: () => Promise.reject(new ReglaError('ETAPA_6', 'Cerrar el mes llega en una próxima versión.')),
-    };
+    this.cierre = this.crearCierre();
   }
   /** Sin "Probar desde cero": el hogar es real (spec steward-ui-shell, modo conectado). */
   get demo() {
@@ -417,6 +413,34 @@ export class PuertosConectados implements Puertos {
       simular: (id, abono) => this.demoActual.cuentas.simular(id, abono),
       // El plan del mes ya es real y solo tiene la Opcion A: probar un abono como opcion llega despues.
       probarComoOpcion: () => Promise.reject(new ReglaError('ETAPA_7', 'Probar un abono como opción llega en una próxima versión.')),
+    };
+  }
+
+  /**
+   * Cerrar el mes (design D5 de backend-cierre-mes): la foto es la vista del dominio sobre lo superpuesto, con el orden del
+   * ultimo movimiento real del mes. Si alguien registro algo mientras tanto, relee antes de propagar el error, para que la
+   * pantalla ya muestre las cifras nuevas.
+   */
+  private crearCierre(): CierrePort {
+    return {
+      vista: (ref) => this.demoActual.cierre.vista(ref),
+      cerrar: async (ref, reparto) => {
+        const v = await this.demoActual.cierre.vista(ref);
+        if (v.cerrado) throw new ReglaError('MES_CERRADO', 'El mes ya está cerrado');
+        const ultimoSeq = Math.max(0, ...(this.finanzas?.movimientos ?? []).filter((m) => m.ref.anio === ref.anio && m.ref.mes === ref.mes).map((m) => m.seq));
+        try {
+          await this.d.api.cerrarMes({
+            anio: ref.anio, mes: ref.mes, filas: v.filas, sinRegistrar: v.sinRegistrar, sobrante: v.sobrante,
+            aAhorro: reparto.aAhorro, aSiguiente: reparto.aSiguiente, ultimoSeq,
+          });
+        } catch (e) {
+          if (e instanceof ReglaError && (e.codigo === 'CIERRE_DESACTUALIZADO' || e.codigo === 'MES_CERRADO')) await this.recargarFinanzas();
+          throw e;
+        }
+        await this.recargarFinanzas();
+        const guardado = (await this.demoActual.cierre.vista(ref));
+        return { ref, filas: guardado.filas, sinRegistrar: guardado.sinRegistrar, sobrante: guardado.sobrante, aAhorro: guardado.aAhorro, aSiguiente: guardado.aSiguiente, cerradoPor: this.titularId ?? '', cerradoEn: this.hoy() };
+      },
     };
   }
 
