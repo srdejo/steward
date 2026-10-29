@@ -1,7 +1,7 @@
-import type { EstadoHogar, EventoAnual, Id, ItemPlan, MesRef, Pesos } from '../model';
+import type { EstadoHogar, EventoAnual, Fecha, Id, ItemPlan, MesRef, Pesos } from '../model';
 import { formatPorcentaje, nombreMesCapital } from '../format';
-import { ReglaError, clonar, compararMes, nuevoId, sumar } from './base';
-import { anualDe, escenarioPrincipal, nombreUsuario, planDe, reglaDe } from './consultas';
+import { ReglaError, clonar, compararMes, mesDe, nuevoId, sumar } from './base';
+import { anualDe, cierreDe, escenarioPrincipal, nombreUsuario, planDe, reglaDe } from './consultas';
 import { calcularDiezmo } from './ingresos';
 
 const MESES = Array.from({ length: 12 }, (_, i) => i + 1);
@@ -40,15 +40,22 @@ export function resumenAnual(estado: EstadoHogar, anio: number): ResumenAnual | 
   for (const nombre of new Set(extras.map((e) => e.nombre))) {
     ingresos.push({ clave: `extra-${nombre}`, nombre, detalle: '', valores: MESES.map((m) => sumar(extras.filter((e) => e.nombre === nombre && e.mes === m).map((e) => e.monto))), tenue: false, calculado: false });
   }
+  // Una fila de aportes por miembro, aunque no tenga proyecciones, para poder llenarla (backend-plan-anual D1).
   const proyectados = estado.proyecciones.filter((p) => p.ref.anio === anio);
-  for (const usuarioId of new Set(proyectados.map((p) => p.usuarioId))) {
+  for (const usuarioId of new Set([...estado.hogar.miembros.map((m) => m.usuarioId), ...proyectados.map((p) => p.usuarioId)])) {
     ingresos.push({
       clave: `proy-${usuarioId}`, nombre: `Aportes ${nombreUsuario(estado, usuarioId)}`, detalle: 'Proyectado · se vuelve real al registrarlo',
       valores: MESES.map((m) => proyectados.find((p) => p.usuarioId === usuarioId && p.ref.mes === m)?.monto ?? 0), tenue: true, calculado: false,
     });
   }
   const categorias = new Map(estado.categorias.map((c) => [c.id, c]));
-  const gastos: FilaAnualVista[] = anual.filas.map((f) => ({ clave: f.categoriaId, nombre: categorias.get(f.categoriaId)?.nombre ?? '', detalle: '', valores: [...f.montos], tenue: false, calculado: false }));
+  // Una fila por categoria del hogar (las nuevas en $0); "Eventos del año" va en su propia fila.
+  const conFila = new Set(anual.filas.map((f) => f.categoriaId));
+  const filas = [
+    ...anual.filas,
+    ...[...categorias.values()].filter((c) => !conFila.has(c.id) && c.nombre !== CATEGORIA_EVENTOS).sort((a, b) => a.orden - b.orden).map((c) => ({ categoriaId: c.id, montos: MESES.map(() => 0) })),
+  ];
+  const gastos: FilaAnualVista[] = filas.map((f) => ({ clave: f.categoriaId, nombre: categorias.get(f.categoriaId)?.nombre ?? '', detalle: '', valores: [...f.montos], tenue: false, calculado: false }));
 
   let detalleDiezmo = '';
   const diezmo = MESES.map((m) => {
@@ -100,11 +107,39 @@ export function agregarEvento(estado: EstadoHogar, datos: { anio: number; evento
 }
 
 export function editarMontoAnual(estado: EstadoHogar, datos: { anio: number; categoriaId: Id; mes: number; monto: Pesos }): EstadoHogar {
-  if (datos.monto < 0) throw new ReglaError('MONTO_INVALIDO', 'El monto no puede ser negativo');
+  if (datos.monto < 0 || datos.mes < 1 || datos.mes > 12) throw new ReglaError('MONTO_INVALIDO', 'Revisa el mes y el monto');
   const s = clonar(estado);
-  const fila = anualDe(s, datos.anio)?.filas.find((f) => f.categoriaId === datos.categoriaId);
-  if (!fila) throw new ReglaError('NO_EXISTE', 'No existe esa fila');
+  const anual = anualDe(s, datos.anio);
+  if (!anual) throw new ReglaError('NO_EXISTE', 'No hay plan anual para ese año');
+  if (!s.categorias.some((c) => c.id === datos.categoriaId)) throw new ReglaError('NO_EXISTE', 'No existe esa categoría');
+  // Una categoria creada despues del anual gana su fila al editarla.
+  let fila = anual.filas.find((f) => f.categoriaId === datos.categoriaId);
+  if (!fila) {
+    fila = { categoriaId: datos.categoriaId, montos: MESES.map(() => 0) };
+    anual.filas.push(fila);
+  }
   fila.montos[datos.mes - 1] = datos.monto;
+  return s;
+}
+
+/** "Crear plan anual {año}": vacio, para el año en curso o uno futuro (backend-plan-anual D1). */
+export function crearAnual(estado: EstadoHogar, datos: { anio: number; hoy: Fecha }): EstadoHogar {
+  if (datos.anio < mesDe(datos.hoy).anio) throw new ReglaError('MONTO_INVALIDO', 'El plan anual es del año en curso o uno futuro');
+  if (anualDe(estado, datos.anio)) throw new ReglaError('YA_EXISTE', 'Ese año ya tiene plan anual');
+  const s = clonar(estado);
+  s.anuales.push({ anio: datos.anio, estado: 'BORRADOR', filas: [], eventos: [] });
+  return s;
+}
+
+/** El aporte que una persona espera hacer en un mes; en 0 se quita (backend-plan-anual D1). */
+export function editarProyeccion(estado: EstadoHogar, datos: { usuarioId: Id; ref: MesRef; monto: Pesos }): EstadoHogar {
+  if (datos.monto < 0 || datos.ref.mes < 1 || datos.ref.mes > 12) throw new ReglaError('MONTO_INVALIDO', 'Revisa el mes y el monto');
+  if (!anualDe(estado, datos.ref.anio)) throw new ReglaError('NO_EXISTE', 'No hay plan anual para ese año');
+  if (!estado.hogar.miembros.some((m) => m.usuarioId === datos.usuarioId)) throw new ReglaError('NO_EXISTE', 'Esa persona no es del hogar');
+  const s = clonar(estado);
+  const mismo = (p: { usuarioId: Id; ref: MesRef }) => p.usuarioId === datos.usuarioId && p.ref.anio === datos.ref.anio && p.ref.mes === datos.ref.mes;
+  s.proyecciones = s.proyecciones.filter((p) => !mismo(p));
+  if (datos.monto > 0) s.proyecciones.push({ usuarioId: datos.usuarioId, ref: { anio: datos.ref.anio, mes: datos.ref.mes }, monto: datos.monto });
   return s;
 }
 
@@ -126,15 +161,25 @@ export function crearMesesDesdeAnual(estado: EstadoHogar, datos: { anio: number;
   }
   for (const mes of MESES) {
     const ref = { anio: datos.anio, mes };
-    if (planDe(s, ref)) continue;
+    // Un mes con plan no cambia, y uno cerrado sin plan no gana plan.
+    if (planDe(s, ref) || cierreDe(s, ref)) continue;
     const items: ItemPlan[] = [];
-    for (const fila of anual.filas) {
+    // En el orden de las categorias del hogar, como el backend.
+    const orden = (id: Id) => s.categorias.find((c) => c.id === id)?.orden ?? 0;
+    for (const fila of [...anual.filas].sort((a, b) => orden(a.categoriaId) - orden(b.categoriaId))) {
       const monto = fila.montos[mes - 1] ?? 0;
       const base = plantilla.filter((i) => i.categoriaId === fila.categoriaId).map((i) => ({ ...i, id: nuevoId(s, 'item') }));
       const diferencia = monto - sumar(base.map((i) => i.monto));
+      const nombreCategoria = s.categorias.find((c) => c.id === fila.categoriaId)?.nombre ?? 'Gasto';
+      // Los items no son negativos: si la columna es menor que lo copiado, la categoria entra como un solo item por la
+      // columna (design D4 de backend-plan-anual).
+      if (diferencia < 0) {
+        if (monto > 0) items.push({ id: nuevoId(s, 'item'), categoriaId: fila.categoriaId, nombre: nombreCategoria, monto, diaVence: null, tipo: 'VARIABLE', cuota: null, creditoId: null });
+        continue;
+      }
       items.push(...base);
-      if (diferencia !== 0) {
-        const nombre = base.length ? 'Ajuste del plan anual' : s.categorias.find((c) => c.id === fila.categoriaId)?.nombre ?? 'Gasto';
+      if (diferencia > 0) {
+        const nombre = base.length ? 'Ajuste del plan anual' : nombreCategoria;
         items.push({ id: nuevoId(s, 'item'), categoriaId: fila.categoriaId, nombre, monto: diferencia, diaVence: null, tipo: 'VARIABLE', cuota: null, creditoId: null });
       }
     }

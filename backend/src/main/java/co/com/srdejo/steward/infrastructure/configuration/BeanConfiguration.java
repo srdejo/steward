@@ -1,5 +1,6 @@
 package co.com.srdejo.steward.infrastructure.configuration;
 
+import co.com.srdejo.steward.domain.api.IAnualServicePort;
 import co.com.srdejo.steward.domain.api.IAuthServicePort;
 import co.com.srdejo.steward.domain.api.ICierreServicePort;
 import co.com.srdejo.steward.domain.api.ICuentasServicePort;
@@ -7,6 +8,7 @@ import co.com.srdejo.steward.domain.api.IFinanzasServicePort;
 import co.com.srdejo.steward.domain.api.IHogarServicePort;
 import co.com.srdejo.steward.domain.api.IInvitacionServicePort;
 import co.com.srdejo.steward.domain.api.IPlanServicePort;
+import co.com.srdejo.steward.domain.spi.IAnualPersistencePort;
 import co.com.srdejo.steward.domain.spi.ICategoriaPersistencePort;
 import co.com.srdejo.steward.domain.spi.ICierrePersistencePort;
 import co.com.srdejo.steward.domain.spi.IClockPort;
@@ -25,6 +27,7 @@ import co.com.srdejo.steward.domain.spi.ITokenGeneratorPort;
 import co.com.srdejo.steward.domain.spi.ITokenPort;
 import co.com.srdejo.steward.domain.spi.ITransaccionPort;
 import co.com.srdejo.steward.domain.spi.IUsuarioPersistencePort;
+import co.com.srdejo.steward.domain.usecase.AnualUseCase;
 import co.com.srdejo.steward.domain.usecase.AuthUseCase;
 import co.com.srdejo.steward.domain.usecase.CierreUseCase;
 import co.com.srdejo.steward.domain.usecase.CuentasUseCase;
@@ -34,6 +37,7 @@ import co.com.srdejo.steward.domain.usecase.InvitacionUseCase;
 import co.com.srdejo.steward.domain.usecase.PlanUseCase;
 import co.com.srdejo.steward.infrastructure.out.mail.ContactMailAdapter;
 import co.com.srdejo.steward.infrastructure.out.mail.LoggingMailAdapter;
+import co.com.srdejo.steward.infrastructure.out.r2dbc.AnualR2dbcAdapter;
 import co.com.srdejo.steward.infrastructure.out.r2dbc.CategoriaR2dbcAdapter;
 import co.com.srdejo.steward.infrastructure.out.r2dbc.CierreR2dbcAdapter;
 import co.com.srdejo.steward.infrastructure.out.r2dbc.CreditoR2dbcAdapter;
@@ -132,6 +136,11 @@ public class BeanConfiguration {
     }
 
     @Bean
+    IAnualPersistencePort anualPersistencePort(DatabaseClient db) {
+        return new AnualR2dbcAdapter(db);
+    }
+
+    @Bean
     ICierrePersistencePort cierrePersistencePort(DatabaseClient db) {
         return new CierreR2dbcAdapter(db);
     }
@@ -193,10 +202,19 @@ public class BeanConfiguration {
                                              IIngresoFijoPersistencePort ingresos, ICuentaPersistencePort cuentas,
                                              IMovimientoPersistencePort movimientos, ICategoriaPersistencePort categorias,
                                              IPlanPersistencePort planes, ICreditoPersistencePort creditos,
-                                             ICierrePersistencePort cierres, IUsuarioPersistencePort usuarios,
-                                             ICurrentUserPort usuarioActual, ITransaccionPort transaccion, IClockPort clock) {
+                                             ICierrePersistencePort cierres, IAnualPersistencePort anuales,
+                                             IUsuarioPersistencePort usuarios, ICurrentUserPort usuarioActual,
+                                             ITransaccionPort transaccion, IClockPort clock) {
         return new FinanzasUseCase(hogares, reglas, ingresos, cuentas, movimientos, categorias, planes, creditos, cierres,
-                usuarios, usuarioActual, transaccion, clock);
+                anuales, usuarios, usuarioActual, transaccion, clock);
+    }
+
+    @Bean
+    IAnualServicePort anualServicePort(IHogarPersistencePort hogares, ICuentaPersistencePort cuentas, IAnualPersistencePort anuales,
+                                       ICategoriaPersistencePort categorias, IPlanPersistencePort planes,
+                                       ICierrePersistencePort cierres, ICurrentUserPort usuarioActual,
+                                       ITransaccionPort transaccion, IClockPort clock) {
+        return new AnualUseCase(hogares, cuentas, anuales, categorias, planes, cierres, usuarioActual, transaccion, clock);
     }
 
     @Bean

@@ -114,6 +114,10 @@ export interface PlanPort {
   agregarEvento(anio: number, evento: Omit<EventoAnual, 'id'>): Promise<void>;
   editarMontoAnual(anio: number, categoriaId: Id, mes: number, monto: Pesos): Promise<void>;
   crearMesesDesdeAnual(anio: number): Promise<void>;
+  /** "Crear plan anual {año}": vacio, para el año en curso o uno futuro. */
+  crearAnual(anio: number): Promise<void>;
+  /** El aporte proyectado de una persona en un mes; 0 lo quita. */
+  editarProyeccion(usuarioId: Id, ref: MesRef, monto: Pesos): Promise<void>;
 }
 
 export interface VistaCredito {

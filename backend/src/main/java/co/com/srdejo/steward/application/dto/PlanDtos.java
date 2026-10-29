@@ -4,6 +4,7 @@ import co.com.srdejo.steward.application.dto.FinanzasDtos.MesResponse;
 import co.com.srdejo.steward.domain.api.ICierreServicePort.DatosCierre;
 import co.com.srdejo.steward.domain.api.IPlanServicePort.DatosItem;
 import co.com.srdejo.steward.domain.model.CierreMes;
+import co.com.srdejo.steward.domain.model.PlanAnual;
 import co.com.srdejo.steward.domain.model.Categoria;
 import co.com.srdejo.steward.domain.model.PlanMes;
 import co.com.srdejo.steward.domain.model.PlanMes.Escenario;
@@ -48,6 +49,48 @@ public final class PlanDtos {
     }
 
     public record FilaDto(String nombre, Long plan, long real) {
+    }
+
+    public record AnualRequest(int anio) {
+    }
+
+    public record CeldaRequest(UUID categoriaId, int mes, long monto) {
+    }
+
+    public record EventoRequest(String nombre, int mes, long monto, String tipo, UUID usuarioId) {
+    }
+
+    public record ProyeccionRequest(UUID usuarioId, int mes, long monto) {
+    }
+
+    public record MesCreadoResponse(int anio, int mes) {
+    }
+
+    public record EventoResponse(UUID id, String nombre, int mes, long monto, String tipo, UUID usuarioId) {
+
+        public static EventoResponse de(PlanAnual.Evento e) {
+            return new EventoResponse(e.id(), e.nombre(), e.mes(), e.monto(), e.tipo().name(), e.usuarioId());
+        }
+    }
+
+    public record CeldaResponse(UUID categoriaId, int mes, long monto) {
+    }
+
+    /** Solo las celdas tocadas; las demas valen cero (design D2 de backend-plan-anual). */
+    public record AnualResponse(int anio, String estado, List<CeldaResponse> celdas, List<EventoResponse> eventos) {
+
+        public static AnualResponse de(PlanAnual a) {
+            return new AnualResponse(a.anio(), a.estado().name(),
+                    a.celdas().stream().map(c -> new CeldaResponse(c.categoriaId(), c.mes(), c.monto())).toList(),
+                    a.eventos().stream().map(EventoResponse::de).toList());
+        }
+    }
+
+    public record ProyeccionResponse(UUID usuarioId, int anio, int mes, long monto) {
+
+        public static ProyeccionResponse de(PlanAnual.Proyeccion p) {
+            return new ProyeccionResponse(p.usuarioId(), p.anio(), p.mes(), p.monto());
+        }
     }
 
     /** La foto que calcula la PWA con vistaCierre, el reparto y el orden del ultimo movimiento del mes que vio. */

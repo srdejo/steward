@@ -148,6 +148,18 @@ En un mes Cerrado no se registra nada: 409 `MES_CERRADO`. **El backend no calcul
 
 | `POST /api/cierres` | "Cerrar {mes}": `{"anio", "mes", "filas": [{"nombre", "plan"?, "real"}], "sinRegistrar", "sobrante", "aAhorro", "aSiguiente", "ultimoSeq"}` → 201. La foto la calcula la PWA con `vistaCierre`. El mes es el en curso o uno anterior (400 `DATOS_INVALIDOS`). 400 `REPARTO_INVALIDO` si el reparto no suma el sobrante; 409 `CIERRE_DESACTUALIZADO` si "Sin registrar" no es la suma de los ajustes del mes o hay un movimiento del mes con `seq` mayor que `ultimoSeq`; 409 `MES_CERRADO` si ya estaba cerrado |
 
+### Plan anual
+
+| Método y ruta | Qué hace |
+|---|---|
+| `POST /api/anuales` | `{"anio"}` → 201 con el anual vacío (año en curso o futuro). 409 `YA_EXISTE` |
+| `PUT /api/anuales/{anio}/celdas` | `{"categoriaId", "mes", "monto"}` → 204; reemplaza la celda. 404 `ANUAL_NO_ENCONTRADO` o `CATEGORIA_NO_ENCONTRADA` |
+| `POST /api/anuales/{anio}/eventos` | `{"nombre", "mes", "monto", "tipo": "INGRESO" | "GASTO", "usuarioId"?}` → 201 |
+| `PUT /api/anuales/{anio}/proyecciones` | `{"usuarioId", "mes", "monto"}` → 204; 0 la quita. 404 `MIEMBRO_NO_ENCONTRADO` |
+| `POST /api/anuales/{anio}/crear-meses` | "Crear meses desde este plan" → los meses creados (`[{anio, mes}]`). Los que tienen plan o están cerrados no cambian |
+
+`GET /api/finanzas` trae `anuales` (solo las celdas tocadas; las demás valen 0) y `proyecciones` desde el año del primer mes que lee.
+
 **Varias opciones solo en Borrador** (design D1 de `backend-opciones-mes`): un mes futuro, o el mes en curso antes de elegir opción. Un mes Activo se edita en su opción en uso, pero no gana opciones ni cambia de opción.
 
 Un mes está **cerrado** si su plan está en Cerrado o tiene su cierre guardado (aunque no tenga plan). En un mes cerrado no se crea el plan, no se cambia, y "Recibí", "Entregado", pagos, gastos y aportes responden 409 `MES_CERRADO`. Cuadrar, mover y abonar siguen funcionando: son de las cuentas. `GET /api/finanzas` trae los cierres desde tres meses antes del mes en curso, para el "Sobrante de {mes}" del primer mes leído (design D3 y D4 de `backend-cierre-mes`).

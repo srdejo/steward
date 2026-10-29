@@ -20,6 +20,9 @@ public interface IPlanPersistencePort {
 
     Mono<PlanMes> porIdEnHogar(UUID planId, UUID hogarId);
 
+    /** El plan completo mas reciente anterior a ese mes; vacio si no hay. */
+    Mono<PlanMes> ultimoAntesDe(UUID hogarId, YearMonth ref);
+
     /** Los planes completos desde ese mes en adelante, en orden. */
     Flux<PlanMes> desde(UUID hogarId, YearMonth desde);
 

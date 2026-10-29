@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { crearHogarVacio, crearSemilla, DANIEL, ESPOSA } from '../demo/seed';
 import type { EstadoHogar, MesRef } from '../model';
 import {
-  ReglaError, aceptarInvitacion, quitarEscenario, agregarCredito, actualizarSaldoCredito, agregarEvento, compararOpciones, crearMes, crearMesesDesdeAnual, cuadrarCuentas, cuentasDelHogar,
+  ReglaError, aceptarInvitacion, quitarEscenario, crearAnual, editarProyeccion, editarMontoAnual, agregarCredito, actualizarSaldoCredito, agregarEvento, compararOpciones, crearMes, crearMesesDesdeAnual, cuadrarCuentas, cuentasDelHogar,
   cerrarMes, definirDiezmoEnHoy, diferenciaCuadre, duplicarEscenario, entregarDiezmo, guardarCategoria, invitar, loQueTraeElMes,
   marcarPago, marcarRecibido, planDe, planInicio, previsualizarDiezmo, previsualizarGasto, probarAbonoComoOpcion, registrarAporte,
   registrarGasto, repartoValido, resumenAnual, resumenMes, simularAbono, cuotasRestantes, porcentajePagado, usarEscenario,
@@ -224,6 +224,38 @@ describe('Planear (steward-planear)', () => {
     const r2 = resumenAnual(s, 2027)!;
     expect(r2.libre[2]).toBe(1_498_000 - 1_200_000);
     expect(r2.kpis.libreAnio).toBe(28_996_000 - 1_200_000);
+  });
+
+  it('crear el plan anual vacio y llenarlo (backend-plan-anual D1)', () => {
+    expect(() => crearAnual(semilla(), { anio: 2025, hoy: HOY })).toThrow(ReglaError);
+    expect(() => crearAnual(semilla(), { anio: 2027, hoy: HOY })).toThrow(expect.objectContaining({ codigo: 'YA_EXISTE' }));
+    const s = crearAnual(semilla(), { anio: 2028, hoy: HOY });
+    const r = resumenAnual(s, 2028)!;
+    expect(r.gastos.map((g) => [g.nombre, g.valores.every((v) => v === 0)])).toEqual([
+      ['Gastos fijos', true], ['Tarjetas y cuotas', true], ['Variables', true], ['Créditos', true], ['Ahorro', true],
+    ]);
+    expect(r.ingresos.filter((f) => f.tenue).map((f) => f.nombre)).toEqual(['Aportes Daniel', 'Aportes Esposa']);
+    const fijos = editarMontoAnual(s, { anio: 2028, categoriaId: 'cat-fijos', mes: 1, monto: 800_000 });
+    expect(resumenAnual(fijos, 2028)!.gastos[0]!.valores[0]).toBe(800_000);
+  });
+
+  it('aporte proyectado por persona: tenue, y en 0 se quita', () => {
+    const s = editarProyeccion(semilla(), { usuarioId: DANIEL, ref: { anio: 2027, mes: 1 }, monto: 1_000_000 });
+    const r = resumenAnual(s, 2027)!;
+    expect(r.ingresos.find((f) => f.nombre === 'Aportes Daniel')!.valores[0]).toBe(1_000_000);
+    expect(r.libre[0]).toBe(598_000 + 1_000_000);
+    const sin = editarProyeccion(s, { usuarioId: DANIEL, ref: { anio: 2027, mes: 1 }, monto: 0 });
+    expect(sin.proyecciones.some((p) => p.usuarioId === DANIEL && p.ref.anio === 2027 && p.ref.mes === 1)).toBe(false);
+    expect(() => editarProyeccion(semilla(), { usuarioId: 'nadie', ref: { anio: 2027, mes: 1 }, monto: 1 })).toThrow(ReglaError);
+    expect(() => editarProyeccion(semilla(), { usuarioId: DANIEL, ref: { anio: 2030, mes: 1 }, monto: 1 })).toThrow(ReglaError);
+  });
+
+  it('crear meses desde el plan anual salta un mes cerrado sin plan', () => {
+    const base = semilla();
+    const conCierre = { ...base, cierres: [...base.cierres, { ref: { anio: 2027, mes: 2 }, filas: [], sinRegistrar: 0, sobrante: 0, aAhorro: 0, aSiguiente: 0, cerradoPor: DANIEL, cerradoEn: HOY }] };
+    const s = crearMesesDesdeAnual(conCierre, { anio: 2027, creadoPor: DANIEL });
+    expect(planDe(s, { anio: 2027, mes: 2 })).toBeNull();
+    expect(planDe(s, { anio: 2027, mes: 3 })).not.toBeNull();
   });
 
   it('crear meses desde el plan anual no se ata despues', () => {

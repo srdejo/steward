@@ -13,6 +13,7 @@ import co.com.srdejo.steward.domain.model.ObligacionDiezmo;
 import co.com.srdejo.steward.domain.model.PlanMes;
 import co.com.srdejo.steward.domain.model.ReglaDiezmo;
 import co.com.srdejo.steward.domain.spi.ICategoriaPersistencePort;
+import co.com.srdejo.steward.domain.spi.IAnualPersistencePort;
 import co.com.srdejo.steward.domain.spi.ICierrePersistencePort;
 import co.com.srdejo.steward.domain.spi.IClockPort;
 import co.com.srdejo.steward.domain.spi.ICreditoPersistencePort;
@@ -61,6 +62,7 @@ public class FinanzasUseCase implements IFinanzasServicePort {
     private final IPlanPersistencePort planes;
     private final ICreditoPersistencePort creditos;
     private final ICierrePersistencePort cierres;
+    private final IAnualPersistencePort anuales;
     private final IUsuarioPersistencePort usuarios;
     private final ICurrentUserPort usuarioActual;
     private final ITransaccionPort transaccion;
@@ -71,7 +73,7 @@ public class FinanzasUseCase implements IFinanzasServicePort {
                            IIngresoFijoPersistencePort ingresos, ICuentaPersistencePort cuentas,
                            IMovimientoPersistencePort movimientos, ICategoriaPersistencePort categorias,
                            IPlanPersistencePort planes, ICreditoPersistencePort creditos, ICierrePersistencePort cierres,
-                           IUsuarioPersistencePort usuarios, ICurrentUserPort usuarioActual, ITransaccionPort transaccion,
+                           IAnualPersistencePort anuales, IUsuarioPersistencePort usuarios, ICurrentUserPort usuarioActual, ITransaccionPort transaccion,
                            IClockPort clock) {
         this.hogares = hogares;
         this.reglas = reglas;
@@ -82,6 +84,7 @@ public class FinanzasUseCase implements IFinanzasServicePort {
         this.planes = planes;
         this.creditos = creditos;
         this.cierres = cierres;
+        this.anuales = anuales;
         this.usuarios = usuarios;
         this.usuarioActual = usuarioActual;
         this.transaccion = transaccion;
@@ -112,16 +115,18 @@ public class FinanzasUseCase implements IFinanzasServicePort {
                                         p.escenarioActivoId(), p.escenarios()))
                                 .collectList(),
                         creditosConPagos(ctx.hogar().id()))
-                .zipWith(cierres.desde(ctx.hogar().id(), desde.minusMonths(1)).collectList())
+                .zipWith(Mono.zip(cierres.desde(ctx.hogar().id(), desde.minusMonths(1)).collectList(),
+                        anuales.desde(ctx.hogar().id(), desde.getYear()).collectList(),
+                        anuales.proyeccionesDesde(ctx.hogar().id(), desde.getYear()).collectList()))
                 .flatMap(tc -> {
                     var t = tc.getT1();
-                    List<CierreMes> cierresLeidos = tc.getT2();
+                    List<CierreMes> cierresLeidos = tc.getT2().getT1();
                     // Las reglas de los miembros y de los duenos de lo registrado (aunque ya no esten).
                     Set<UUID> personas = new HashSet<>(t.getT5());
                     t.getT4().forEach(m -> personas.add(m.usuarioId()));
                     return reglas.dePersonas(personas).collectList()
                             .map(r -> new Finanzas(mes, t.getT1(), t.getT6(), t.getT2(), r, t.getT3(), t.getT7(), t.getT4(),
-                                    t.getT8(), cierresLeidos));
+                                    t.getT8(), cierresLeidos, tc.getT2().getT2(), tc.getT2().getT3()));
                 }));
     }
 

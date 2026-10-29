@@ -345,6 +345,12 @@ export function crearAdaptadorDemo(opciones: OpcionesDemo): Puertos {
         const creadoPor = await usuarioActual();
         await cambiar((s) => R.crearMesesDesdeAnual(s, { anio, creadoPor }));
       },
+      async crearAnual(anio) {
+        await cambiar((s) => R.crearAnual(s, { anio, hoy: hoy() }));
+      },
+      async editarProyeccion(usuarioId, ref, monto) {
+        await cambiar((s) => R.editarProyeccion(s, { usuarioId, ref, monto }));
+      },
     },
 
     cuentas: {
