@@ -15,9 +15,9 @@ Cuadrar SHALL mostrar un campo por cuenta para escribir lo que dice el banco. Gu
 - **AND** al guardar, los saldos quedan en $3.980.000 y $150.000, se crean ajustes por $170.000 y $50.000, y el Cierre del mes muestra $220.000 en "Sin registrar"
 
 ### Requirement: Detalle de crédito con simulador
-El detalle de un crédito SHALL mostrar saldo, entidad, porcentaje pagado del total original, cuotas restantes, cuota, tasa (EM), día de pago y los últimos pagos, con "Actualizar saldo" y "Registrar abono". "Registrar abono" MUST pedir el monto y desde dónde sale (una cuenta del hogar, "Su cuenta" o ninguna). El simulador de abono extra MUST estimar las cuotas y los intereses ahorrados al escribir un monto. "Probarlo como opción de {mes}" SHALL crear un escenario nuevo en ese mes con el abono incluido.
+El detalle de un crédito SHALL mostrar saldo, entidad, porcentaje pagado del total original, cuotas restantes, cuota, tasa (EM), día de pago y los últimos pagos, con "Actualizar saldo" y "Registrar abono". "Registrar abono" MUST pedir el monto y desde dónde sale (una cuenta del hogar, "Su cuenta" o ninguna). El simulador de abono extra MUST estimar las cuotas y los intereses ahorrados al escribir un monto. "Probarlo como opción de {mes}" SHALL crear un escenario nuevo en ese mes con el abono incluido, si ese mes sigue en Borrador; si no, MUST mostrar que el mes ya está en curso.
 
-En modo conectado, el crédito, "Actualizar saldo" y "Registrar abono" son del backend. "Probarlo como opción de {mes}" MUST mostrar que llega en una próxima versión, sin crear opciones, porque el plan del mes solo tiene la Opción A hasta la Etapa 7.
+En modo conectado, el crédito, "Actualizar saldo", "Registrar abono" y "Probarlo como opción de {mes}" son del backend.
 
 #### Scenario: Simular abono
 - **WHEN** en el crédito de $14.250.000 al 1,6 % EM con cuota $500.000 se simula un abono de $2.000.000
@@ -28,8 +28,8 @@ En modo conectado, el crédito, "Actualizar saldo" y "Registrar abono" son del b
 - **THEN** noviembre gana una opción nueva con el abono en Créditos, y se abre el mes en borrador
 
 #### Scenario: Probarlo en modo conectado
-- **WHEN** en modo conectado se toca "Probarlo como opción de noviembre"
-- **THEN** se ve que llega en una próxima versión y noviembre sigue con solo la Opción A
+- **WHEN** en modo conectado Daniel toca "Probarlo como opción de noviembre" con un abono de $2.000.000
+- **THEN** se abre noviembre con una opción nueva que trae "Abono extra libre inversión" por $2.000.000, y Esposa también la ve
 
 #### Scenario: Abono en modo conectado
 - **WHEN** en modo conectado Daniel registra un abono de $2.000.000 desde Davivienda a "Libre inversión" ($14.250.000)

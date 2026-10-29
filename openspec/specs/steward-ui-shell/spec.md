@@ -52,7 +52,7 @@ La UI SHALL funcionar en uno de dos modos, elegido en la configuración del buil
 - MUST venir del backend:
   - la sesión, el hogar, sus miembros y las invitaciones;
   - los ingresos fijos, las reglas de diezmo y "Diezmo en Hoy";
-  - las categorías, los planes de los meses con su Opción A, y lo registrado (ingresos recibidos, pagos, gastos, aportes, diezmos entregados, ajustes de cuadre, transferencias y abonos);
+  - las categorías, los planes de los meses con todas sus opciones, y lo registrado (ingresos recibidos, pagos, gastos, aportes, diezmos entregados, ajustes de cuadre, transferencias y abonos);
   - las cuentas, con su cuadre y su saldo estimado, y los créditos;
   - los cierres de mes.
 - Los módulos que aún no tienen backend SHALL seguir con el adaptador de prueba, guardado en el dispositivo: el plan anual.

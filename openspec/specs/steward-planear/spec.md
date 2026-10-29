@@ -27,12 +27,13 @@ En modo conectado, el mes MUST crearse en el backend y el otro miembro SHALL ver
 - **THEN** Hoy indica que el mes no tiene plan y lleva a Mes sin plan de octubre, donde "Desde cero" crea el mes en el backend
 
 ### Requirement: Mes en borrador con escenarios
-Un mes en Borrador SHALL mostrar sus opciones (A, B, …) con quién propuso cada una, el total que cada una "dejaría libre" y sus ingresos y gastos por categoría. El diezmo MUST verse calculado y bloqueado ("Calculado · 10% de Salario Daniel"). Cualquiera puede crear o duplicar una opción. "Usar opción X" MUST dejarla como el plan que se activa al iniciar el mes, y las demás opciones se archivan, no se borran.
+Un mes en Borrador SHALL mostrar sus opciones (A, B, …) con quién propuso cada una, el total que cada una "dejaría libre" y sus ingresos y gastos por categoría. El diezmo MUST verse calculado y bloqueado ("Calculado · 10% de Salario Daniel"). Cualquiera puede crear o duplicar una opción, y quitar una que ya no sirva ("Quitar opción", con confirmación), salvo la última y la que está en uso. "Usar opción X" MUST dejarla como el plan que se activa al iniciar el mes, y las demás opciones se archivan, no se borran.
 
-En modo conectado, hasta la Etapa 7:
-- solo existe la Opción A;
-- agregar, editar y quitar sus ítems, y "Usar opción A", MUST guardarse en el backend;
-- "+ Duplicar" MUST mostrar que varias opciones llegan en una próxima versión, sin crear nada.
+Varias opciones existen solo mientras el mes está en Borrador: un mes Activo MUST NOT ofrecer "+ Duplicar" ni "Quitar opción". Si el mes deja de estar en Borrador mientras la pantalla está abierta, la acción MUST mostrar "{Mes} ya está en curso; su plan no gana opciones" sin crear nada.
+
+En modo conectado:
+- las opciones, sus ítems, "+ Duplicar", "Quitar opción" y "Usar opción X" MUST guardarse en el backend;
+- los dos miembros MUST ver las mismas opciones, con su autor real.
 
 #### Scenario: Duplicar
 - **WHEN** en noviembre (opciones A, B y C) se toca "+ Duplicar" sobre la Opción A
@@ -51,17 +52,33 @@ En modo conectado, hasta la Etapa 7:
 - **THEN** Esposa ve Internet en la Opción A, y el total que dejaría libre ya lo descuenta
 
 #### Scenario: Duplicar en modo conectado
-- **WHEN** en modo conectado se toca "+ Duplicar"
-- **THEN** se ve que varias opciones llegan en una próxima versión y el mes sigue con solo la Opción A
+- **WHEN** en modo conectado Esposa toca "+ Duplicar" sobre la Opción A de noviembre, que propuso Daniel
+- **THEN** los dos ven la Opción B "por Esposa", igual a A
+
+#### Scenario: Quitar una opción
+- **WHEN** en noviembre (opciones A, B y C) se toca "Quitar opción" sobre la C y se confirma
+- **THEN** noviembre muestra solo A y B, y el otro miembro también
+
+#### Scenario: Quitar la única opción
+- **WHEN** noviembre solo tiene la Opción A
+- **THEN** "Quitar opción" no se ofrece
+
+#### Scenario: Duplicar en un mes Activo
+- **WHEN** octubre es el mes en curso con la Opción A en uso y se abre octubre en Planear
+- **THEN** no se ofrece "+ Duplicar", y octubre sigue con solo la Opción A
 
 ### Requirement: Comparar escenarios
 Comparar SHALL mostrar las opciones de un mes lado a lado, resaltando solo las filas que cambian, con el total "Queda libre" de cada una y un botón "Usar {X}" por opción. Está diseñada para web; con menos de 1024 px de ancho MUST desplazarse en horizontal, sin comprimir las columnas.
 
-En modo conectado, con una sola opción, Comparar MUST mostrar que comparar opciones llega en una próxima versión.
+En modo conectado, Comparar MUST mostrar las opciones reales del mes, y "Usar {X}" MUST guardarse en el backend. Con una sola opción, Comparar la muestra sola, sin avisos.
 
 #### Scenario: Filas distintas
 - **WHEN** las opciones A y B de noviembre solo difieren en Variables
 - **THEN** solo la fila Variables aparece resaltada
+
+#### Scenario: Comparar en modo conectado
+- **WHEN** en modo conectado noviembre tiene la Opción A y la B con un abono extra de $2.000.000, y Daniel toca "Usar B" en Comparar
+- **THEN** solo la fila Créditos aparece resaltada, B "deja libre" $2.000.000 menos que A, y los dos ven noviembre con la B como plan
 
 ### Requirement: Plan anual
 El plan anual SHALL mostrar una cuadrícula de 12 meses por categoría, con los fijos llenos automáticamente, los eventos del año (primas, SOAT, predial, matrícula, renta, Navidad) con "+ Evento del año", y los aportes proyectados en tono tenue. MUST mostrar los KPI: libre proyectado del año, mes más apretado y diezmo del año. "Crear meses desde este plan" SHALL crear cada mes en Borrador con su columna como Opción A. Editar un mes después MUST NOT modificar el anual.
