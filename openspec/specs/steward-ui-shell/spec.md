@@ -51,10 +51,11 @@ La UI SHALL funcionar en uno de dos modos, elegido en la configuración del buil
 **Modo conectado:**
 - MUST venir del backend:
   - la sesión, el hogar, sus miembros y las invitaciones;
-  - los ingresos fijos, las reglas de diezmo, "Diezmo en Hoy", los ingresos recibidos y los diezmos entregados;
+  - los ingresos fijos, las reglas de diezmo y "Diezmo en Hoy";
+  - las categorías, los planes de los meses con su Opción A, y lo registrado (ingresos recibidos, pagos, gastos, aportes y diezmos entregados);
   - las cuentas (sin cuadre ni saldo estimado propios todavía).
-- Los módulos que aún no tienen backend SHALL seguir con el adaptador de prueba, guardado en el dispositivo: plan, pagos, gastos, aportes, créditos y cierre.
-- Las pantallas MUST mostrar los datos reales junto a los de prueba, con las cifras calculadas por las mismas reglas.
+- Los módulos que aún no tienen backend SHALL seguir con el adaptador de prueba, guardado en el dispositivo: créditos, plan anual y cierre.
+- Las pantallas MUST mostrar los datos reales junto a los de prueba, con las cifras calculadas por las mismas reglas. Los planes, los movimientos y las categorías de prueba MUST NOT mezclarse con los reales: en modo conectado solo se ven los reales.
 - "Restablecer datos de prueba" MUST afectar solo a los módulos de prueba, y "Probar desde cero" MUST NOT mostrarse.
 
 En los dos modos, toda pantalla con sesión MUST mostrar un aviso discreto de "Datos de prueba" mientras algún módulo use el adaptador de prueba.
@@ -73,7 +74,7 @@ En los dos modos, toda pantalla con sesión MUST mostrar un aviso discreto de "D
 
 #### Scenario: Restablecer en modo conectado
 - **WHEN** en modo conectado se restablecen los datos de prueba
-- **THEN** los ingresos fijos, la regla de diezmo y las cuentas reales siguen iguales
+- **THEN** los ingresos fijos, la regla de diezmo, las cuentas, los planes y lo registrado siguen iguales
 
 ### Requirement: Datos detrás de puertos
 Las pantallas MUST obtener y modificar los datos solo a través de puertos de datos (interfaces por módulo del handoff: hogar, ingresos, plan, movimientos, cuentas, cierre). El adaptador de prueba SHALL ser una implementación intercambiable de esos puertos: reemplazarlo por uno HTTP MUST NOT requerir cambios en las pantallas.
