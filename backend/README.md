@@ -80,7 +80,8 @@ El hogar siempre es el del usuario de la sesión: no va en la URL. Un usuario pe
 | `GET /api/hogar` | `{id, nombre, configurado, miembros, invitaciones}`; 404 `SIN_HOGAR` |
 | `PATCH /api/hogar` | `{"nombre"}` → el hogar renombrado |
 | `POST /api/hogar/onboarding-completo` | 204; desde ahí `hogarConfigurado` es verdadero para todos los miembros |
-| `DELETE /api/hogar/miembros/yo` | 204; si era el último miembro, se borran el hogar y sus invitaciones |
+| `DELETE /api/hogar/miembros/yo` | 204; sus ingresos fijos se desactivan y sus cuentas propias se quitan (la regla de diezmo es suya y se conserva). Si era el último miembro, se borran el hogar y todo lo suyo |
+| `PUT /api/hogar/diezmo-en-hoy` | `{"modo": "SEPARADO" \| "AGRUPADO"}` → 204 |
 
 `miembros` = `[{usuario, unidoEn, esActual}]`; `invitaciones` = las pendientes y vigentes, `[{id, email, estado, enviadaEn, expiraEn}]`.
 
@@ -97,3 +98,21 @@ El token de una invitación sirve una vez y vence a los 7 días. En la base solo
 | `POST /api/invitaciones/{token}/aceptar` | sí | `{"nombre", "diezmoAportes"}` → la sesión, ya con hogar; 409 `YA_TIENE_HOGAR` sin consumir la invitación |
 | `GET /api/mis-invitaciones` | sí | pendientes y vigentes para el correo de la sesión: `[{id, hogar, invitadoPor, miembros, email}]`. Así quien entra sin el enlace también puede unirse |
 | `POST /api/mis-invitaciones/{id}/aceptar` | sí | `{"nombre", "diezmoAportes"}` → la sesión, ya con hogar; 404 `INVITACION_NO_VALIDA` si no es para su correo, venció o ya se usó; 409 `YA_TIENE_HOGAR` |
+
+Con `diezmoAportes: true`, quien se une queda con su regla de diezmo: 10 % del bruto, aplicada a los aportes (si ya tenía regla, solo se activan los aportes).
+
+### Finanzas (ingresos, diezmo y cuentas)
+
+Todo es del hogar de la sesión. Montos en pesos enteros. El mes es siempre **el mes en curso del backend** (`STEWARD_ZONE`, America/Bogota). Las cifras del diezmo son las del dominio compartido (`packages/domain`): porcentaje de la regla **actual** del dueño sobre el bruto o el neto, al peso más cercano.
+
+| Método y ruta | Qué hace |
+|---|---|
+| `GET /api/finanzas` | `{mes: {anio, mes}, diezmoEnHoy, ingresosFijos, reglas, cuentas, movimientos}`: lo que la PWA superpone a sus datos de prueba. `ingresosFijos` son los activos de todos los miembros; `movimientos`, los del mes en curso. 404 `SIN_HOGAR` |
+| `PUT /api/regla-diezmo` | la regla propia: `{"activa", "porcentaje" (0 < p ≤ 100, hasta 2 decimales), "base": "BRUTO" \| "NETO", "aplicaAportes"}` |
+| `POST /api/ingresos-fijos` | `{"nombre", "bruto", "neto", "diaPago", "cuentaId"?}` → 201; bruto ≥ neto > 0, día de 1 a 31; 404 `CUENTA_NO_ENCONTRADA` si la cuenta no es del hogar |
+| `PUT /api/ingresos-fijos/{id}` | edita un ingreso propio y activo; 404 `INGRESO_NO_ENCONTRADO` si es de otra persona o de otro hogar |
+| `DELETE /api/ingresos-fijos/{id}` | 204; lo desactiva (lo ya recibido lo sigue nombrando) |
+| `POST /api/ingresos-fijos/{id}/recibido` | "Recibí" (cualquier miembro) → 201 con el movimiento del mes; genera diezmo si el dueño tiene la regla activa. 409 `YA_RECIBIDO` |
+| `GET /api/diezmo/pendientes` | `[{id, monto, detalle, usuarioId, fecha}]`, p. ej. `700000` y `10% de Salario Daniel · recibido 25 oct` |
+| `POST /api/diezmo/entregas` | `{"obligaciones": [ids], "cuentaId"?}` → 201 con un movimiento por la suma; los ids que no están pendientes se ignoran. 409 `SIN_DIEZMO` si no queda ninguno |
+| `POST /api/cuentas` | `{"nombre", "titular": "YO" \| "CONJUNTA", "saldo"}` → 201; nace sin cuadrar. Cuadrar y mover llegan en la Etapa 5 |

@@ -15,6 +15,7 @@ import co.com.srdejo.steward.domain.spi.ICurrentUserPort;
 import co.com.srdejo.steward.domain.spi.IHogarPersistencePort;
 import co.com.srdejo.steward.domain.spi.IInvitacionPersistencePort;
 import co.com.srdejo.steward.domain.spi.IMailPort;
+import co.com.srdejo.steward.domain.spi.IReglaDiezmoPersistencePort;
 import co.com.srdejo.steward.domain.spi.ITokenGeneratorPort;
 import co.com.srdejo.steward.domain.spi.ITransaccionPort;
 import co.com.srdejo.steward.domain.spi.IUsuarioPersistencePort;
@@ -36,6 +37,7 @@ public class InvitacionUseCase implements IInvitacionServicePort {
     private final IHogarPersistencePort hogares;
     private final IInvitacionPersistencePort invitaciones;
     private final IUsuarioPersistencePort usuarios;
+    private final IReglaDiezmoPersistencePort reglas;
     private final ITokenGeneratorPort tokens;
     private final IMailPort correo;
     private final ICurrentUserPort usuarioActual;
@@ -44,12 +46,14 @@ public class InvitacionUseCase implements IInvitacionServicePort {
     private final String publicUrl;
 
     public InvitacionUseCase(IHogarPersistencePort hogares, IInvitacionPersistencePort invitaciones,
-                             IUsuarioPersistencePort usuarios, ITokenGeneratorPort tokens, IMailPort correo,
+                             IUsuarioPersistencePort usuarios, IReglaDiezmoPersistencePort reglas,
+                             ITokenGeneratorPort tokens, IMailPort correo,
                              ICurrentUserPort usuarioActual, ITransaccionPort transaccion, IClockPort clock,
                              String publicUrl) {
         this.hogares = hogares;
         this.invitaciones = invitaciones;
         this.usuarios = usuarios;
+        this.reglas = reglas;
         this.tokens = tokens;
         this.correo = correo;
         this.usuarioActual = usuarioActual;
@@ -124,7 +128,9 @@ public class InvitacionUseCase implements IInvitacionServicePort {
         return invitacion
                 .flatMap(inv -> transaccion.enTransaccion(
                         // Unir primero: si ya tiene hogar falla con YA_TIENE_HOGAR y la invitacion no se consume.
-                        hogares.unir(inv.hogarId(), usuario, clock.hoy(), diezmoAportes)
+                        hogares.unir(inv.hogarId(), usuario, clock.hoy())
+                                // La eleccion de diezmar sus aportes queda en su regla (spec steward-hogar, design D8).
+                                .then(reglas.alUnirse(usuario, diezmoAportes))
                                 .then(invitaciones.marcarAceptada(inv.id(), usuario, clock.ahora()))
                                 .flatMap(marcada -> marcada ? usuarios.actualizarNombre(usuario, limpio)
                                         : Mono.error(InvitacionUseCase::noValida))))

@@ -4,7 +4,7 @@ Un solo módulo Gradle con capas hexagonales, como el arquetipo reactivo del wor
 
 | Capa | Paquete | Qué contiene | Depende de |
 |---|---|---|---|
-| Dominio | `domain/model` | records del negocio (`Usuario`, `Sesion`, `EstadoHogar`…) | nada |
+| Dominio | `domain/model` | records del negocio (`Usuario`, `Sesion`, `EstadoHogar`, `IngresoFijo`, `Movimiento`…) | nada |
 | | `domain/api` | puertos de entrada (`IAuthServicePort`…) | `model` |
 | | `domain/spi` | puertos de salida (persistencia, Google, token, reloj, correo) | `model` |
 | | `domain/usecase` | reglas; **sin anotaciones de Spring** | `api`, `spi`, `model` |
@@ -24,6 +24,8 @@ Sin capa de *handlers*: la conversión entre dominio y DTO es directa (`SesionRe
 - **Correos solo por `contact`**: `IMailPort` tiene una implementación real que llama a la API `contact` del workspace. El backend no tiene SMTP ni credenciales de correo.
 - **Sin Lombok, MapStruct ni springdoc**: records y mapeo a mano. Menos reflexión para la imagen nativa.
 - **Nada toca la base antes de que Flyway termine** (lección de `agent-project`).
+- **Las reglas del dinero son las del dominio compartido** (`packages/domain`). `FinanzasUseCase` reproduce `marcarRecibido`, `diezmosPendientes` y `entregarDiezmo`, y `CalculoDiezmo` reproduce sus cifras y textos. El contrato usa las mismas cifras que `rules.test.ts`.
+- **Movimientos en una sola tabla**, como el `Movimiento` del dominio: `tipo` y columnas opcionales. La Etapa 4 suma pagos, gastos y aportes a la misma tabla. Las garantías de concurrencia son de la base: el índice `movimiento_recibido_uq` (un "Recibí" por ingreso y mes) y la PK de `diezmo_cubierto` (una obligación se entrega una vez). Sus violaciones se traducen a `YA_RECIBIDO` y `SIN_DIEZMO`.
 - **Sin `@Profile` en los beans**: lo que cambia entre entornos va en propiedades leídas al arrancar, porque la preparación AOT de la imagen nativa congela las condiciones de los beans (`docs/DECISIONS.md`). `gradlew aotTest` lo verifica.
 
 ## Código común y `srdejo-platform`

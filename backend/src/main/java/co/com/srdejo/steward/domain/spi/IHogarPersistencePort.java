@@ -1,5 +1,6 @@
 package co.com.srdejo.steward.domain.spi;
 
+import co.com.srdejo.steward.domain.model.DiezmoEnHoy;
 import co.com.srdejo.steward.domain.model.EstadoHogar;
 import co.com.srdejo.steward.domain.model.Hogar;
 import co.com.srdejo.steward.domain.model.Miembro;
@@ -36,7 +37,11 @@ public interface IHogarPersistencePort {
     Mono<Boolean> tieneMiembroConEmail(UUID hogarId, String email);
 
     /** Une al usuario; si ya pertenece a un hogar, falla con {@code YA_TIENE_HOGAR}. */
-    Mono<Void> unir(UUID hogarId, UUID usuarioId, LocalDate unidoEn, boolean diezmoAportes);
+    Mono<Void> unir(UUID hogarId, UUID usuarioId, LocalDate unidoEn);
+
+    Mono<DiezmoEnHoy> diezmoEnHoy(UUID hogarId);
+
+    Mono<Void> definirDiezmoEnHoy(UUID hogarId, DiezmoEnHoy modo);
 
     /** Quita al miembro; si era el ultimo, borra el hogar y sus invitaciones. */
     Mono<Void> salir(UUID hogarId, UUID usuarioId);

@@ -5,8 +5,10 @@ import co.com.srdejo.steward.domain.exception.DomainException;
 import co.com.srdejo.steward.domain.model.Hogar;
 import co.com.srdejo.steward.domain.model.VistaHogar;
 import co.com.srdejo.steward.domain.spi.IClockPort;
+import co.com.srdejo.steward.domain.spi.ICuentaPersistencePort;
 import co.com.srdejo.steward.domain.spi.ICurrentUserPort;
 import co.com.srdejo.steward.domain.spi.IHogarPersistencePort;
+import co.com.srdejo.steward.domain.spi.IIngresoFijoPersistencePort;
 import co.com.srdejo.steward.domain.spi.IInvitacionPersistencePort;
 import co.com.srdejo.steward.domain.spi.ITransaccionPort;
 import reactor.core.publisher.Mono;
@@ -21,14 +23,18 @@ public class HogarUseCase implements IHogarServicePort {
 
     private final IHogarPersistencePort hogares;
     private final IInvitacionPersistencePort invitaciones;
+    private final IIngresoFijoPersistencePort ingresos;
+    private final ICuentaPersistencePort cuentas;
     private final ICurrentUserPort usuarioActual;
     private final ITransaccionPort transaccion;
     private final IClockPort clock;
 
     public HogarUseCase(IHogarPersistencePort hogares, IInvitacionPersistencePort invitaciones,
-                        ICurrentUserPort usuarioActual, ITransaccionPort transaccion, IClockPort clock) {
+                        IIngresoFijoPersistencePort ingresos, ICuentaPersistencePort cuentas, ICurrentUserPort usuarioActual, ITransaccionPort transaccion, IClockPort clock) {
         this.hogares = hogares;
         this.invitaciones = invitaciones;
+        this.ingresos = ingresos;
+        this.cuentas = cuentas;
         this.usuarioActual = usuarioActual;
         this.transaccion = transaccion;
         this.clock = clock;
@@ -63,7 +69,12 @@ public class HogarUseCase implements IHogarServicePort {
     @Override
     public Mono<Void> salir() {
         return usuarioActual.usuarioId().flatMap(usuario -> hogarDe(usuario)
-                .flatMap(hogar -> transaccion.enTransaccion(hogares.salir(hogar.id(), usuario).thenReturn(true))))
+                // Sus ingresos se desactivan y sus cuentas propias se quitan; si era el ultimo, el hogar y todo lo suyo
+                // caen en cascada. Su regla de diezmo es suya y se conserva (design D7).
+                .flatMap(hogar -> transaccion.enTransaccion(ingresos.desactivarDe(hogar.id(), usuario)
+                        .then(cuentas.quitarPropias(hogar.id(), usuario))
+                        .then(hogares.salir(hogar.id(), usuario))
+                        .thenReturn(true))))
                 .then();
     }
 

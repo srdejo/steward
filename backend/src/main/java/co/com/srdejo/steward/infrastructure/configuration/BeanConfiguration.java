@@ -1,25 +1,35 @@
 package co.com.srdejo.steward.infrastructure.configuration;
 
 import co.com.srdejo.steward.domain.api.IAuthServicePort;
+import co.com.srdejo.steward.domain.api.IFinanzasServicePort;
 import co.com.srdejo.steward.domain.api.IHogarServicePort;
 import co.com.srdejo.steward.domain.api.IInvitacionServicePort;
 import co.com.srdejo.steward.domain.spi.IClockPort;
+import co.com.srdejo.steward.domain.spi.ICuentaPersistencePort;
 import co.com.srdejo.steward.domain.spi.ICurrentUserPort;
 import co.com.srdejo.steward.domain.spi.IGoogleIdentityPort;
 import co.com.srdejo.steward.domain.spi.IHogarPersistencePort;
+import co.com.srdejo.steward.domain.spi.IIngresoFijoPersistencePort;
 import co.com.srdejo.steward.domain.spi.IInvitacionPersistencePort;
 import co.com.srdejo.steward.domain.spi.IMailPort;
+import co.com.srdejo.steward.domain.spi.IMovimientoPersistencePort;
+import co.com.srdejo.steward.domain.spi.IReglaDiezmoPersistencePort;
 import co.com.srdejo.steward.domain.spi.ITokenGeneratorPort;
 import co.com.srdejo.steward.domain.spi.ITokenPort;
 import co.com.srdejo.steward.domain.spi.ITransaccionPort;
 import co.com.srdejo.steward.domain.spi.IUsuarioPersistencePort;
 import co.com.srdejo.steward.domain.usecase.AuthUseCase;
+import co.com.srdejo.steward.domain.usecase.FinanzasUseCase;
 import co.com.srdejo.steward.domain.usecase.HogarUseCase;
 import co.com.srdejo.steward.domain.usecase.InvitacionUseCase;
 import co.com.srdejo.steward.infrastructure.out.mail.ContactMailAdapter;
 import co.com.srdejo.steward.infrastructure.out.mail.LoggingMailAdapter;
+import co.com.srdejo.steward.infrastructure.out.r2dbc.CuentaR2dbcAdapter;
 import co.com.srdejo.steward.infrastructure.out.r2dbc.HogarR2dbcAdapter;
+import co.com.srdejo.steward.infrastructure.out.r2dbc.IngresoFijoR2dbcAdapter;
 import co.com.srdejo.steward.infrastructure.out.r2dbc.InvitacionR2dbcAdapter;
+import co.com.srdejo.steward.infrastructure.out.r2dbc.MovimientoR2dbcAdapter;
+import co.com.srdejo.steward.infrastructure.out.r2dbc.ReglaDiezmoR2dbcAdapter;
 import co.com.srdejo.steward.infrastructure.out.r2dbc.TransaccionAdapter;
 import co.com.srdejo.steward.infrastructure.out.r2dbc.UsuarioR2dbcAdapter;
 import co.com.srdejo.steward.infrastructure.security.GoogleIdentityAdapter;
@@ -88,6 +98,26 @@ public class BeanConfiguration {
     }
 
     @Bean
+    IReglaDiezmoPersistencePort reglaDiezmoPersistencePort(DatabaseClient db) {
+        return new ReglaDiezmoR2dbcAdapter(db);
+    }
+
+    @Bean
+    IIngresoFijoPersistencePort ingresoFijoPersistencePort(DatabaseClient db) {
+        return new IngresoFijoR2dbcAdapter(db);
+    }
+
+    @Bean
+    ICuentaPersistencePort cuentaPersistencePort(DatabaseClient db) {
+        return new CuentaR2dbcAdapter(db);
+    }
+
+    @Bean
+    IMovimientoPersistencePort movimientoPersistencePort(DatabaseClient db) {
+        return new MovimientoR2dbcAdapter(db);
+    }
+
+    @Bean
     ITransaccionPort transaccionPort(TransactionalOperator operator) {
         return new TransaccionAdapter(operator);
     }
@@ -107,18 +137,28 @@ public class BeanConfiguration {
 
     @Bean
     IHogarServicePort hogarServicePort(IHogarPersistencePort hogares, IInvitacionPersistencePort invitaciones,
+                                       IIngresoFijoPersistencePort ingresos, ICuentaPersistencePort cuentas,
                                        ICurrentUserPort usuarioActual, ITransaccionPort transaccion, IClockPort clock) {
-        return new HogarUseCase(hogares, invitaciones, usuarioActual, transaccion, clock);
+        return new HogarUseCase(hogares, invitaciones, ingresos, cuentas, usuarioActual, transaccion, clock);
     }
 
     @Bean
     IInvitacionServicePort invitacionServicePort(IHogarPersistencePort hogares, IInvitacionPersistencePort invitaciones,
-                                                 IUsuarioPersistencePort usuarios, ITokenGeneratorPort tokens,
+                                                 IUsuarioPersistencePort usuarios, IReglaDiezmoPersistencePort reglas,
+                                                 ITokenGeneratorPort tokens,
                                                  IMailPort correo, ICurrentUserPort usuarioActual,
                                                  ITransaccionPort transaccion, IClockPort clock,
                                                  StewardProperties properties) {
-        return new InvitacionUseCase(hogares, invitaciones, usuarios, tokens, correo, usuarioActual, transaccion, clock,
+        return new InvitacionUseCase(hogares, invitaciones, usuarios, reglas, tokens, correo, usuarioActual, transaccion, clock,
                 properties.publicUrl());
+    }
+
+    @Bean
+    IFinanzasServicePort finanzasServicePort(IHogarPersistencePort hogares, IReglaDiezmoPersistencePort reglas,
+                                             IIngresoFijoPersistencePort ingresos, ICuentaPersistencePort cuentas,
+                                             IMovimientoPersistencePort movimientos, ICurrentUserPort usuarioActual,
+                                             ITransaccionPort transaccion, IClockPort clock) {
+        return new FinanzasUseCase(hogares, reglas, ingresos, cuentas, movimientos, usuarioActual, transaccion, clock);
     }
 
     @Bean

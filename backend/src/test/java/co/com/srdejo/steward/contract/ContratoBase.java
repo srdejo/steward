@@ -102,6 +102,30 @@ public abstract class ContratoBase {
         return invitado;
     }
 
+    protected WebTestClient.ResponseSpec get(String sesion, String uri, Object... variables) {
+        return client.get().uri(uri, variables).header("Authorization", "Bearer " + sesion).exchange();
+    }
+
+    protected WebTestClient.ResponseSpec post(String sesion, String uri, Object cuerpo, Object... variables) {
+        return client.post().uri(uri, variables).header("Authorization", "Bearer " + sesion)
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON).bodyValue(cuerpo).exchange();
+    }
+
+    protected WebTestClient.ResponseSpec put(String sesion, String uri, Object cuerpo, Object... variables) {
+        return client.put().uri(uri, variables).header("Authorization", "Bearer " + sesion)
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON).bodyValue(cuerpo).exchange();
+    }
+
+    protected WebTestClient.ResponseSpec delete(String sesion, String uri, Object... variables) {
+        return client.delete().uri(uri, variables).header("Authorization", "Bearer " + sesion).exchange();
+    }
+
+    /** Lee un campo de texto de la respuesta (un id, por ejemplo). */
+    protected static String valorDe(WebTestClient.ResponseSpec respuesta, String nombre) {
+        java.util.Map<?, ?> cuerpo = respuesta.expectBody(java.util.Map.class).returnResult().getResponseBody();
+        return String.valueOf(cuerpo.get(nombre));
+    }
+
     /** Ejecuta SQL directo en steward_test, para preparar casos que la API no permite (fechas pasadas). */
     protected static void sql(String sentencia) throws Exception {
         try (Connection c = DriverManager.getConnection(DB_URL, "postgres", "postgres");

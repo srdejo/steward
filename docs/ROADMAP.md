@@ -14,6 +14,7 @@ Las etapas 2 a 9 siguen el "Orden sugerido de implementación" del handoff. Conv
 - 2026-07-13 — Steward v1.0.2 en App Store: presupuesto mensual local con moneda por país, créditos y bola de nieve
 - 2026-10-26 — Infra de Presupuesto Hogar lista: `steward.test` y `https://steward.srdejo.com.co` sirviendo la página Próximamente, con el backend reservado en el VPS
 - 2026-10-26 — UI completa con datos de prueba: las 22 pantallas del diseño en la PWA (`steward.test`) y en la app Expo, con las mismas cifras en las dos (cambio OpenSpec `presupuesto-hogar-ui`)
+- 2026-10-28 — Backend con acceso, hogar e invitaciones (Etapa 2): dos personas comparten un hogar en `steward.test`; el invitado se une por el enlace o, sin él, desde la invitación a su correo (cambio OpenSpec `backend-acceso-hogar`)
 
 ## Etapa 1 — Infra de despliegue ✅
 
@@ -33,14 +34,14 @@ Las etapas 2 a 9 siguen el "Orden sugerido de implementación" del handoff. Conv
 
 Las etapas 2 a 9 conectan estas pantallas al backend: cada pantalla ya existe y pasa a usar el adaptador HTTP en lugar del de prueba.
 
-## Etapa 2 — Esqueleto backend, acceso, hogar e invitaciones
+## Etapa 2 — Esqueleto backend, acceso, hogar e invitaciones ✅
 
 **Criterio de cierre**: un usuario entra con Google, crea su hogar e invita a otro por correo. El invitado acepta con un token de un solo uso que vence en 7 días y queda como miembro con los mismos permisos.
 
 Cambio OpenSpec `backend-acceso-hogar`.
 
 - [x] Decidir el acceso a datos: **WebFlux + R2DBC** (el arquetipo del workspace), Java 25 e imagen nativa (GraalVM) **solo para desplegar**. Sin `srdejo-platform` todavía: el código común queda propio, detrás de puertos, listo para cambiarlo por los starters.
-- [x] Backend con los módulos `auth` y `hogar` (con invitaciones) y la migración Flyway `V1__acceso_hogar`. Los demás módulos del handoff llegan con sus etapas. 60 tests en JVM y 40 de contrato en modo AOT.
+- [x] Backend con los módulos `auth` y `hogar` (con invitaciones) y la migración Flyway `V1__acceso_hogar`. Los demás módulos del handoff llegan con sus etapas. 70 tests en JVM y 48 de contrato en modo AOT.
 - [x] Login con Google (el OAuth client de beauty) y sesión con JWT HS256 de 7 días; sin refresh por ahora.
 - [x] Hogar, miembros e invitaciones por correo, enviadas por `contact`: token de un solo uso de 7 días, guardado solo como hash.
 - [x] Shell de la PWA Angular con los tokens del diseño y la pantalla de Acceso (Etapa 1.5).
