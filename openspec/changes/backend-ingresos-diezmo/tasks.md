@@ -66,7 +66,7 @@
 
 ## 5. Verificación y cierre
 
-- [ ] 5.1 Desplegar con `local-deploy.ps1 -Project steward` y recorrer en `steward.test`, con dos personas, por el acceso de desarrollo:
+- [x] 5.1 Desplegar con `local-deploy.ps1 -Project steward` y recorrer en `steward.test`, con dos personas, por el acceso de desarrollo:
   1. un hogar nuevo completa los 5 pasos (diezmo 10 % del bruto, "Salario Daniel" de $7.000.000/$6.288.000, una cuenta) e invita a la segunda persona, que se une;
   2. en Hoy, Daniel marca "Recibí" y aparece "Disponible para diezmar $700.000 · 10% de Salario Daniel";
   3. la segunda persona abre Hoy y ve el salario recibido y la misma tarjeta;
@@ -74,4 +74,4 @@
   
   Verificar: el criterio de cierre de la Etapa 3 del ROADMAP, sin errores en la consola.
 - [ ] 5.2 En el hogar real "Jimenez Navarro" de `steward.test`, configurar el salario y la regla desde Ajustes ("+ Agregar ingreso fijo"), según el plan de migración del diseño. Verificar: Hoy muestra el ingreso como "Por recibir".
-- [ ] 5.3 `docs/ROADMAP.md`: marcar la Etapa 3 y anotar en la Etapa 4 que aportes, pagos y gastos pasan al backend sobre la tabla `movimiento`; `AGENTS.md` si cambia algo de la estructura. Verificar: `openspec validate backend-ingresos-diezmo --strict` sin errores. Commit.
+- [x] 5.3 `docs/ROADMAP.md`: marcar la Etapa 3 y anotar en la Etapa 4 que aportes, pagos y gastos pasan al backend sobre la tabla `movimiento`; `AGENTS.md` si cambia algo de la estructura. Verificar: `openspec validate backend-ingresos-diezmo --strict` sin errores. Commit.

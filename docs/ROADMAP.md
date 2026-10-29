@@ -15,6 +15,7 @@ Las etapas 2 a 9 siguen el "Orden sugerido de implementación" del handoff. Conv
 - 2026-10-26 — Infra de Presupuesto Hogar lista: `steward.test` y `https://steward.srdejo.com.co` sirviendo la página Próximamente, con el backend reservado en el VPS
 - 2026-10-26 — UI completa con datos de prueba: las 22 pantallas del diseño en la PWA (`steward.test`) y en la app Expo, con las mismas cifras en las dos (cambio OpenSpec `presupuesto-hogar-ui`)
 - 2026-10-28 — Backend con acceso, hogar e invitaciones (Etapa 2): dos personas comparten un hogar en `steward.test`; el invitado se une por el enlace o, sin él, desde la invitación a su correo (cambio OpenSpec `backend-acceso-hogar`)
+- 2026-10-28 — Ingresos fijos, regla y diezmo al recibir en el backend (Etapa 3): un hogar nuevo completa el onboarding en `steward.test`, y al marcar el salario como recibido los dos miembros ven "Disponible para diezmar $700.000" (cambio OpenSpec `backend-ingresos-diezmo`)
 
 ## Etapa 1 — Infra de despliegue ✅
 
@@ -49,12 +50,16 @@ Cambio OpenSpec `backend-acceso-hogar`.
 - [x] `local-deploy.ps1 -Project steward` despliega backend y web juntos en `steward.test`.
 - [x] Recorrido del criterio de cierre en `steward.test` con dos personas, por el acceso de desarrollo porque Google no acepta `.test` como origen. Con Google real queda para el primer encendido en el VPS.
 
-## Etapa 3 — Onboarding, ingresos fijos y diezmo
+## Etapa 3 — Onboarding, ingresos fijos y diezmo ✅
 
 **Criterio de cierre**: un hogar nuevo completa los 5 pasos del onboarding. Al marcar el salario como recibido aparece la obligación de diezmo calculada según su regla (porcentaje y base, bruto o neto).
 
-- [ ] Onboarding 1 a 5 (nombre y hogar, diezmo, ingreso fijo, cuentas, invitar) e Invitación recibida.
-- [ ] Ingresos fijos y regla de diezmo por persona; el diezmo se genera al recibir.
+Cambio OpenSpec `backend-ingresos-diezmo`.
+
+- [x] Onboarding 1 a 5 (nombre y hogar, diezmo, ingreso fijo, cuentas, invitar) e Invitación recibida, contra el backend. Las cuentas son básicas: nombre, titular y saldo aproximado; cuadrar y mover llegan en la Etapa 5.
+- [x] Ingresos fijos y regla de diezmo por persona; el diezmo se genera al recibir ("Recibí") y se cierra con "Entregado". El backend reproduce las cifras del dominio compartido (109 tests en JVM y 77 de contrato en modo AOT).
+- [x] PWA: las finanzas reales se superponen a los datos de prueba, así que Hoy, Ajustes y Cuentas muestran lo real junto al plan de prueba.
+- [x] Recorrido del criterio de cierre en `steward.test` con dos personas, por el acceso de desarrollo.
 
 ## Etapa 4 — Plan del mes y Hoy
 
@@ -62,6 +67,9 @@ Cambio OpenSpec `backend-acceso-hogar`.
 
 - [ ] Plan del mes con un escenario y los estados Borrador, Activo y Cerrado.
 - [ ] Hoy, Marcar pago, + Aporte y Registrar gasto. Un pago desde una cuenta externa cuenta como aporte implícito.
+  - Van sobre la tabla `movimiento` de la Etapa 3: se amplía su `CHECK` de tipos con pagos, gastos, aportes y ajustes.
+  - Los aportes con diezmo generan obligaciones como los ingresos recibidos.
+  - En la PWA, se superponen como los ingresos recibidos (`frontend/README.md`).
 
 ## Etapa 5 — Cuentas, cuadre y créditos
 
