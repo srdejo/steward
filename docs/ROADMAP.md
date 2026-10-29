@@ -9,7 +9,7 @@ Las etapas 2 a 9 siguen el "Orden sugerido de implementación" del handoff. Conv
 **Criterio de cierre**: dos miembros del mismo hogar entran a `steward.test` con Google y comparten un plan del mes. Uno marca un pago o registra un aporte, y el otro lo ve al abrir la app.
 **Alcance**: Etapa 2, Etapa 3, Etapa 4
 
-**Cumplido el 2026-10-28** en `steward.test`, con el acceso de desarrollo porque Google no acepta `.test` como origen. Con Google real se verifica al encender el VPS (Etapa 9). El siguiente objetivo está por definir. Con las Etapas 5, 6 y 7 hechas, todo el mes es real, con varias opciones; lo que sigue con datos de prueba es el plan anual (Etapa 8), y falta la producción (Etapa 9).
+**Cumplido el 2026-10-28** en `steward.test`, con el acceso de desarrollo porque Google no acepta `.test` como origen. Con Google real se verifica al encender el VPS (Etapa 9). El siguiente objetivo está por definir. Con las Etapas 5 a 8 hechas, en modo conectado ya nada es de prueba; falta la producción (Etapa 9).
 
 ## Objetivos cumplidos
 
@@ -22,6 +22,7 @@ Las etapas 2 a 9 siguen el "Orden sugerido de implementación" del handoff. Conv
 - 2026-10-29 — Cuentas, cuadre y créditos en el backend (Etapa 5): dos personas agregan un crédito y su cuota aparece en Hoy; pagarla desde Davivienda deja el crédito en $13.978.000, mueven $100.000 al efectivo, cuadran Davivienda con $50.000 de "Gastos sin registrar" que el Cierre muestra, y un abono deja el crédito en $12.978.000, igual para las dos (cambio OpenSpec `backend-cuentas-creditos`)
 - 2026-10-29 — Cierre de mes en el backend (Etapa 6): una persona cierra octubre repartiendo el sobrante ($300.000 a ahorro y $100.000 a noviembre); si la otra registró algo mientras tanto, el cierre se recalcula antes de guardarse; las dos ven octubre Cerrado y en solo lectura, y noviembre trae "Sobrante de octubre" (cambio OpenSpec `backend-cierre-mes`)
 - 2026-10-29 — Varias opciones por mes en el backend (Etapa 7): en noviembre (Borrador) una persona duplica la Opción A y quita una copia, la otra prueba un abono de $2.000.000 desde el crédito, las dos comparan A, B y C con solo Créditos resaltada, y "Usar B" archiva las demás para las dos (cambio OpenSpec `backend-opciones-mes`)
+- 2026-10-29 — Plan anual en el backend (Etapa 8): una persona crea el plan anual 2027 vacío y pone Gastos fijos en $800.000 cada mes, la otra agrega SOAT en marzo y su aporte proyectado de enero; las dos ven la misma cuadrícula y los mismos KPI, y "Crear meses desde este plan" crea los 12 meses en Borrador, con SOAT en marzo. En modo conectado ya no hay aviso de datos de prueba (cambio OpenSpec `backend-plan-anual`)
 
 ## Etapa 1 — Infra de despliegue ✅
 
@@ -113,11 +114,17 @@ Cambio OpenSpec `backend-opciones-mes`.
 
 Sin crear una opción en blanco ni desarchivar opciones.
 
-## Etapa 8 — Plan anual
+## Etapa 8 — Plan anual ✅
 
-- [ ] Cuadrícula de 12 meses por categoría, con eventos del año, aportes proyectados y KPIs.
+**Criterio de cierre**: dos personas crean el plan anual del año siguiente, le ponen montos por categoría, un evento del año y los aportes que cada una espera hacer; las dos ven la misma cuadrícula y los mismos KPI, y "Crear meses desde este plan" crea los meses en Borrador con su columna como Opción A.
 
-En modo conectado, hoy el plan anual sigue de prueba (sus aportes proyectados aparecen tenues en Planear) y "Crear meses desde este plan" avisa que llega después.
+Cambio OpenSpec `backend-plan-anual`.
+
+- [x] Cuadrícula de 12 meses por categoría (creada vacía, celdas editables), con eventos del año, aportes proyectados editables por persona y KPIs; "Crear meses desde este plan" contra el backend (203 tests en JVM y 155 de contrato en modo AOT).
+- [x] En modo conectado ya nada es de prueba: sin aviso "Datos de prueba" ni "Restablecer".
+- [x] Recorrido del criterio de cierre en `steward.test` con dos personas, por el acceso de desarrollo.
+
+Sin editar ni borrar eventos, ni borrar un plan anual; el cierre de un mes no actualiza el anual.
 
 ## Etapa 9 — Passkeys, ocultar montos y producción
 

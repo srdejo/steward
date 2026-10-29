@@ -31,7 +31,7 @@
 
 ## 4. Verificación y cierre
 
-- [ ] 4.1 Desplegar con `local-deploy.ps1 -Project steward` (con `powershell.exe -File`) y recorrer en `steward.test`, con dos personas de prueba, por el acceso de desarrollo:
+- [x] 4.1 Desplegar con `local-deploy.ps1 -Project steward` (con `powershell.exe -File`) y recorrer en `steward.test`, con dos personas de prueba, por el acceso de desarrollo:
   1. una crea el plan anual de 2027 y pone Gastos fijos en $800.000 de enero a diciembre;
   2. la otra agrega "SOAT" en marzo por $1.200.000 y su aporte proyectado de enero en $2.000.000;
   3. las dos ven la misma cuadrícula y los mismos KPI;
@@ -39,4 +39,4 @@
   5. no hay aviso "Datos de prueba".
   
   Verificar: el criterio de cierre de la Etapa 8, sin errores en la consola. Borrar las personas y el hogar de prueba al terminar.
-- [ ] 4.2 `docs/ROADMAP.md`: marcar la Etapa 8. Verificar: `openspec validate backend-plan-anual --strict` sin errores. Commit.
+- [x] 4.2 `docs/ROADMAP.md`: marcar la Etapa 8. Verificar: `openspec validate backend-plan-anual --strict` sin errores. Commit.
