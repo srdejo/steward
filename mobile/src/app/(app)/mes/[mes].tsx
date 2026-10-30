@@ -156,7 +156,7 @@ export default function Mes() {
                     const c = categorias.data?.find((x) => x.id === (categoriaNueva ?? categorias.data?.[0]?.id));
                     if (!c || !v.plan) return;
                     const tipo = c.tipo === 'VARIABLE' ? 'VARIABLE' : c.tipo === 'CREDITO' ? 'CREDITO' : c.tipo === 'DIEZMO' ? 'DIEZMO' : 'FIJO';
-                    accion.ejecutar((p) => p.plan.guardarItem(v.plan!.id, o.escenario.id, { categoriaId: c.id, nombre: nuevo, monto: 0, diaVence: null, tipo, cuota: null, creditoId: null, ingresoFijoId: null, aporteId: null })).then(() => { setNuevo(''); setAbierta(c.id); });
+                    accion.ejecutar((p) => p.plan.guardarItem(v.plan!.id, o.escenario.id, { categoriaId: c.id, nombre: nuevo, monto: 0, diaVence: null, tipo, cuota: null, creditoId: null, ingresoFijoId: null, aporteId: null, ingresoPlanId: null, ajustadoAMano: false })).then(() => { setNuevo(''); setAbierta(c.id); });
                   }} />
                 </View>
               </View>
