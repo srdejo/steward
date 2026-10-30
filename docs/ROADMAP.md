@@ -135,7 +135,7 @@ Sin editar ni borrar eventos, ni borrar un plan anual; el cierre de un mes no ac
 - [ ] Encender el backend en el VPS (`BackendEnabled = $true`, `systemctl enable steward`; pasos en `DEPLOYMENT.md`) y publicar la PWA.
 - [ ] Pasar `develop` a `main` por PR cuando esté lista. Antes, tag `v1.0.2` en `main` para poder sacar correcciones de la v1, y actualizar el spec `steward-mobile-app`, que hoy pide que `main` siga generando la v1.
 
-## Etapa 10 — El diezmo como gasto y el plan como cuaderno
+## Etapa 10 — El diezmo como gasto y el plan como cuaderno ✅
 
 **Criterio de cierre**: el diezmo de cada ingreso se presupuesta como un ítem del plan del mes, se edita y se marca pagado desde una cuenta como cualquier gasto, y los ingresos de cada opción del mes se editan y se agregan sin tocar Ajustes.
 
@@ -145,7 +145,7 @@ Cambio OpenSpec `diezmo-como-gasto`.
 - [x] Líneas de ingreso por opción: nacen de Ajustes y del anual, se editan y se agregan ("+ Ingreso"); "Recibí" confirma o cambia el monto que llegó.
 - [x] Migración `V8` probada sobre una copia de `steward.test` con entregas y planes abiertos.
 - [x] Recorrido en `steward.test` con dos personas, por el acceso de desarrollo.
-- [ ] En producción: backup y deploy con `V8` (con confirmación de Daniel).
+- [x] En producción (2026-10-30): backup, deploy del binario nativo con `V8` (161/161 de contrato contra el binario, 36,8 MiB en reposo); los planes abiertos ganaron sus líneas y el diezmo de noviembre, sin duplicar el de octubre ya entregado.
 
 ## Mejoras futuras
 

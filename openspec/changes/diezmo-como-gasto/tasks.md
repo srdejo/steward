@@ -56,4 +56,4 @@
   - cierre.
 
   Luego restaurar la sesión de Daniel y borrar los usuarios de prueba. Verificar: todo coincide con las specs. Actualizar `docs/ROADMAP.md` (Etapa 10 hecha). Commit.
-- [ ] 5.3 Con confirmación de Daniel: `deploy.ps1 -Projects steward -Action Backup` y `deploy.ps1 -Projects steward` (binario nativo con `V8`). Verificar: health UP, `GET /api/diezmo/pendientes` responde 404, y los planes abiertos de producción tienen sus ítems de diezmo.
+- [x] 5.3 Con confirmación de Daniel: `deploy.ps1 -Projects steward -Action Backup` y `deploy.ps1 -Projects steward` (binario nativo con `V8`). Verificar: health UP, `GET /api/diezmo/pendientes` responde 404, y los planes abiertos de producción tienen sus ítems de diezmo.
