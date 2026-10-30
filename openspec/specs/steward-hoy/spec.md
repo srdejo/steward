@@ -7,7 +7,7 @@ Define la ejecución del mes en curso: la pantalla Hoy y los tres registros ráp
 ## Requirements
 
 ### Requirement: Resumen del mes en Hoy
-Hoy SHALL mostrar solo el mes en curso:
+Hoy SHALL mostrar el mes elegido en su selector (spec "Elegir el mes en Hoy"), que por defecto es el mes en curso:
 - "Te queda libre" y las cifras Plan, Pagado y Vs. plan (diferencia acumulada; el ahorro en color positivo);
 - Ingresos: las líneas de ingreso de la opción en uso (spec `steward-plan-mes`, "Ingresos de la opción"), recibidas o "Por recibir", y los aportes agrupados por persona con su conteo (`2 aportes · 1 pago directo`). Si el mes no tiene plan, los ingresos fijos activos de Ajustes;
 - Por pagar, con el vencimiento;
@@ -128,3 +128,26 @@ Un ítem de diezmo en Por pagar SHALL mostrar de dónde viene y cuándo llega su
 #### Scenario: Diezmo del salario
 - **WHEN** hoy es 30 oct y "Diezmo · Salario Daniel" (día 25) está por pagar
 - **THEN** Por pagar lo muestra con "Del Salario Daniel · día 25", sin rojo
+
+### Requirement: Elegir el mes en Hoy
+Hoy SHALL ofrecer un selector con el mes en curso y el siguiente. Lo que se registra desde Hoy ("Recibí", marcar un pago, un gasto y un aporte) MUST quedar en el mes elegido, con la fecha real de hoy. Cuando el mes elegido no es el mes en curso, cada hoja MUST decir "Se registra en {mes}".
+
+El mes elegido se recuerda en el dispositivo y es de cada persona. Si el mes recordado ya no es el mes en curso ni el siguiente, Hoy MUST volver al mes en curso.
+
+El mes siguiente se ejecuta con su opción principal y sigue en Borrador hasta que llegue. Si tiene varias opciones y ninguna elegida, Hoy MUST mostrar "Opción {letra} · elige otra en Planear". Si no tiene plan, Hoy MUST mostrar "Este mes no tiene plan" con el acceso a planearlo.
+
+#### Scenario: Recibir el salario para noviembre
+- **WHEN** hoy es 30 oct, se elige noviembre en Hoy y se toca "Recibí" en "Salario Daniel"
+- **THEN** el ingreso queda en noviembre con fecha 30 oct, noviembre lo muestra recibido y octubre no cambia
+
+#### Scenario: Pagar en noviembre
+- **WHEN** hoy es 30 oct, se elige noviembre y se marca pagado Internet desde Davivienda
+- **THEN** Internet pasa a Ya pagado en noviembre, en octubre no cambia nada, y el saldo estimado de Davivienda baja hoy
+
+#### Scenario: Otro miembro lo ve
+- **WHEN** Daniel registra un gasto en noviembre y Esposa elige noviembre en Hoy
+- **THEN** Esposa ve ese gasto en noviembre
+
+#### Scenario: Cambia el mes
+- **WHEN** Daniel dejó elegido noviembre y abre Hoy en enero
+- **THEN** Hoy muestra enero

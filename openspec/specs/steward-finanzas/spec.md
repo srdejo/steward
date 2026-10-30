@@ -44,7 +44,7 @@ Quitar un ingreso MUST desactivarlo, sin borrarlo, para conservar lo ya recibido
 - **THEN** responde 404 `INGRESO_NO_ENCONTRADO` y el ingreso no cambia
 
 ### Requirement: Recibir un ingreso fijo
-Cualquier miembro SHALL poder marcar como recibido ("Recibí") un ingreso del mes en curso, en la zona horaria del backend:
+Cualquier miembro SHALL poder marcar como recibido ("Recibí") un ingreso del mes en curso o del siguiente, en la zona horaria del backend (por defecto el mes en curso; una línea de la opción lo toma de su plan; otro mes responde 400 `DATOS_INVALIDOS`). La fecha es la de hoy:
 - **una línea de ingreso** de la opción principal del mes (spec `steward-plan-mes`, "Ingresos de la opción"), de cualquier tipo;
 - o, si el mes no tiene plan, **un ingreso fijo activo** del hogar.
 
@@ -69,6 +69,14 @@ Se registra un movimiento de ingreso del mes con el monto que indique quien lo m
 #### Scenario: Ingreso agregado a mano
 - **WHEN** octubre tiene la línea "Venta bicicleta" por $400.000 y se marca recibida
 - **THEN** octubre tiene un ingreso de $400.000 enlazado a esa línea
+
+#### Scenario: Recibir en el mes siguiente
+- **WHEN** hoy es 30 oct y se recibe la línea "Salario Daniel" del plan de noviembre
+- **THEN** queda un ingreso de noviembre con fecha 30 oct, y la línea de octubre sigue por recibir
+
+#### Scenario: Una línea de un mes más lejano
+- **WHEN** hoy es 30 oct y se recibe una línea del plan de diciembre
+- **THEN** responde 400 `DATOS_INVALIDOS` y no se registra nada
 
 ### Requirement: Cuentas básicas
 Un miembro SHALL poder crear una cuenta del hogar con:
@@ -147,7 +155,7 @@ Todo lo de esta capacidad SHALL resolverse a partir del hogar del usuario de la 
 - **THEN** responde 404 `CUENTA_NO_ENCONTRADA` o `CREDITO_NO_ENCONTRADO`, y nada cambia en "Nuestra casa"
 
 ### Requirement: Marcar un pago
-Un miembro SHALL poder marcar pagado un ítem de la opción principal del plan del mes en curso, igual que `marcarPago` del dominio, con:
+Un miembro SHALL poder marcar pagado un ítem de la opción principal del plan del mes en curso o del siguiente (por defecto el mes en curso; otro mes responde 400 `DATOS_INVALIDOS`), igual que `marcarPago` del dominio, con:
 - monto (mayor que cero);
 - quién pagó, un miembro del hogar;
 - origen: una cuenta del hogar, "Su cuenta" (`EXTERNA`, fuera de la app) o ninguno.
@@ -155,7 +163,7 @@ Un miembro SHALL poder marcar pagado un ítem de la opción principal del plan d
 Reglas:
 - Un ítem fijo, de cuota o de crédito se paga una sola vez por mes. Si ya está pagado, MUST responder 409 `YA_PAGADO` con el mensaje "Ya lo pagó {nombre} el {dd mmm}" y no registrar otro pago, aunque lleguen dos a la vez.
 - Un ítem variable se registra como gasto y acumula contra su presupuesto.
-- Un ítem que no está en la opción principal del mes en curso MUST responder 404 `ITEM_NO_ENCONTRADO`. Una cuenta o una persona que no son del hogar, 404 `CUENTA_NO_ENCONTRADA` o `MIEMBRO_NO_ENCONTRADO`.
+- Un ítem que no está en la opción principal de ese mes MUST responder 404 `ITEM_NO_ENCONTRADO`. Una cuenta o una persona que no son del hogar, 404 `CUENTA_NO_ENCONTRADA` o `MIEMBRO_NO_ENCONTRADO`.
 - El pago desde "Su cuenta" queda con origen `EXTERNA`: así las vistas lo cuentan como aporte implícito de quien pagó.
 - El pago de un ítem enlazado a un crédito MUST bajar el saldo del crédito en la parte de capital: el monto pagado menos el interés del mes (el saldo por la tasa efectiva mensual, redondeado al peso), sin bajar de cero. El pago aparece en los últimos pagos del crédito como cuota.
 
@@ -175,8 +183,16 @@ Reglas:
 - **WHEN** se paga "Cuota libre inversión" por $500.000 y el crédito tiene saldo $14.250.000 al 1,6 % EM
 - **THEN** el interés del mes es $228.000, el saldo baja $272.000 y queda en $13.978.000
 
+#### Scenario: Pagar un ítem del mes siguiente
+- **WHEN** hoy es 30 oct y se marca pagado Internet de noviembre con `mes` noviembre
+- **THEN** queda un pago de noviembre con fecha 30 oct, y octubre no cambia
+
+#### Scenario: Sin indicar el mes
+- **WHEN** se marca pagado un ítem de noviembre sin indicar `mes`, y hoy es 30 oct
+- **THEN** responde 404 `ITEM_NO_ENCONTRADO`, porque se busca en octubre
+
 ### Requirement: Registrar un gasto
-Un miembro SHALL poder registrar un gasto del mes en curso, igual que `registrarGasto` del dominio:
+Un miembro SHALL poder registrar un gasto del mes en curso o del siguiente (por defecto el mes en curso; otro mes responde 400 `DATOS_INVALIDOS`), igual que `registrarGasto` del dominio:
 - monto mayor que cero;
 - contra un ítem de la opción principal del mes, o sin ítem ("No estaba planeado");
 - nota opcional, de hasta 120 caracteres;
@@ -187,6 +203,14 @@ Un ítem que no está en la opción principal MUST responder 404 `ITEM_NO_ENCONT
 #### Scenario: No estaba planeado
 - **WHEN** Daniel registra $85.000 sin ítem, con la nota "Farmacia"
 - **THEN** queda un gasto no planeado de $85.000 con esa nota en el mes en curso
+
+#### Scenario: Gasto en el mes siguiente
+- **WHEN** hoy es 30 oct y se registra un gasto no planeado con `mes` noviembre
+- **THEN** queda en noviembre con fecha 30 oct
+
+#### Scenario: Un mes que no se puede
+- **WHEN** hoy es 30 oct y se registra un gasto con `mes` septiembre
+- **THEN** responde 400 `DATOS_INVALIDOS` y no se registra nada
 
 ### Requirement: Registrar un aporte
 Un miembro SHALL poder registrar un aporte, igual que `registrarAporte` del dominio:

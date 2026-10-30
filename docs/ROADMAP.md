@@ -159,7 +159,7 @@ Cambio OpenSpec `usabilidad-plan`.
 - [x] Migración `V9` probada sobre una copia del respaldo de producción, y recorrido en `steward.test` con dos personas.
 - [x] En producción (2026-10-30): backup, deploy del binario nativo con `V9` (178/178 de contrato contra el binario); Flyway en versión 9 y el diezmo de noviembre enlazado a su línea.
 
-## Etapa 11.1 — Ejecutar el mes siguiente
+## Etapa 11.1 — Ejecutar el mes siguiente ✅
 
 **Criterio de cierre**: a final de mes se registra en el mes siguiente desde Ejecución, con la fecha real, sin tocar el mes en curso.
 
@@ -168,7 +168,7 @@ Cambio OpenSpec `plan-mes-siguiente`.
 - [x] Selector de mes en Ejecución; "Recibí", pagos y gastos en el mes en curso o el siguiente.
 - [x] Destinos Ejecución, Plan y Cuentas; chips de categoría en la hoja del gasto; "Con la Opción A faltarían".
 - [x] Recorrido en `steward.test` con dos personas.
-- [ ] En producción.
+- [x] En producción (2026-10-30): backup, deploy del binario nativo (182/182 de contrato contra el binario).
 
 ## Etapa 12 — App móvil
 

@@ -7,7 +7,7 @@ Define la base común de la UI de Presupuesto Hogar en la PWA y en la app: naveg
 ## Requirements
 
 ### Requirement: Navegación principal
-La UI SHALL tener tres destinos principales: **Hoy**, **Planear** y **Cuentas**. Con un ancho menor a 1024 px MUST mostrarse como barra inferior; desde 1024 px, como menú lateral con los mismos destinos. Ajustes MUST abrirse desde los avatares del hogar en Hoy y no ser un destino de la barra. Al abrir la app con sesión, SHALL mostrarse siempre Hoy del mes en curso.
+La UI SHALL tener tres destinos principales, con estos nombres visibles: **Ejecución** (la pantalla Hoy), **Plan** (la pantalla Planear) y **Cuentas**. Las rutas `/hoy` y `/planear` MUST NOT cambiar. Con un ancho menor a 1024 px MUST mostrarse como barra inferior; desde 1024 px, como menú lateral con los mismos destinos. Ajustes MUST abrirse desde los avatares del hogar en Hoy y no ser un destino de la barra. Al abrir la app con sesión, SHALL mostrarse siempre Hoy del mes en curso.
 
 #### Scenario: Móvil
 - **WHEN** la PWA se abre a 390 px de ancho con sesión iniciada
@@ -20,6 +20,10 @@ La UI SHALL tener tres destinos principales: **Hoy**, **Planear** y **Cuentas**.
 #### Scenario: Ajustes desde los avatares
 - **WHEN** en Hoy se toca el grupo de avatares "D E"
 - **THEN** se abre Ajustes del hogar, con "‹ Hoy" para volver
+
+#### Scenario: Los nombres nuevos
+- **WHEN** se abre la app con sesión
+- **THEN** la navegación muestra Ejecución, Plan y Cuentas, y un enlace guardado a `/hoy` sigue abriendo Ejecución
 
 ### Requirement: Fidelidad al diseño
 Cada pantalla SHALL reproducir el layout, los textos y los tokens de su artboard en `design/*.dc.html`: fondo #FAFAF7, superficie #FFFFFF, bordes #E7E6E1/#EFEEEA, texto #1B1C1A/#5F625C, acento #2E4A3B y los colores de categoría y de estado del handoff. Inter MUST usarse para la UI y JetBrains Mono para los montos. Las sombras MUST NOT usarse. Toda zona tocable MUST medir al menos 44 × 44 px, aunque su forma visible sea menor.

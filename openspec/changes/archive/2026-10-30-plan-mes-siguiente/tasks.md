@@ -25,7 +25,7 @@
   - una opción con saldo negativo.
 
   Luego restaurar la sesión de Daniel y borrar los usuarios de prueba. Actualizar `docs/ROADMAP.md`. Commit.
-- [ ] 4.2 Con confirmación de Daniel:
+- [x] 4.2 Con confirmación de Daniel:
   - `deploy.ps1 -Projects steward -Action Backup`;
   - binario nativo y contrato contra el binario;
   - `deploy.ps1 -Projects steward`.
