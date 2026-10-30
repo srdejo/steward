@@ -53,6 +53,14 @@ public interface IMovimientoPersistencePort {
     /** Si el item tiene pagos o gastos (cualquier mes). */
     Mono<Boolean> hayDeItem(UUID itemId);
 
+    /** Un movimiento del hogar; vacio si no existe o es de otro. */
+    Mono<Movimiento> porIdEnHogar(UUID id, UUID hogarId);
+
+    /** Corrige monto, cuenta, origen y nota (design D3 de usabilidad-plan). */
+    Mono<Void> corregir(Movimiento movimiento);
+
+    Mono<Void> borrar(UUID id);
+
     /** Si la linea de ingreso ya se recibio en ese mes: por la linea, o por su ingreso fijo (lo recibido antes de las lineas). */
     Mono<Boolean> lineaRecibida(UUID lineaId, UUID ingresoFijoId, YearMonth mes);
 

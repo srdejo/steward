@@ -19,13 +19,15 @@ import java.util.UUID;
  * @param cuentaDestinoId TRANSFERENCIA: la cuenta a la que llega (la de origen va en {@code cuentaId}).
  * @param creditoId     PAGO de un item enlazado a un credito, y ABONO_CREDITO.
  * @param ingresoPlanId INGRESO_FIJO: la linea de ingreso de la opcion que se recibio (design D8 de diezmo-como-gasto).
+ * @param capital       PAGO de una cuota y ABONO_CREDITO: cuanto bajo el saldo del credito; se devuelve al borrarlo (null en
+ *                      los de antes, design D3 de usabilidad-plan).
  * @param seq           orden de registro, que asigna la base (0 antes de guardarlo): el saldo estimado suma lo
  *                      registrado despues del ultimo cuadre (design D1 de backend-cuentas-creditos).
  */
 public record Movimiento(UUID id, UUID hogarId, Tipo tipo, YearMonth ref, long monto, LocalDate fecha, UUID usuarioId,
                          UUID creadoPor, UUID cuentaId, UUID ingresoFijoId, Long bruto, boolean aplicaDiezmo,
                          List<UUID> diezmoDe, UUID itemId, String nota, Origen origen, UUID cuentaDestinoId,
-                         UUID creditoId, UUID ingresoPlanId, long seq) {
+                         UUID creditoId, UUID ingresoPlanId, Long capital, long seq) {
 
     public enum Tipo {
         INGRESO_FIJO,
@@ -58,22 +60,33 @@ public record Movimiento(UUID id, UUID hogarId, Tipo tipo, YearMonth ref, long m
                       UUID creadoPor, UUID cuentaId, UUID ingresoFijoId, Long bruto, boolean aplicaDiezmo,
                       List<UUID> diezmoDe, UUID itemId, String nota, Origen origen) {
         this(id, hogarId, tipo, ref, monto, fecha, usuarioId, creadoPor, cuentaId, ingresoFijoId, bruto, aplicaDiezmo,
-                diezmoDe, itemId, nota, origen, null, null, null, 0);
+                diezmoDe, itemId, nota, origen, null, null, null, null, 0);
     }
 
     public Movimiento conSeq(long nuevo) {
         return new Movimiento(id, hogarId, tipo, ref, monto, fecha, usuarioId, creadoPor, cuentaId, ingresoFijoId, bruto,
-                aplicaDiezmo, diezmoDe, itemId, nota, origen, cuentaDestinoId, creditoId, ingresoPlanId, nuevo);
+                aplicaDiezmo, diezmoDe, itemId, nota, origen, cuentaDestinoId, creditoId, ingresoPlanId, capital, nuevo);
     }
 
     public Movimiento conCredito(UUID credito) {
         return new Movimiento(id, hogarId, tipo, ref, monto, fecha, usuarioId, creadoPor, cuentaId, ingresoFijoId, bruto,
-                aplicaDiezmo, diezmoDe, itemId, nota, origen, cuentaDestinoId, credito, ingresoPlanId, seq);
+                aplicaDiezmo, diezmoDe, itemId, nota, origen, cuentaDestinoId, credito, ingresoPlanId, capital, seq);
     }
 
     public Movimiento conLinea(UUID linea) {
         return new Movimiento(id, hogarId, tipo, ref, monto, fecha, usuarioId, creadoPor, cuentaId, ingresoFijoId, bruto,
-                aplicaDiezmo, diezmoDe, itemId, nota, origen, cuentaDestinoId, creditoId, linea, seq);
+                aplicaDiezmo, diezmoDe, itemId, nota, origen, cuentaDestinoId, creditoId, linea, capital, seq);
+    }
+
+    public Movimiento conCapital(Long otro) {
+        return new Movimiento(id, hogarId, tipo, ref, monto, fecha, usuarioId, creadoPor, cuentaId, ingresoFijoId, bruto,
+                aplicaDiezmo, diezmoDe, itemId, nota, origen, cuentaDestinoId, creditoId, ingresoPlanId, otro, seq);
+    }
+
+    /** Corregido: otro monto, cuenta, origen o nota (design D3 de usabilidad-plan). */
+    public Movimiento corregido(long otroMonto, UUID otraCuenta, Origen otroOrigen, String otraNota) {
+        return new Movimiento(id, hogarId, tipo, ref, otroMonto, fecha, usuarioId, creadoPor, otraCuenta, ingresoFijoId, bruto,
+                aplicaDiezmo, diezmoDe, itemId, otraNota, otroOrigen, cuentaDestinoId, creditoId, ingresoPlanId, capital, seq);
     }
 
     /** Los de ingresos y diezmo (Etapa 3): sin item ni nota, y el origen sale de la cuenta. */

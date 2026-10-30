@@ -137,27 +137,36 @@ public final class PlanDtos {
 
     /** {@code ingresoFijoId} y {@code aporteId}: el ingreso o el aporte que origina un item de diezmo. */
     public record ItemResponse(UUID id, UUID categoriaId, String nombre, long monto, Integer diaVence, String tipo,
-                               CuotaDto cuota, UUID creditoId, UUID ingresoFijoId, UUID aporteId) {
+                               CuotaDto cuota, UUID creditoId, UUID ingresoFijoId, UUID aporteId, UUID ingresoPlanId,
+                               boolean ajustadoAMano) {
 
         public static ItemResponse de(ItemPlan i) {
             return new ItemResponse(i.id(), i.categoriaId(), i.nombre(), i.monto(), i.diaVence(), i.tipo().name(),
                     i.cuotaActual() == null ? null : new CuotaDto(i.cuotaActual(), i.cuotaTotal()), i.creditoId(),
-                    i.ingresoFijoId(), i.aporteId());
+                    i.ingresoFijoId(), i.aporteId(), i.ingresoPlanId(), i.ajustadoAMano());
+        }
+    }
+
+    /** Conteos para confirmar "Borrar plan de {mes}". */
+    public record ConteoBorradoResponse(int pagos, int gastos, int ingresos, boolean cerrado) {
+
+        public static ConteoBorradoResponse de(co.com.srdejo.steward.domain.api.IPlanServicePort.ConteoBorrado c) {
+            return new ConteoBorradoResponse(c.pagos(), c.gastos(), c.ingresos(), c.cerrado());
         }
     }
 
     /** "+ Ingreso" o editar una linea de ingreso de la opcion (design D8 de diezmo-como-gasto). */
-    public record LineaRequest(String nombre, long monto, UUID usuarioId) {
+    public record LineaRequest(String nombre, long monto, UUID usuarioId, Long bruto, Boolean aplicarDiezmo) {
 
         public DatosLinea datos() {
-            return new DatosLinea(nombre, monto, usuarioId);
+            return new DatosLinea(nombre, monto, usuarioId, bruto, Boolean.TRUE.equals(aplicarDiezmo));
         }
     }
 
-    public record LineaResponse(UUID id, String nombre, long monto, UUID usuarioId, String tipo, UUID ingresoFijoId) {
+    public record LineaResponse(UUID id, String nombre, long monto, UUID usuarioId, String tipo, UUID ingresoFijoId, long bruto) {
 
         public static LineaResponse de(IngresoPlan l) {
-            return new LineaResponse(l.id(), l.nombre(), l.monto(), l.usuarioId(), l.tipo().name(), l.ingresoFijoId());
+            return new LineaResponse(l.id(), l.nombre(), l.monto(), l.usuarioId(), l.tipo().name(), l.ingresoFijoId(), l.bruto());
         }
     }
 

@@ -31,19 +31,19 @@
 
 ## 2. Backend
 
-- [ ] 2.1 `V9__usabilidad_plan.sql` (D8), con un test de migración: líneas con su bruto, diezmos enlazados a su línea (FIJO y EXTRA), "ajustado a mano" cuando no coincide, `capital` y la FK del aporte.
-- [ ] 2.2 Plan (D1, D2, D4):
+- [x] 2.1 `V9__usabilidad_plan.sql` (D8), con un test de migración: líneas con su bruto, diezmos enlazados a su línea (FIJO y EXTRA), "ajustado a mano" cuando no coincide, `capital` y la FK del aporte.
+- [x] 2.2 Plan (D1, D2, D4):
   - las líneas guardan el bruto y su diezmo se recalcula;
   - `POST .../items/{id}/recalcular`;
   - "Aplicar diezmo" en `POST .../ingresos`;
   - el enlace al nacer, al duplicar y en el anual;
   - `editarIngreso` propaga a los meses abiertos;
-  - `DELETE /api/planes/{id}`, `DELETE /api/meses/{anio}-{mes}` y `GET /api/meses/{anio}-{mes}/borrado`;
+  - `DELETE /api/meses/{anio}-{mes}` y `GET /api/meses/{anio}-{mes}/borrado`;
   - `POST /api/hogar/empezar-de-nuevo`.
 
   Verificar: contrato de los escenarios de `steward-plan-mes` de este cambio, "Un ingreso fijo editado actualiza los meses abiertos" y "Empezar de nuevo".
-- [ ] 2.3 Registros (D3): `capital` en `pagar` y `abonar`, `PATCH` y `DELETE /api/registros/{id}`, 404 `REGISTRO_NO_ENCONTRADO` y el aislamiento. Verificar: contrato de "Corregir o borrar un registro" y "Registros en un mes cerrado". `gradlew.bat check` en verde, en JVM y en `aotTest`.
-- [ ] 2.4 `backend/README.md` y `docs/ARCHITECTURE.md` con los endpoints nuevos. Commit.
+- [x] 2.3 Registros (D3): `capital` en `pagar` y `abonar`, `PATCH` y `DELETE /api/registros/{id}`, 404 `REGISTRO_NO_ENCONTRADO` y el aislamiento. Verificar: contrato de "Corregir o borrar un registro" y "Registros en un mes cerrado". `gradlew.bat check` en verde, en JVM y en `aotTest`.
+- [x] 2.4 `backend/README.md` y `docs/ARCHITECTURE.md` con los endpoints nuevos. Commit.
 
 ## 3. PWA
 

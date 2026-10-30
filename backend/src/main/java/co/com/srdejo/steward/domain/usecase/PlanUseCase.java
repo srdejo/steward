@@ -5,6 +5,7 @@ import co.com.srdejo.steward.domain.exception.DomainException;
 import co.com.srdejo.steward.domain.model.Categoria;
 import co.com.srdejo.steward.domain.model.Credito;
 import co.com.srdejo.steward.domain.model.Hogar;
+import co.com.srdejo.steward.domain.model.Movimiento;
 import co.com.srdejo.steward.domain.model.PlanMes;
 import co.com.srdejo.steward.domain.model.PlanMes.Escenario;
 import co.com.srdejo.steward.domain.model.PlanMes.IngresoPlan;
@@ -68,7 +69,7 @@ public class PlanUseCase implements IPlanServicePort {
         this.usuarioActual = usuarioActual;
         this.transaccion = transaccion;
         this.clock = clock;
-        this.nacimiento = new NacimientoMes(ingresos, reglas, anuales, movimientos);
+        this.nacimiento = new NacimientoMes(ingresos, reglas, anuales, movimientos, planes);
     }
 
     // --- Categorias -------------------------------------------------------------------------------------------------
@@ -126,13 +127,22 @@ public class PlanUseCase implements IPlanServicePort {
                     List<ItemPlan> items = new ArrayList<>(conCuotas(t.getT1().items().stream()
                             .map(i -> i.copia(UUID.randomUUID(), escenarioId, i.monto(), i.cuotaActual(), i.orden()))
                             .toList(), escenarioId, t.getT2().getT1(), t.getT2().getT2()));
-                    items.addAll(NacimientoMes.diezmos(escenarioId, NacimientoMes.categoriaDiezmo(t.getT2().getT2()),
-                            t.getT2().getT3(), items));
-                    // Las lineas de Ajustes y del anual se calculan de nuevo; las agregadas a mano se copian (design D8).
-                    List<IngresoPlan> lineas = new ArrayList<>(NacimientoMes.lineas(escenarioId, t.getT2().getT3()));
-                    for (IngresoPlan l : t.getT1().otros()) {
-                        lineas.add(new IngresoPlan(UUID.randomUUID(), escenarioId, l.nombre(), l.monto(), l.usuarioId(), l.tipo(),
-                                null, lineas.size() + 1));
+                    // Las lineas de Ajustes y del anual se calculan de nuevo; las agregadas a mano se copian (design D8), con
+                    // su diezmo si lo tenian; cada diezmo nace enlazado a su linea (design D1 de usabilidad-plan).
+                    UUID diezmo = NacimientoMes.categoriaDiezmo(t.getT2().getT2());
+                    List<IngresoPlan> nuevas = NacimientoMes.lineas(escenarioId, t.getT2().getT3());
+                    items.addAll(NacimientoMes.diezmos(escenarioId, diezmo, t.getT2().getT3(), items, nuevas));
+                    List<IngresoPlan> lineas = new ArrayList<>(nuevas);
+                    for (Copiada c : t.getT1().otros()) {
+                        IngresoPlan l = c.linea();
+                        IngresoPlan copia = new IngresoPlan(UUID.randomUUID(), escenarioId, l.nombre(), l.monto(), l.usuarioId(), l.tipo(),
+                                null, l.bruto(), lineas.size() + 1);
+                        lineas.add(copia);
+                        if (c.conDiezmo()) {
+                            int orden = items.stream().mapToInt(ItemPlan::orden).max().orElse(0) + 1;
+                            items.add(NacimientoMes.deLinea(escenarioId, diezmo, copia,
+                                    reglaActivaDe(t.getT2().getT3(), copia.usuarioId()), null, orden));
+                        }
                     }
                     PlanMes plan = new PlanMes(planId, ctx.hogar().id(), ref, PlanMes.Estado.BORRADOR, null,
                             List.of(new Escenario(escenarioId, planId, "A", ctx.usuario(), "", false, lineas, items)));
@@ -140,16 +150,26 @@ public class PlanUseCase implements IPlanServicePort {
                 }))));
     }
 
-    /** Lo que se copia del mes anterior: sus items y sus lineas agregadas a mano. */
-    private record Base(List<ItemPlan> items, List<IngresoPlan> otros) {
+    /** Lo que se copia del mes anterior: sus items y sus lineas agregadas a mano, con si tenian diezmo. */
+    private record Base(List<ItemPlan> items, List<Copiada> otros) {
     }
 
-    private static List<IngresoPlan> otros(PlanMes anterior, Modo modo) {
+    private record Copiada(IngresoPlan linea, boolean conDiezmo) {
+    }
+
+    private static List<Copiada> otros(PlanMes anterior, Modo modo) {
         Escenario principal = anterior.principal();
         if (modo == Modo.CERO || principal == null) {
             return List.of();
         }
-        return principal.ingresos().stream().filter(l -> l.tipo() == IngresoPlan.Tipo.OTRO).toList();
+        return principal.ingresos().stream().filter(l -> l.tipo() == IngresoPlan.Tipo.OTRO)
+                .map(l -> new Copiada(l, principal.items().stream().anyMatch(i -> i.tipo() == ItemPlan.Tipo.DIEZMO && l.id().equals(i.ingresoPlanId()))))
+                .toList();
+    }
+
+    private static co.com.srdejo.steward.domain.model.ReglaDiezmo reglaActivaDe(NacimientoMes.Fuentes f, UUID usuarioId) {
+        var r = usuarioId == null ? null : f.reglas().get(usuarioId);
+        return r != null && r.activa() ? r : null;
     }
 
     /**
@@ -229,13 +249,36 @@ public class PlanUseCase implements IPlanServicePort {
                         .flatMap(esc -> itemDe(esc, itemId)
                                 .flatMap(actual -> categoriaDelHogar(d.categoriaId(), ctx)
                                         .then(creditoDelHogar(d.creditoId(), ctx))
-                                        // Sin credito en la edicion, conserva el que tenia; el ingreso o aporte de un
-                                        // diezmo tambien se conserva.
-                                        .then(planes.actualizarItem(new ItemPlan(actual.id(), esc.id(), d.categoriaId(),
+                                        // Sin credito en la edicion, conserva el que tenia; los enlaces de un diezmo
+                                        // tambien se conservan, y cambiar su monto lo deja "ajustado a mano" (design D1 de
+                                        // usabilidad-plan).
+                                        .then(ajustado(esc, actual, d.monto()))
+                                        .flatMap(ajustado -> planes.actualizarItem(new ItemPlan(actual.id(), esc.id(), d.categoriaId(),
                                                 d.nombre(), d.monto(), d.diaVence(), tipo(d.tipo()), d.cuotaActual(),
                                                 d.cuotaTotal(), actual.orden(),
                                                 d.creditoId() == null ? actual.creditoId() : d.creditoId(),
-                                                actual.ingresoFijoId(), actual.aporteId())))))));
+                                                actual.ingresoFijoId(), actual.aporteId(), actual.ingresoPlanId(), ajustado)))))));
+    }
+
+    /** Si el diezmo queda ajustado a mano: su monto cambio y no es el que sugiere su linea. */
+    private Mono<Boolean> ajustado(Escenario esc, ItemPlan actual, long monto) {
+        if (actual.ingresoPlanId() == null || monto == actual.monto()) {
+            return Mono.just(actual.ajustadoAMano());
+        }
+        return Mono.justOrEmpty(esc.ingresos().stream().filter(l -> l.id().equals(actual.ingresoPlanId())).findFirst())
+                .flatMap(linea -> nacimiento.reglaActiva(linea.usuarioId()).map(r -> monto != NacimientoMes.sugerido(r.orElse(null), linea)))
+                .defaultIfEmpty(actual.ajustadoAMano());
+    }
+
+    /** "Volver a calcular": el diezmo vuelve a lo que sugiere su linea y deja de estar ajustado a mano. */
+    @Override
+    public Mono<ItemPlan> recalcularDiezmo(UUID planId, UUID escenarioId, UUID itemId) {
+        return contexto().flatMap(ctx -> escenarioEditable(planId, escenarioId, ctx)
+                .flatMap(esc -> itemDe(esc, itemId).flatMap(item -> Mono.justOrEmpty(esc.ingresos().stream()
+                                .filter(l -> l.id().equals(item.ingresoPlanId())).findFirst())
+                        .switchIfEmpty(Mono.error(() -> DomainException.noEncontrado("ITEM_NO_ENCONTRADO", "Ese diezmo no viene de un ingreso del plan")))
+                        .flatMap(linea -> nacimiento.reglaActiva(linea.usuarioId())
+                                .flatMap(r -> planes.actualizarItem(item.conMonto(item.nombre(), NacimientoMes.sugerido(r.orElse(null), linea), false)))))));
     }
 
     @Override
@@ -254,36 +297,92 @@ public class PlanUseCase implements IPlanServicePort {
 
     @Override
     public Mono<IngresoPlan> agregarIngreso(UUID planId, UUID escenarioId, DatosLinea datos) {
+        // Con "Aplicar diezmo", nace su item de diezmo enlazado (design D1 de usabilidad-plan).
         return Mono.fromCallable(() -> lineaValida(datos)).flatMap(d -> contexto()
                 .flatMap(ctx -> escenarioEditable(planId, escenarioId, ctx)
-                        .flatMap(esc -> miembro(d.usuarioId(), ctx)
-                                .then(planes.crearIngreso(new IngresoPlan(UUID.randomUUID(), esc.id(), d.nombre(), d.monto(),
-                                        d.usuarioId(), IngresoPlan.Tipo.OTRO, null,
-                                        esc.ingresos().stream().mapToInt(IngresoPlan::orden).max().orElse(0) + 1))))));
+                        .flatMap(esc -> miembro(d.usuarioId(), ctx).then(Mono.defer(() -> {
+                            IngresoPlan linea = new IngresoPlan(UUID.randomUUID(), esc.id(), d.nombre(), d.monto(), d.usuarioId(),
+                                    IngresoPlan.Tipo.OTRO, null, d.bruto(), esc.ingresos().stream().mapToInt(IngresoPlan::orden).max().orElse(0) + 1);
+                            Mono<Void> diezmo = !d.aplicarDiezmo() ? Mono.empty()
+                                    : Mono.zip(categorias.delHogar(ctx.hogar().id()).collectList(), nacimiento.reglaActiva(d.usuarioId()))
+                                    .flatMap(t -> planes.crearItem(NacimientoMes.deLinea(esc.id(), NacimientoMes.categoriaDiezmo(t.getT1()),
+                                            linea, t.getT2().orElse(null), null,
+                                            esc.items().stream().mapToInt(ItemPlan::orden).max().orElse(0) + 1)))
+                                    .then();
+                            return transaccion.enTransaccion(planes.crearIngreso(linea).flatMap(l -> diezmo.thenReturn(l)));
+                        })))));
     }
 
     @Override
     public Mono<IngresoPlan> editarIngreso(UUID planId, UUID escenarioId, UUID lineaId, DatosLinea datos) {
-        // Conserva su tipo y su ingreso fijo: editar la linea no toca Ajustes ni las otras opciones.
+        // Conserva su tipo y su ingreso fijo: editar la linea no toca Ajustes ni las otras opciones; su diezmo la sigue.
         return Mono.fromCallable(() -> lineaValida(datos)).flatMap(d -> contexto()
                 .flatMap(ctx -> escenarioEditable(planId, escenarioId, ctx)
                         .flatMap(esc -> lineaDe(esc, lineaId)
-                                .flatMap(actual -> miembro(d.usuarioId(), ctx)
-                                        .then(planes.actualizarIngreso(new IngresoPlan(actual.id(), esc.id(), d.nombre(),
-                                                d.monto(), d.usuarioId(), actual.tipo(), actual.ingresoFijoId(), actual.orden())))))));
+                                .flatMap(actual -> miembro(d.usuarioId(), ctx).then(Mono.defer(() -> {
+                                    IngresoPlan nueva = new IngresoPlan(actual.id(), esc.id(), d.nombre(), d.monto(), d.usuarioId(),
+                                            actual.tipo(), actual.ingresoFijoId(), d.bruto(), actual.orden());
+                                    return transaccion.enTransaccion(planes.actualizarIngreso(nueva)
+                                            .flatMap(l -> nacimiento.seguirLinea(esc, nueva, actual.nombre()).thenReturn(l)));
+                                }))))));
     }
 
     @Override
     public Mono<Void> quitarIngreso(UUID planId, UUID escenarioId, UUID lineaId) {
         return contexto().flatMap(ctx -> planDelHogar(planId, ctx)
                 .flatMap(plan -> escenarioEditable(planId, escenarioId, ctx)
-                        .flatMap(esc -> lineaDe(esc, lineaId))
+                        .flatMap(esc -> lineaDe(esc, lineaId)
                         // Lo recibido no desaparece de los ingresos del mes (quitarIngresoPlan del dominio).
                         .flatMap(linea -> movimientos.lineaRecibida(linea.id(), linea.ingresoFijoId(), plan.ref())
                                 .flatMap(recibida -> recibida
-                                        ? Mono.error(DomainException.conflicto("INGRESO_RECIBIDO",
+                                        ? Mono.<Void>error(DomainException.conflicto("INGRESO_RECIBIDO",
                                         linea.nombre() + " ya se recibió este mes; no se puede quitar"))
-                                        : planes.quitarIngreso(linea.id())))));
+                                        : transaccion.enTransaccion(quitarDiezmoDe(esc, linea).then(planes.quitarIngreso(linea.id()))
+                                        .thenReturn(true)).then())))));
+    }
+
+    /** Su diezmo se va con la linea si no tiene pagos; si los tiene, queda sin enlace (ON DELETE SET NULL). */
+    private Mono<Void> quitarDiezmoDe(Escenario esc, IngresoPlan linea) {
+        return Flux.fromIterable(esc.items().stream().filter(i -> linea.id().equals(i.ingresoPlanId())).toList())
+                .concatMap(i -> movimientos.hayDeItem(i.id()).flatMap(conPagos -> conPagos ? Mono.<Void>empty() : planes.quitarItem(i.id())))
+                .then();
+    }
+
+    // --- Borrar el plan de un mes (design D4 de usabilidad-plan) -----------------------------------------------------
+
+    private static final Set<Movimiento.Tipo> DEL_PLAN = Set.of(Movimiento.Tipo.PAGO, Movimiento.Tipo.GASTO, Movimiento.Tipo.INGRESO_FIJO);
+
+    @Override
+    public Mono<ConteoBorrado> conteoBorrado(YearMonth ref) {
+        return contexto().flatMap(ctx -> Mono.zip(movimientos.delMes(ctx.hogar().id(), ref).collectList(),
+                        cierres.estaCerrado(ctx.hogar().id(), ref))
+                .map(t -> new ConteoBorrado(contar(t.getT1(), Movimiento.Tipo.PAGO), contar(t.getT1(), Movimiento.Tipo.GASTO),
+                        contar(t.getT1(), Movimiento.Tipo.INGRESO_FIJO), t.getT2())));
+    }
+
+    private static int contar(List<Movimiento> movs, Movimiento.Tipo tipo) {
+        return (int) movs.stream().filter(m -> m.tipo() == tipo).count();
+    }
+
+    /**
+     * {@code borrarPlan} del dominio: los pagos, gastos e ingresos recibidos del mes (una cuota devuelve su capital al
+     * credito), el plan y su cierre. Los aportes, ajustes, transferencias y abonos se conservan.
+     */
+    @Override
+    public Mono<Void> borrarPlan(YearMonth ref) {
+        return contexto().flatMap(ctx -> Mono.zip(planes.deMes(ctx.hogar().id(), ref).map(java.util.Optional::of)
+                                .defaultIfEmpty(java.util.Optional.empty()), cierres.estaCerrado(ctx.hogar().id(), ref))
+                .flatMap(t -> {
+                    if (t.getT1().isEmpty() && !t.getT2()) {
+                        return Mono.<Void>error(planNoEncontrado());
+                    }
+                    Mono<Void> registros = movimientos.delMes(ctx.hogar().id(), ref).filter(m -> DEL_PLAN.contains(m.tipo()))
+                            .concatMap(m -> (m.creditoId() != null && m.capital() != null ? creditos.devolver(m.creditoId(), m.capital())
+                                    : Mono.<Void>empty()).then(movimientos.borrar(m.id())))
+                            .then();
+                    Mono<Void> plan = t.getT1().map(p -> planes.borrar(p.id())).orElse(Mono.empty());
+                    return transaccion.enTransaccion(registros.then(plan).then(cierres.borrar(ctx.hogar().id(), ref)).thenReturn(true)).then();
+                }));
     }
 
     private static DatosLinea lineaValida(DatosLinea d) {
@@ -294,7 +393,11 @@ public class PlanUseCase implements IPlanServicePort {
         if (d.monto() < 0) {
             throw DomainException.datosInvalidos("El monto no puede ser negativo");
         }
-        return new DatosLinea(nombre, d.monto(), d.usuarioId());
+        long bruto = d.bruto() == null ? d.monto() : d.bruto();
+        if (bruto < 0) {
+            throw DomainException.datosInvalidos("El bruto no puede ser negativo");
+        }
+        return new DatosLinea(nombre, d.monto(), d.usuarioId(), bruto, d.aplicarDiezmo());
     }
 
     static Mono<IngresoPlan> lineaDe(Escenario esc, UUID lineaId) {
@@ -372,13 +475,18 @@ public class PlanUseCase implements IPlanServicePort {
                 return Mono.<Escenario>error(DomainException.conflicto("MUCHAS_OPCIONES", "No caben más opciones en este mes"));
             }
             UUID id = UUID.randomUUID();
-            List<ItemPlan> items = new ArrayList<>(origen.items().stream()
-                    .map(i -> i.copia(UUID.randomUUID(), id, i.monto(), i.cuotaActual(), i.orden()))
-                    .toList());
             List<IngresoPlan> lineas = origen.ingresos().stream()
                     .map(l -> new IngresoPlan(UUID.randomUUID(), id, l.nombre(), l.monto(), l.usuarioId(), l.tipo(), l.ingresoFijoId(),
-                            l.orden()))
+                            l.bruto(), l.orden()))
                     .toList();
+            Map<UUID, UUID> nuevaDe = new java.util.HashMap<>();
+            for (int k = 0; k < lineas.size(); k++) {
+                nuevaDe.put(origen.ingresos().get(k).id(), lineas.get(k).id());
+            }
+            List<ItemPlan> items = new ArrayList<>(origen.items().stream()
+                    .map(i -> i.copia(UUID.randomUUID(), id, i.monto(), i.cuotaActual(), i.orden()))
+                    .map(i -> i.ingresoPlanId() == null ? i : i.conLinea(nuevaDe.get(i.ingresoPlanId())))
+                    .toList());
             if (extra != null) {
                 int orden = items.stream().mapToInt(ItemPlan::orden).max().orElse(0) + 1;
                 items.add(new ItemPlan(UUID.randomUUID(), id, extra.categoriaId(), extra.nombre(), extra.monto(), extra.diaVence(),

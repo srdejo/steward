@@ -1,6 +1,7 @@
 package co.com.srdejo.steward.infrastructure.input.rest;
 
 import co.com.srdejo.steward.application.dto.FinanzasDtos.AporteRequest;
+import co.com.srdejo.steward.application.dto.FinanzasDtos.CorregirRequest;
 import co.com.srdejo.steward.application.dto.FinanzasDtos.CuentaRequest;
 import co.com.srdejo.steward.application.dto.FinanzasDtos.CuentaResponse;
 import co.com.srdejo.steward.application.dto.FinanzasDtos.FinanzasResponse;
@@ -18,6 +19,7 @@ import co.com.srdejo.steward.domain.spi.IClockPort;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -107,6 +109,27 @@ public class FinanzasController {
     public Mono<MovimientoResponse> aportar(@RequestBody AporteRequest r) {
         YearMonth mes = r.mes() == null ? null : YearMonth.of(r.mes().anio(), r.mes().mes());
         return finanzas.aportar(r.usuarioId(), r.monto(), mes, r.cuentaId(), r.aplicaDiezmo()).map(MovimientoResponse::de);
+    }
+
+    /** Corregir un registro (design D3 de usabilidad-plan): los campos que no vienen no cambian. */
+    @PatchMapping("/api/registros/{id}")
+    public Mono<MovimientoResponse> corregirRegistro(@PathVariable UUID id, @RequestBody CorregirRequest r) {
+        OrigenDto o = r.origen();
+        return finanzas.corregirRegistro(id, r.monto(), o == null ? null : o.tipo(), o == null ? null : o.cuentaId(), r.nota())
+                .map(MovimientoResponse::de);
+    }
+
+    @DeleteMapping("/api/registros/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public Mono<Void> borrarRegistro(@PathVariable UUID id) {
+        return finanzas.borrarRegistro(id);
+    }
+
+    /** "Empezar de nuevo" (design D4 de usabilidad-plan). */
+    @PostMapping("/api/hogar/empezar-de-nuevo")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public Mono<Void> empezarDeNuevo() {
+        return finanzas.empezarDeNuevo();
     }
 
     private static OrigenDto origen(OrigenDto o) {

@@ -6,7 +6,9 @@ node_modules/
 # Builds
 dist/
 build/
-out/
+# La salida de IntelliJ; sin la barra ignoraba el paquete infrastructure/out del backend
+/out/
+backend/out/
 .gradle/
 .angular/
 .expo/

@@ -29,5 +29,8 @@ public interface ICreditoPersistencePort {
      * Baja el saldo en la parte de capital de una cuota: el monto menos el interes del mes, sin bajar de cero. La fecha del
      * saldo no cambia, como en el dominio.
      */
-    Mono<Void> pagarCuota(UUID id, long monto);
+    Mono<Long> pagarCuota(UUID id, long monto);
+
+    /** Le devuelve al saldo lo que le bajo un pago o abono borrado (design D3 de usabilidad-plan). */
+    Mono<Void> devolver(UUID id, long capital);
 }

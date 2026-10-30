@@ -95,7 +95,7 @@ Así una línea cambiada a mano no se pisa, sin necesidad de otra marca. El nomb
 
 ### D4. Borrar el plan de un mes y empezar de nuevo
 
-**`borrarPlan(estado, ref)`.** En el backend es `DELETE /api/planes/{id}`, o `DELETE /api/meses/{anio}-{mes}` para un mes cerrado sin plan, y `GET /api/meses/{anio}-{mes}/borrado` devuelve los conteos para la confirmación. En una transacción:
+**`borrarPlan(estado, ref)`.** En el backend es `DELETE /api/meses/{anio}-{mes}` (una sola ruta por mes, que sirve también para un mes cerrado sin plan), y `GET /api/meses/{anio}-{mes}/borrado` devuelve los conteos para la confirmación. En una transacción:
 1. borra los movimientos del mes de tipo `PAGO`, `GASTO` e `INGRESO_FIJO`, devolviendo a cada crédito su `capital`;
 2. borra el plan, en cascada con sus opciones, líneas e ítems;
 3. borra el cierre del mes.

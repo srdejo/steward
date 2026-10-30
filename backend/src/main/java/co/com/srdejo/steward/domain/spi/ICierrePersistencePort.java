@@ -21,4 +21,7 @@ public interface ICierrePersistencePort {
 
     /** Como {@code asegurarAbierto} del dominio: el plan del mes esta CERRADO o el mes tiene cierre. */
     Mono<Boolean> estaCerrado(UUID hogarId, YearMonth mes);
+
+    /** Borra el cierre del mes, si lo tiene (design D4 de usabilidad-plan). */
+    Mono<Void> borrar(UUID hogarId, YearMonth mes);
 }

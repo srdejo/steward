@@ -1,6 +1,7 @@
 package co.com.srdejo.steward.infrastructure.input.rest;
 
 import co.com.srdejo.steward.application.dto.PlanDtos.CategoriaResponse;
+import co.com.srdejo.steward.application.dto.PlanDtos.ConteoBorradoResponse;
 import co.com.srdejo.steward.application.dto.PlanDtos.CrearPlanRequest;
 import co.com.srdejo.steward.application.dto.PlanDtos.DuplicarRequest;
 import co.com.srdejo.steward.application.dto.PlanDtos.ItemRequest;
@@ -11,9 +12,11 @@ import co.com.srdejo.steward.application.dto.PlanDtos.NombreRequest;
 import co.com.srdejo.steward.application.dto.PlanDtos.PlanResponse;
 import co.com.srdejo.steward.application.dto.PlanDtos.UsarRequest;
 import co.com.srdejo.steward.domain.api.IPlanServicePort;
+import co.com.srdejo.steward.domain.exception.DomainException;
 import co.com.srdejo.steward.domain.spi.IClockPort;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -23,6 +26,8 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Mono;
 
+import java.time.YearMonth;
+import java.time.format.DateTimeParseException;
 import java.util.UUID;
 
 /**
@@ -84,6 +89,32 @@ public class PlanController {
     public Mono<ItemResponse> editarItem(@PathVariable UUID id, @PathVariable UUID escenarioId, @PathVariable UUID itemId,
                                          @RequestBody ItemRequest r) {
         return plan.editarItem(id, escenarioId, itemId, r.datos()).map(ItemResponse::de);
+    }
+
+    @PostMapping("/api/planes/{id}/escenarios/{escenarioId}/items/{itemId}/recalcular")
+    public Mono<ItemResponse> recalcularDiezmo(@PathVariable UUID id, @PathVariable UUID escenarioId, @PathVariable UUID itemId) {
+        return plan.recalcularDiezmo(id, escenarioId, itemId).map(ItemResponse::de);
+    }
+
+    /** Lo que se borra con el plan del mes ({@code 2026-10}), para la confirmacion (design D4 de usabilidad-plan). */
+    @GetMapping("/api/meses/{ref}/borrado")
+    public Mono<ConteoBorradoResponse> conteoBorrado(@PathVariable String ref) {
+        return Mono.fromCallable(() -> mes(ref)).flatMap(plan::conteoBorrado).map(ConteoBorradoResponse::de);
+    }
+
+    /** "Borrar plan de {mes}": tambien sirve para un mes cerrado sin plan. */
+    @DeleteMapping("/api/meses/{ref}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public Mono<Void> borrarPlan(@PathVariable String ref) {
+        return Mono.fromCallable(() -> mes(ref)).flatMap(plan::borrarPlan);
+    }
+
+    private static YearMonth mes(String ref) {
+        try {
+            return YearMonth.parse(ref);
+        } catch (DateTimeParseException e) {
+            throw DomainException.datosInvalidos("El mes va como 2026-10");
+        }
     }
 
     @DeleteMapping("/api/planes/{id}/escenarios/{escenarioId}/items/{itemId}")

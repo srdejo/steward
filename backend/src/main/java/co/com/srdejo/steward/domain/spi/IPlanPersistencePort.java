@@ -42,6 +42,12 @@ public interface IPlanPersistencePort {
 
     Mono<Void> usar(UUID planId, UUID escenarioId);
 
+    /** Borra el plan con sus opciones, lineas e items (design D4 de usabilidad-plan). Sus pagos se borran antes. */
+    Mono<Void> borrar(UUID planId);
+
+    /** "Empezar de nuevo": borra lo registrado, los planes, los cierres, los anuales y las proyecciones del hogar. */
+    Mono<Void> empezarDeNuevo(UUID hogarId);
+
     /**
      * Agrega una opcion con sus items. Si su letra ya la tomo otra opcion del mismo plan (dos a la vez), falla con
      * {@code LETRA_OCUPADA} para que el caso de uso reintente (design D3 de backend-opciones-mes).

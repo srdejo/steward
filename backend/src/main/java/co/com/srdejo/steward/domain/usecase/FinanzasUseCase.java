@@ -25,6 +25,7 @@ import co.com.srdejo.steward.domain.spi.IMovimientoPersistencePort;
 import co.com.srdejo.steward.domain.spi.IReglaDiezmoPersistencePort;
 import co.com.srdejo.steward.domain.spi.ITransaccionPort;
 import co.com.srdejo.steward.domain.usecase.Registro.Contexto;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
@@ -62,6 +63,7 @@ public class FinanzasUseCase implements IFinanzasServicePort {
     private final ITransaccionPort transaccion;
     private final IClockPort clock;
     private final Registro registro;
+    private final NacimientoMes nacimiento;
 
     public FinanzasUseCase(IHogarPersistencePort hogares, IReglaDiezmoPersistencePort reglas,
                            IIngresoFijoPersistencePort ingresos, ICuentaPersistencePort cuentas,
@@ -84,6 +86,7 @@ public class FinanzasUseCase implements IFinanzasServicePort {
         this.transaccion = transaccion;
         this.clock = clock;
         this.registro = new Registro(hogares, cuentas, usuarioActual, clock);
+        this.nacimiento = new NacimientoMes(ingresos, reglas, anuales, movimientos, planes);
     }
 
     // --- Lectura ---------------------------------------------------------------------------------------------------
@@ -152,9 +155,11 @@ public class FinanzasUseCase implements IFinanzasServicePort {
                                     // La cuota de un credito baja su saldo en la parte de capital, en la misma
                                     // transaccion: si el pago no pasa (YA_PAGADO), el saldo no cambia.
                                     UUID credito = variable ? null : item.creditoId();
+                                    // Guarda cuanto bajo el saldo, para devolverlo si se borra el pago (design D3 de
+                                    // usabilidad-plan).
                                     Mono<Movimiento> registrar = (credito == null ? movimientos.registrar(pago)
-                                            : transaccion.enTransaccion(movimientos.registrar(pago.conCredito(credito))
-                                            .flatMap(g -> creditos.pagarCuota(credito, m).thenReturn(g))))
+                                            : transaccion.enTransaccion(creditos.pagarCuota(credito, m)
+                                            .flatMap(capital -> movimientos.registrar(pago.conCredito(credito).conCapital(capital)))))
                                             .onErrorResume(DomainException.class, ex -> "YA_PAGADO".equals(ex.codigo())
                                                     ? yaPagado(item.id(), mes) : Mono.error(ex));
                                     return variable ? registrar : movimientos.pagoDe(item.id(), mes)
@@ -300,16 +305,14 @@ public class FinanzasUseCase implements IFinanzasServicePort {
                 .flatMap(plan -> {
                     PlanMes.Escenario principal = plan.principal();
                     int orden = principal.ingresos().stream().mapToInt(PlanMes.IngresoPlan::orden).max().orElse(0) + 1;
-                    Mono<Void> linea = planes.crearIngreso(new PlanMes.IngresoPlan(UUID.randomUUID(), principal.id(), nuevo.nombre(),
-                            nuevo.neto(), nuevo.usuarioId(), PlanMes.IngresoPlan.Tipo.FIJO, nuevo.id(), orden)).then();
+                    PlanMes.IngresoPlan nueva = new PlanMes.IngresoPlan(UUID.randomUUID(), principal.id(), nuevo.nombre(),
+                            nuevo.neto(), nuevo.usuarioId(), PlanMes.IngresoPlan.Tipo.FIJO, nuevo.id(), nuevo.bruto(), orden);
+                    Mono<Void> linea = planes.crearIngreso(nueva).then();
                     Mono<Void> diezmo = reglas.dePersona(nuevo.usuarioId())
                             .filter(ReglaDiezmo::activa)
                             .zipWith(categorias.delHogar(ctx.hogar().id()).collectList())
-                            .flatMap(t -> planes.crearItem(new PlanMes.ItemPlan(UUID.randomUUID(), principal.id(),
-                                    NacimientoMes.categoriaDiezmo(t.getT2()), "Diezmo · " + nuevo.nombre(),
-                                    CalculoDiezmo.monto(t.getT1().porcentaje(), nuevo.bruto(), nuevo.neto(), t.getT1().base()), nuevo.diaPago(),
-                                    PlanMes.ItemPlan.Tipo.DIEZMO, null, null,
-                                    principal.items().stream().mapToInt(PlanMes.ItemPlan::orden).max().orElse(0) + 1, null, nuevo.id(), null)))
+                            .flatMap(t -> planes.crearItem(NacimientoMes.deLinea(principal.id(), NacimientoMes.categoriaDiezmo(t.getT2()),
+                                    nueva, t.getT1(), nuevo.diaPago(), principal.items().stream().mapToInt(PlanMes.ItemPlan::orden).max().orElse(0) + 1)))
                             .then();
                     return linea.then(diezmo);
                 });
@@ -320,9 +323,111 @@ public class FinanzasUseCase implements IFinanzasServicePort {
         return Mono.fromCallable(() -> ingresoValido(datos)).flatMap(limpio -> contexto()
                 .flatMap(ctx -> ingresoPropio(id, ctx)
                         .flatMap(actual -> cuentaDelHogar(limpio.cuentaId(), ctx.hogar().id())
-                                .then(ingresos.actualizar(new IngresoFijo(actual.id(), actual.hogarId(), actual.usuarioId(),
+                                .then(transaccion.enTransaccion(ingresos.actualizar(new IngresoFijo(actual.id(), actual.hogarId(), actual.usuarioId(),
                                         limpio.nombre(), limpio.bruto(), limpio.neto(), limpio.diaPago(), limpio.cuentaId(),
-                                        true))))));
+                                        true)).flatMap(nuevo -> mesesAbiertos(ctx, actual, nuevo).thenReturn(nuevo)))))));
+    }
+
+    /**
+     * {@code ingresoFijoEditado} del dominio (design D2 de usabilidad-plan): en los planes no cerrados desde el mes en curso,
+     * las lineas enlazadas que todavia tenian el valor anterior y no se recibieron toman el nuevo, y su diezmo las sigue.
+     */
+    private Mono<Void> mesesAbiertos(Contexto ctx, IngresoFijo anterior, IngresoFijo nuevo) {
+        return planes.desde(ctx.hogar().id(), mesEnCurso())
+                .filter(plan -> plan.estado() != PlanMes.Estado.CERRADO)
+                .concatMap(plan -> Flux.fromIterable(plan.escenarios())
+                        .concatMap(esc -> Flux.fromIterable(esc.ingresos().stream()
+                                        .filter(l -> anterior.id().equals(l.ingresoFijoId()) && l.monto() == anterior.neto()
+                                                && l.bruto() == anterior.bruto())
+                                        .toList())
+                                .concatMap(l -> movimientos.lineaRecibida(l.id(), anterior.id(), plan.ref())
+                                        .flatMap(recibida -> {
+                                            if (recibida) {
+                                                return Mono.<Void>empty();
+                                            }
+                                            String nombre = l.nombre().equals(anterior.nombre()) ? nuevo.nombre() : l.nombre();
+                                            PlanMes.IngresoPlan nueva = new PlanMes.IngresoPlan(l.id(), esc.id(), nombre, nuevo.neto(), l.usuarioId(),
+                                                    l.tipo(), l.ingresoFijoId(), nuevo.bruto(), l.orden());
+                                            return planes.actualizarIngreso(nueva).then(nacimiento.seguirLinea(esc, nueva, l.nombre()));
+                                        }))))
+                .then();
+    }
+
+    // --- Corregir y borrar registros (design D3 de usabilidad-plan) ---------------------------------------------------
+
+    private static final java.util.Set<Movimiento.Tipo> CORREGIBLES = java.util.Set.of(Movimiento.Tipo.PAGO, Movimiento.Tipo.GASTO,
+            Movimiento.Tipo.INGRESO_FIJO, Movimiento.Tipo.APORTE);
+
+    /** El registro del hogar, corregible y de un mes abierto. */
+    private Mono<Movimiento> registroDe(Contexto ctx, UUID id) {
+        return movimientos.porIdEnHogar(id, ctx.hogar().id())
+                .switchIfEmpty(Mono.error(() -> DomainException.noEncontrado("REGISTRO_NO_ENCONTRADO", "Ese registro no existe")))
+                .flatMap(m -> !CORREGIBLES.contains(m.tipo())
+                        ? Mono.<Movimiento>error(DomainException.datosInvalidos("Ese movimiento no se corrige desde aquí"))
+                        : mesAbierto(ctx, m.ref()).thenReturn(m));
+    }
+
+    @Override
+    public Mono<Movimiento> corregirRegistro(UUID id, Long monto, String origen, UUID cuentaId, String nota) {
+        return contexto().flatMap(ctx -> registroDe(ctx, id).flatMap(m -> {
+            long nuevoMonto = monto == null ? m.monto() : monto;
+            if (nuevoMonto <= 0) {
+                return Mono.<Movimiento>error(DomainException.datosInvalidos("El monto debe ser mayor que cero"));
+            }
+            if (nuevoMonto != m.monto() && m.tipo() == Movimiento.Tipo.PAGO && m.creditoId() != null) {
+                return Mono.<Movimiento>error(DomainException.datosInvalidos("Para cambiar el monto de una cuota, borra el pago y márcalo otra vez"));
+            }
+            String limpia = nota == null || m.tipo() != Movimiento.Tipo.GASTO ? m.nota() : nota.strip();
+            if (limpia.length() > NOTA_MAX) {
+                return Mono.<Movimiento>error(DomainException.datosInvalidos("La nota va hasta 120 caracteres"));
+            }
+            Mono<Registro.OrigenValido> cuenta = origen == null ? Mono.just(new Registro.OrigenValido(m.origen(), m.cuentaId()))
+                    : registro.origenValido(ctx, m.usuarioId(), origen, cuentaId);
+            return cuenta.flatMap(o -> {
+                Movimiento corregido = m.corregido(nuevoMonto, o.cuentaId(), o.origen(), limpia);
+                Mono<Void> diezmo = m.tipo() == Movimiento.Tipo.APORTE && nuevoMonto != m.monto() ? seguirAporte(ctx, corregido) : Mono.empty();
+                return transaccion.enTransaccion(movimientos.corregir(corregido).then(diezmo).thenReturn(corregido));
+            });
+        }));
+    }
+
+    /** El diezmo de un aporte corregido lo sigue, si no esta ajustado a mano ni tiene pagos. */
+    private Mono<Void> seguirAporte(Contexto ctx, Movimiento aporte) {
+        return planes.deMes(ctx.hogar().id(), aporte.ref())
+                .zipWith(reglas.dePersona(aporte.usuarioId()).map(java.util.Optional::of).defaultIfEmpty(java.util.Optional.empty()))
+                .flatMapMany(t -> Flux.fromIterable(t.getT1().escenarios().stream().flatMap(esc -> esc.items().stream())
+                                .filter(i -> aporte.id().equals(i.aporteId()) && !i.ajustadoAMano()).toList())
+                        .concatMap(i -> movimientos.hayDeItem(i.id()).flatMap(conPagos -> conPagos ? Mono.<Void>empty()
+                                : planes.actualizarItem(i.conMonto(i.nombre(), CalculoDiezmo.sobre(
+                                        NacimientoMes.porcentajeAporte(t.getT2().orElse(null)), aporte.monto()), false)).then())))
+                .then();
+    }
+
+    @Override
+    public Mono<Void> borrarRegistro(UUID id) {
+        return contexto().flatMap(ctx -> registroDe(ctx, id).flatMap(m -> {
+            Mono<Void> credito = m.creditoId() != null && m.capital() != null ? creditos.devolver(m.creditoId(), m.capital()) : Mono.empty();
+            // El diezmo de un aporte se va con el si no tiene pagos; si los tiene, queda sin enlace (ON DELETE SET NULL).
+            Mono<Void> diezmo = m.tipo() != Movimiento.Tipo.APORTE ? Mono.empty() : planes.deMes(ctx.hogar().id(), m.ref())
+                    .flatMapMany(plan -> Flux.fromIterable(plan.escenarios().stream().flatMap(esc -> esc.items().stream())
+                            .filter(i -> m.id().equals(i.aporteId())).toList()))
+                    .concatMap(i -> movimientos.hayDeItem(i.id()).flatMap(conPagos -> conPagos ? Mono.<Void>empty() : planes.quitarItem(i.id())))
+                    .then();
+            return transaccion.enTransaccion(credito.then(diezmo).then(movimientos.borrar(m.id())).thenReturn(true)).then();
+        }));
+    }
+
+    /**
+     * {@code empezarDeNuevo} del dominio (design D4 de usabilidad-plan): cada cuenta parte del saldo estimado que tenia, y se
+     * borran lo registrado, los planes, los cierres, los anuales y las proyecciones. Miembros, ingresos, reglas, categorias y
+     * creditos se conservan.
+     */
+    @Override
+    public Mono<Void> empezarDeNuevo() {
+        return contexto().flatMap(ctx -> transaccion.enTransaccion(cuentas.delHogar(ctx.hogar().id())
+                .concatMap(c -> movimientos.saldoEstimado(c).flatMap(s -> cuentas.reiniciar(c, s.saldo(), clock.hoy(), s.ultimoSeq())))
+                .then(planes.empezarDeNuevo(ctx.hogar().id()))
+                .thenReturn(true)).then());
     }
 
     @Override

@@ -66,7 +66,7 @@ public class AnualUseCase implements IAnualServicePort {
         this.cierres = cierres;
         this.transaccion = transaccion;
         this.registro = new Registro(hogares, cuentas, usuarioActual, clock);
-        this.nacimiento = new NacimientoMes(ingresos, reglas, anuales, movimientos);
+        this.nacimiento = new NacimientoMes(ingresos, reglas, anuales, movimientos, planes);
     }
 
     @Override
@@ -194,8 +194,8 @@ public class AnualUseCase implements IAnualServicePort {
                                     null, null, items.size() + 1));
                         }
                     }
-                    items.addAll(NacimientoMes.diezmos(escId, NacimientoMes.categoriaDiezmo(cats), t.getT3(), items));
                     List<IngresoPlan> lineas = NacimientoMes.lineas(escId, t.getT3());
+                    items.addAll(NacimientoMes.diezmos(escId, NacimientoMes.categoriaDiezmo(cats), t.getT3(), items, lineas));
                     PlanMes plan = new PlanMes(planId, ctx.hogar().id(), ref, PlanMes.Estado.BORRADOR, null,
                             List.of(new Escenario(escId, planId, "A", ctx.usuario(), "Del plan anual", false, lineas, items)));
                     return planes.crear(plan).thenReturn(ref)

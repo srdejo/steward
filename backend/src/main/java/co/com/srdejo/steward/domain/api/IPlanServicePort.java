@@ -34,6 +34,18 @@ public interface IPlanServicePort {
     /** Una linea ya recibida en su mes no se quita ({@code INGRESO_RECIBIDO}). */
     Mono<Void> quitarIngreso(UUID planId, UUID escenarioId, UUID lineaId);
 
+    /** "Volver a calcular" un diezmo ajustado a mano (design D1 de usabilidad-plan). */
+    Mono<ItemPlan> recalcularDiezmo(UUID planId, UUID escenarioId, UUID itemId);
+
+    /** Lo que se borra con el plan de un mes, para la confirmacion. */
+    Mono<ConteoBorrado> conteoBorrado(YearMonth ref);
+
+    /** "Borrar plan de {mes}" (design D4 de usabilidad-plan). */
+    Mono<Void> borrarPlan(YearMonth ref);
+
+    record ConteoBorrado(int pagos, int gastos, int ingresos, boolean cerrado) {
+    }
+
     /** "Usar opcion": queda como la que se ejecuta en el mes. */
     Mono<PlanMes> usar(UUID planId, UUID escenarioId);
 
@@ -49,8 +61,11 @@ public interface IPlanServicePort {
     record OpcionNueva(UUID planId, UUID escenarioId) {
     }
 
-    /** {@code usuarioId}: la persona de la linea, opcional (miembro del hogar). */
-    record DatosLinea(String nombre, long monto, UUID usuarioId) {
+    /**
+     * {@code usuarioId}: la persona de la linea, opcional (miembro del hogar). {@code bruto} null es el monto; {@code aplicarDiezmo}
+     * solo al agregar.
+     */
+    record DatosLinea(String nombre, long monto, UUID usuarioId, Long bruto, boolean aplicarDiezmo) {
     }
 
     /** {@code tipo}: FIJO, VARIABLE, CUOTA, CREDITO o DIEZMO. Cuota actual y total van juntas o ninguna. */

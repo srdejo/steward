@@ -64,9 +64,12 @@ public record PlanMes(UUID id, UUID hogarId, YearMonth ref, Estado estado, UUID 
     /**
      * Una linea de ingreso de una opcion, como {@code IngresoPlan} del dominio: FIJO sale de un ingreso fijo (enlazado),
      * EXTRA de un evento de ingreso del plan anual y OTRO se agrego a mano.
+     *
+     * @param bruto base del diezmo cuando la regla usa el bruto; en las que no son de un ingreso fijo, igual al monto
+     *              (design D1 de usabilidad-plan).
      */
     public record IngresoPlan(UUID id, UUID escenarioId, String nombre, long monto, UUID usuarioId, Tipo tipo,
-                              UUID ingresoFijoId, int orden) {
+                              UUID ingresoFijoId, long bruto, int orden) {
 
         public static final int NOMBRE_MAX = 60;
 
@@ -83,10 +86,13 @@ public record PlanMes(UUID id, UUID hogarId, YearMonth ref, Estado estado, UUID 
      * @param cuotaActual   compras a cuotas: cuota actual y total ("cuota 4 de 12"); los dos null si no aplica.
      * @param ingresoFijoId DIEZMO: el ingreso fijo que lo origina (design D1 de diezmo-como-gasto).
      * @param aporteId      DIEZMO: el movimiento APORTE que lo origina; excluyente con {@code ingresoFijoId}.
+     * @param ingresoPlanId DIEZMO: la linea de ingreso de la opcion de la que sale; se recalcula con ella (design D1 de
+     *                      usabilidad-plan).
+     * @param ajustadoAMano DIEZMO: su monto se cambio a mano y ya no sigue a su linea hasta "Volver a calcular".
      */
     public record ItemPlan(UUID id, UUID escenarioId, UUID categoriaId, String nombre, long monto, Integer diaVence,
                            Tipo tipo, Integer cuotaActual, Integer cuotaTotal, int orden, UUID creditoId,
-                           UUID ingresoFijoId, UUID aporteId) {
+                           UUID ingresoFijoId, UUID aporteId, UUID ingresoPlanId, boolean ajustadoAMano) {
 
         public static final int NOMBRE_MAX = 60;
 
@@ -94,7 +100,7 @@ public record PlanMes(UUID id, UUID hogarId, YearMonth ref, Estado estado, UUID 
         public ItemPlan(UUID id, UUID escenarioId, UUID categoriaId, String nombre, long monto, Integer diaVence,
                         Tipo tipo, Integer cuotaActual, Integer cuotaTotal, int orden, UUID creditoId) {
             this(id, escenarioId, categoriaId, nombre, monto, diaVence, tipo, cuotaActual, cuotaTotal, orden, creditoId,
-                    null, null);
+                    null, null, null, false);
         }
 
         /** Sin credito ni enlace de diezmo. */
@@ -106,7 +112,19 @@ public record PlanMes(UUID id, UUID hogarId, YearMonth ref, Estado estado, UUID 
         /** El mismo item en otra opcion (o con otro monto o cuota), con sus enlaces. */
         public ItemPlan copia(UUID nuevoId, UUID otroEscenario, long otroMonto, Integer otraCuota, int otroOrden) {
             return new ItemPlan(nuevoId, otroEscenario, categoriaId, nombre, otroMonto, diaVence, tipo, otraCuota, cuotaTotal,
-                    otroOrden, creditoId, ingresoFijoId, aporteId);
+                    otroOrden, creditoId, ingresoFijoId, aporteId, ingresoPlanId, ajustadoAMano);
+        }
+
+        /** El mismo item con otro monto y nombre, y su marca de "ajustado a mano". */
+        public ItemPlan conMonto(String otroNombre, long otroMonto, boolean ajustado) {
+            return new ItemPlan(id, escenarioId, categoriaId, otroNombre, otroMonto, diaVence, tipo, cuotaActual, cuotaTotal, orden,
+                    creditoId, ingresoFijoId, aporteId, ingresoPlanId, ajustado);
+        }
+
+        /** El mismo item enlazado a otra linea (la copia de la suya al duplicar). */
+        public ItemPlan conLinea(UUID linea) {
+            return new ItemPlan(id, escenarioId, categoriaId, nombre, monto, diaVence, tipo, cuotaActual, cuotaTotal, orden,
+                    creditoId, ingresoFijoId, aporteId, linea, ajustadoAMano);
         }
 
         public enum Tipo {

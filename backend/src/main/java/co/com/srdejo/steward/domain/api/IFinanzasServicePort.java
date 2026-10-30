@@ -51,6 +51,14 @@ public interface IFinanzasServicePort {
     /** "+ Aporte" para el mes en curso o el siguiente. */
     Mono<Movimiento> aportar(UUID usuarioId, long monto, YearMonth mes, UUID cuentaId, boolean aplicaDiezmo);
 
+    /** Corregir un pago, gasto, ingreso recibido o aporte (design D3 de usabilidad-plan); los null no cambian. */
+    Mono<Movimiento> corregirRegistro(UUID id, Long monto, String origen, UUID cuentaId, String nota);
+
+    Mono<Void> borrarRegistro(UUID id);
+
+    /** "Empezar de nuevo" (design D4 de usabilidad-plan). */
+    Mono<Void> empezarDeNuevo();
+
     record DatosIngreso(String nombre, long bruto, long neto, int diaPago, UUID cuentaId) {
     }
 }

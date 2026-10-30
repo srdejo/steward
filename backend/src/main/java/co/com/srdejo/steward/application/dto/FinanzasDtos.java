@@ -149,16 +149,20 @@ public final class FinanzasDtos {
     public record AporteRequest(UUID usuarioId, long monto, MesResponse mes, UUID cuentaId, boolean aplicaDiezmo) {
     }
 
+    /** PATCH /api/registros/{id}: monto, origen o nota; los null no cambian. */
+    public record CorregirRequest(Long monto, OrigenDto origen, String nota) {
+    }
+
     public record MovimientoResponse(UUID id, String tipo, MesResponse ref, long monto, LocalDate fecha, UUID usuarioId,
                                      UUID creadoPor, UUID cuentaId, UUID ingresoFijoId, Long bruto, boolean aplicaDiezmo,
                                      List<UUID> diezmoDe, UUID itemId, String nota, String origen, UUID cuentaDestinoId,
-                                     UUID creditoId, UUID ingresoPlanId, long seq) {
+                                     UUID creditoId, UUID ingresoPlanId, Long capital, long seq) {
 
         public static MovimientoResponse de(Movimiento m) {
             return new MovimientoResponse(m.id(), m.tipo().name(), MesResponse.de(m.ref()), m.monto(), m.fecha(),
                     m.usuarioId(), m.creadoPor(), m.cuentaId(), m.ingresoFijoId(), m.bruto(), m.aplicaDiezmo(),
                     m.diezmoDe(), m.itemId(), m.nota(), m.origen().name(), m.cuentaDestinoId(), m.creditoId(),
-                    m.ingresoPlanId(), m.seq());
+                    m.ingresoPlanId(), m.capital(), m.seq());
         }
     }
 
