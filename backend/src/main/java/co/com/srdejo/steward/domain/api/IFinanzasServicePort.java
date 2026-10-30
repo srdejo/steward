@@ -31,7 +31,7 @@ public interface IFinanzasServicePort {
     Mono<Void> quitarIngreso(UUID id);
 
     /** "Recibi" un ingreso fijo en el mes en curso (un mes sin plan); {@code monto} null es su neto. */
-    Mono<Movimiento> recibir(UUID ingresoId, Long monto);
+    Mono<Movimiento> recibir(UUID ingresoId, Long monto, YearMonth mes);
 
     /** "Recibi" una linea de ingreso de la opcion principal del mes en curso; {@code monto} null es el de la linea. */
     Mono<Movimiento> recibirLinea(UUID planId, UUID escenarioId, UUID lineaId, Long monto);
@@ -43,10 +43,10 @@ public interface IFinanzasServicePort {
      * "Marcar pago" de un item de la opcion principal del mes en curso. {@code origen}: CUENTA (con {@code cuentaId}),
      * EXTERNA ("Su cuenta") o NINGUNO.
      */
-    Mono<Movimiento> pagar(UUID itemId, long monto, UUID usuarioId, String origen, UUID cuentaId);
+    Mono<Movimiento> pagar(UUID itemId, long monto, UUID usuarioId, String origen, UUID cuentaId, YearMonth mes);
 
     /** "Registrar gasto" del mes en curso; {@code itemId} null es "No estaba planeado". */
-    Mono<Movimiento> gastar(UUID itemId, long monto, String nota, UUID usuarioId, String origen, UUID cuentaId);
+    Mono<Movimiento> gastar(UUID itemId, long monto, String nota, UUID usuarioId, String origen, UUID cuentaId, YearMonth mes);
 
     /** "+ Aporte" para el mes en curso o el siguiente. */
     Mono<Movimiento> aportar(UUID usuarioId, long monto, YearMonth mes, UUID cuentaId, boolean aplicaDiezmo);

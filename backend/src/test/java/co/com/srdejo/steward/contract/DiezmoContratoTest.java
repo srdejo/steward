@@ -238,9 +238,9 @@ class DiezmoContratoTest extends ContratoBase {
 
     @Test
     void unaLineaDeOtroMesNoSeRecibe() {
-        Map<?, ?> plan = crearPlan(daniel, MES.plusMonths(1), "CERO");
+        Map<?, ?> plan = crearPlan(daniel, MES.plusMonths(2), "CERO");
         post(daniel, "/api/planes/{p}/escenarios/{e}/ingresos/{l}/recibido", Map.of(), plan.get("id"), escenario(plan), lineas(plan).getFirst().get("id"))
-                .expectStatus().isNotFound().expectBody().jsonPath("$.codigo").isEqualTo("INGRESO_NO_ENCONTRADO");
+                .expectStatus().isBadRequest().expectBody().jsonPath("$.codigo").isEqualTo("DATOS_INVALIDOS");
     }
 
     // --- Ayudas ---

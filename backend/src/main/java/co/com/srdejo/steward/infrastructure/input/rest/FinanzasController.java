@@ -8,6 +8,7 @@ import co.com.srdejo.steward.application.dto.FinanzasDtos.FinanzasResponse;
 import co.com.srdejo.steward.application.dto.FinanzasDtos.GastoRequest;
 import co.com.srdejo.steward.application.dto.FinanzasDtos.IngresoRequest;
 import co.com.srdejo.steward.application.dto.FinanzasDtos.IngresoResponse;
+import co.com.srdejo.steward.application.dto.FinanzasDtos.MesResponse;
 import co.com.srdejo.steward.application.dto.FinanzasDtos.MovimientoResponse;
 import co.com.srdejo.steward.application.dto.FinanzasDtos.OrigenDto;
 import co.com.srdejo.steward.application.dto.FinanzasDtos.PagoRequest;
@@ -78,7 +79,7 @@ public class FinanzasController {
     @PostMapping("/api/ingresos-fijos/{id}/recibido")
     @ResponseStatus(HttpStatus.CREATED)
     public Mono<MovimientoResponse> recibir(@PathVariable UUID id, @RequestBody(required = false) RecibirRequest r) {
-        return finanzas.recibir(id, r == null ? null : r.monto()).map(MovimientoResponse::de);
+        return finanzas.recibir(id, r == null ? null : r.monto(), r == null ? null : mes(r.mes())).map(MovimientoResponse::de);
     }
 
     /** "Recibi" una linea de ingreso de la opcion principal del mes en curso (design D8 de diezmo-como-gasto). */
@@ -93,22 +94,21 @@ public class FinanzasController {
     @ResponseStatus(HttpStatus.CREATED)
     public Mono<MovimientoResponse> pagar(@RequestBody PagoRequest r) {
         OrigenDto o = origen(r.origen());
-        return finanzas.pagar(r.itemId(), r.monto(), r.usuarioId(), o.tipo(), o.cuentaId()).map(MovimientoResponse::de);
+        return finanzas.pagar(r.itemId(), r.monto(), r.usuarioId(), o.tipo(), o.cuentaId(), mes(r.mes())).map(MovimientoResponse::de);
     }
 
     @PostMapping("/api/gastos")
     @ResponseStatus(HttpStatus.CREATED)
     public Mono<MovimientoResponse> gastar(@RequestBody GastoRequest r) {
         OrigenDto o = origen(r.origen());
-        return finanzas.gastar(r.itemId(), r.monto(), r.nota(), r.usuarioId(), o.tipo(), o.cuentaId())
+        return finanzas.gastar(r.itemId(), r.monto(), r.nota(), r.usuarioId(), o.tipo(), o.cuentaId(), mes(r.mes()))
                 .map(MovimientoResponse::de);
     }
 
     @PostMapping("/api/aportes")
     @ResponseStatus(HttpStatus.CREATED)
     public Mono<MovimientoResponse> aportar(@RequestBody AporteRequest r) {
-        YearMonth mes = r.mes() == null ? null : YearMonth.of(r.mes().anio(), r.mes().mes());
-        return finanzas.aportar(r.usuarioId(), r.monto(), mes, r.cuentaId(), r.aplicaDiezmo()).map(MovimientoResponse::de);
+        return finanzas.aportar(r.usuarioId(), r.monto(), mes(r.mes()), r.cuentaId(), r.aplicaDiezmo()).map(MovimientoResponse::de);
     }
 
     /** Corregir un registro (design D3 de usabilidad-plan): los campos que no vienen no cambian. */
@@ -130,6 +130,10 @@ public class FinanzasController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public Mono<Void> empezarDeNuevo() {
         return finanzas.empezarDeNuevo();
+    }
+
+    private static YearMonth mes(MesResponse m) {
+        return m == null ? null : YearMonth.of(m.anio(), m.mes());
     }
 
     private static OrigenDto origen(OrigenDto o) {

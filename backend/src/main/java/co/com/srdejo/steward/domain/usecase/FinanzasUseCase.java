@@ -7,6 +7,7 @@ import co.com.srdejo.steward.domain.model.Credito;
 import co.com.srdejo.steward.domain.model.Cuenta;
 import co.com.srdejo.steward.domain.model.Finanzas;
 import co.com.srdejo.steward.domain.model.IngresoFijo;
+import co.com.srdejo.steward.domain.model.PlanMes.IngresoPlan;
 import co.com.srdejo.steward.domain.model.Movimiento;
 import co.com.srdejo.steward.domain.model.PlanMes;
 import co.com.srdejo.steward.domain.model.ReglaDiezmo;
@@ -140,9 +141,12 @@ public class FinanzasUseCase implements IFinanzasServicePort {
     // --- Registros de Hoy -------------------------------------------------------------------------------------------
 
     @Override
-    public Mono<Movimiento> pagar(UUID itemId, long monto, UUID usuarioId, String origen, UUID cuentaId) {
-        YearMonth mes = mesEnCurso();
-        return Mono.fromCallable(() -> Registro.montoValido(monto, "El valor pagado debe ser mayor que cero"))
+    public Mono<Movimiento> pagar(UUID itemId, long monto, UUID usuarioId, String origen, UUID cuentaId, YearMonth pedido) {
+        YearMonth mes = pedido == null ? mesEnCurso() : pedido;
+        return Mono.fromCallable(() -> {
+                    mesDeRegistro(mes);
+                    return Registro.montoValido(monto, "El valor pagado debe ser mayor que cero");
+                })
                 .flatMap(m -> contexto().flatMap(ctx -> itemDelMes(ctx, mes, itemId)
                         .flatMap(item -> registro.origenValido(ctx, usuarioId, origen, cuentaId)
                                 .flatMap(o -> {
@@ -169,9 +173,10 @@ public class FinanzasUseCase implements IFinanzasServicePort {
     }
 
     @Override
-    public Mono<Movimiento> gastar(UUID itemId, long monto, String nota, UUID usuarioId, String origen, UUID cuentaId) {
-        YearMonth mes = mesEnCurso();
+    public Mono<Movimiento> gastar(UUID itemId, long monto, String nota, UUID usuarioId, String origen, UUID cuentaId, YearMonth pedido) {
+        YearMonth mes = pedido == null ? mesEnCurso() : pedido;
         return Mono.fromCallable(() -> {
+                    mesDeRegistro(mes);
                     Registro.montoValido(monto, "El gasto debe ser mayor que cero");
                     String limpia = nota == null ? "" : nota.strip();
                     if (limpia.length() > NOTA_MAX) {
@@ -468,29 +473,34 @@ public class FinanzasUseCase implements IFinanzasServicePort {
 
     /** "Recibi" un ingreso fijo (un mes sin plan): el neto o el monto que llego. No genera obligacion de diezmo. */
     @Override
-    public Mono<Movimiento> recibir(UUID ingresoId, Long monto) {
-        return Mono.fromCallable(() -> montoRecibido(monto)).then(contexto()).flatMap(ctx -> mesAbierto(ctx, mesEnCurso())
+    public Mono<Movimiento> recibir(UUID ingresoId, Long monto, YearMonth pedido) {
+        YearMonth mes = pedido == null ? mesEnCurso() : pedido;
+        return Mono.fromCallable(() -> {
+                    mesDeRegistro(mes);
+                    return montoRecibido(monto);
+                }).then(contexto()).flatMap(ctx -> mesAbierto(ctx, mes)
                 .then(ingresos.porIdEnHogar(ingresoId, ctx.hogar().id()))
                 .filter(IngresoFijo::activo)
                 .switchIfEmpty(Mono.error(FinanzasUseCase::ingresoNoEncontrado))
                 .flatMap(ingreso -> movimientos.registrarRecibido(new Movimiento(UUID.randomUUID(),
-                        ctx.hogar().id(), Movimiento.Tipo.INGRESO_FIJO, mesEnCurso(), monto == null ? ingreso.neto() : monto,
+                        ctx.hogar().id(), Movimiento.Tipo.INGRESO_FIJO, mes, monto == null ? ingreso.neto() : monto,
                         clock.hoy(), ingreso.usuarioId(), ctx.usuario(), ingreso.cuentaId(), ingreso.id(), ingreso.bruto(),
                         false, List.of()))));
     }
 
     /**
-     * "Recibi" una linea de ingreso de la opcion principal del plan del mes en curso (design D8): con el monto de la linea
+     * "Recibi" una linea de ingreso de la opcion principal de su plan, del mes en curso o el siguiente (design D8): con el monto de la linea
      * o el que llego, y el ingreso fijo, su bruto y su cuenta si la linea esta enlazada a uno.
      */
     @Override
     public Mono<Movimiento> recibirLinea(UUID planId, UUID escenarioId, UUID lineaId, Long monto) {
-        YearMonth mes = mesEnCurso();
-        return Mono.fromCallable(() -> montoRecibido(monto)).then(contexto()).flatMap(ctx -> planes.deMes(ctx.hogar().id(), mes)
-                .filter(plan -> plan.id().equals(planId) && plan.principal() != null && plan.principal().id().equals(escenarioId))
+        return Mono.fromCallable(() -> montoRecibido(monto)).then(contexto()).flatMap(ctx -> planes.porIdEnHogar(planId, ctx.hogar().id())
+                .filter(plan -> plan.principal() != null && plan.principal().id().equals(escenarioId))
                 .switchIfEmpty(Mono.error(FinanzasUseCase::ingresoNoEncontrado))
-                .flatMap(plan -> plan.estado() == PlanMes.Estado.CERRADO ? Mono.error(PlanUseCase.mesCerrado())
-                        : mesAbierto(ctx, mes).then(PlanUseCase.lineaDe(plan.principal(), lineaId)))
+                .flatMap(plan -> {
+                    YearMonth mes = mesDeRegistro(plan.ref());
+                    return (plan.estado() == PlanMes.Estado.CERRADO ? Mono.<IngresoPlan>error(PlanUseCase.mesCerrado())
+                            : mesAbierto(ctx, mes).then(PlanUseCase.lineaDe(plan.principal(), lineaId)))
                 .flatMap(linea -> movimientos.lineaRecibida(linea.id(), linea.ingresoFijoId(), mes)
                         .flatMap(recibida -> recibida ? Mono.<Movimiento>error(yaRecibido(linea.nombre()))
                                 : (linea.ingresoFijoId() == null ? Mono.<IngresoFijo>empty()
@@ -501,7 +511,8 @@ public class FinanzasUseCase implements IFinanzasServicePort {
                                         Movimiento.Tipo.INGRESO_FIJO, mes, monto == null ? linea.monto() : monto, clock.hoy(),
                                         linea.usuarioId() == null ? ctx.usuario() : linea.usuarioId(), ctx.usuario(),
                                         fijo.map(IngresoFijo::cuentaId).orElse(null), fijo.map(IngresoFijo::id).orElse(null),
-                                        fijo.map(IngresoFijo::bruto).orElse(null), false, List.of()).conLinea(linea.id()))))));
+                                        fijo.map(IngresoFijo::bruto).orElse(null), false, List.of()).conLinea(linea.id())))));
+                }));
     }
 
     private static Long montoRecibido(Long monto) {
@@ -532,6 +543,15 @@ public class FinanzasUseCase implements IFinanzasServicePort {
     }
 
     // --- Comun ------------------------------------------------------------------------------------------------------
+
+    /** Lo que se registra desde Hoy es del mes en curso o del siguiente (design D1 de plan-mes-siguiente). */
+    private YearMonth mesDeRegistro(YearMonth mes) {
+        YearMonth enCurso = mesEnCurso();
+        if (!mes.equals(enCurso) && !mes.equals(enCurso.plusMonths(1))) {
+            throw DomainException.datosInvalidos("El registro es para este mes o el siguiente");
+        }
+        return mes;
+    }
 
     private YearMonth mesEnCurso() {
         return registro.mesEnCurso();

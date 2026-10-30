@@ -39,8 +39,8 @@ public final class FinanzasDtos {
         }
     }
 
-    /** "Recibi": {@code monto} null es el de la linea o el neto del ingreso fijo. */
-    public record RecibirRequest(Long monto) {
+    /** "Recibi": {@code monto} null es el de la linea o el neto del ingreso fijo; {@code mes} null, el mes en curso. */
+    public record RecibirRequest(Long monto, MesResponse mes) {
     }
 
     /** {@code titular}: {@code YO} o {@code CONJUNTA}. */
@@ -140,10 +140,12 @@ public final class FinanzasDtos {
     public record OrigenDto(String tipo, UUID cuentaId) {
     }
 
-    public record PagoRequest(UUID itemId, long monto, UUID usuarioId, OrigenDto origen) {
+    /** {@code mes} null es el mes en curso. */
+    public record PagoRequest(UUID itemId, long monto, UUID usuarioId, OrigenDto origen, MesResponse mes) {
     }
 
-    public record GastoRequest(UUID itemId, long monto, String nota, UUID usuarioId, OrigenDto origen) {
+    /** {@code mes} null es el mes en curso. */
+    public record GastoRequest(UUID itemId, long monto, String nota, UUID usuarioId, OrigenDto origen, MesResponse mes) {
     }
 
     public record AporteRequest(UUID usuarioId, long monto, MesResponse mes, UUID cuentaId, boolean aplicaDiezmo) {
