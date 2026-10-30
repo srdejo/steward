@@ -4,19 +4,26 @@ import type { Categoria, Id, IngresoPlan, ItemPlan, TipoItem } from '@steward/do
 import { mensajeDeError } from '../../core/datos/consulta';
 import { PUERTOS } from '../../core/datos/puertos';
 import { Hoja } from '../../shared/components/hoja';
+import { Interruptor } from '../../shared/components/interruptor';
 import { MontoInput } from '../../shared/components/monto-input';
 import { Segmentado, type Opcion } from '../../shared/components/segmentado';
 
-const TIPOS: Opcion<TipoItem>[] = [
-  { valor: 'FIJO', etiqueta: 'Fijo' },
-  { valor: 'VARIABLE', etiqueta: 'Variable' },
-  { valor: 'CUOTA', etiqueta: 'Cuota' },
-  { valor: 'CREDITO', etiqueta: 'Crédito' },
-  { valor: 'DIEZMO', etiqueta: 'Diezmo' },
-];
-
-function tipoDe(c: Categoria | undefined): TipoItem {
-  return c?.tipo === 'VARIABLE' ? 'VARIABLE' : c?.tipo === 'CREDITO' ? 'CREDITO' : c?.tipo === 'DIEZMO' ? 'DIEZMO' : 'FIJO';
+/** El tipo sale de la categoria (design D6 de plan-mes-siguiente). */
+function tipoDe(c: Categoria | undefined, aCuotas: boolean, cambia: boolean): TipoItem {
+  switch (c?.tipo) {
+    case 'VARIABLE':
+      return 'VARIABLE';
+    case 'CREDITO':
+      return 'CREDITO';
+    case 'DIEZMO':
+      return 'DIEZMO';
+    case 'TARJETA':
+      return aCuotas ? 'CUOTA' : 'FIJO';
+    case 'OTRO':
+      return cambia ? 'VARIABLE' : 'FIJO';
+    default:
+      return 'FIJO';
+  }
 }
 
 /**
@@ -25,7 +32,7 @@ function tipoDe(c: Categoria | undefined): TipoItem {
  */
 @Component({
   selector: 'app-gasto-plan-hoja',
-  imports: [Hoja, MontoInput, Segmentado],
+  imports: [Hoja, Interruptor, MontoInput, Segmentado],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-hoja [titulo]="item() ? 'Editar gasto' : 'Nuevo gasto'" [antetitulo]="'Opción ' + letra()" (cerrar)="cerrar.emit()">
@@ -50,15 +57,13 @@ function tipoDe(c: Categoria | undefined): TipoItem {
             <button type="button" class="boton-texto font-semibold" [disabled]="guardando()" (click)="recalcular()">Volver a calcular</button>
           </div>
         }
-        <label class="flex flex-col gap-2">
-          <span class="rotulo">Categoría</span>
-          <select class="campo" (change)="elegirCategoria($any($event.target).value)">
-            @for (c of categorias(); track c.id) {
-              <option [value]="c.id" [selected]="c.id === categoria()">{{ c.nombre }}</option>
-            }
-          </select>
-        </label>
-        <app-segmentado etiqueta="Tipo" [chips]="true" [opciones]="tipos" [(valor)]="tipo" />
+        <app-segmentado etiqueta="Categoría" [chips]="true" [opciones]="opcionesCategoria()" [valor]="categoria()" (valorChange)="$event && elegirCategoria($event)" />
+        @if (tipoCategoria() === 'TARJETA') {
+          <app-interruptor titulo="¿A cuotas?" detalle="Una compra con cuota actual y total" [activo]="tipo() === 'CUOTA'" (activoChange)="aCuotas.set($event); tocado.set(true)" />
+        }
+        @if (tipoCategoria() === 'OTRO') {
+          <app-interruptor titulo="Cambia cada mes" detalle="Se lleva lo gastado contra el presupuesto" [activo]="tipo() === 'VARIABLE'" (activoChange)="cambia.set($event); tocado.set(true)" />
+        }
         <label class="flex flex-col gap-2">
           <span class="rotulo">Día de vencimiento · Opcional</span>
           <input class="campo" inputmode="numeric" placeholder="Ej: 15" [value]="dia()" (input)="dia.set($any($event.target).value)" />
@@ -88,7 +93,6 @@ function tipoDe(c: Categoria | undefined): TipoItem {
 })
 export class GastoPlanHoja implements OnInit {
   private readonly puertos = inject(PUERTOS);
-  protected readonly tipos = TIPOS;
 
   readonly planId = input.required<Id>();
   readonly escenarioId = input.required<Id>();
@@ -104,7 +108,17 @@ export class GastoPlanHoja implements OnInit {
   protected readonly nombre = signal('');
   protected readonly monto = signal<number | null>(null);
   protected readonly categoria = signal<Id | null>(null);
-  protected readonly tipo = signal<TipoItem | null>('FIJO');
+  protected readonly aCuotas = signal(false);
+  protected readonly cambia = signal(false);
+  /** Abrir y guardar no cambia el tipo de un item: solo tocar la categoria o sus preguntas. */
+  protected readonly tocado = signal(false);
+  protected readonly opcionesCategoria = computed<Opcion<Id>[]>(() => this.categorias().map((c) => ({ valor: c.id, etiqueta: c.nombre })));
+  private readonly categoriaElegida = computed(() => this.categorias().find((c) => c.id === this.categoria()));
+  protected readonly tipoCategoria = computed(() => this.categoriaElegida()?.tipo);
+  protected readonly tipo = computed<TipoItem>(() => {
+    const i = this.item();
+    return i && !this.tocado() ? i.tipo : tipoDe(this.categoriaElegida(), this.aCuotas(), this.cambia());
+  });
   protected readonly dia = signal('');
   protected readonly cuotaActual = signal('');
   protected readonly cuotaTotal = signal('');
@@ -129,30 +143,29 @@ export class GastoPlanHoja implements OnInit {
     const dia = this.dia().trim();
     const diaBien = !dia || ((this.entero(dia) ?? 0) >= 1 && (this.entero(dia) ?? 32) <= 31);
     const cuotaBien = this.tipo() !== 'CUOTA' || (this.entero(this.cuotaActual()) !== null && this.entero(this.cuotaTotal()) !== null);
-    return Boolean(this.nombre().trim()) && this.monto() !== null && Boolean(this.categoria()) && Boolean(this.tipo()) && diaBien && cuotaBien;
+    return Boolean(this.nombre().trim()) && this.monto() !== null && Boolean(this.categoria()) && diaBien && cuotaBien;
   });
 
   ngOnInit(): void {
     const i = this.item();
-    const primera = this.categorias()[0];
     this.nombre.set(i?.nombre ?? '');
     this.monto.set(i?.monto ?? null);
-    this.categoria.set(i?.categoriaId ?? primera?.id ?? null);
-    this.tipo.set(i?.tipo ?? tipoDe(primera));
+    this.categoria.set(i?.categoriaId ?? this.categorias()[0]?.id ?? null);
+    this.aCuotas.set(i?.tipo === 'CUOTA');
+    this.cambia.set(i?.tipo === 'VARIABLE');
     this.dia.set(i?.diaVence ? String(i.diaVence) : '');
     this.cuotaActual.set(i?.cuota ? String(i.cuota.actual) : '');
     this.cuotaTotal.set(i?.cuota ? String(i.cuota.total) : '');
   }
 
-  /** En un gasto nuevo, el tipo sigue a la categoria. */
   protected elegirCategoria(id: Id): void {
+    if (id !== this.categoria()) this.tocado.set(true);
     this.categoria.set(id);
-    if (!this.item()) this.tipo.set(tipoDe(this.categorias().find((c) => c.id === id)));
   }
 
   protected guardar(): Promise<void> {
     const i = this.item();
-    const tipo = this.tipo()!;
+    const tipo = this.tipo();
     const cuota = tipo === 'CUOTA' ? { actual: this.entero(this.cuotaActual())!, total: this.entero(this.cuotaTotal())! } : i?.tipo === tipo ? i.cuota : null;
     const datos: Omit<ItemPlan, 'id'> & { id?: Id } = {
       id: i?.id, categoriaId: this.categoria()!, nombre: this.nombre(), monto: this.monto()!, diaVence: this.entero(this.dia()), tipo, cuota,

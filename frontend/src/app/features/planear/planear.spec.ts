@@ -4,7 +4,10 @@ import { NOV, OCT, conSesion, provideAppPrueba } from '../../../testing/demo';
 import { app } from '../../../testing/harness';
 
 describe('Planear (steward-planear)', () => {
-  beforeEach(() => TestBed.configureTestingModule({ providers: provideAppPrueba() }));
+  beforeEach(() => {
+    localStorage.removeItem('steward/mes-hoy');
+    TestBed.configureTestingModule({ providers: provideAppPrueba() });
+  });
 
   it('planear inicio muestra el año y los meses con su estado', async () => {
     await conSesion();
@@ -119,6 +122,55 @@ describe('Planear (steward-planear)', () => {
     await a.escribir('Monto', '420000');
     await a.tocar('Guardar');
     expect(a.raiz().querySelector('[data-testid="dejaria-libre"]')!.textContent!.trim()).toBe('$2.798.000');
+  });
+
+  it('el tipo sale de la categoría y abrir y guardar no lo cambia (plan-mes-siguiente)', async () => {
+    const p = await conSesion();
+    const a = await app('/planear/2026-11');
+    const item = async (nombre: string) => (await p.plan.mes(NOV)).opciones[0]!.escenario.items.find((i) => i.nombre === nombre)!;
+    await a.tocar('+ Gasto');
+    expect(a.raiz().querySelector('app-hoja select')).toBeNull();
+    await a.escribir('Nombre', 'Regalo');
+    await a.escribir('Monto', '150000');
+    await a.tocar('Variables', 'app-hoja [role="radio"]');
+    await a.tocar('Guardar');
+    expect((await item('Regalo')).tipo).toBe('VARIABLE');
+
+    await a.tocar('+ Gasto');
+    await a.escribir('Nombre', 'Nevera');
+    await a.escribir('Monto', '300000');
+    await a.tocar('Tarjetas y cuotas', 'app-hoja [role="radio"]');
+    await a.tocar(/.*/, 'app-hoja [role="switch"]');
+    await a.escribir('Cuota actual', '4');
+    await a.escribir('De cuántas', '12');
+    await a.tocar('Guardar');
+    expect(await item('Nevera')).toMatchObject({ tipo: 'CUOTA', cuota: { actual: 4, total: 12 } });
+
+    // Un Fijo en Variables, de antes, conserva su tipo.
+    const raro = (await p.hogar.categorias()).find((c) => c.tipo === 'VARIABLE')!;
+    await p.plan.guardarItem((await p.plan.mes(NOV)).plan!.id, (await p.plan.mes(NOV)).opciones[0]!.escenario.id, { categoriaId: raro.id, nombre: 'Viejo', monto: 1000, diaVence: null, tipo: 'FIJO', cuota: null, creditoId: null, ingresoFijoId: null, aporteId: null, ingresoPlanId: null, ajustadoAMano: false });
+    await a.estable();
+    await a.tocar(/^Variables/);
+    await a.tocar(/^Viejo/);
+    await a.escribir('Monto', '2000');
+    await a.tocar('Guardar');
+    expect(await item('Viejo')).toMatchObject({ tipo: 'FIJO', monto: 2000 });
+  });
+
+  it('con saldo negativo dice faltarían, y el mes siguiente abre Ejecución (plan-mes-siguiente)', async () => {
+    await conSesion();
+    const a = await app('/planear/2026-11');
+    expect(a.texto()).toContain('Opción A dejaría libre');
+    await a.tocar('+ Gasto');
+    await a.escribir('Nombre', 'Moto');
+    await a.escribir('Monto', '3000000');
+    await a.tocar('Guardar');
+    expect(a.texto()).toContain('Con la Opción A faltarían');
+    expect(a.raiz().querySelector('[data-testid="dejaria-libre"]')!.textContent!.trim()).toBe('$102.000');
+    await a.tocar('Ver en Ejecución');
+    expect(a.url()).toBe('/hoy');
+    expect(a.texto()).toContain('Noviembre 2026');
+    localStorage.removeItem('steward/mes-hoy');
   });
 
   it('cerrar la hoja sin guardar no cambia nada (usabilidad-plan)', async () => {

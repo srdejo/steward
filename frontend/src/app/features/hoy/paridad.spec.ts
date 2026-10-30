@@ -14,7 +14,7 @@ describe('paridad con la app (steward-mobile-app)', () => {
     await a.tocar('Marcar pagado');
     await a.ir('/hoy/aporte');
     await a.escribir('¿Cuánto?', '500000');
-    await a.tocar('Noviembre');
+    await a.tocar('Noviembre', 'app-hoja [role="radio"]');
     await a.tocar('Guardar aporte');
     expect(a.raiz().querySelector('[data-testid="libre"]')!.textContent!.trim()).toBe('$3.436.000');
     expect(a.texto()).toMatch(/Pagado \$4\.113\.000/);

@@ -1,13 +1,13 @@
 import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import { formatFechaCorta, mesDe, type Id } from '@steward/domain';
+import { formatFechaCorta, type Id } from '@steward/domain';
 
 import { consulta } from '../../core/datos/consulta';
-import { PUERTOS } from '../../core/datos/puertos';
 import { MiembrosHogar } from '../../core/layout/miembros';
 import { Fila } from '../../shared/components/fila';
 import { Hoja } from '../../shared/components/hoja';
 import { Monto } from '../../shared/components/monto';
+import { MesDeHoy } from './mes-de-hoy';
 
 /** Los gastos de un variable o los aportes de una persona en el mes; cada uno abre su hoja (design D6 de usabilidad-plan). */
 @Component({
@@ -31,7 +31,6 @@ import { Monto } from '../../shared/components/monto';
   `,
 })
 export class RegistrosHoja {
-  private readonly puertos = inject(PUERTOS);
   private readonly router = inject(Router);
   protected readonly miembros = inject(MiembrosHogar);
 
@@ -39,7 +38,7 @@ export class RegistrosHoja {
   readonly item = input<Id | undefined>();
   readonly aportes = input<Id | undefined>();
 
-  private readonly ref = mesDe(this.puertos.hoy());
+  private readonly ref = inject(MesDeHoy).ref();
   protected readonly lista = consulta(
     () => ({ itemId: this.item(), aportesDe: this.aportes() }),
     (p, filtro) => p.movimientos.registros(this.ref, filtro),

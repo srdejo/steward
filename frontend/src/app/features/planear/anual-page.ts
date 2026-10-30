@@ -24,7 +24,7 @@ const MESES = Array.from({ length: 12 }, (_, i) => i + 1);
     @if (resumen.value(); as r) {
       <div class="flex flex-wrap items-end justify-between gap-4">
         <div class="flex flex-col gap-1">
-          <a routerLink="/planear" class="boton-texto -my-2 self-start text-sm font-normal">‹ Planear</a>
+          <a routerLink="/planear" class="boton-texto -my-2 self-start text-sm font-normal">‹ Plan</a>
           <span class="rotulo" [class.text-aviso]="r.estado === 'BORRADOR'">{{ r.estado === 'BORRADOR' ? 'Borrador' : 'Meses creados' }}</span>
           <h1 class="text-[28px] font-bold">Plan anual {{ r.anio }}</h1>
         </div>
@@ -139,7 +139,7 @@ const MESES = Array.from({ length: 12 }, (_, i) => i + 1);
         <p role="alert" class="text-sm text-negativo">{{ error() }}</p>
       }
     } @else if (!resumen.isLoading()) {
-      <a routerLink="/planear" class="boton-texto self-start">‹ Planear</a>
+      <a routerLink="/planear" class="boton-texto self-start">‹ Plan</a>
       <p class="text-secundario">No hay plan anual para {{ anio() }}.</p>
       @if (puedeCrear()) {
         <!-- Vacio: las categorias del hogar en $0, para llenarlo a mano (backend-plan-anual). -->

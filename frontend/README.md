@@ -40,6 +40,7 @@ src/app/
 ├── features/        acceso · hoy · planear · cuentas · ajustes (una pantalla por artboard)
 │                       (usabilidad-plan: en Planear, hojas con "Guardar" de ingreso y gasto, el mes en curso editable y "Borrar plan de {mes}";
 │                       en Hoy y en el detalle de una cuenta, la hoja de un registro para corregirlo o borrarlo; en Ajustes, "Empezar de nuevo")
+│                       (plan-mes-siguiente: los destinos se ven como Ejecución, Plan y Cuentas, con las rutas /hoy y /planear; en Hoy, MesDeHoy elige entre el mes en curso y el siguiente)
 └── shared/components/  monto, monto-input, segmentado, interruptor, hoja, encabezado, fila, kpi, icono, avatar
 ```
 

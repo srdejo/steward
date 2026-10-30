@@ -374,6 +374,19 @@ describe('finanzas en el backend (steward-finanzas, design D5)', () => {
     await empezar;
   });
 
+  it('el mes siguiente: pago y Recibí mandan su mes; otro mes no se puede (plan-mes-siguiente)', async () => {
+    const NOV = { anio: 2026, mes: 11 };
+    const pagar = p.movimientos.marcarPago({ itemId: 'it-x', ref: NOV, monto: 1, usuarioId: USUARIO.id, origen: { tipo: 'NINGUNO' } });
+    const r1 = await responder('POST', '/api/pagos', RECIBIDO, tick, 201);
+    await pagar;
+    expect(r1.request.body.mes).toEqual(NOV);
+    const recibir = p.ingresos.marcarRecibido({ ref: NOV, ingresoFijoId: 'ing-1' });
+    const r2 = await responder('POST', '/api/ingresos-fijos/ing-1/recibido', RECIBIDO, tick, 201);
+    await recibir;
+    expect(r2.request.body).toEqual({ mes: NOV });
+    await expect(p.movimientos.registrarGasto({ monto: 1, itemId: null, nota: '', usuarioId: USUARIO.id, origen: { tipo: 'NINGUNO' }, ref: { anio: 2026, mes: 12 } })).rejects.toMatchObject({ codigo: 'MES_NO_DISPONIBLE' });
+  });
+
   it('YA_RECIBIDO: llega el mensaje y el ingreso queda como recibido', async () => {
     // Se captura ya: el rechazo llega antes de que el test lo espere.
     const recibir = p.ingresos.marcarRecibido({ ref: OCT, ingresoFijoId: 'ing-1' }).catch((e: unknown) => e);
@@ -1200,7 +1213,7 @@ describe('pantallas con el plan real (backend-plan-mes-hoy)', () => {
     await a.ir('/planear/2026-10');
     await atenderHogar(a);
     await a.tocar('+ Gasto');
-    const opciones = [...a.raiz().querySelectorAll('app-hoja select option')].map((o) => o.textContent?.trim());
+    const opciones = [...a.raiz().querySelectorAll('app-hoja [role="radio"]')].map((o) => o.textContent?.trim());
     expect(opciones).toContain('Educación');
   });
 });

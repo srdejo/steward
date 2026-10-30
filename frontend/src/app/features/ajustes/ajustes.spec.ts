@@ -54,7 +54,7 @@ describe('Ajustes (steward-ajustes)', () => {
     expect([...a.raiz().querySelectorAll('[data-testid="categoria"]')].map((c) => c.textContent!.replace('Editar', '').trim())).toContain('Educación');
     await a.ir('/planear/2026-11');
     await a.tocar('+ Gasto');
-    const opciones = [...a.raiz().querySelectorAll('app-hoja select option')].map((o) => o.textContent!.trim());
+    const opciones = [...a.raiz().querySelectorAll('app-hoja [role="radio"]')].map((o) => o.textContent!.trim());
     expect(opciones).toContain('Educación');
   });
 

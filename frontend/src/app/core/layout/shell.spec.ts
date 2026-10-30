@@ -17,13 +17,13 @@ describe('Shell y navegación (steward-ui-shell)', () => {
     TestBed.configureTestingModule({ providers: provideAppPrueba() });
   });
 
-  it('móvil: barra inferior con Hoy activo, Planear y Cuentas (oculta desde 1024 px)', async () => {
+  it('móvil: barra inferior con Ejecución activo, Plan y Cuentas (oculta desde 1024 px)', async () => {
     await conSesion();
     const { el } = await abrir('/');
     const barra = el.querySelector('[data-testid="barra-inferior"]')!;
     expect(barra.classList).toContain('lg:hidden');
     const enlaces = [...barra.querySelectorAll('a')];
-    expect(enlaces.map((a) => a.textContent!.trim())).toEqual(['Hoy', 'Planear', 'Cuentas']);
+    expect(enlaces.map((a) => a.textContent!.trim())).toEqual(['Ejecución', 'Plan', 'Cuentas']);
     expect(enlaces[0]!.getAttribute('aria-current')).toBe('page');
     expect(el.querySelector('[data-testid="aviso-demo"]')?.textContent).toContain('Datos de prueba');
   });
@@ -34,7 +34,7 @@ describe('Shell y navegación (steward-ui-shell)', () => {
     const menu = el.querySelector('[data-testid="menu-lateral"]')!;
     expect(menu.classList).toContain('hidden');
     expect(menu.classList).toContain('lg:flex');
-    expect([...menu.querySelectorAll('nav a')].map((a) => a.textContent!.trim())).toEqual(['Hoy', 'Planear', 'Cuentas']);
+    expect([...menu.querySelectorAll('nav a')].map((a) => a.textContent!.trim())).toEqual(['Ejecución', 'Plan', 'Cuentas']);
   });
 
   it('los avatares del hogar abren Ajustes del hogar', async () => {

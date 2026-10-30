@@ -9,6 +9,7 @@ import { Interruptor } from '../../shared/components/interruptor';
 import { Monto } from '../../shared/components/monto';
 import { MontoInput } from '../../shared/components/monto-input';
 import { Segmentado, type Opcion } from '../../shared/components/segmentado';
+import { MesDeHoy } from './mes-de-hoy';
 import { SU_CUENTA, opcionesDeHoja } from './opciones-hoja';
 
 /** Aporte.dc.html: quien · cuanto · para que mes. Suma al "Te queda libre" del mes elegido al instante. */
@@ -50,7 +51,8 @@ export class AporteHoja {
 
   protected readonly quien = signal<Id | null>(this.sesion.usuario()?.id ?? null);
   protected readonly monto = signal<number | null>(null);
-  protected readonly mes = signal<string | null>(this.meses[0]!.valor);
+  /** Empieza en el mes que se esta viendo; aqui el mes se ve y se cambia. */
+  protected readonly mes = signal<string | null>(`${inject(MesDeHoy).ref().anio}-${inject(MesDeHoy).ref().mes}`);
   protected readonly cuenta = signal<string | null>(null);
   protected readonly diezmo = signal(false);
   protected readonly guardando = signal(false);

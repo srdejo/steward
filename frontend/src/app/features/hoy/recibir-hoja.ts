@@ -1,11 +1,11 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
-import { mesDe } from '@steward/domain';
 
 import { consulta, mensajeDeError } from '../../core/datos/consulta';
 import { PUERTOS } from '../../core/datos/puertos';
 import { Hoja } from '../../shared/components/hoja';
 import { Monto } from '../../shared/components/monto';
 import { MontoInput } from '../../shared/components/monto-input';
+import { MesDeHoy } from './mes-de-hoy';
 import { opcionesDeHoja } from './opciones-hoja';
 
 /**
@@ -20,6 +20,9 @@ import { opcionesDeHoja } from './opciones-hoja';
     <app-hoja [titulo]="linea()?.nombre ?? 'Recibí'" antetitulo="Ingreso del mes" (cerrar)="hoja.cerrar()">
       @if (linea(); as l) {
         <span subtitulo class="text-[13px] text-secundario">Plan <app-monto [valor]="l.monto" /></span>
+      }
+      @if (mesHoy.aviso(); as aviso) {
+        <p class="rounded-xl bg-acento-suave px-4 py-2.5 text-[13px] font-medium text-acento" data-testid="aviso-mes">{{ aviso }}</p>
       }
       @if (linea()) {
         <app-monto-input etiqueta="Valor recibido" [grande]="true" [(valor)]="monto" ayuda="Viene lleno con el plan. Si llegó otro valor, cámbialo." />
@@ -41,7 +44,8 @@ export class RecibirHoja {
   /** Parametro de la ruta (`/hoy/recibir/:clave`): la clave de la linea de ingreso en Hoy. */
   readonly clave = input.required<string>();
 
-  private readonly ref = mesDe(this.puertos.hoy());
+  protected readonly mesHoy = inject(MesDeHoy);
+  private readonly ref = this.mesHoy.ref();
   protected readonly resumen = consulta(() => this.ref, (p, ref) => p.movimientos.resumenMes(ref));
   protected readonly linea = computed(() => this.resumen.value()?.ingresos.find((l) => l.clave === this.clave() && !l.recibido && (l.lineaId || l.ingresoFijoId)) ?? null);
 

@@ -4,14 +4,17 @@ import { NOV, OCT, conSesion, provideAppPrueba, puertos } from '../../../testing
 import { app } from '../../../testing/harness';
 
 describe('Hoy (steward-hoy)', () => {
-  beforeEach(() => TestBed.configureTestingModule({ providers: provideAppPrueba() }));
+  beforeEach(() => {
+    localStorage.removeItem('steward/mes-hoy');
+    TestBed.configureTestingModule({ providers: provideAppPrueba() });
+  });
 
   const libre = (a: Awaited<ReturnType<typeof app>>) => a.raiz().querySelector('[data-testid="libre"]')!.textContent!.trim();
 
   it('muestra el resumen de los datos de ejemplo', async () => {
     await conSesion();
     const a = await app('/hoy');
-    expect(a.texto()).toContain('Hoy · LUN 26');
+    expect(a.texto()).toContain('Ejecución · LUN 26');
     expect(a.texto()).toContain('Octubre 2026');
     expect(libre(a)).toBe('$3.436.000');
     expect(a.texto()).toMatch(/Plan\s*\$5\.390\.000/);
@@ -67,7 +70,7 @@ describe('Hoy (steward-hoy)', () => {
     const a = await app('/hoy/aporte');
     await a.tocar('Esposa');
     await a.escribir('¿Cuánto?', '500000');
-    await a.tocar('Noviembre');
+    await a.tocar('Noviembre', 'app-hoja [role="radio"]');
     expect(a.raiz().querySelector('[data-testid="efecto-aporte"]')!.textContent!.replace(/\s+/g, ' ').trim()).toBe('Noviembre pasa a tener $500.000 más en ingresos');
     await a.tocar('Guardar aporte');
     expect(a.url()).toBe('/hoy');
@@ -98,6 +101,42 @@ describe('Hoy (steward-hoy)', () => {
     const a = await app('/hoy/pagar/m0-luz');
     expect(a.raiz().querySelector('[data-testid="ya-pagado"]')!.textContent!.trim()).toBe('Ya lo pagó Esposa el 12 oct');
     expect(a.texto()).not.toContain('Marcar pagado');
+  });
+
+  it('el mes siguiente se ejecuta sin tocar el mes en curso, y se recuerda (plan-mes-siguiente)', async () => {
+    const p = await conSesion();
+    const a = await app('/hoy');
+    const libreOct = libre(a);
+    await a.tocar('Noviembre');
+    expect(a.texto()).toContain('Noviembre 2026');
+    expect(a.raiz().querySelector('[data-testid="opcion-por-elegir"]')!.textContent).toContain('Opción A · elige otra en Plan');
+
+    const linea = (await p.movimientos.resumenMes(NOV)).ingresos.find((l) => l.lineaId && !l.recibido)!;
+    await a.ir('/hoy/recibir/' + linea.clave);
+    expect(a.raiz().querySelector('[data-testid="aviso-mes"]')!.textContent).toContain('Se registra en noviembre');
+    await a.tocar('Marcar recibido');
+    expect((await p.movimientos.resumenMes(NOV)).ingresos.find((l) => l.lineaId === linea.lineaId)!.recibido).toBe(true);
+    const m = (await p.movimientos.resumenMes(NOV)).ingresos.find((l) => l.lineaId === linea.lineaId)!;
+    expect(m.detalle).toContain('26 oct');
+
+    const item = (await p.movimientos.resumenMes(NOV)).porPagar.find((i) => i.item.tipo === 'FIJO')!;
+    await a.ir('/hoy/pagar/' + item.item.id);
+    await a.tocar('Marcar pagado');
+    expect((await p.movimientos.resumenMes(NOV)).yaPagado.map((i) => i.item.id)).toContain(item.item.id);
+
+    await a.tocar('Octubre');
+    expect(libre(a)).toBe(libreOct);
+    await a.tocar('Noviembre');
+    expect(localStorage.getItem('steward/mes-hoy')).toBe('2026-11');
+    localStorage.removeItem('steward/mes-hoy');
+  });
+
+  it('un mes recordado que ya pasó vuelve al mes en curso (plan-mes-siguiente)', async () => {
+    localStorage.setItem('steward/mes-hoy', '2026-09');
+    await conSesion();
+    const a = await app('/hoy');
+    expect(a.texto()).toContain('Octubre 2026');
+    localStorage.removeItem('steward/mes-hoy');
   });
 
   it('borrar un gasto equivocado desde Hoy (usabilidad-plan)', async () => {

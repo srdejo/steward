@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { mesDe, type Id } from '@steward/domain';
+import type { Id } from '@steward/domain';
 
 import { consulta, mensajeDeError } from '../../core/datos/consulta';
 import { PUERTOS } from '../../core/datos/puertos';
@@ -9,6 +9,7 @@ import { Hoja } from '../../shared/components/hoja';
 import { Monto } from '../../shared/components/monto';
 import { MontoInput } from '../../shared/components/monto-input';
 import { Segmentado, type Opcion } from '../../shared/components/segmentado';
+import { MesDeHoy } from './mes-de-hoy';
 import { SU_CUENTA, opcionesDeHoja } from './opciones-hoja';
 
 const NO_PLANEADO = '__no_planeado__';
@@ -20,6 +21,9 @@ const NO_PLANEADO = '__no_planeado__';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-hoja titulo="Registrar gasto" (cerrar)="hoja.cerrar()">
+      @if (mesHoy.aviso(); as aviso) {
+        <p class="rounded-xl bg-acento-suave px-4 py-2.5 text-[13px] font-medium text-acento" data-testid="aviso-mes">{{ aviso }}</p>
+      }
       <app-monto-input etiqueta="¿Cuánto?" [grande]="true" [(valor)]="monto" />
       <div class="flex flex-col gap-2">
         <app-segmentado etiqueta="¿De cuál gasto del plan?" [chips]="true" [opciones]="opcionesItem()" [valor]="itemElegido()" (valorChange)="itemSeleccionado.set($event)" />
@@ -68,7 +72,8 @@ export class GastoHoja {
   /** Query param `?item=` (al tocar un variable en Por pagar). */
   readonly item = input<Id | undefined>();
 
-  private readonly ref = mesDe(this.puertos.hoy());
+  protected readonly mesHoy = inject(MesDeHoy);
+  private readonly ref = this.mesHoy.ref();
   private readonly resumen = consulta(() => this.ref, (p, ref) => p.movimientos.resumenMes(ref));
 
   /** Los variables del plan (acumulan contra su presupuesto), en el orden del plan. */

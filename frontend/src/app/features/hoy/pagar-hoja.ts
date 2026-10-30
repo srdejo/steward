@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { fechaEnMes, formatFechaCorta, mesDe, nombreMes, type Id } from '@steward/domain';
+import { fechaEnMes, formatFechaCorta, nombreMes, type Id } from '@steward/domain';
 
 import { consulta, mensajeDeError } from '../../core/datos/consulta';
 import { PUERTOS } from '../../core/datos/puertos';
@@ -9,6 +9,7 @@ import { Hoja } from '../../shared/components/hoja';
 import { Monto } from '../../shared/components/monto';
 import { MontoInput } from '../../shared/components/monto-input';
 import { Segmentado } from '../../shared/components/segmentado';
+import { MesDeHoy } from './mes-de-hoy';
 import { SU_CUENTA, opcionesDeHoja } from './opciones-hoja';
 
 /**
@@ -23,6 +24,9 @@ import { SU_CUENTA, opcionesDeHoja } from './opciones-hoja';
     <app-hoja [titulo]="ejecucion()?.item?.nombre ?? 'Marcar pago'" [antetitulo]="ejecucion()?.categoriaNombre ?? ''" [colorAntetitulo]="categoria()?.color ?? null" (cerrar)="hoja.cerrar()">
       @if (ejecucion(); as e) {
         <span subtitulo class="text-[13px] text-secundario">Plan <app-monto [valor]="e.plan" />{{ vence() }}</span>
+      }
+      @if (mesHoy.aviso(); as aviso) {
+        <p class="rounded-xl bg-acento-suave px-4 py-2.5 text-[13px] font-medium text-acento" data-testid="aviso-mes">{{ aviso }}</p>
       }
       @if (ejecucion(); as e) {
 
@@ -59,7 +63,8 @@ export class PagarHoja {
   /** Parametro de la ruta (`/hoy/pagar/:itemId`). */
   readonly itemId = input.required<Id>();
 
-  private readonly ref = mesDe(this.puertos.hoy());
+  protected readonly mesHoy = inject(MesDeHoy);
+  private readonly ref = this.mesHoy.ref();
   protected readonly mesNombre = nombreMes(this.ref.mes);
   protected readonly resumen = consulta(() => this.ref, (p, ref) => p.movimientos.resumenMes(ref));
   private readonly categorias = consulta(() => null, (p) => p.hogar.categorias());

@@ -12,7 +12,7 @@ import { Monto } from '../../shared/components/monto';
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'flex flex-col gap-5 px-5 pt-6 pb-4' },
   template: `
-    <h1 class="text-[26px] font-bold">Planear</h1>
+    <h1 class="text-[26px] font-bold">Plan</h1>
 
     @if (inicio.value(); as i) {
       @if (i.anual; as a) {

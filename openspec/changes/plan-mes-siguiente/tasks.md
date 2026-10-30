@@ -5,14 +5,14 @@
 
 ## 2. PWA
 
-- [ ] 2.1 `api.ts` y `PuertosConectados`: mandar `mes`, y `mesDelBackend` con los dos meses (D5). Verificar: `conectado.spec.ts` con un pago y un "Recibí" en noviembre.
-- [ ] 2.2 `MesDeHoy`, selector en Hoy y hojas con el mes elegido, incluido el aviso "Se registra en {mes}" (D2, D3). Verificar: tests de pantalla de los escenarios de `steward-hoy`.
-- [ ] 2.3 Nombres visibles Ejecución y Plan (D8), con las rutas sin cambiar. Verificar: `shell.spec.ts` y los tests de pantalla que leen esos textos.
-- [ ] 2.4 Hoja del gasto con chips de categoría y tipo deducido (D6); "Con la Opción A faltarían" (D7); "Ver en Ejecución" en el mes siguiente. Verificar: tests de pantalla de los escenarios de `steward-planear`; `npx ng test` y `ng build` sin avisos. Actualizar `frontend/README.md`. Commit.
+- [x] 2.1 `api.ts` y `PuertosConectados`: mandar `mes`, y `mesDelBackend` con los dos meses (D5). Verificar: `conectado.spec.ts` con un pago y un "Recibí" en noviembre.
+- [x] 2.2 `MesDeHoy`, selector en Hoy y hojas con el mes elegido, incluido el aviso "Se registra en {mes}" (D2, D3). Verificar: tests de pantalla de los escenarios de `steward-hoy`.
+- [x] 2.3 Nombres visibles Ejecución y Plan (D8), con las rutas sin cambiar. Verificar: `shell.spec.ts` y los tests de pantalla que leen esos textos.
+- [x] 2.4 Hoja del gasto con chips de categoría y tipo deducido (D6); "Con la Opción A faltarían" (D7); "Ver en Ejecución" en el mes siguiente. Verificar: tests de pantalla de los escenarios de `steward-planear`; `npx ng test` y `ng build` sin avisos. Actualizar `frontend/README.md`. Commit.
 
 ## 3. App Expo
 
-- [ ] 3.1 `mobile/`: lo mínimo para compilar con el dominio nuevo, si hace falta. Verificar: `npx tsc --noEmit` y `npm test` en verde. Commit si hubo cambios.
+- [x] 3.1 `mobile/`: lo mínimo para compilar con el dominio nuevo, si hace falta. Verificar: `npx tsc --noEmit` y `npm test` en verde. Commit si hubo cambios.
 
 ## 4. Verificación y producción
 

@@ -37,7 +37,7 @@ const CONFIRMACIONES = {
   host: { class: 'flex flex-col gap-[22px] px-5 pt-6 pb-4' },
   template: `
     <div class="grid grid-cols-[1fr_auto_1fr] items-center">
-      <a routerLink="/hoy" class="boton-texto -my-2 self-start text-sm font-normal">‹ Hoy</a>
+      <a routerLink="/hoy" class="boton-texto -my-2 self-start text-sm font-normal">‹ Ejecución</a>
       <h1 class="text-[17px] font-semibold">Ajustes</h1>
     </div>
 

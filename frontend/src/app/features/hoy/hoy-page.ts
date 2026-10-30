@@ -1,6 +1,6 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { RouterLink, RouterOutlet } from '@angular/router';
-import { claveMes, formatDiaSemana, formatMesAnio, mesDe, type ItemEjecucion, type LineaIngreso } from '@steward/domain';
+import { claveMes, formatDiaSemana, formatMesAnio, type ItemEjecucion, type LineaIngreso } from '@steward/domain';
 
 import { consulta } from '../../core/datos/consulta';
 import { PUERTOS } from '../../core/datos/puertos';
@@ -11,6 +11,8 @@ import { Encabezado } from '../../shared/components/encabezado';
 import { Fila } from '../../shared/components/fila';
 import { Kpi } from '../../shared/components/kpi';
 import { Monto } from '../../shared/components/monto';
+import { Segmentado } from '../../shared/components/segmentado';
+import { MesDeHoy } from './mes-de-hoy';
 
 /**
  * Main.dc.html: el mes en curso (spec steward-hoy). Las hojas de registro son rutas hijas. El diezmo son items del plan
@@ -18,20 +20,26 @@ import { Monto } from '../../shared/components/monto';
  */
 @Component({
   selector: 'app-hoy-page',
-  imports: [RouterLink, RouterOutlet, AvataresHogar, Avatar, Encabezado, Fila, Kpi, Monto],
+  imports: [RouterLink, RouterOutlet, AvataresHogar, Avatar, Encabezado, Fila, Kpi, Monto, Segmentado],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'flex flex-col gap-5 px-5 pt-6 pb-4' },
   template: `
-    <app-encabezado [rotulo]="rotulo" [titulo]="titulo">
+    <app-encabezado [rotulo]="rotulo" [titulo]="titulo()">
       <app-avatares-hogar />
     </app-encabezado>
+
+    <app-segmentado etiquetaAccesible="Mes que se ejecuta" [opciones]="mesHoy.opciones" [valor]="mesHoy.clave()" (valorChange)="$event && mesHoy.elegir($event)" />
+
+    @if (opcionPorElegir(); as letra) {
+      <a [routerLink]="['/planear', claveActual()]" class="text-[13px] font-medium text-acento" data-testid="opcion-por-elegir">Opción {{ letra }} · elige otra en Plan</a>
+    }
 
     @if (resumen.value(); as r) {
       @if (r.sinPlan) {
         <section class="tarjeta flex flex-col gap-3 p-[18px]">
           <span class="rotulo">Este mes no tiene plan</span>
           <p class="text-sm text-secundario">Empieza desde el mes anterior, solo con lo fijo o desde cero.</p>
-          <a [routerLink]="['/planear', claveActual]" class="boton-primario self-start">Planear {{ titulo }}</a>
+          <a [routerLink]="['/planear', claveActual()]" class="boton-primario self-start">Planear {{ titulo() }}</a>
         </section>
       }
 
@@ -136,12 +144,18 @@ export class HoyPage {
   protected readonly miembros = inject(MiembrosHogar);
 
   private readonly hoy = this.puertos.hoy();
-  private readonly ref = mesDe(this.hoy);
-  protected readonly claveActual = claveMes(this.ref);
-  protected readonly rotulo = `Hoy · ${formatDiaSemana(this.hoy)}`;
-  protected readonly titulo = formatMesAnio(this.ref);
+  protected readonly mesHoy = inject(MesDeHoy);
+  protected readonly claveActual = computed(() => claveMes(this.mesHoy.ref()));
+  protected readonly rotulo = `Ejecución · ${formatDiaSemana(this.hoy)}`;
+  protected readonly titulo = computed(() => formatMesAnio(this.mesHoy.ref()));
 
-  protected readonly resumen = consulta(() => this.ref, (p, ref) => p.movimientos.resumenMes(ref));
+  protected readonly resumen = consulta(() => this.mesHoy.ref(), (p, ref) => p.movimientos.resumenMes(ref));
+  private readonly mes = consulta(() => this.mesHoy.ref(), (p, ref) => p.plan.mes(ref));
+  /** Varias opciones sin elegir: se ejecuta la principal (design D3 de plan-mes-siguiente). */
+  protected readonly opcionPorElegir = computed(() => {
+    const m = this.mes.value();
+    return m?.plan && !m.plan.escenarioActivoId && m.opciones.length > 1 ? m.opciones[0]!.escenario.letra : null;
+  });
 
   protected urgente(i: ItemEjecucion): boolean {
     return /^Vence (en|hoy)|^Venció/.test(i.detalle);

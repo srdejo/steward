@@ -367,8 +367,8 @@ export class Api {
   }
 
   /** "Recibi" un ingreso fijo en un mes sin plan; sin monto, su neto. */
-  recibido(ingresoId: string, monto?: number): Promise<MovimientoApi> {
-    return this.pedir(this.http.post<MovimientoApi>(`/api/ingresos-fijos/${encodeURIComponent(ingresoId)}/recibido`, monto === undefined ? null : { monto }));
+  recibido(ingresoId: string, monto?: number, mes?: MesApi): Promise<MovimientoApi> {
+    return this.pedir(this.http.post<MovimientoApi>(`/api/ingresos-fijos/${encodeURIComponent(ingresoId)}/recibido`, monto === undefined && !mes ? null : { monto, mes }));
   }
 
   /** "Recibi" una linea de ingreso de la opcion principal del mes en curso; sin monto, el de la linea. */
@@ -422,11 +422,11 @@ export class Api {
     return this.pedir(this.http.delete<void>(`${rutaIngresos(planId, escenarioId)}/${encodeURIComponent(lineaId)}`));
   }
 
-  pagar(datos: { itemId: string; monto: number; usuarioId: string; origen: OrigenRequest }): Promise<MovimientoApi> {
+  pagar(datos: { itemId: string; monto: number; usuarioId: string; origen: OrigenRequest; mes?: MesApi }): Promise<MovimientoApi> {
     return this.pedir(this.http.post<MovimientoApi>('/api/pagos', datos));
   }
 
-  gastar(datos: { itemId: string | null; monto: number; nota: string; usuarioId: string; origen: OrigenRequest }): Promise<MovimientoApi> {
+  gastar(datos: { itemId: string | null; monto: number; nota: string; usuarioId: string; origen: OrigenRequest; mes?: MesApi }): Promise<MovimientoApi> {
     return this.pedir(this.http.post<MovimientoApi>('/api/gastos', datos));
   }
 

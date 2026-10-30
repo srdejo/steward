@@ -16,7 +16,7 @@ import type {
   Usuario,
   VistaHogar,
 } from '@steward/domain';
-import { ReglaError, claveMes } from '@steward/domain';
+import { ReglaError, claveMes, sumarMeses } from '@steward/domain';
 import { crearAdaptadorDemo, type StorageLike } from '@steward/domain/demo';
 
 import {
@@ -306,7 +306,7 @@ export class PuertosConectados implements Puertos {
             if (!plan || !opcion) throw new ReglaError('NO_EXISTE', 'Ese ingreso no está en el plan del mes');
             await escribir(api.recibirLinea(plan.id, opcion.id, datos.lineaId, datos.monto));
           } else if (datos.ingresoFijoId) {
-            await escribir(api.recibido(datos.ingresoFijoId, datos.monto));
+            await escribir(api.recibido(datos.ingresoFijoId, datos.monto, this.mesParaApi(datos.ref)));
           }
         } catch (e) {
           // Ya estaba recibido (otro miembro, otra pestana): se muestra el mensaje con el ingreso ya como recibido.
@@ -328,7 +328,7 @@ export class PuertosConectados implements Puertos {
       marcarPago: async (datos) => {
         this.mesDelBackend(datos.ref);
         try {
-          await api.pagar({ itemId: datos.itemId, monto: datos.monto, usuarioId: datos.usuarioId, origen: origenApi(datos.origen) });
+          await api.pagar({ itemId: datos.itemId, monto: datos.monto, usuarioId: datos.usuarioId, origen: origenApi(datos.origen), mes: this.mesParaApi(datos.ref) });
         } finally {
           // Tambien con YA_PAGADO: el otro miembro lo pago hace un momento y Hoy debe mostrarlo pagado.
           await this.recargarFinanzas();
@@ -336,7 +336,7 @@ export class PuertosConectados implements Puertos {
       },
       registrarGasto: async (datos) => {
         this.mesDelBackend(datos.ref);
-        await api.gastar({ itemId: datos.itemId, monto: datos.monto, nota: datos.nota, usuarioId: datos.usuarioId, origen: origenApi(datos.origen) });
+        await api.gastar({ itemId: datos.itemId, monto: datos.monto, nota: datos.nota, usuarioId: datos.usuarioId, origen: origenApi(datos.origen), mes: this.mesParaApi(datos.ref) });
         await this.recargarFinanzas();
       },
       // Corregir y borrar van al backend; la hoja se calcula con el dominio sobre lo real (design D3 de usabilidad-plan).
@@ -475,12 +475,18 @@ export class PuertosConectados implements Puertos {
     };
   }
 
-  /** "Recibi", "Entregado", pagos y gastos son del mes en curso del backend (design D4 y D6). */
+  /** "Recibi", pagos y gastos son del mes en curso del backend o del siguiente (design D5 de plan-mes-siguiente). */
   private mesDelBackend(ref: { anio: number; mes: number }): void {
     const mes = this.finanzas?.mes;
-    if (mes && (mes.anio !== ref.anio || mes.mes !== ref.mes)) {
-      throw new ReglaError('MES_NO_DISPONIBLE', 'Solo se puede registrar en el mes en curso.');
+    if (mes && claveMes(ref) !== claveMes(mes) && claveMes(ref) !== claveMes(sumarMeses(mes, 1))) {
+      throw new ReglaError('MES_NO_DISPONIBLE', 'Solo se puede registrar en el mes en curso o el siguiente.');
     }
+  }
+
+  /** El mes en curso es el valor por defecto del backend: solo se manda el siguiente. */
+  private mesParaApi(ref: { anio: number; mes: number }): { anio: number; mes: number } | undefined {
+    const mes = this.finanzas?.mes;
+    return mes && claveMes(ref) === claveMes(mes) ? undefined : { anio: ref.anio, mes: ref.mes };
   }
 
   private async vista(h: HogarApi): Promise<VistaHogar> {

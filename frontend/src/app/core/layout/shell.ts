@@ -15,8 +15,8 @@ interface Destino {
 
 /** Los tres destinos principales (HANDOFF, seccion 4). Ajustes se abre desde los avatares. */
 export const DESTINOS: Destino[] = [
-  { ruta: '/hoy', etiqueta: 'Hoy', icono: 'hoy' },
-  { ruta: '/planear', etiqueta: 'Planear', icono: 'planear' },
+  { ruta: '/hoy', etiqueta: 'Ejecución', icono: 'hoy' },
+  { ruta: '/planear', etiqueta: 'Plan', icono: 'planear' },
   { ruta: '/cuentas', etiqueta: 'Cuentas', icono: 'cuentas' },
 ];
 

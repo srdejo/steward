@@ -12,6 +12,7 @@ import { Encabezado } from '../../shared/components/encabezado';
 import { Hoja } from '../../shared/components/hoja';
 import { Kpi } from '../../shared/components/kpi';
 import { Monto } from '../../shared/components/monto';
+import { MesDeHoy } from '../hoy/mes-de-hoy';
 import { GastoPlanHoja } from './gasto-plan-hoja';
 import { IngresoHoja } from './ingreso-hoja';
 
@@ -28,11 +29,11 @@ import { IngresoHoja } from './ingreso-hoja';
   host: { class: 'flex flex-col gap-[18px] px-5 pt-6 pb-4' },
   template: `
     @if (!ref()) {
-      <app-encabezado titulo="Mes no válido" volver="/planear" volverTexto="Planear" />
+      <app-encabezado titulo="Mes no válido" volver="/planear" volverTexto="Plan" />
     } @else if (vista.value(); as v) {
       @switch (v.estado) {
         @case ('SIN_PLAN') {
-          <app-encabezado [titulo]="titulo()" volver="/planear" volverTexto="Planear" />
+          <app-encabezado [titulo]="titulo()" volver="/planear" volverTexto="Plan" />
           <p class="-mt-2 text-[15px] leading-normal text-secundario">Aún no tiene plan. Empieza desde algo que ya existe y ajusta lo que cambie.</p>
           <div class="flex flex-col gap-2.5">
             @for (o of formasDeEmpezar(); track o.modo; let primero = $first) {
@@ -68,7 +69,7 @@ import { IngresoHoja } from './ingreso-hoja';
         }
 
         @case ('BORRADOR') {
-          <app-encabezado [titulo]="titulo()" rotulo="Borrador" [volver]="'/planear'" volverTexto="Planear">
+          <app-encabezado [titulo]="titulo()" rotulo="Borrador" [volver]="'/planear'" volverTexto="Plan">
             <a [routerLink]="['/planear/anual', ref()!.anio]" class="boton-texto">Ver año</a>
           </app-encabezado>
 
@@ -88,8 +89,8 @@ import { IngresoHoja } from './ingreso-hoja';
 
           @if (actual(); as o) {
             <section class="flex flex-col gap-3 rounded-panel border border-dashed border-control bg-superficie p-[18px]">
-              <h2 class="rotulo">Opción {{ o.escenario.letra }} dejaría libre</h2>
-              <app-monto class="text-[30px] font-semibold" [class.text-[#3B3D39]]="o.libre >= 0" [class.text-negativo]="o.libre < 0" [valor]="o.libre" data-testid="dejaria-libre" />
+              <h2 class="rotulo">{{ o.libre < 0 ? 'Con la Opción ' + o.escenario.letra + ' faltarían' : 'Opción ' + o.escenario.letra + ' dejaría libre' }}</h2>
+              <app-monto class="text-[30px] font-semibold" [class.text-[#3B3D39]]="o.libre >= 0" [class.text-negativo]="o.libre < 0" [valor]="o.libre < 0 ? -o.libre : o.libre" data-testid="dejaria-libre" />
               <div class="grid grid-cols-2 gap-2 border-t border-divisor pt-3">
                 <app-kpi etiqueta="Ingresos" [valor]="o.totalIngresos" />
                 <app-kpi etiqueta="Gastos" [valor]="o.totalGastos" />
@@ -109,6 +110,10 @@ import { IngresoHoja } from './ingreso-hoja';
 
             <ng-container [ngTemplateOutlet]="detalle" [ngTemplateOutletContext]="{ $implicit: o, editable: true }" />
 
+            @if (seEjecuta()) {
+              <button type="button" class="boton-texto self-start font-semibold" (click)="verEjecucion()">Ver en Ejecución</button>
+            }
+
             <div class="grid grid-cols-2 gap-2">
               <a [routerLink]="['/planear', clave(), 'comparar']" class="boton h-[52px] rounded-[14px] border border-control bg-superficie">Comparar</a>
               <button type="button" class="boton h-[52px] rounded-[14px] bg-acento text-white" (click)="usar(o)">Usar opción {{ o.escenario.letra }}</button>
@@ -117,7 +122,7 @@ import { IngresoHoja } from './ingreso-hoja';
         }
 
         @default {
-          <app-encabezado [titulo]="titulo()" [rotulo]="v.estado === 'ACTIVO' ? 'Activo' : 'Cerrado'" volver="/planear" volverTexto="Planear" />
+          <app-encabezado [titulo]="titulo()" [rotulo]="v.estado === 'ACTIVO' ? 'Activo' : 'Cerrado'" volver="/planear" volverTexto="Plan" />
           @if (v.opciones[0]; as o) {
             <section class="tarjeta flex flex-col gap-3 p-[18px]">
               <h2 class="rotulo">Opción {{ o.escenario.letra }} · el plan del mes</h2>
@@ -131,7 +136,7 @@ import { IngresoHoja } from './ingreso-hoja';
           }
           <div class="grid grid-cols-2 gap-2">
             @if (v.estado === 'ACTIVO') {
-              <a routerLink="/hoy" class="boton h-[52px] rounded-[14px] border border-control bg-superficie">Ver hoy</a>
+              <button type="button" class="boton h-[52px] rounded-[14px] border border-control bg-superficie" (click)="verEjecucion()">Ver ejecución</button>
             }
             <a [routerLink]="['/planear', clave(), 'cierre']" class="boton-grande" [class.col-span-2]="v.estado !== 'ACTIVO'">{{ v.estado === 'ACTIVO' ? 'Cierre de mes' : 'Ver cierre' }}</a>
           </div>
@@ -266,6 +271,8 @@ export class MesPage {
   /** Un mes cerrado sin plan tambien se puede borrar, para dejarlo otra vez sin cierre. */
   protected readonly sinPlanCerrado = consulta(() => this.ref() ?? mesDe(this.puertos.hoy()), (p, ref) => p.cierre.vista(ref).then((v) => v.cerrado).catch(() => false));
   protected readonly nombreMesMinuscula = computed(() => (this.ref() ? nombreMes(this.ref()!.mes) : ''));
+  private readonly mesHoy = inject(MesDeHoy);
+  protected readonly seEjecuta = computed(() => Boolean(this.ref()) && this.mesHoy.seEjecuta(this.ref()!));
   protected readonly guardando = signal(false);
   protected readonly error = signal('');
 
@@ -332,6 +339,12 @@ export class MesPage {
       await this.puertos.plan.usar(plan.id, o.escenario.id);
       await this.router.navigateByUrl('/planear');
     });
+  }
+
+  /** Abre Hoy con este mes elegido. */
+  protected verEjecucion(): Promise<boolean> {
+    this.mesHoy.elegir(this.clave());
+    return this.router.navigateByUrl('/hoy');
   }
 
   /** La linea de la opcion detras de lo que se ve (solo las de la opcion se editan; los aportes y el sobrante no). */
