@@ -154,7 +154,7 @@ import { MontoInput } from '../../shared/components/monto-input';
                     [value]="l.nombre" [attr.aria-label]="'Nombre del ingreso ' + l.nombre" (change)="renombrarIngreso(o, l, $any($event.target).value)" />
                   <span class="px-1 text-xs text-secundario">{{ l.detalle }}</span>
                 </div>
-                <app-monto-input class="w-36" [valor]="l.monto" [etiquetaAccesible]="'Monto de ' + l.nombre" (valorChange)="cambiarIngreso(o, l, $event)" />
+                <app-monto-input class="w-36" [valor]="l.monto" [etiquetaAccesible]="'Monto de ' + l.nombre" (confirmado)="cambiarIngreso(o, l, $event)" />
                 <button type="button" class="tocable text-secundario hover:text-negativo" [attr.aria-label]="'Quitar ' + l.nombre" (click)="quitarIngreso(o, l)">×</button>
               </div>
             } @else {
@@ -189,7 +189,7 @@ import { MontoInput } from '../../shared/components/monto-input';
                     <li class="flex items-center justify-between gap-3">
                       <span class="min-w-0 truncate text-sm">{{ item.nombre }}</span>
                       @if (editable) {
-                        <app-monto-input class="w-36" [valor]="item.monto" [etiquetaAccesible]="'Monto de ' + item.nombre" (valorChange)="cambiarMonto(o, item, $event)" />
+                        <app-monto-input class="w-36" [valor]="item.monto" [etiquetaAccesible]="'Monto de ' + item.nombre" (confirmado)="cambiarMonto(o, item, $event)" />
                       } @else {
                         <app-monto class="text-sm" [valor]="item.monto" />
                       }

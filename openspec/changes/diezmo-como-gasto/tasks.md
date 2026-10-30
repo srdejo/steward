@@ -43,7 +43,7 @@
 ## 5. Verificación y producción
 
 - [x] 5.1 Probar `V8` con una copia de la base de `steward.test` que tenga entregas y planes abiertos (D5). Verificar: los planes abiertos ganan sus ítems sin duplicar lo ya entregado, y las cuentas mantienen su saldo estimado.
-- [ ] 5.2 Recorrido en Chrome en `steward.test` con dos usuarios de prueba:
+- [x] 5.2 Recorrido en Chrome en `steward.test` con dos usuarios de prueba:
   - crear el mes con los dos diezmos y sus líneas de ingreso;
   - editar el salario en la Opción B y agregar un ingreso a mano;
   - "Recibí" con otro monto;

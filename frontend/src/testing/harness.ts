@@ -47,6 +47,8 @@ export async function app(url: string, mientrasNavega?: (estable: () => Promise<
       const campo = campoPor(raiz(), selectorOEtiqueta);
       campo.value = valor;
       campo.dispatchEvent(new Event('input', { bubbles: true }));
+      // Como quien escribe y sale del campo: los que guardan al confirmar escuchan `change`.
+      campo.dispatchEvent(new Event('change', { bubbles: true }));
       await estable();
     },
     campo: (selectorOEtiqueta: string) => campoPor(raiz(), selectorOEtiqueta),

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, effect, input, model, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, input, model, output, signal } from '@angular/core';
 import { formatCop, parseMonto, type Pesos } from '@steward/domain';
 
 let siguienteId = 0;
@@ -27,6 +27,7 @@ let siguienteId = 0;
       [attr.aria-describedby]="ayuda() ? id + '-ayuda' : null"
       [attr.aria-label]="etiqueta() ? null : etiquetaAccesible() || null"
       (input)="escribir($any($event.target))"
+      (change)="confirmado.emit(valor())"
     />
     @if (ayuda()) {
       <p [id]="id + '-ayuda'" class="text-xs text-secundario">{{ ayuda() }}</p>
@@ -42,6 +43,11 @@ export class MontoInput {
   readonly ayuda = input('');
   readonly grande = input(false);
   readonly placeholder = input('$0');
+  /**
+   * El monto al terminar de escribir (al salir del campo o con Enter). Para guardar en el backend: `valorChange` va por
+   * tecla, y una relectura con un valor intermedio pisaria lo que se sigue escribiendo.
+   */
+  readonly confirmado = output<Pesos | null>();
   protected readonly texto = signal('');
 
   constructor() {
