@@ -59,6 +59,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.ImportRuntimeHints;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.r2dbc.core.DatabaseClient;
 import org.springframework.transaction.reactive.TransactionalOperator;
@@ -69,6 +70,7 @@ import org.springframework.web.reactive.function.client.WebClient;
  * errores) vive en infrastructure detras de puertos, para cambiarlo por srdejo-platform sin tocar el dominio (D10).
  */
 @Configuration
+@ImportRuntimeHints(NativeHints.class)
 public class BeanConfiguration {
 
     private static final Logger log = LoggerFactory.getLogger(BeanConfiguration.class);
