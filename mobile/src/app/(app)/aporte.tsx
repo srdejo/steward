@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 
 import { SU_CUENTA, useOpcionesHoja } from '@/data/hoja';
+import { useMesDeHoy } from '@/data/mes-de-hoy';
 import { useAccion, useConsulta, usePuertos } from '@/data/puertos';
 import { useSesion } from '@/data/sesion';
 import { Aviso, Boton, cerrarHoja, colors, fonts, Hoja, Interruptor, Monto, MontoInput, Segmentado, Texto } from '@/ui';
@@ -15,11 +16,12 @@ export default function Aporte() {
   const accion = useAccion();
   const actual = mesDe(puertos.hoy());
   const meses = [actual, sumarMeses(actual, 1)];
+  const mesHoy = useMesDeHoy();
   const regla = useConsulta(['regla'], (p) => p.ingresos.regla());
 
   const [quien, setQuien] = useState<Id | null>(sesion?.usuario.id ?? null);
   const [monto, setMonto] = useState<number | null>(null);
-  const [mes, setMes] = useState<string | null>('0');
+  const [mes, setMes] = useState<string | null>(mesHoy.ref.mes === actual.mes ? '0' : '1');
   const [cuenta, setCuenta] = useState<string | null>(null);
   const [diezmo, setDiezmo] = useState(false);
 

@@ -1,10 +1,11 @@
-import { fechaEnMes, formatFechaCorta, mesDe, nombreMes, type Id } from '@steward/domain';
-import { useLocalSearchParams } from 'expo-router';
+import { fechaEnMes, formatFechaCorta, nombreMes, type Id } from '@steward/domain';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 
 import { SU_CUENTA, useOpcionesHoja } from '@/data/hoja';
-import { useAccion, useConsulta, usePuertos } from '@/data/puertos';
+import { AvisoMes, useMesDeHoy } from '@/data/mes-de-hoy';
+import { useAccion, useConsulta } from '@/data/puertos';
 import { useSesion } from '@/data/sesion';
 import { Aviso, Boton, cerrarHoja, colors, fonts, Hoja, Monto, MontoInput, Segmentado, Texto } from '@/ui';
 
@@ -14,11 +15,10 @@ import { Aviso, Boton, cerrarHoja, colors, fonts, Hoja, Monto, MontoInput, Segme
  */
 export default function Pagar() {
   const { itemId } = useLocalSearchParams<{ itemId: string }>();
-  const puertos = usePuertos();
   const { sesion } = useSesion();
   const hoja = useOpcionesHoja();
   const accion = useAccion();
-  const ref = mesDe(puertos.hoy());
+  const { ref } = useMesDeHoy();
   const resumen = useConsulta(['resumen', ref], (p) => p.movimientos.resumenMes(ref));
   const categorias = useConsulta(['categorias'], (p) => p.hogar.categorias());
   const e = [...(resumen.data?.porPagar ?? []), ...(resumen.data?.yaPagado ?? [])].find((i) => i.item.id === itemId);
@@ -48,12 +48,14 @@ export default function Pagar() {
       antetituloColor={categoria?.color}
       subtitulo={<Texto v="pequeno">Plan <Monto valor={e.plan} style={{ fontSize: 13 }} />{vence}</Texto>}
     >
+      <AvisoMes />
       {pago ? (
         <>
           <Texto testID="ya-pagado" accessibilityRole="alert" style={{ borderRadius: 12, backgroundColor: colors.avisoSuave, paddingHorizontal: 16, paddingVertical: 14, fontSize: 14, color: colors.aviso }}>
             Ya lo pagó {hoja.miembros.nombreDe(pago.usuarioId)} el {formatFechaCorta(pago.fecha)}
           </Texto>
           <Boton titulo="Entendido" onPress={cerrarHoja} />
+          <Boton tipo="enlace" titulo="Abrir ese pago" onPress={() => router.push(`/registro/${pago.id}`)} />
         </>
       ) : (
         <>

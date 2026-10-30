@@ -1,9 +1,10 @@
 import { formatMesAnio, formatNumero, nombreMes, parseClaveMes, type FilaComparacion, type Pesos } from '@steward/domain';
 import { router, useLocalSearchParams } from 'expo-router';
+import { useState } from 'react';
 import { ScrollView, View } from 'react-native';
 
 import { useAccion, useConsulta } from '@/data/puertos';
-import { Aviso, Boton, colors, Encabezado, fonts, Pantalla, Texto } from '@/ui';
+import { Aviso, Boton, colors, Encabezado, fonts, Interruptor, Pantalla, Texto } from '@/ui';
 
 const COL_NOMBRE = 180;
 const COL_VALOR = 130;
@@ -20,12 +21,29 @@ export default function Comparar() {
   const accion = useAccion();
   const d = c.data;
 
-  const filas: FilaComparacion[] = d ? [d.ingresos, ...d.filas, ...(d.sinCambios ? [d.sinCambios] : [])] : [];
+  const [soloCambios, setSoloCambios] = useState(true);
+
+  /** Con "Mostrar solo lo que cambia": lo igual se agrupa en "Sin cambios"; sin el, cada categoria por separado. */
+  const filas = ((): FilaComparacion[] => {
+    if (!d) return [];
+    if (soloCambios) return [d.ingresos, ...d.filas, ...(d.sinCambios ? [d.sinCambios] : [])];
+    const nombres = new Map<string, FilaComparacion>();
+    for (const [i, v] of d.vistas.entries()) {
+      for (const g of v.grupos) {
+        const fila = nombres.get(g.categoriaId) ?? { clave: g.categoriaId, nombre: g.nombre, nota: '', valores: d.vistas.map(() => null as Pesos | null), cambia: false };
+        fila.valores[i] = g.total;
+        nombres.set(g.categoriaId, fila);
+      }
+    }
+    const destacadas = new Map(d.filas.map((f) => [f.clave, f]));
+    return [d.ingresos, ...[...nombres.values()].map((f) => destacadas.get(f.clave) ?? f)];
+  })();
   const celda = (v: Pesos | null) => (v === null ? '—' : formatNumero(v));
 
   return (
     <Pantalla>
       <Encabezado titulo="Comparar opciones" rotulo={`${formatMesAnio(ref)} · Borrador`} volver={`/mes/${mes}`} volverTexto={formatMesAnio(ref)} />
+      <Interruptor titulo="Mostrar solo lo que cambia" activo={soloCambios} onCambio={setSoloCambios} />
       {d && (
         <ScrollView horizontal testID="tabla-comparar" accessibilityLabel="Opciones lado a lado" contentContainerStyle={{ minWidth: COL_NOMBRE + COL_VALOR * d.vistas.length }}
           style={{ borderRadius: 14, borderWidth: 1, borderColor: colors.borde, backgroundColor: colors.superficie }}>

@@ -1,9 +1,10 @@
-import { formatMiles, nombreMesCapital, type FilaAnualVista, type TipoEvento } from '@steward/domain';
+import { formatMiles, mesDe, nombreMesCapital, type FilaAnualVista, type TipoEvento } from '@steward/domain';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 
-import { useAccion, useConsulta } from '@/data/puertos';
+import { HojaPlan } from '@/components/hojas-plan';
+import { useAccion, useConsulta, usePuertos } from '@/data/puertos';
 import { Aviso, Boton, Campo, colors, Encabezado, fonts, Monto, MontoInput, Pantalla, Segmentado, Texto } from '@/ui';
 
 const MESES = Array.from({ length: 12 }, (_, i) => i + 1);
@@ -17,6 +18,9 @@ export default function Anual() {
   const { anio } = useLocalSearchParams<{ anio: string }>();
   const r = useConsulta(['anual', anio], (p) => p.plan.anual(Number(anio)));
   const accion = useAccion();
+  const puertos = usePuertos();
+  const [editando, setEditando] = useState<{ fila: FilaAnualVista; mes: number } | null>(null);
+  const [montoCelda, setMontoCelda] = useState<number | null>(null);
   const [formulario, setFormulario] = useState(false);
   const [nombre, setNombre] = useState('');
   const [mes, setMes] = useState<string | null>('1');
@@ -25,7 +29,15 @@ export default function Anual() {
   const [mensaje, setMensaje] = useState('');
   const d = r.data;
 
-  if (!d) return <Pantalla><Encabezado titulo={`Plan anual ${anio}`} volver="/planear" volverTexto="Planear" /><Texto v="pequeno">{r.isLoading ? 'Cargando…' : `No hay plan anual para ${anio}.`}</Texto></Pantalla>;
+  if (!d) return <Pantalla><Encabezado titulo={`Plan anual ${anio}`} volver="/planear" volverTexto="Plan" /><Texto v="pequeno">{r.isLoading ? 'Cargando…' : `No hay plan anual para ${anio}.`}</Texto>{!r.isLoading && Number(anio) >= mesDe(puertos.hoy()).anio && <Boton titulo={`Crear plan anual ${anio}`} onPress={() => accion.ejecutar((p) => p.plan.crearAnual(Number(anio)))} />}<Aviso texto={accion.error} /></Pantalla>;
+
+  // Las filas de gasto por categoria y las de aportes proyectados; no el diezmo, los fijos ni los eventos.
+  const editable = (f: FilaAnualVista) => f.clave.startsWith('proy-') || (!f.calculado && f.clave !== 'eventos' && !f.clave.startsWith('fijo-') && !f.clave.startsWith('extra-'));
+  const guardarCelda = (e: { fila: FilaAnualVista; mes: number }) => {
+    const anioN = Number(anio);
+    const monto = montoCelda ?? 0;
+    return accion.ejecutar((p) => (e.fila.clave.startsWith('proy-') ? p.plan.editarProyeccion(e.fila.clave.slice(5), { anio: anioN, mes: e.mes }, monto) : p.plan.editarMontoAnual(anioN, e.fila.clave, e.mes, monto))).then((ok) => ok && setEditando(null));
+  };
 
   const fila = (f: FilaAnualVista) => (
     <View key={f.clave} style={{ flexDirection: 'row', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.divisor, backgroundColor: f.clave === 'eventos' ? colors.destacado : undefined }}>
@@ -33,15 +45,21 @@ export default function Anual() {
         <Texto style={{ fontSize: 13, fontStyle: f.tenue ? 'italic' : 'normal', color: f.tenue ? '#7A7D76' : colors.texto }}>{f.nombre}</Texto>
         {f.detalle ? <Texto style={{ fontSize: 11, color: colors.secundario }}>{f.detalle}</Texto> : null}
       </View>
-      {f.valores.map((v, i) => (
-        <Texto key={i} style={{ width: COL, textAlign: 'right', paddingRight: 8, fontFamily: fonts.mono, fontSize: 12, color: f.tenue ? '#7A7D76' : f.calculado ? colors.secundario : colors.texto }}>{v ? formatMiles(v) : ''}</Texto>
-      ))}
+      {f.valores.map((v, i) => {
+        const celda = <Texto style={{ width: COL, textAlign: 'right', paddingRight: 8, fontFamily: fonts.mono, fontSize: 12, color: f.tenue ? '#7A7D76' : f.calculado ? colors.secundario : colors.texto }}>{v ? formatMiles(v) : '—'}</Texto>;
+        if (!editable(f)) return <View key={i}>{celda}</View>;
+        return (
+          <Pressable key={i} accessibilityRole="button" accessibilityLabel={`${f.nombre} · ${nombreMesCapital(i + 1)}`} onPress={() => { setMontoCelda(v); setEditando({ fila: f, mes: i + 1 }); }}>
+            {celda}
+          </Pressable>
+        );
+      })}
     </View>
   );
 
   return (
     <Pantalla>
-      <Encabezado titulo={`Plan anual ${d.anio}`} rotulo={d.estado === 'BORRADOR' ? 'Borrador' : 'Meses creados'} rotuloColor={d.estado === 'BORRADOR' ? colors.aviso : undefined} volver="/planear" volverTexto="Planear" />
+      <Encabezado titulo={`Plan anual ${d.anio}`} rotulo={d.estado === 'BORRADOR' ? 'Borrador' : 'Meses creados'} rotuloColor={d.estado === 'BORRADOR' ? colors.aviso : undefined} volver="/planear" volverTexto="Plan" />
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
         <Boton tipo="secundario" titulo="+ Evento del año" onPress={() => setFormulario(!formulario)} style={{ minHeight: 40, height: 40 }} />
         {d.estado === 'BORRADOR' && (
@@ -99,6 +117,13 @@ export default function Anual() {
       <Texto v="pequeno">Cada mes nace de su columna como "Opción A". Los cambios en un mes no modifican el plan anual.</Texto>
       {mensaje ? <Texto style={{ color: colors.positivo }}>{mensaje}</Texto> : null}
       <Aviso texto={accion.error} />
+      {editando && (
+        <HojaPlan titulo={`${editando.fila.nombre} · ${nombreMesCapital(editando.mes)}`} onCerrar={() => setEditando(null)}>
+          <MontoInput etiqueta={editando.fila.tenue ? 'Aporte que esperas' : 'Monto del mes'} grande valor={montoCelda} onCambio={setMontoCelda} />
+          <Aviso texto={accion.error} />
+          <Boton titulo="Guardar" deshabilitado={montoCelda === null || accion.ocupado} onPress={() => guardarCelda(editando)} />
+        </HojaPlan>
+      )}
     </Pantalla>
   );
 }

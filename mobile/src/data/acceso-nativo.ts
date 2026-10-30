@@ -9,6 +9,7 @@ import { Alert } from 'react-native';
 /** Clave de la v1 en este dispositivo: solo se comprueba que exista, nunca se escribe ni se borra. */
 export const CLAVE_V1 = '@steward/budget_v3';
 const AVISO_VISTO = 'steward/aviso-v1-visto';
+const ENTRO_CON_APPLE = 'steward/entro-con-apple';
 
 function esCancelado(e: unknown): boolean {
   return (e as { code?: string } | null)?.code === 'ERR_REQUEST_CANCELED';
@@ -22,6 +23,7 @@ export async function entrarConGoogle(p: PuertosConectados): Promise<ResultadoLo
   const respuesta = await GoogleSignin.signIn();
   if (!isSuccessResponse(respuesta)) return null;
   if (!respuesta.data.idToken) throw new ReglaError('GOOGLE_TOKEN_INVALIDO', 'No pudimos verificar tu cuenta de Google. Intenta de nuevo.');
+  await AsyncStorage.removeItem(ENTRO_CON_APPLE);
   return p.iniciarConGoogle(respuesta.data.idToken);
 }
 
@@ -33,6 +35,7 @@ export async function entrarConApple(p: PuertosConectados): Promise<ResultadoLog
     });
     if (!c.identityToken) throw new ReglaError('APPLE_TOKEN_INVALIDO', 'No pudimos verificar tu cuenta de Apple. Intenta de nuevo.');
     const nombre = [c.fullName?.givenName, c.fullName?.familyName].filter(Boolean).join(' ') || undefined;
+    await AsyncStorage.setItem(ENTRO_CON_APPLE, '1');
     return await p.iniciarConApple(c.identityToken, nombre);
   } catch (e) {
     if (esCancelado(e)) return null;
@@ -40,13 +43,17 @@ export async function entrarConApple(p: PuertosConectados): Promise<ResultadoLog
   }
 }
 
-/** Para eliminar la cuenta: se autentica otra vez y da el codigo con que se revoca (design D5). Null si se cancela. */
-export async function codigoDeApple(): Promise<string | null> {
+/**
+ * Para eliminar la cuenta: quien entro con Apple se autentica otra vez, y ese codigo revoca su acceso (design D5).
+ * `cancelado`: decidio no seguir. Quien entro con Google no necesita nada.
+ */
+export async function codigoParaEliminar(): Promise<{ cancelado: boolean; codigo?: string }> {
+  if ((await AsyncStorage.getItem(ENTRO_CON_APPLE)) === null) return { cancelado: false };
   try {
     const c = await AppleAuthentication.signInAsync({ requestedScopes: [] });
-    return c.authorizationCode ?? null;
+    return { cancelado: false, codigo: c.authorizationCode ?? undefined };
   } catch (e) {
-    if (esCancelado(e)) return null;
+    if (esCancelado(e)) return { cancelado: true };
     throw e;
   }
 }

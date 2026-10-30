@@ -9,6 +9,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { avisarSiVieneDeLaV1 } from '@/data/acceso-nativo';
 import { prepararPuertos, puertosListos } from '@/data/instancia';
+import { MesDeHoyProvider } from '@/data/mes-de-hoy';
 import { DatosProvider } from '@/data/puertos';
 import { SesionProvider, useSesion } from '@/data/sesion';
 import { Aviso, Boton, colors } from '@/ui';
@@ -28,8 +29,10 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <DatosProvider puertos={puertos}>
           <SesionProvider>
-            <StatusBar style="dark" />
-            <Navegacion lista={fuentes || !!errorFuentes} />
+            <MesDeHoyProvider>
+              <StatusBar style="dark" />
+              <Navegacion lista={fuentes || !!errorFuentes} />
+            </MesDeHoyProvider>
           </SesionProvider>
         </DatosProvider>
       </SafeAreaProvider>

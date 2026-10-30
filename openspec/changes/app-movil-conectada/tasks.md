@@ -18,9 +18,9 @@
 
 - [ ] 4.1 Leer la documentación de Expo SDK 57 de lo que se usa. Dependencias nativas y config plugins; transporte `fetch`; `SecureStore` (D2); `puertosDeLaApp` conectado. Verificar: `tsc` y `npm test`; un build de desarrollo arranca.
 - [ ] 4.2 Acceso con Google y Apple (D3, D4), invitaciones sin correo coincidente (D7) y aviso de la v1 (D8). Verificar: en un dispositivo, entrar con los dos y confirmar la audiencia real del token de Google; prueba de que `@steward/budget_v3` no cambia.
-- [ ] 4.3 Hoy como Ejecución: nombres, selector de mes, hoja y lista de registros, diezmo sin vencimiento (D6). Verificar: pruebas de los escenarios de `steward-hoy`.
-- [ ] 4.4 Plan: hojas con "Guardar", chips de categoría, mes en curso editable, borrar plan y saldo negativo (D6). Verificar: pruebas de los escenarios de `steward-planear`.
-- [ ] 4.5 Cuentas y Ajustes: detalle de cuenta, "Empezar de nuevo", "Eliminar mi cuenta" y sin Face ID ni "Ocultar montos" (D5, D6). Verificar: pruebas de `steward-cuentas` y `steward-ajustes`; `tsc` y `npm test` en verde. `AGENTS.md` y `docs/DEPLOYMENT.md`. Commit.
+- [x] 4.3 Hoy como Ejecución: nombres, selector de mes, hoja y lista de registros, diezmo sin vencimiento (D6). Verificar: pruebas de los escenarios de `steward-hoy`.
+- [x] 4.4 Plan: hojas con "Guardar", chips de categoría, mes en curso editable, borrar plan y saldo negativo (D6). Verificar: pruebas de los escenarios de `steward-planear`.
+- [x] 4.5 Lo que le faltaba a la app frente a la PWA: agregar crédito e ingreso fijo, crear y editar el plan anual, quitar opción, "Mostrar solo lo que cambia" y compartir el enlace de invitación. Cuentas y Ajustes: detalle de cuenta, "Empezar de nuevo", "Eliminar mi cuenta" y sin Face ID ni "Ocultar montos" (D5, D6). Verificar: pruebas de `steward-cuentas` y `steward-ajustes`; `tsc` y `npm test` en verde. `AGENTS.md` y `docs/DEPLOYMENT.md`. Commit.
 
 ## 5. Producción
 

@@ -12,6 +12,9 @@ export default function AppLayout() {
       <Stack.Screen name="aporte" options={hoja} />
       <Stack.Screen name="pagar/[itemId]" options={hoja} />
       <Stack.Screen name="gasto" options={hoja} />
+      <Stack.Screen name="recibir/[clave]" options={hoja} />
+      <Stack.Screen name="registro/[id]" options={hoja} />
+      <Stack.Screen name="registros" options={hoja} />
     </Stack>
   );
 }

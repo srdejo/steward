@@ -1,16 +1,20 @@
-import { formatFechaCorta, formatPorcentaje, type BaseDiezmo, type Categoria, type IngresoFijo } from '@steward/domain';
+import { claveMes, formatFechaCorta, formatPorcentaje, mesDe, type BaseDiezmo, type Categoria, type IngresoFijo } from '@steward/domain';
 import { router } from 'expo-router';
 import { useState, type ReactNode } from 'react';
 import { Modal, Pressable, Text, TextInput, View } from 'react-native';
 
+import { codigoParaEliminar } from '@/data/acceso-nativo';
 import { useMiembros } from '@/data/miembros';
 import { useAccion, useConsulta, usePuertos } from '@/data/puertos';
 import { useSesion } from '@/data/sesion';
-import { Avatar, Aviso, Boton, Campo, colors, Encabezado, fonts, Interruptor, Monto, MontoInput, Pantalla, Segmentado, Texto } from '@/ui';
+import { Avatar, Aviso, Boton, Campo, colors, Encabezado, fonts, Interruptor, Monto, MontoInput, Pantalla, SEGURIDAD_DISPONIBLE, Segmentado, Texto } from '@/ui';
 
 type Dialogo =
   | { tipo: 'invitar' }
-  | { tipo: 'ingreso'; ingreso: IngresoFijo }
+  /** `ingreso` null: "+ Agregar ingreso fijo". */
+  | { tipo: 'ingreso'; ingreso: IngresoFijo | null }
+  | { tipo: 'empezar' }
+  | { tipo: 'eliminar' }
   | { tipo: 'aportes' }
   | { tipo: 'categoria'; categoria: Categoria | null }
   | { tipo: 'confirmar'; accion: 'salir' | 'restablecer' | 'desde-cero' };
@@ -60,11 +64,11 @@ export default function Ajustes() {
   function abrir(d: Dialogo) {
     accion.limpiar();
     setMensaje('');
-    setTexto(d.tipo === 'ingreso' ? d.ingreso.nombre : d.tipo === 'categoria' && d.categoria ? d.categoria.nombre : '');
+    setTexto(d.tipo === 'ingreso' ? d.ingreso?.nombre ?? '' : d.tipo === 'categoria' && d.categoria ? d.categoria.nombre : '');
     if (d.tipo === 'ingreso') {
-      setBruto(d.ingreso.bruto);
-      setNeto(d.ingreso.neto);
-      setDia(d.ingreso.diaPago);
+      setBruto(d.ingreso?.bruto ?? null);
+      setNeto(d.ingreso?.neto ?? null);
+      setDia(d.ingreso?.diaPago ?? 1);
     }
     if (d.tipo === 'aportes') {
       setReglaActiva(r?.activa ?? false);
@@ -77,6 +81,23 @@ export default function Ajustes() {
 
   async function confirmar() {
     const d = dialogo!;
+    if (d.tipo === 'empezar') {
+      if (await accion.ejecutar((p) => p.hogar.empezarDeNuevo())) {
+        setDialogo(null);
+        router.replace(`/mes/${claveMes(mesDe(puertos.hoy()))}`);
+      }
+      return;
+    }
+    if (d.tipo === 'eliminar') {
+      const apple = await codigoParaEliminar();
+      if (apple.cancelado) return;
+      if (await accion.ejecutar((p) => p.sesion.eliminarCuenta(apple.codigo))) {
+        setDialogo(null);
+        sesion.establecer(null);
+        router.replace('/acceso');
+      }
+      return;
+    }
     if (d.tipo === 'confirmar') {
       if (d.accion === 'restablecer') {
         if (await accion.ejecutar((p) => p.demo!.restablecer())) {
@@ -98,7 +119,7 @@ export default function Ajustes() {
         case 'invitar':
           return p.hogar.invitar(texto);
         case 'ingreso':
-          return p.ingresos.guardarFijo({ id: d.ingreso.id, nombre: texto, bruto: bruto ?? neto!, neto: neto!, diaPago: dia, cuentaId: d.ingreso.cuentaId });
+          return p.ingresos.guardarFijo({ id: d.ingreso?.id, nombre: texto, bruto: bruto ?? neto!, neto: neto!, diaPago: dia, cuentaId: d.ingreso?.cuentaId ?? null });
         case 'aportes':
           return p.ingresos.guardarRegla({ activa: reglaActiva, porcentaje: porcentaje || 10, base: base ?? 'BRUTO', aplicaAportes: reglaActiva && aplicaAportes });
         case 'categoria':
@@ -111,12 +132,12 @@ export default function Ajustes() {
     }
   }
 
-  const tituloDialogo = !dialogo ? '' : dialogo.tipo === 'invitar' ? 'Invitar al hogar' : dialogo.tipo === 'ingreso' ? `Editar ${dialogo.ingreso.nombre}` : dialogo.tipo === 'aportes' ? 'Mi diezmo' : dialogo.tipo === 'categoria' ? (dialogo.categoria ? 'Editar categoría' : 'Nueva categoría') : CONFIRMACIONES[dialogo.accion].titulo;
-  const botonDialogo = !dialogo ? '' : dialogo.tipo === 'invitar' ? 'Invitar' : dialogo.tipo === 'categoria' && !dialogo.categoria ? 'Crear categoría' : dialogo.tipo === 'confirmar' ? CONFIRMACIONES[dialogo.accion].boton : 'Guardar';
+  const tituloDialogo = !dialogo ? '' : dialogo.tipo === 'invitar' ? 'Invitar al hogar' : dialogo.tipo === 'ingreso' ? (dialogo.ingreso ? `Editar ${dialogo.ingreso.nombre}` : 'Nuevo ingreso fijo') : dialogo.tipo === 'aportes' ? 'Mi diezmo' : dialogo.tipo === 'categoria' ? (dialogo.categoria ? 'Editar categoría' : 'Nueva categoría') : dialogo.tipo === 'empezar' ? 'Empezar de nuevo' : dialogo.tipo === 'eliminar' ? 'Eliminar mi cuenta' : CONFIRMACIONES[dialogo.accion].titulo;
+  const botonDialogo = !dialogo ? '' : dialogo.tipo === 'invitar' ? 'Invitar' : dialogo.tipo === 'categoria' && !dialogo.categoria ? 'Crear categoría' : dialogo.tipo === 'confirmar' ? CONFIRMACIONES[dialogo.accion].boton : dialogo.tipo === 'empezar' ? 'Empezar de nuevo' : dialogo.tipo === 'eliminar' ? 'Eliminar mi cuenta' : dialogo.tipo === 'ingreso' && !dialogo.ingreso ? 'Agregar ingreso' : 'Guardar';
 
   return (
     <Pantalla>
-      <Encabezado titulo="Ajustes" volver="/hoy" volverTexto="Hoy" />
+      <Encabezado titulo="Ajustes" volver="/hoy" volverTexto="Ejecución" />
       <Seccion titulo={`Hogar · ${m.hogar?.hogar.nombre ?? ''}`}>
         {m.miembros.map((x) => (
           <View key={x.usuario.id} testID="miembro" style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.divisor }}>
@@ -136,6 +157,7 @@ export default function Ajustes() {
               <Text style={{ fontFamily: fonts.mono, fontSize: 13 }}><Monto valor={f.neto} style={{ fontSize: 13 }} /> ›</Text>
             </Pressable>
           ))}
+          <Boton tipo="texto" titulo="+ Agregar ingreso fijo" onPress={() => abrir({ tipo: 'ingreso', ingreso: null })} />
           <Pressable accessibilityRole="button" onPress={() => abrir({ tipo: 'aportes' })} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.divisor }}>
             <View style={{ gap: 2 }}><Texto>Aportes variables</Texto><Texto v="detalle" style={{ color: colors.diezmo }}>Contratos, negocio · {textoAportes}</Texto></View>
             <Texto v="pequeno">Editar ›</Texto>
@@ -154,10 +176,12 @@ export default function Ajustes() {
         ))}
       </Seccion>
 
-      <Seccion titulo="Seguridad y privacidad">
-        <Interruptor titulo="Face ID al abrir" detalle="Tras 5 min sin usar" activo={sesion.preferencias.faceIdAlAbrir} onCambio={(v) => sesion.guardarPreferencias({ faceIdAlAbrir: v })} />
-        <Interruptor titulo="Ocultar montos" detalle="Muestra $•••• hasta tocar" activo={sesion.preferencias.ocultarMontos} onCambio={(v) => sesion.guardarPreferencias({ ocultarMontos: v })} />
-      </Seccion>
+      {SEGURIDAD_DISPONIBLE && (
+        <Seccion titulo="Seguridad y privacidad">
+          <Interruptor titulo="Face ID al abrir" detalle="Tras 5 min sin usar" activo={sesion.preferencias.faceIdAlAbrir} onCambio={(v) => sesion.guardarPreferencias({ faceIdAlAbrir: v })} />
+          <Interruptor titulo="Ocultar montos" detalle="Muestra $•••• hasta tocar" activo={sesion.preferencias.ocultarMontos} onCambio={(v) => sesion.guardarPreferencias({ ocultarMontos: v })} />
+        </Seccion>
+      )}
 
       {puertos.demo && (
         <Seccion titulo="Datos de prueba">
@@ -169,6 +193,12 @@ export default function Ajustes() {
       {mensaje ? <Texto style={{ color: colors.positivo }}>{mensaje}</Texto> : null}
       <View style={{ gap: 4 }}>
         <Boton tipo="secundario" titulo="Cerrar sesión" onPress={async () => { await sesion.cerrar(); router.replace('/acceso'); }} style={{ minHeight: 48 }} />
+        <Pressable accessibilityRole="button" onPress={() => abrir({ tipo: 'empezar' })} style={{ minHeight: 44, alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ fontFamily: fonts.medium, fontSize: 14, color: colors.negativo }}>Empezar de nuevo</Text>
+        </Pressable>
+        <Pressable accessibilityRole="button" onPress={() => abrir({ tipo: 'eliminar' })} style={{ minHeight: 44, alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ fontFamily: fonts.medium, fontSize: 14, color: colors.negativo }}>Eliminar mi cuenta</Text>
+        </Pressable>
         <Pressable accessibilityRole="button" onPress={() => abrir({ tipo: 'confirmar', accion: 'salir' })} style={{ minHeight: 44, alignItems: 'center', justifyContent: 'center' }}>
           <Text style={{ fontFamily: fonts.medium, fontSize: 14, color: colors.negativo }}>Salir del hogar</Text>
         </Pressable>
@@ -209,9 +239,21 @@ export default function Ajustes() {
             </>
           )}
           {dialogo?.tipo === 'confirmar' && <Texto style={{ fontSize: 15, color: colors.secundario }}>{CONFIRMACIONES[dialogo.accion].texto}</Texto>}
+          {dialogo?.tipo === 'empezar' && (
+            <>
+              <Texto style={{ fontSize: 15, color: colors.secundario }}>Se borran todos los planes, los cierres, el plan anual y lo registrado. Se conservan los miembros, los ingresos, las reglas, las categorías, las cuentas con su saldo de hoy y los créditos.</Texto>
+              <Campo etiqueta="Escribe EMPEZAR para confirmar" valor={texto} onCambio={setTexto} />
+            </>
+          )}
+          {dialogo?.tipo === 'eliminar' && (
+            <>
+              <Texto style={{ fontSize: 15, color: colors.secundario }}>Se borran tu cuenta y tus datos personales, y no se puede deshacer. Si eres el único miembro, también se borra el hogar con todo lo suyo. Si compartes el hogar, lo que registraste se queda para los demás a nombre de "Ex miembro".</Texto>
+              <Campo etiqueta="Escribe ELIMINAR para confirmar" valor={texto} onCambio={setTexto} />
+            </>
+          )}
           <Aviso texto={accion.error} />
-          <Boton tipo={dialogo?.tipo === 'confirmar' && dialogo.accion === 'salir' ? 'peligro' : 'primario'} titulo={botonDialogo} onPress={confirmar}
-            deshabilitado={(dialogo?.tipo === 'invitar' || dialogo?.tipo === 'categoria' || dialogo?.tipo === 'ingreso') && !texto.trim()} />
+          <Boton tipo={(dialogo?.tipo === 'confirmar' && dialogo.accion === 'salir') || dialogo?.tipo === 'empezar' || dialogo?.tipo === 'eliminar' ? 'peligro' : 'primario'} titulo={botonDialogo} onPress={confirmar}
+            deshabilitado={accion.ocupado || ((dialogo?.tipo === 'invitar' || dialogo?.tipo === 'categoria') && !texto.trim()) || (dialogo?.tipo === 'ingreso' && (!texto.trim() || !neto)) || (dialogo?.tipo === 'empezar' && texto.trim() !== 'EMPEZAR') || (dialogo?.tipo === 'eliminar' && texto.trim() !== 'ELIMINAR')} />
         </View>
       </Modal>
     </Pantalla>

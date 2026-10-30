@@ -67,6 +67,7 @@ export default function Cierre() {
           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}><Texto style={{ fontSize: 14 }}>A ahorro</Texto><Monto valor={v.aAhorro} /></View>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}><Texto style={{ fontSize: 14 }}>Pasó a {nombreMes(siguiente.mes)}</Texto><Monto valor={v.aSiguiente} /></View>
           <Texto v="detalle">El mes está cerrado: queda en solo lectura.</Texto>
+          <Boton tipo="texto" titulo="Ver el plan del mes" onPress={() => router.push(`/mes/${mes}`)} />
         </View>
       ) : (
         <>

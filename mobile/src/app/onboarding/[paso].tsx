@@ -2,8 +2,9 @@ import { PuertosConectados, type MiInvitacion } from '@steward/domain/conectado'
 import { previsualizarDiezmo, type BaseDiezmo, type Id, type Invitacion, type Pesos } from '@steward/domain';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState, type ReactNode } from 'react';
-import { Pressable, Text, TextInput, View } from 'react-native';
+import { Pressable, Share, Text, TextInput, View } from 'react-native';
 
+import { API_URL } from '@/data/conectado';
 import { mensajeDeError, usePuertos } from '@/data/puertos';
 import { useSesion } from '@/data/sesion';
 import { Avatar, Aviso, Boton, Campo, colors, fonts, Monto, MontoInput, Pantalla, Texto } from '@/ui';
@@ -244,6 +245,10 @@ export default function Onboarding() {
               <Boton tipo="enlace" titulo="Reenviar" onPress={() => puertos.hogar.reenviar(inv.id)} />
             </View>
           ))}
+          {invitaciones.length > 0 && (
+            <Boton tipo="enlace" titulo="O compartir enlace de invitación"
+              onPress={() => guardar(async () => { await Share.share({ message: `${API_URL}${await puertos.hogar.enlaceInvitacion(invitaciones.at(-1)!.id)}` }); })} />
+          )}
           <View style={{ gap: 10, padding: 16, borderRadius: 14, backgroundColor: colors.nota }}>
             <Texto style={{ fontSize: 13, fontFamily: fonts.semibold }}>Los dos podrán</Texto>
             <Texto style={{ fontSize: 13, color: colors.textoSuave }}>Ver el mes y el año · marcar pagos · registrar aportes · crear y elegir opciones de presupuesto</Texto>

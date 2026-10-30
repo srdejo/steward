@@ -1,10 +1,11 @@
-import { mesDe, type Id } from '@steward/domain';
-import { useLocalSearchParams } from 'expo-router';
+import type { Id } from '@steward/domain';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
 
 import { SU_CUENTA, useOpcionesHoja } from '@/data/hoja';
-import { useAccion, useConsulta, usePuertos } from '@/data/puertos';
+import { AvisoMes, useMesDeHoy } from '@/data/mes-de-hoy';
+import { useAccion, useConsulta } from '@/data/puertos';
 import { useSesion } from '@/data/sesion';
 import { Aviso, Boton, cerrarHoja, Campo, colors, Hoja, Monto, MontoInput, Segmentado, Texto } from '@/ui';
 
@@ -13,11 +14,10 @@ const NO_PLANEADO = '__no_planeado__';
 /** Gasto.dc.html: monto, a que gasto del plan (los variables acumulan) o "No estaba planeado", nota, quien y desde. */
 export default function Gasto() {
   const { item } = useLocalSearchParams<{ item?: string }>();
-  const puertos = usePuertos();
   const { sesion } = useSesion();
   const hoja = useOpcionesHoja();
   const accion = useAccion();
-  const ref = mesDe(puertos.hoy());
+  const { ref } = useMesDeHoy();
   const resumen = useConsulta(['resumen', ref], (p) => p.movimientos.resumenMes(ref));
   const variables = [...(resumen.data?.porPagar ?? []), ...(resumen.data?.yaPagado ?? [])].filter((i) => i.item.tipo === 'VARIABLE');
 
@@ -39,6 +39,7 @@ export default function Gasto() {
 
   return (
     <Hoja titulo="Registrar gasto">
+      <AvisoMes />
       <MontoInput etiqueta="¿Cuánto?" grande valor={monto} onCambio={setMonto} />
       <View style={{ gap: 8 }}>
         <Segmentado
@@ -54,6 +55,7 @@ export default function Gasto() {
           </Texto>
         )}
       </View>
+      {previa && previa.pagos.length > 0 && <Boton tipo="texto" titulo={`Ver los gastos de ${previa.item.nombre}`} onPress={() => router.push(`/registros?item=${previa.item.id}`)} />}
       <Campo etiqueta="Nota · Opcional" valor={nota} onCambio={setNota} placeholder="Ej: Plaza del sábado" />
       <Segmentado etiqueta="Pagó" opciones={hoja.iniciales} valor={quien} onCambio={setQuien} />
       <Segmentado etiqueta="Desde · Opcional" chips opcional opciones={hoja.desde} valor={desde} onCambio={setDesde} />

@@ -3,15 +3,18 @@ import type { ReactNode } from 'react';
 import { ScrollView, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { usePuertos } from '@/data/puertos';
 import { Boton, Texto } from './base';
 import { colors, fonts } from './tokens';
 
 /** Pantalla con scroll, fondo y margenes de los artboards (padding 24/20). Con `demo` muestra el aviso de datos de prueba. */
 export function Pantalla({ children, demo = true, style, testID }: { children: ReactNode; demo?: boolean; style?: StyleProp<ViewStyle>; testID?: string }) {
   const insets = useSafeAreaInsets();
+  // En la app conectada no hay datos de prueba.
+  const conDemo = usePuertos().demo !== null;
   return (
     <View style={{ flex: 1, backgroundColor: colors.fondo, paddingTop: insets.top }} testID={testID}>
-      {demo ? <AvisoDemo /> : null}
+      {demo && conDemo ? <AvisoDemo /> : null}
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 32, gap: 20 }, style]}>
         {children}
       </ScrollView>
