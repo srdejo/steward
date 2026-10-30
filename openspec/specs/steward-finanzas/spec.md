@@ -44,11 +44,15 @@ Quitar un ingreso MUST desactivarlo, sin borrarlo, para conservar lo ya recibido
 - **THEN** responde 404 `INGRESO_NO_ENCONTRADO` y el ingreso no cambia
 
 ### Requirement: Recibir un ingreso fijo
-Cualquier miembro SHALL poder marcar como recibido ("Recibí") un ingreso fijo activo de su hogar.
-- Se registra un movimiento de ingreso del mes en curso, en la zona horaria del backend, con el neto del ingreso, su bruto, la fecha de hoy, el dueño del ingreso y quién lo marcó.
-- El movimiento MUST quedar marcado como generador de diezmo si el dueño tiene la regla activa en ese momento.
-- Marcar el mismo ingreso dos veces en un mes MUST responder 409 `YA_RECIBIDO`.
-- Un ingreso inactivo o de otro hogar MUST responder 404 `INGRESO_NO_ENCONTRADO`.
+Cualquier miembro SHALL poder marcar como recibido ("Recibí") un ingreso del mes en curso, en la zona horaria del backend:
+- **una línea de ingreso** de la opción principal del mes (spec `steward-plan-mes`, "Ingresos de la opción"), de cualquier tipo;
+- o, si el mes no tiene plan, **un ingreso fijo activo** del hogar.
+
+Se registra un movimiento de ingreso del mes con el monto que indique quien lo marca o, si no indica ninguno, el de la línea (o el neto del ingreso fijo), con la fecha de hoy, la persona de la línea o el dueño del ingreso, quién lo marcó, el ingreso fijo y su bruto si la línea está enlazada a uno, y la línea si la hay. Va a la cuenta del ingreso fijo enlazado, si la tiene.
+- Recibir un ingreso MUST NOT crear ninguna obligación de diezmo: su diezmo ya está presupuestado como ítem del plan del mes (spec `steward-plan-mes`, "Ítems de diezmo").
+- Marcar la misma línea dos veces, o el mismo ingreso fijo dos veces en un mes, MUST responder 409 `YA_RECIBIDO`.
+- Un monto menor o igual a cero MUST responder 400 `DATOS_INVALIDOS`.
+- Un ingreso inactivo o de otro hogar, o una línea de otro hogar, MUST responder 404 `INGRESO_NO_ENCONTRADO`.
 
 #### Scenario: Salario recibido
 - **WHEN** se marca recibido "Salario Daniel" el 25 de octubre
@@ -58,55 +62,13 @@ Cualquier miembro SHALL poder marcar como recibido ("Recibí") un ingreso fijo a
 - **WHEN** se marca recibido otra vez "Salario Daniel" en octubre
 - **THEN** responde 409 `YA_RECIBIDO` y sigue habiendo un solo ingreso en el mes
 
-### Requirement: Obligaciones de diezmo
-Las obligaciones de diezmo pendientes del mes en curso SHALL calcularse así, con las mismas cifras que el dominio compartido:
-- una por cada ingreso recibido que generó diezmo y no se ha entregado: el porcentaje de la regla actual del dueño sobre el bruto o el neto del ingreso recibido, según la base, con el detalle `{porcentaje}% de {nombre del ingreso} · recibido {fecha corta}`;
-- una por cada aporte registrado con "Aplicar diezmo" y no entregado: el porcentaje de la regla actual de quien aportó sobre el monto del aporte, con el detalle `{porcentaje}% del aporte · {fecha corta}`;
-- los montos se redondean al peso más cercano, con las mitades hacia arriba.
+#### Scenario: Recibido con otro monto
+- **WHEN** el 25 de octubre llega "Salario Daniel" por $6.350.000 y se marca recibido con ese monto
+- **THEN** octubre tiene un ingreso de $6.350.000 enlazado a la línea, y la línea de la opción sigue en $6.288.000 como plan
 
-Si el dueño ya no tiene regla, sus obligaciones no aparecen. Cualquier miembro MUST poder consultarlas. Cada una tiene id, monto, detalle, dueño y fecha.
-
-#### Scenario: Diezmo del salario
-- **WHEN** "Salario Daniel" (bruto $7.000.000, neto $6.288.000) se recibe el 25 oct y Daniel tiene 10 % sobre el bruto
-- **THEN** hay una obligación pendiente de $700.000 con detalle "10% de Salario Daniel · recibido 25 oct"
-
-#### Scenario: Base neto
-- **WHEN** la regla de Daniel es 10 % sobre el neto y se recibe el mismo salario
-- **THEN** la obligación es de $628.800
-
-#### Scenario: Sin regla
-- **WHEN** Esposa no tiene regla activa y se recibe su ingreso fijo
-- **THEN** no aparece ninguna obligación por ese ingreso
-
-#### Scenario: Aporte con diezmo
-- **WHEN** Daniel, con 10 %, registra el 26 oct un aporte de $2.000.000 con "Aplicar diezmo"
-- **THEN** hay una obligación pendiente de $200.000 con detalle "10% del aporte · 26 oct", que "Entregado" cierra como las demás
-
-### Requirement: Entregar el diezmo
-Un miembro SHALL poder entregar ("Entregado") una o varias obligaciones pendientes del mes en curso, con cuenta de origen opcional.
-- Se registra un movimiento de diezmo entregado por la suma de esas obligaciones, que las cubre, y ellas dejan de estar pendientes.
-- Los ids que no corresponden a una obligación pendiente del hogar MUST ignorarse.
-- Si ninguno corresponde, MUST responder 409 `SIN_DIEZMO`.
-- Una obligación MUST NOT poder entregarse dos veces.
-
-#### Scenario: Entregado
-- **WHEN** se entrega la obligación de $700.000 del salario de Daniel
-- **THEN** queda un movimiento de diezmo entregado por $700.000 y no quedan obligaciones pendientes
-
-#### Scenario: Agrupado
-- **WHEN** hay dos obligaciones pendientes, de $700.000 y $150.000, y se entregan juntas
-- **THEN** queda un solo movimiento de $850.000 que cubre las dos
-
-#### Scenario: Ya entregado
-- **WHEN** se intenta entregar otra vez la obligación de $700.000
-- **THEN** responde 409 `SIN_DIEZMO`
-
-### Requirement: Diezmo en Hoy
-El hogar SHALL tener el ajuste "Diezmo en Hoy", con valor `SEPARADO` (por defecto) o `AGRUPADO`. Cualquier miembro MUST poder cambiarlo. Un valor distinto MUST responder 400 `DATOS_INVALIDOS`.
-
-#### Scenario: Pasar a agrupado
-- **WHEN** un miembro elige `AGRUPADO`
-- **THEN** las finanzas del hogar muestran `AGRUPADO` para los dos miembros
+#### Scenario: Ingreso agregado a mano
+- **WHEN** octubre tiene la línea "Venta bicicleta" por $400.000 y se marca recibida
+- **THEN** octubre tiene un ingreso de $400.000 enlazado a esa línea
 
 ### Requirement: Cuentas básicas
 Un miembro SHALL poder crear una cuenta del hogar con:
@@ -137,13 +99,13 @@ El saldo estimado no depende de cuántos meses lee la app: lo registrado antes d
 
 ### Requirement: Finanzas del hogar en una lectura
 Un miembro SHALL poder leer en una sola llamada:
-- el mes en curso y el ajuste "Diezmo en Hoy";
+- el mes en curso;
 - las categorías del hogar;
 - los ingresos fijos activos de todos los miembros, y sus reglas de diezmo;
 - las cuentas, cada una con el orden de registro de su último cuadre;
 - los créditos, con sus últimos pagos;
-- los planes de los meses, desde dos meses antes del mes en curso en adelante, con sus opciones e ítems (y el crédito de cada ítem enlazado) y su estado efectivo;
-- los movimientos de esos mismos meses, más los de cualquier mes que todavía cuenten en el saldo estimado de alguna cuenta: ingresos recibidos, diezmos entregados (con lo que cubre cada entrega), pagos, gastos, aportes, ajustes de cuadre, transferencias y abonos, con su orden de registro, su origen, su nota, su cuenta destino y su crédito;
+- los planes de los meses, desde dos meses antes del mes en curso en adelante, con sus opciones, sus líneas de ingreso e ítems (y el crédito, el ingreso fijo o el aporte de cada ítem enlazado) y su estado efectivo;
+- los movimientos de esos mismos meses, más los de cualquier mes que todavía cuenten en el saldo estimado de alguna cuenta: ingresos recibidos, pagos, gastos, aportes, ajustes de cuadre, transferencias, abonos y las entregas de diezmo registradas antes de que el diezmo pasara al plan, con su orden de registro, su origen, su nota, su cuenta destino y su crédito;
 - los cierres desde tres meses antes del mes en curso (el del mes anterior a los que se leen trae el "Sobrante de {mes}" del primero), con sus filas, "Sin registrar", el sobrante, el reparto, quién cerró y la fecha;
 - los planes anuales desde el año del primer mes que se lee, con sus celdas y eventos, y los aportes proyectados de esos años.
 
@@ -170,15 +132,15 @@ Sin hogar, MUST responder 404 `SIN_HOGAR`.
 - **THEN** ve el plan anual 2027 con sus celdas, el evento y las proyecciones de los dos
 
 ### Requirement: Aislamiento de las finanzas
-Todo lo de esta capacidad SHALL resolverse a partir del hogar del usuario de la sesión. Ingresos, cuentas, créditos, movimientos y obligaciones de otro hogar MUST NOT poder leerse ni modificarse. Un id ajeno MUST responder igual que uno inexistente. Sin sesión, MUST responder 401.
+Todo lo de esta capacidad SHALL resolverse a partir del hogar del usuario de la sesión. Ingresos, cuentas, créditos, movimientos e ítems de otro hogar MUST NOT poder leerse ni modificarse. Un id ajeno MUST responder igual que uno inexistente. Sin sesión, MUST responder 401.
 
 #### Scenario: Ingreso de otro hogar
 - **WHEN** un miembro de otro hogar marca recibido "Salario Daniel" usando su id
 - **THEN** responde 404 `INGRESO_NO_ENCONTRADO` y "Nuestra casa" no tiene ningún ingreso nuevo
 
 #### Scenario: Entregar diezmo ajeno
-- **WHEN** un miembro de otro hogar entrega la obligación de Daniel usando su id
-- **THEN** responde 409 `SIN_DIEZMO` y la obligación sigue pendiente en "Nuestra casa"
+- **WHEN** un miembro de otro hogar marca pagado "Diezmo · Salario Daniel" usando el id de ese ítem
+- **THEN** responde 404 `ITEM_NO_ENCONTRADO` y el ítem sigue sin pagar en "Nuestra casa"
 
 #### Scenario: Cuadrar o abonar algo ajeno
 - **WHEN** un miembro de otro hogar cuadra Davivienda o abona a "Libre inversión" usando sus ids
@@ -234,11 +196,15 @@ Un miembro SHALL poder registrar un aporte, igual que `registrarAporte` del domi
 - con cuenta destino opcional del hogar;
 - con "Aplicar diezmo".
 
-Otro mes MUST responder 400 `DATOS_INVALIDOS`.
+Otro mes MUST responder 400 `DATOS_INVALIDOS`. Con "Aplicar diezmo", el aporte MUST ganar su propio ítem de diezmo en el plan de su mes, en la misma transacción (spec `steward-plan-mes`, "Ítems de diezmo").
 
 #### Scenario: Aporte para el mes siguiente
 - **WHEN** el 28 oct se registra un aporte de Esposa por $500.000 para noviembre
 - **THEN** el aporte queda en noviembre, no en octubre
+
+#### Scenario: Aporte con diezmo en un mes con plan
+- **WHEN** el 26 oct Daniel, con 10 %, registra un aporte de $2.000.000 con "Aplicar diezmo", y octubre tiene plan
+- **THEN** el aporte queda en octubre y la opción en uso de octubre tiene "Diezmo · aporte 26 oct" por $200.000
 
 ### Requirement: Cuadrar cuentas
 Un miembro SHALL poder cuadrar una o varias cuentas del hogar en una sola operación, igual que `cuadrarCuentas` del dominio, escribiendo por cada una lo que dice el banco (de cero en adelante).

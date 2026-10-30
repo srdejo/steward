@@ -6,27 +6,28 @@ Define en el backend el plan de cada mes del hogar: las categorías, el mes con 
 ## Requirements
 
 ### Requirement: Categorías del hogar
-Todo hogar SHALL tener desde que se crea las cuatro categorías del sistema:
+Todo hogar SHALL tener desde que se crea las cinco categorías del sistema:
+- Diezmo (tipo DIEZMO);
 - Gastos fijos (tipo FIJO);
 - Tarjetas y cuotas (TARJETA);
 - Variables (VARIABLE);
 - Créditos (CREDITO).
 
-Cualquier miembro MUST poder crear una categoría con un nombre (1 a 40 caracteres) y renombrar cualquiera, también las del sistema. Las del sistema no se borran. Las reglas son las del dominio compartido:
-- "Diezmo" (sin distinguir mayúsculas) MUST responder 400 `RESERVADA`, porque el diezmo se calcula solo;
+Cualquier miembro MUST poder crear una categoría con un nombre (1 a 40 caracteres) y renombrar cualquiera, también las del sistema, salvo "Diezmo", que MUST NOT renombrarse (400 `RESERVADA`). Las del sistema no se borran. Las reglas son las del dominio compartido:
+- "Diezmo" (sin distinguir mayúsculas) MUST responder 400 `RESERVADA`, porque ya es la categoría del sistema;
 - un nombre que ya usa otra categoría del hogar MUST responder 409 `DUPLICADA`.
 
 #### Scenario: Hogar nuevo
 - **WHEN** un usuario crea "Nuestra casa"
-- **THEN** el hogar tiene Gastos fijos, Tarjetas y cuotas, Variables y Créditos, en ese orden
+- **THEN** el hogar tiene Diezmo, Gastos fijos, Tarjetas y cuotas, Variables y Créditos, en ese orden
 
 #### Scenario: Nueva categoría
 - **WHEN** un miembro crea "Educación"
 - **THEN** la categoría queda en el hogar, después de las del sistema, y se puede usar en los ítems del plan
 
 #### Scenario: Diezmo no es categoría
-- **WHEN** un miembro intenta crear la categoría "diezmo"
-- **THEN** responde 400 `RESERVADA` y no se crea nada
+- **WHEN** un miembro intenta crear la categoría "diezmo", o renombrar la categoría Diezmo
+- **THEN** responde 400 `RESERVADA` y no se crea ni se renombra nada
 
 ### Requirement: Crear el plan de un mes
 Un miembro SHALL poder crear el plan de un mes que no tiene plan, en estado Borrador y con una Opción A propuesta por él, de una de tres formas, igual que `crearMes` del dominio:
@@ -38,7 +39,14 @@ En las tres formas, los créditos del hogar MUST quedar en el mes así:
 - cada crédito con saldo mayor que cero que no tenga ya un ítem enlazado en la opción gana su cuota, como al agregarlo (Créditos, tipo `CREDITO`, "Cuota {nombre en minúsculas}", su cuota y su día de pago);
 - un ítem copiado de un crédito con saldo $0 no se copia.
 
-Sin plan en el mes anterior, `COPIAR` y `FIJOS` crean la opción solo con las cuotas de los créditos. Si el mes ya tiene plan, MUST responder 409 `YA_EXISTE`.
+En las tres formas, la Opción A MUST nacer con sus líneas de ingreso (requirement "Ingresos de la opción"):
+- una `FIJO` por cada ingreso fijo activo del hogar, con su nombre, su neto y su dueño;
+- una `EXTRA` por cada evento de ingreso del plan anual de ese mes, con su nombre, su monto y su persona;
+- con `COPIAR` y `FIJOS`, además, las líneas `OTRO` de la opción principal del mes anterior.
+
+Las líneas `FIJO` y `EXTRA` MUST NOT copiarse del mes anterior: salen de Ajustes y del plan anual de ese momento. Los ítems de diezmo nacen según "Ítems de diezmo".
+
+Sin plan en el mes anterior, `COPIAR` y `FIJOS` crean la opción solo con las cuotas de los créditos, sus ingresos y sus diezmos. Si el mes ya tiene plan, MUST responder 409 `YA_EXISTE`.
 
 #### Scenario: Copiar mes anterior
 - **WHEN** octubre tiene la Compra a cuotas en la cuota 4 de 12 y Mercado por $320.000, y se crea noviembre con `COPIAR`
@@ -54,22 +62,27 @@ Sin plan en el mes anterior, `COPIAR` y `FIJOS` crean la opción solo con las cu
 
 #### Scenario: Desde cero con un crédito
 - **WHEN** el hogar tiene "Libre inversión" con saldo $14.250.000 y cuota $500.000, y se crea noviembre "Desde cero"
-- **THEN** la Opción A de noviembre tiene solo "Cuota libre inversión" por $500.000, enlazada al crédito
+- **THEN** la Opción A de noviembre tiene, como gastos, solo "Cuota libre inversión" por $500.000, enlazada al crédito, y los ítems de diezmo
 
 #### Scenario: Crédito pagado
 - **WHEN** "Libre inversión" quedó en saldo $0 en octubre y se crea noviembre con `COPIAR`
 - **THEN** noviembre no trae "Cuota libre inversión"
 
+#### Scenario: Ingresos al crear el mes
+- **WHEN** en octubre "Salario Daniel" se editó a $6.500.000 en la opción y se agregó "Venta bicicleta", y se crea noviembre con `COPIAR`
+- **THEN** noviembre trae "Salario Daniel" por $6.288.000, el neto de Ajustes, y "Venta bicicleta" copiada
+
 ### Requirement: Ítems de la opción
 Un miembro SHALL poder agregar, editar y quitar ítems de una opción del plan. Cada ítem tiene:
 - nombre (1 a 60 caracteres) y monto (cero o más);
 - categoría del hogar;
-- tipo `FIJO`, `VARIABLE`, `CUOTA` o `CREDITO`;
+- tipo `FIJO`, `VARIABLE`, `CUOTA`, `CREDITO` o `DIEZMO`;
 - día de vencimiento opcional (1 a 31);
 - para las compras a cuotas, cuota actual y total;
-- para los de tipo `CREDITO`, el crédito del hogar al que corresponde, opcional.
+- para los de tipo `CREDITO`, el crédito del hogar al que corresponde, opcional;
+- para los de tipo `DIEZMO`, el ingreso fijo o el aporte que lo origina, opcional.
 
-Datos inválidos MUST responder 400 `DATOS_INVALIDOS`. Una categoría de otro hogar MUST responder 404 `CATEGORIA_NO_ENCONTRADA`, y un crédito de otro hogar, 404 `CREDITO_NO_ENCONTRADO`. Editar un ítem conserva su crédito si no se indica otro. Quitar un ítem que ya tiene pagos o gastos en su mes MUST responder 409 `ITEM_CON_PAGOS` y no quitarlo.
+Datos inválidos MUST responder 400 `DATOS_INVALIDOS`. Una categoría de otro hogar MUST responder 404 `CATEGORIA_NO_ENCONTRADA`, y un crédito de otro hogar, 404 `CREDITO_NO_ENCONTRADO`. Editar un ítem conserva su crédito y el ingreso o aporte que lo origina si no se indica otro. Quitar un ítem que ya tiene pagos o gastos en su mes MUST responder 409 `ITEM_CON_PAGOS` y no quitarlo.
 
 #### Scenario: Agregar un gasto fijo
 - **WHEN** en la Opción A de noviembre se agrega "Internet" por $120.000 en Gastos fijos, que vence el día 15
@@ -82,6 +95,10 @@ Datos inválidos MUST responder 400 `DATOS_INVALIDOS`. Una categoría de otro ho
 #### Scenario: Cambiar el monto de la cuota
 - **WHEN** en Planear se cambia "Cuota libre inversión" de noviembre a $550.000
 - **THEN** el ítem sigue enlazado a "Libre inversión", y pagarlo en noviembre baja su saldo
+
+#### Scenario: Editar el diezmo
+- **WHEN** un miembro cambia "Diezmo · Salario Daniel" de noviembre a $750.000
+- **THEN** el ítem queda en $750.000, sigue enlazado a "Salario Daniel", y el otro miembro lo ve así
 
 ### Requirement: Usar la opción y estados del mes
 "Usar opción" SHALL dejar esa opción como la que se ejecuta en el mes y archivar las demás, sin borrarlas, igual que `usarEscenario` del dominio. El estado del mes sigue al dominio:
@@ -167,13 +184,14 @@ Cerrar no se deshace.
 Un miembro SHALL poder duplicar una opción de un mes en Borrador, igual que `duplicarEscenario` del dominio. La copia:
 - toma la siguiente letra libre (A, B, C…);
 - la propone quien la crea, con una nota opcional;
-- trae los mismos ítems, sin avanzar las cuotas, con su crédito si lo tienen.
+- trae los mismos ítems, sin avanzar las cuotas, con su crédito, su ingreso o su aporte si lo tienen;
+- trae las mismas líneas de ingreso, con sus montos.
 
 El mes debe seguir en Borrador según su estado efectivo: un mes en curso con opción elegida ya es Activo. Si no, MUST responder 409 `MES_NO_BORRADOR`. Un mes Cerrado responde `MES_CERRADO`. Con 26 opciones, MUST responder 409 `MUCHAS_OPCIONES`. Una opción de otro hogar MUST responder 404 `PLAN_NO_ENCONTRADO`.
 
 #### Scenario: Duplicar la Opción A
 - **WHEN** noviembre está en Borrador con la Opción A, propuesta por Daniel, y Esposa la duplica
-- **THEN** noviembre tiene la Opción B, propuesta por Esposa, con los mismos ítems que A
+- **THEN** noviembre tiene la Opción B, propuesta por Esposa, con los mismos ítems y las mismas líneas de ingreso que A
 
 #### Scenario: Mes Activo
 - **WHEN** octubre es el mes en curso con la Opción A en uso y se intenta duplicarla
@@ -217,3 +235,70 @@ Responde el plan y la opción nueva. Un abono de cero o menos MUST responder 400
 #### Scenario: Mes sin plan
 - **WHEN** diciembre no tiene plan y se prueba un abono como opción de diciembre
 - **THEN** diciembre queda en Borrador con la Opción A copiada de noviembre y la Opción B con el abono
+
+### Requirement: Ítems de diezmo
+El diezmo SHALL presupuestarse como gasto: cada diezmo es un ítem independiente de tipo `DIEZMO`, en la categoría "Diezmo", enlazado al ingreso que lo origina. Su monto es el que sugiere la regla de diezmo del dueño del ingreso: el porcentaje sobre el bruto o el neto según la base, redondeado al peso más cercano con las mitades hacia arriba.
+
+Los ítems de diezmo nacen así, con las mismas cifras que el dominio compartido:
+- **Al crear el plan de un mes**, en las tres formas, la Opción A gana un ítem "Diezmo · {nombre del ingreso}" por cada ingreso fijo activo del hogar cuyo dueño tiene la regla activa, y uno "Diezmo · {nombre del evento}" por cada evento de ingreso del plan anual de ese mes con un miembro que tiene la regla activa (sobre el monto del evento). Estos ítems MUST NOT copiarse del mes anterior: se calculan de nuevo con la regla y el ingreso de ese momento, aunque la línea de ingreso de la opción se haya editado.
+- **Al registrar un aporte con "Aplicar diezmo"**, el aporte gana su propio ítem "Diezmo · aporte {fecha corta}" con el porcentaje de la regla de quien aportó (10 % si no tiene regla) sobre el monto del aporte:
+  - si el mes del aporte tiene plan y no está cerrado, en su opción principal (la que está en uso, o la Opción A mientras ninguna lo está);
+  - si el mes no tiene plan, en la Opción A cuando se cree.
+
+Un ítem de diezmo MUST poder editarse (nombre, monto, día), quitarse y marcarse pagado como cualquier otro ítem, con las mismas reglas. Cambiar después la regla o el ingreso MUST NOT cambiar los ítems ya creados. Un miembro también MUST poder agregar a mano un ítem en la categoría "Diezmo".
+
+#### Scenario: Diezmo del salario al crear el mes
+- **WHEN** Daniel tiene diezmo activo 10 % del bruto y "Salario Daniel" de $7.000.000 bruto, y se crea noviembre "Desde cero"
+- **THEN** la Opción A de noviembre tiene "Diezmo · Salario Daniel" por $700.000 en la categoría Diezmo, enlazado a ese ingreso
+
+#### Scenario: Un diezmo por cada ingreso
+- **WHEN** Daniel (10 % del bruto) y Esposa (10 % del neto) tienen cada uno su salario, y se crea noviembre con `COPIAR`
+- **THEN** noviembre tiene dos ítems de diezmo, uno por cada salario, cada uno con su propio monto
+
+#### Scenario: Sin regla, sin ítem
+- **WHEN** Esposa no tiene regla activa y se crea noviembre
+- **THEN** su salario no genera ítem de diezmo
+
+#### Scenario: No se copia el monto editado
+- **WHEN** en octubre "Diezmo · Salario Daniel" se editó a $750.000, y se crea noviembre con `COPIAR`
+- **THEN** noviembre trae "Diezmo · Salario Daniel" por $700.000, el que sugiere la regla, y un solo ítem de diezmo por ese salario
+
+#### Scenario: Aporte con diezmo
+- **WHEN** Daniel, con 10 %, registra el 26 oct un aporte de $2.000.000 con "Aplicar diezmo"
+- **THEN** la opción en uso de octubre gana "Diezmo · aporte 26 oct" por $200.000
+
+#### Scenario: Aporte para un mes sin plan
+- **WHEN** se registra para noviembre, que no tiene plan, un aporte de $1.000.000 con "Aplicar diezmo", y luego se crea noviembre
+- **THEN** la Opción A de noviembre trae "Diezmo · aporte {fecha}" por $100.000, además de los diezmos de los salarios
+
+#### Scenario: Marcar el diezmo pagado
+- **WHEN** Daniel marca pagado "Diezmo · Salario Daniel" de octubre desde Davivienda
+- **THEN** queda un pago de $700.000 de ese ítem, y el saldo estimado de Davivienda baja $700.000
+
+### Requirement: Ingresos de la opción
+Cada opción del plan SHALL tener sus propias líneas de ingreso, editables como los ítems: el plan es un cuaderno donde cada opción puede suponer otros ingresos. Cada línea tiene:
+- nombre (1 a 60 caracteres) y monto (cero o más);
+- la persona a la que corresponde, opcional;
+- tipo `FIJO` (sale de un ingreso fijo de Ajustes, enlazado a él), `EXTRA` (sale de un evento de ingreso del plan anual) u `OTRO` (agregada a mano).
+
+Un miembro MUST poder agregar ("+ Ingreso"), editar y quitar líneas de cualquier opción de un mes no cerrado. Editar una línea MUST NOT cambiar el ingreso fijo de Ajustes, ni los demás meses, ni las otras opciones. Quitar una línea que ya se marcó recibida en su mes MUST responder 409 `INGRESO_RECIBIDO` y no quitarla. Datos inválidos MUST responder 400 `DATOS_INVALIDOS`; un mes cerrado, 409 `MES_CERRADO`.
+
+Un ingreso fijo nuevo (Ajustes, "+ Agregar ingreso fijo") MUST entrar a la opción principal del mes en curso si ese mes tiene plan y no está cerrado, como una línea `FIJO` con su neto y, si su dueño tiene la regla activa, con su ítem de diezmo; los demás meses ya creados no cambian.
+
+Lo que la opción "dejaría libre" y el "plan" de Ingresos del cierre MUST sumar sus líneas, más los aportes (los registrados o, si no hay, los proyectados) y el sobrante del mes anterior, que siguen fuera de las líneas.
+
+#### Scenario: Otro salario en la Opción B
+- **WHEN** en la Opción B de noviembre se cambia "Salario Daniel" a $7.000.000
+- **THEN** la Opción B deja libres $712.000 más que antes, la Opción A no cambia, y "Salario Daniel" sigue en Ajustes con su neto de $6.288.000
+
+#### Scenario: Ingreso agregado a mano
+- **WHEN** en la Opción A de noviembre se agrega con "+ Ingreso" "Venta bicicleta" por $400.000
+- **THEN** la opción tiene esa línea de tipo `OTRO`, y lo que dejaría libre sube $400.000
+
+#### Scenario: Ingreso fijo nuevo a mitad de mes
+- **WHEN** octubre está Activo y Daniel, con 10 % del bruto, agrega en Ajustes "Prima" por $1.000.000 que llega el día 30
+- **THEN** la opción en uso de octubre gana la línea "Prima" por recibir y "Diezmo · Prima" por $100.000, y noviembre no cambia
+
+#### Scenario: Quitar un ingreso recibido
+- **WHEN** se intenta quitar "Salario Daniel" de octubre, que ya se marcó recibido
+- **THEN** responde 409 `INGRESO_RECIBIDO` y la línea sigue en la opción

@@ -29,7 +29,7 @@ Cada pantalla SHALL reproducir el layout, los textos y los tokens de su artboard
 - **THEN** coinciden el orden de las secciones, los textos, los colores y las tipografías, y los montos usan la fuente monoespaciada
 
 #### Scenario: Botón pequeño
-- **WHEN** se inspecciona el botón "Entregado" de la tarjeta de diezmo (30 px de alto en el diseño)
+- **WHEN** se inspecciona el botón "Recibí" de un ingreso por recibir (más bajo que 44 px en el diseño)
 - **THEN** su zona tocable mide al menos 44 px de alto
 
 ### Requirement: Montos en pesos colombianos
@@ -51,8 +51,8 @@ La UI SHALL funcionar en uno de dos modos, elegido en la configuración del buil
 **Modo conectado:**
 - MUST venir del backend:
   - la sesión, el hogar, sus miembros y las invitaciones;
-  - los ingresos fijos, las reglas de diezmo y "Diezmo en Hoy";
-  - las categorías, los planes de los meses con todas sus opciones, y lo registrado (ingresos recibidos, pagos, gastos, aportes, diezmos entregados, ajustes de cuadre, transferencias y abonos);
+  - los ingresos fijos y las reglas de diezmo;
+  - las categorías, los planes de los meses con todas sus opciones, y lo registrado (ingresos recibidos, pagos, gastos, aportes, las entregas de diezmo registradas antes de que el diezmo pasara al plan, ajustes de cuadre, transferencias y abonos);
   - las cuentas, con su cuadre y su saldo estimado, y los créditos;
   - los cierres de mes;
   - el plan anual y los aportes proyectados.

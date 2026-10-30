@@ -26,47 +26,6 @@ En modo conectado, el mes MUST crearse en el backend y el otro miembro SHALL ver
 - **WHEN** en modo conectado un hogar sin planes abre Hoy en octubre
 - **THEN** Hoy indica que el mes no tiene plan y lleva a Mes sin plan de octubre, donde "Desde cero" crea el mes en el backend
 
-### Requirement: Mes en borrador con escenarios
-Un mes en Borrador SHALL mostrar sus opciones (A, B, …) con quién propuso cada una, el total que cada una "dejaría libre" y sus ingresos y gastos por categoría. El diezmo MUST verse calculado y bloqueado ("Calculado · 10% de Salario Daniel"). Cualquiera puede crear o duplicar una opción, y quitar una que ya no sirva ("Quitar opción", con confirmación), salvo la última y la que está en uso. "Usar opción X" MUST dejarla como el plan que se activa al iniciar el mes, y las demás opciones se archivan, no se borran.
-
-Varias opciones existen solo mientras el mes está en Borrador: un mes Activo MUST NOT ofrecer "+ Duplicar" ni "Quitar opción". Si el mes deja de estar en Borrador mientras la pantalla está abierta, la acción MUST mostrar "{Mes} ya está en curso; su plan no gana opciones" sin crear nada.
-
-En modo conectado:
-- las opciones, sus ítems, "+ Duplicar", "Quitar opción" y "Usar opción X" MUST guardarse en el backend;
-- los dos miembros MUST ver las mismas opciones, con su autor real.
-
-#### Scenario: Duplicar
-- **WHEN** en noviembre (opciones A, B y C) se toca "+ Duplicar" sobre la Opción A
-- **THEN** aparece una Opción D igual a A, propuesta por el usuario actual
-
-#### Scenario: Diezmo bloqueado
-- **WHEN** se intenta editar la fila Diezmo de una opción
-- **THEN** la fila no es editable y muestra de qué ingreso se calcula
-
-#### Scenario: Usar una opción
-- **WHEN** se elige "Usar opción A"
-- **THEN** noviembre queda con la Opción A como plan y las opciones B y C quedan archivadas
-
-#### Scenario: Editar la Opción A en modo conectado
-- **WHEN** en modo conectado Daniel agrega "Internet" por $120.000 a la Opción A de noviembre y Esposa abre noviembre
-- **THEN** Esposa ve Internet en la Opción A, y el total que dejaría libre ya lo descuenta
-
-#### Scenario: Duplicar en modo conectado
-- **WHEN** en modo conectado Esposa toca "+ Duplicar" sobre la Opción A de noviembre, que propuso Daniel
-- **THEN** los dos ven la Opción B "por Esposa", igual a A
-
-#### Scenario: Quitar una opción
-- **WHEN** en noviembre (opciones A, B y C) se toca "Quitar opción" sobre la C y se confirma
-- **THEN** noviembre muestra solo A y B, y el otro miembro también
-
-#### Scenario: Quitar la única opción
-- **WHEN** noviembre solo tiene la Opción A
-- **THEN** "Quitar opción" no se ofrece
-
-#### Scenario: Duplicar en un mes Activo
-- **WHEN** octubre es el mes en curso con la Opción A en uso y se abre octubre en Planear
-- **THEN** no se ofrece "+ Duplicar", y octubre sigue con solo la Opción A
-
 ### Requirement: Comparar escenarios
 Comparar SHALL mostrar las opciones de un mes lado a lado, resaltando solo las filas que cambian, con el total "Queda libre" de cada una y un botón "Usar {X}" por opción. Está diseñada para web; con menos de 1024 px de ancho MUST desplazarse en horizontal, sin comprimir las columnas.
 
@@ -81,7 +40,7 @@ En modo conectado, Comparar MUST mostrar las opciones reales del mes, y "Usar {X
 - **THEN** solo la fila Créditos aparece resaltada, B "deja libre" $2.000.000 menos que A, y los dos ven noviembre con la B como plan
 
 ### Requirement: Plan anual
-Si el año no tiene plan anual, SHALL ofrecer "Crear plan anual {año}" (año en curso o futuro), que lo crea vacío. El plan anual SHALL mostrar una cuadrícula de 12 meses por categoría (todas las del hogar), con los fijos llenos automáticamente, los eventos del año (primas, SOAT, predial, matrícula, renta, Navidad) con "+ Evento del año", y los aportes proyectados en tono tenue: una fila por miembro, editable, con lo que cada uno espera aportar cada mes. MUST mostrar los KPI: libre proyectado del año, mes más apretado y diezmo del año. "Crear meses desde este plan" SHALL crear cada mes en Borrador con su columna como Opción A. Editar un mes después MUST NOT modificar el anual.
+Si el año no tiene plan anual, SHALL ofrecer "Crear plan anual {año}" (año en curso o futuro), que lo crea vacío. El plan anual SHALL mostrar una cuadrícula de 12 meses por categoría (todas las del hogar salvo Diezmo), con los fijos llenos automáticamente, los eventos del año (primas, SOAT, predial, matrícula, renta, Navidad) con "+ Evento del año", y los aportes proyectados en tono tenue: una fila por miembro, editable, con lo que cada uno espera aportar cada mes. El diezmo MUST verse como una fila calculada desde las reglas, no editable. MUST mostrar los KPI: libre proyectado del año, mes más apretado y diezmo del año. "Crear meses desde este plan" SHALL crear cada mes en Borrador con su columna como Opción A, más sus ítems de diezmo. Editar un mes después MUST NOT modificar el anual.
 
 En modo conectado, el plan anual, sus celdas, eventos y proyecciones, y "Crear meses desde este plan" MUST guardarse en el backend, y los dos miembros MUST ver la misma cuadrícula y los mismos KPI.
 
@@ -100,6 +59,10 @@ En modo conectado, el plan anual, sus celdas, eventos y proyecciones, y "Crear m
 #### Scenario: Crear meses en modo conectado
 - **WHEN** en modo conectado se toca "Crear meses desde este plan" en 2027
 - **THEN** los meses de 2027 sin plan aparecen en Planear en Borrador para los dos miembros
+
+#### Scenario: Diezmo en los meses creados
+- **WHEN** Daniel tiene regla 10 % del bruto sobre su salario de $7.000.000 y se crean los meses de 2027 desde el anual
+- **THEN** cada mes de 2027 creado trae "Diezmo · Salario Daniel" por $700.000 en la categoría Diezmo
 
 ### Requirement: Cierre de mes
 Cierre SHALL mostrar la tabla plan vs. real por categoría, la fila "Sin registrar" (la suma de los ajustes de cuadre) y lo que sobró. El sobrante MUST poder repartirse entre "A ahorro" y "Pasar a {mes siguiente}", con una suma igual al sobrante. "Cerrar {mes}" SHALL dejar el mes Cerrado y en solo lectura, y lo pasado aparece como ingreso del mes siguiente ("Sobrante de octubre").
@@ -124,3 +87,52 @@ En modo conectado:
 #### Scenario: Cierre desactualizado
 - **WHEN** en modo conectado Esposa registró un gasto de octubre mientras Daniel tenía abierto el Cierre, y Daniel toca "Cerrar octubre"
 - **THEN** ve que alguien registró algo, la tabla ya incluye el gasto y octubre sigue abierto
+
+### Requirement: Mes en borrador con opciones
+Un mes en Borrador SHALL mostrar sus opciones (A, B, …) con quién propuso cada una, el total que cada una "dejaría libre" y sus ingresos y gastos por categoría. Los ingresos de cada opción MUST ser sus propias líneas (spec `steward-plan-mes`, "Ingresos de la opción"): tocarlas permite editar su nombre y monto o quitarlas, y "+ Ingreso" agrega una, sin tocar Ajustes ni las otras opciones; los aportes y el sobrante del mes anterior se siguen mostrando aparte. El diezmo MUST verse como la categoría Diezmo, con un ítem por cada ingreso ("Diezmo · Salario Daniel"), editable como cualquier ítem; MUST NOT haber una fila de diezmo calculada aparte. Cualquiera puede crear o duplicar una opción, y quitar una que ya no sirva ("Quitar opción", con confirmación), salvo la última y la que está en uso. "Usar opción X" MUST dejarla como el plan que se activa al iniciar el mes, y las demás opciones se archivan, no se borran.
+
+Varias opciones existen solo mientras el mes está en Borrador: un mes Activo MUST NOT ofrecer "+ Duplicar" ni "Quitar opción". Si el mes deja de estar en Borrador mientras la pantalla está abierta, la acción MUST mostrar "{Mes} ya está en curso; su plan no gana opciones" sin crear nada.
+
+En modo conectado:
+- las opciones, sus ítems, "+ Duplicar", "Quitar opción" y "Usar opción X" MUST guardarse en el backend;
+- los dos miembros MUST ver las mismas opciones, con su autor real.
+
+#### Scenario: Duplicar
+- **WHEN** en noviembre (opciones A, B y C) se toca "+ Duplicar" sobre la Opción A
+- **THEN** aparece una Opción D igual a A, propuesta por el usuario actual, con los mismos ítems de diezmo
+
+#### Scenario: Diezmo editable
+- **WHEN** en la Opción A de noviembre se cambia "Diezmo · Salario Daniel" a $750.000
+- **THEN** el ítem queda en $750.000, y el total que dejaría libre baja $50.000
+
+#### Scenario: Ingreso editable
+- **WHEN** en la Opción B de noviembre se toca "Salario Daniel" y se cambia a $7.000.000
+- **THEN** la Opción B deja libres $712.000 más, y la Opción A y Ajustes siguen con $6.288.000
+
+#### Scenario: Agregar un ingreso
+- **WHEN** en la Opción A de noviembre se toca "+ Ingreso" y se guarda "Venta bicicleta" por $400.000
+- **THEN** la línea aparece en los ingresos de la Opción A, y lo que dejaría libre sube $400.000
+
+#### Scenario: Usar una opción
+- **WHEN** se elige "Usar opción A"
+- **THEN** noviembre queda con la Opción A como plan y las opciones B y C quedan archivadas
+
+#### Scenario: Editar la Opción A en modo conectado
+- **WHEN** en modo conectado Daniel agrega "Internet" por $120.000 a la Opción A de noviembre y Esposa abre noviembre
+- **THEN** Esposa ve Internet en la Opción A, y el total que dejaría libre ya lo descuenta
+
+#### Scenario: Duplicar en modo conectado
+- **WHEN** en modo conectado Esposa toca "+ Duplicar" sobre la Opción A de noviembre, que propuso Daniel
+- **THEN** los dos ven la Opción B "por Esposa", igual a A
+
+#### Scenario: Quitar una opción
+- **WHEN** en noviembre (opciones A, B y C) se toca "Quitar opción" sobre la C y se confirma
+- **THEN** noviembre muestra solo A y B, y el otro miembro también
+
+#### Scenario: Quitar la única opción
+- **WHEN** noviembre solo tiene la Opción A
+- **THEN** "Quitar opción" no se ofrece
+
+#### Scenario: Duplicar en un mes Activo
+- **WHEN** octubre es el mes en curso con la Opción A en uso y se abre octubre en Planear
+- **THEN** no se ofrece "+ Duplicar", y octubre sigue con solo la Opción A

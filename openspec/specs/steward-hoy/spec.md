@@ -9,11 +9,15 @@ Define la ejecución del mes en curso: la pantalla Hoy y los tres registros ráp
 ### Requirement: Resumen del mes en Hoy
 Hoy SHALL mostrar solo el mes en curso:
 - "Te queda libre" y las cifras Plan, Pagado y Vs. plan (diferencia acumulada; el ahorro en color positivo);
-- Ingresos: los fijos recibidos o "Por recibir", y los aportes agrupados por persona con su conteo (`2 aportes · 1 pago directo`);
+- Ingresos: las líneas de ingreso de la opción en uso (spec `steward-plan-mes`, "Ingresos de la opción"), recibidas o "Por recibir", y los aportes agrupados por persona con su conteo (`2 aportes · 1 pago directo`). Si el mes no tiene plan, los ingresos fijos activos de Ajustes;
 - Por pagar, con el vencimiento;
 - Ya pagado, con plan vs. real y el avatar de quien pagó.
 
-Un gasto variable MUST mostrar lo acumulado contra su presupuesto (`llevas $180.000 de $320.000`).
+Una línea por recibir MUST contar con su monto en "Te queda libre"; una recibida, con lo que realmente llegó. "Recibí" MUST abrir el monto de la línea para confirmarlo o cambiarlo antes de guardar. Un gasto variable MUST mostrar lo acumulado contra su presupuesto (`llevas $180.000 de $320.000`).
+
+En modo conectado:
+- "Recibí" MUST registrarse en el backend, y los dos miembros ven las mismas líneas y su estado;
+- si el backend responde que el ingreso ya se recibió este mes, Hoy MUST mostrar el mensaje y quedar con el ingreso como recibido.
 
 #### Scenario: Datos de ejemplo
 - **WHEN** se abre Hoy con los datos de prueba iniciales
@@ -23,28 +27,16 @@ Un gasto variable MUST mostrar lo acumulado contra su presupuesto (`llevas $180.
 - **WHEN** Recibo Luz tiene plan $50.000 y se pagó $38.000
 - **THEN** su fila en Ya pagado muestra "plan $50.000 · −$12.000" y el monto $38.000
 
-### Requirement: Diezmo al recibir
-Marcar como recibido un ingreso fijo con regla de diezmo, o registrar un aporte con "Aplicar diezmo" activo, SHALL crear una obligación de diezmo igual al porcentaje por la base de la regla. Hoy MUST mostrarla en la tarjeta "Disponible para diezmar", con el botón "Entregado". Según el ajuste "Diezmo en Hoy" se muestra una tarjeta por ingreso (Separado) o una sola (Agrupado). Entregar MUST registrar el movimiento y quitar la tarjeta.
+#### Scenario: Recibir con otro monto
+- **WHEN** "Salario Daniel" está por recibir con $6.288.000 y se toca "Recibí", se cambia a $6.350.000 y se guarda
+- **THEN** la línea queda recibida con $6.350.000 y "Te queda libre" sube $62.000
 
-En modo conectado:
-- "Recibí" en un ingreso fijo, el aporte con diezmo y "Entregado" MUST registrarse en el backend;
-- los ingresos fijos, su estado ("Por recibir" o recibido), los aportes y las obligaciones de diezmo MUST venir del backend, de modo que los dos miembros ven lo mismo;
-- si el backend responde que el ingreso ya se recibió este mes, Hoy MUST mostrar el mensaje y quedar con el ingreso como recibido.
-
-#### Scenario: Salario recibido
-- **WHEN** Salario Daniel (bruto $7.000.000, diezmo 10 % del bruto) se marca recibido
-- **THEN** aparece "Disponible para diezmar $700.000 · 10% de Salario Daniel"
-
-#### Scenario: Entregado
-- **WHEN** en esa tarjeta se toca "Entregado"
-- **THEN** la tarjeta desaparece y queda un movimiento de diezmo entregado por $700.000
-
-#### Scenario: El otro miembro lo ve
-- **WHEN** en modo conectado Daniel marca recibido su salario y Esposa abre Hoy
-- **THEN** Esposa ve "Salario Daniel" como recibido y la tarjeta "Disponible para diezmar $700.000"
+#### Scenario: Ingreso editado en el plan
+- **WHEN** en la opción en uso de octubre la línea "Salario Daniel" está en $6.500.000 y todavía no se recibe
+- **THEN** Hoy la muestra por recibir con $6.500.000, y "Te queda libre" la cuenta así
 
 ### Requirement: Registrar un aporte
-"+ Aporte" SHALL abrir una hoja con quién (Daniel/Esposa), cuánto, para qué mes (este o el siguiente), cuenta destino opcional y "Aplicar diezmo". Guardar MUST sumar al "Te queda libre" del mes elegido al instante.
+"+ Aporte" SHALL abrir una hoja con quién (Daniel/Esposa), cuánto, para qué mes (este o el siguiente), cuenta destino opcional y "Aplicar diezmo". "Aplicar diezmo" MUST empezar marcado según el "aplica a aportes" de la regla de quien aporta. Guardar MUST sumar al "Te queda libre" del mes elegido al instante, y con "Aplicar diezmo" MUST agregar al plan de ese mes el ítem "Diezmo · aporte {fecha corta}" (spec `steward-plan-mes`, "Ítems de diezmo"), que aparece en Por pagar.
 
 En modo conectado, el aporte MUST registrarse en el backend, y el otro miembro SHALL verlo al abrir la app.
 
@@ -55,6 +47,10 @@ En modo conectado, el aporte MUST registrarse en el backend, y el otro miembro S
 #### Scenario: Aporte en modo conectado
 - **WHEN** en modo conectado Esposa registra un aporte de $500.000 para octubre y Daniel abre Hoy
 - **THEN** Daniel ve "Aportes Esposa" con esos $500.000, y su "Te queda libre" sube $500.000
+
+#### Scenario: Aporte con diezmo
+- **WHEN** Daniel, con 10 %, registra el 26 oct un aporte de $2.000.000 para octubre con "Aplicar diezmo"
+- **THEN** Por pagar muestra "Diezmo · aporte 26 oct" por $200.000, y "Te queda libre" sube $1.800.000
 
 ### Requirement: Marcar un pago
 Tocar un ítem de Por pagar SHALL abrir Marcar pago con el valor prellenado con el plan, quién pagó y desde qué cuenta (opcional, incluida "Su cuenta"). Un pago desde una cuenta externa ("Su cuenta") MUST contar además como aporte implícito de quien pagó en ese mes. Si el ítem ya estaba pagado, MUST avisar "Ya lo pagó {nombre} el {dd mmm}" en lugar de registrarlo otra vez.
@@ -85,3 +81,22 @@ En modo conectado, el gasto MUST registrarse en el backend.
 #### Scenario: Criterio de cierre de la Etapa 4
 - **WHEN** en modo conectado, con el plan de octubre activo, se marca pagado Internet por $100.000 (plan $120.000), se registra un aporte de $500.000 y un gasto no planeado de $85.000
 - **THEN** "Vs. plan" baja $20.000 por Internet y sube $85.000 por el gasto, y "Te queda libre" sube $500.000 por el aporte y baja $85.000 por el gasto, y los dos miembros ven las mismas cifras
+
+### Requirement: Diezmo como gasto en Hoy
+Los ítems de diezmo del mes SHALL verse en Hoy como cualquier gasto del plan: en Por pagar mientras no se marquen, y en Ya pagado con plan vs. real y el avatar de quien pagó. Tocar uno MUST abrir Marcar pago, con las mismas reglas que los demás ítems. Hoy MUST NOT sumar el diezmo aparte: el plan, lo pagado y "Te queda libre" lo cuentan solo a través de sus ítems.
+
+Las entregas de diezmo registradas antes de este cambio MUST seguir contando en lo pagado de su mes, como un gasto sin ítem.
+
+En modo conectado, el pago de un ítem de diezmo MUST registrarse en el backend, y el otro miembro SHALL verlo pagado al abrir la app.
+
+#### Scenario: Diezmo por pagar
+- **WHEN** octubre tiene "Diezmo · Salario Daniel" por $700.000 sin pagar
+- **THEN** Hoy lo muestra en Por pagar, y el Plan del mes incluye esos $700.000 una sola vez
+
+#### Scenario: Llevar el diezmo
+- **WHEN** Daniel toca "Diezmo · Salario Daniel", deja $700.000 y elige Davivienda
+- **THEN** el ítem pasa a Ya pagado con el avatar D, Pagado sube $700.000 y "Te queda libre" no cambia
+
+#### Scenario: Recibir no crea tarjeta
+- **WHEN** se marca recibido "Salario Daniel"
+- **THEN** Hoy no muestra ninguna tarjeta "Disponible para diezmar"; el diezmo sigue como ítem en Por pagar
