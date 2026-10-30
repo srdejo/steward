@@ -3,7 +3,7 @@ import type { Puertos } from '@steward/domain';
 import { crearAdaptadorDemo, storageEnMemoria, type StorageLike } from '@steward/domain/demo';
 
 import { Api } from './http/api';
-import { PuertosConectados } from './http/puertos-conectados';
+import { PuertosConectados } from '@steward/domain/conectado';
 import { TokenSesion } from './http/token-sesion';
 
 /**

@@ -15,9 +15,9 @@ import type {
   SesionPort,
   Usuario,
   VistaHogar,
-} from '@steward/domain';
-import { ReglaError, claveMes, sumarMeses } from '@steward/domain';
-import { crearAdaptadorDemo, type StorageLike } from '@steward/domain/demo';
+} from '../index';
+import { ReglaError, claveMes, sumarMeses } from '../index';
+import { crearAdaptadorDemo, type StorageLike } from '../demo';
 
 import {
   usuarioDe,
@@ -29,10 +29,10 @@ import {
   type InvitacionRecibidaApi,
   type OrigenRequest,
   type SesionApi,
+  type TokenSesion,
   type UsuarioApi,
 } from './api';
 import { categoria, ingresoFijo, regla, superponerFinanzas } from './superposicion';
-import type { TokenSesion } from './token-sesion';
 
 /** Lo que agrega el modo conectado a la invitacion: si el correo salio y el enlace para copiar (spec "Correo caido"). */
 export type InvitacionConectada = Invitacion & { correoEnviado: boolean; enlace: string };
@@ -534,11 +534,7 @@ function invitacionConectada(r: InvitacionEnviadaApi): InvitacionConectada {
 
 /** El backend arma el enlace con su origen publico; la PWA usa la ruta sobre su propio origen. */
 function rutaDe(enlace: string): string {
-  try {
-    return new URL(enlace).pathname;
-  } catch {
-    return enlace;
-  }
+  return enlace.replace(/^https?://[^/]+/, '') || enlace;
 }
 
 function recibida(token: string, r: InvitacionRecibidaApi): InvitacionRecibida {

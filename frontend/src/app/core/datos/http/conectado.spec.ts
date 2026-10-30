@@ -8,7 +8,7 @@ import type { CreditoApi, FinanzasApi, IngresoPlanApi, ItemPlanApi, MovimientoAp
 import { provideAppPrueba } from '../../../../testing/demo';
 import { app } from '../../../../testing/harness';
 import { PUERTOS, puertosConectados } from '../puertos';
-import type { InvitacionConectada } from './puertos-conectados';
+import type { InvitacionConectada } from '@steward/domain/conectado';
 
 const TOKEN = 'steward/sesion';
 const tick = () => new Promise<void>((r) => setTimeout(r));

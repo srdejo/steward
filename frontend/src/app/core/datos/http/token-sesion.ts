@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import type { TokenSesion as Token } from '@steward/domain/conectado';
 
 const CLAVE = 'steward/sesion';
 
@@ -7,7 +8,7 @@ const CLAVE = 'steward/sesion';
  * workspace. Cerrar sesion es borrarlo.
  */
 @Injectable({ providedIn: 'root' })
-export class TokenSesion {
+export class TokenSesion implements Token {
   leer(): string | null {
     try {
       return localStorage.getItem(CLAVE);

@@ -1,4 +1,4 @@
-import type { Categoria, CierreMes, Credito, PlanAnual, Cuenta, EstadoHogar, IngresoFijo, IngresoPlan, ItemPlan, Movimiento, Origen, PlanMes, ReglaDiezmo } from '@steward/domain';
+import type { Categoria, CierreMes, Credito, PlanAnual, Cuenta, EstadoHogar, IngresoFijo, IngresoPlan, ItemPlan, Movimiento, Origen, PlanMes, ReglaDiezmo } from '../index';
 
 import {
   usuarioDe,

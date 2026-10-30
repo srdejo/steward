@@ -126,13 +126,13 @@ Cambio OpenSpec `backend-plan-anual`.
 
 Sin editar ni borrar eventos, ni borrar un plan anual; el cierre de un mes no actualiza el anual.
 
-## Etapa 9 — Passkeys, ocultar montos y producción
+## Etapa 9 — Producción ✅
 
 **Criterio de cierre**: `https://steward.srdejo.com.co/actuator/health` responde `{"status":"UP"}` con el backend dentro del presupuesto de memoria del VPS, y los dos miembros del hogar lo usan en sus teléfonos.
 
 - Passkeys (WebAuthn, RP ID `steward.srdejo.com.co`), biometría al abrir y "Ocultar montos": pasan a la Etapa 13.
-- [ ] Backend dentro del presupuesto de memoria de `optimizar-recursos-plataforma-comun` como **binario nativo**: la lista "Antes de encender el VPS" de `DEPLOYMENT.md` (compilar, contrato contra el binario, medir < 120 MB y < 2 s). La unit nativa y el modo `Native` de `deploy.ps1` ya están listos (Etapa 2).
-- [ ] Encender el backend en el VPS (`BackendEnabled = $true`, `systemctl enable steward`; pasos en `DEPLOYMENT.md`) y publicar la PWA.
+- [x] Backend dentro del presupuesto de memoria de `optimizar-recursos-plataforma-comun` como **binario nativo**: la lista "Antes de encender el VPS" de `DEPLOYMENT.md` (compilar, contrato contra el binario, medir < 120 MB y < 2 s). La unit nativa y el modo `Native` de `deploy.ps1` ya están listos (Etapa 2).
+- [x] Encender el backend en el VPS (`BackendEnabled = $true`, `systemctl enable steward`; pasos en `DEPLOYMENT.md`) y publicar la PWA.
 - [x] Pasar `develop` a `main` (2026-10-30, por fast-forward). Antes, tag `v1.0.2` y rama `release/1.0.x` para sacar correcciones de la v1, y actualizado el spec `steward-mobile-app`.
 
 ## Etapa 10 — El diezmo como gasto y el plan como cuaderno ✅
@@ -172,7 +172,7 @@ Cambio OpenSpec `plan-mes-siguiente`.
 
 ## Etapa 12 — App móvil
 
-- [ ] Llevar el diseño nuevo a `mobile/`.
+- [ ] App conectada al backend y al día con la PWA, con acceso con Google y Apple y eliminar la cuenta; 2.0.0 en App Store (cambio OpenSpec `app-movil-conectada`).
 
 ## Etapa 13 — Passkeys
 

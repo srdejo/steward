@@ -4,7 +4,7 @@ import type { MetodoAcceso } from '@steward/domain';
 
 import { mensajeDeError } from '../../core/datos/consulta';
 import { Api } from '../../core/datos/http/api';
-import type { ResultadoLogin } from '../../core/datos/http/puertos-conectados';
+import type { ResultadoLogin } from '@steward/domain/conectado';
 import { PUERTOS, puertosConectados } from '../../core/datos/puertos';
 import { GOOGLE_IDENTITY_LOADER } from '../../core/sesion/google-identity';
 import { SesionActual } from '../../core/sesion/sesion';

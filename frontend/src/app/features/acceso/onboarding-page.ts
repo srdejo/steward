@@ -3,7 +3,7 @@ import { Router, RouterLink } from '@angular/router';
 import { previsualizarDiezmo, type BaseDiezmo, type Id, type Invitacion, type Pesos } from '@steward/domain';
 
 import { mensajeDeError } from '../../core/datos/consulta';
-import type { InvitacionConectada, MiInvitacion } from '../../core/datos/http/puertos-conectados';
+import type { InvitacionConectada, MiInvitacion } from '@steward/domain/conectado';
 import { PUERTOS, puertosConectados } from '../../core/datos/puertos';
 import { SesionActual } from '../../core/sesion/sesion';
 import { Avatar } from '../../shared/components/avatar';
