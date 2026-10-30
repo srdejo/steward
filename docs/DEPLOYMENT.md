@@ -31,6 +31,16 @@ Steward **no tiene OAuth client propio: usa el de beauty**, el mismo client "Apl
 - La sesión de steward es independiente de la de beauty: cada una firma con su propio `JWT_SECRET`, que **no se comparte**.
 - Cambiar el nombre o el logo de la pantalla de consentimiento, o rotar el client, afecta a las dos apps.
 
+### Autorizar el origen de producción (una vez, lo hace Daniel)
+
+1. Entrar a [Google Cloud Console](https://console.cloud.google.com/) con la cuenta de beauty y elegir el proyecto de beauty.
+2. **APIs y servicios → Credenciales → IDs de clientes de OAuth 2.0**, abrir el client "Aplicación web" cuyo id es el `GOOGLE_CLIENT_ID` del `.env` de beauty.
+3. En **Orígenes autorizados de JavaScript**, **Agregar URI**: `https://steward.srdejo.com.co` (sin barra final). No hace falta tocar los **URI de redireccionamiento**: el botón de Google Identity Services no los usa.
+4. **Guardar**. Google avisa que puede tardar de 5 minutos a unas horas en aplicarse.
+5. Si la pantalla de consentimiento está en modo **Prueba**, agregar los dos correos del hogar en **Usuarios de prueba**; si está **En producción**, no hace falta.
+
+Para comprobarlo: en `https://steward.srdejo.com.co`, el botón "Continuar con Google" abre la ventana de cuentas sin el error `origin_mismatch`.
+
 ## Correo
 
 Todos los correos (las invitaciones) salen por la API **`contact`** del workspace (`POST /api/send`, solo loopback). El backend no tiene SMTP ni credenciales de correo. Con `STEWARD_MAIL_MODO=log`, que es lo que usa el perfil `dev`, el enlace de invitación se escribe en el log en vez de enviarse.

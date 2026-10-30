@@ -38,3 +38,25 @@ Registro de decisiones técnicas del backend de steward. Las del cambio OpenSpec
 Los archivos `application-<perfil>.yml` sí se leen al arrancar, también en AOT y en nativo. `aotTest` lo comprueba: arranca en AOT con el perfil `contract`.
 
 **Lección del test runner.** En modo AOT Spring busca el inicializador generado de la clase *main*; al levantar la app desde un test hay que indicarla con `SpringApplicationBuilder.main(StewardApplication.class)`.
+
+## 2026-10-29 — Binario nativo medido: dentro del presupuesto del VPS
+
+**Medición** (`produccion-steward` D3). GraalVM CE 25.0.2+10.1, Spring Boot 4.1, Netty 4.2.19. Contenedor de `native-build.ps1 -Run` con los límites del VPS (`--cpus=1 --memory=160m`), perfil `contract`, base `steward_test`:
+
+| | Medido | Presupuesto |
+|---|---|---|
+| Arranque (`Started StewardApplication`) | 0,93 s con base vacía de tablas nuevas; 0,23-0,28 s con la base ya migrada | menos de 2 s |
+| Memoria en reposo tras un login y `GET /api/hogar` (cgroup, lo que cuenta `MemoryMax`) | 39 MB (`RssAnon` 35 MB) | menos de 120 MB |
+| Pico con los 155 tests de contrato como carga | 48 MB (`memory.peak`), sin OOM | `MemoryMax=160M` |
+| Binario | 152 MB; imagen de ejecución 87 MB | — |
+| Compilar en el PC | 3 min 24 s de `native-image`, 4-5 min en total; pico de 5,1 GB | — |
+
+`VmRSS` dice unos 125 MB, pero 90 MB son páginas del propio binario mapeadas desde disco (`RssFile`): el kernel las comparte y las descarta si hace falta, y no las carga el cgroup. La cifra que compite con las demás apps es la anónima.
+
+**Contrato contra el binario:** 155 de 155.
+
+**Lo que pidió el modo nativo:**
+- `-H:+SharedArenaSupport` en `build.gradle`. Netty 4.2 en Java 25 libera sus buffers directos con `Arena.ofShared`, que GraalVM trae apagado; sin la opción, al liberar un bloque lanza `UnsupportedFeatureError` y corta la conexión (fallaban `/api/finanzas` y las peticiones simultáneas). Ni la JVM ni `aotTest` lo detectan: solo el binario.
+- `NativeHints` registra `contract-google-test-public.pem`. Los recursos que la app lee por ruta solo entran al binario si se registran. Las migraciones de Flyway las registra Spring Boot: el aviso `Unable to scan location: /db/migration (unsupported protocol: resource)` es ruido, y una base vacía queda con las 7 migraciones.
+
+**Lección.** Compilar con Docker sin otros contenedores encendidos: con `local-java`, `local-recaudo-ocr` y los demás arriba, la VM de WSL (8 GB) se quedó sin memoria y Docker se cayó a mitad de la compilación.

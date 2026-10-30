@@ -63,6 +63,9 @@ graalvmNative {
 			imageName = 'steward'
 			// Tope de memoria del compilador nativo: sin el, native-image toma casi toda la RAM del PC.
 			buildArgs.add('-J-Xmx5g')
+			// Netty 4.2 en Java 25 libera sus buffers directos con Arena.ofShared; sin esto la imagen nativa
+			// falla al liberarlos y corta conexiones (produccion-steward, tarea 1.2).
+			buildArgs.add('-H:+SharedArenaSupport')
 		}
 	}
 }
