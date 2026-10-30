@@ -59,6 +59,7 @@ import { MontoInput } from '../../shared/components/monto-input';
           <span class="flex justify-between text-sm">A ahorro <app-monto [valor]="v.aAhorro" /></span>
           <span class="flex justify-between text-sm">Pasó a {{ siguiente() }} <app-monto [valor]="v.aSiguiente" /></span>
           <span class="text-xs text-secundario">El mes está cerrado: queda en solo lectura.</span>
+          <a [routerLink]="['/planear', mes()]" class="boton-texto text-sm">Ver el plan del mes</a>
         </div>
       } @else {
         <div class="flex flex-col gap-2.5">

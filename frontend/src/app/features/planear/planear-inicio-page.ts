@@ -1,9 +1,8 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { claveMes, formatCop, formatMesAnio, mesDe, type ResumenMesPlan } from '@steward/domain';
+import { claveMes, formatCop, formatMesAnio, type ResumenMesPlan } from '@steward/domain';
 
 import { consulta } from '../../core/datos/consulta';
-import { PUERTOS } from '../../core/datos/puertos';
 import { Monto } from '../../shared/components/monto';
 
 /** PlanInicio.dc.html: el año, los próximos meses y este mes y los anteriores (spec steward-planear). */
@@ -55,7 +54,7 @@ import { Monto } from '../../shared/components/monto';
                 <span class="text-[15px] font-medium">{{ nombre(m) }}</span>
                 <span class="text-xs" [class]="m.estado === 'ACTIVO' ? 'text-positivo' : 'text-secundario'">{{ m.detalle }}</span>
               </div>
-              <span class="text-[13px]" [class]="m.estado === 'CERRADO' ? 'text-secundario' : 'font-semibold text-acento'">{{ m.estado === 'CERRADO' ? 'Ver cierre' : m.estado === 'ACTIVO' ? 'Ver hoy ›' : 'Planear ›' }}</span>
+              <span class="text-[13px]" [class]="m.estado === 'CERRADO' ? 'text-secundario' : 'font-semibold text-acento'">{{ m.estado === 'CERRADO' ? 'Ver cierre' : m.estado === 'ACTIVO' ? 'Editar plan ›' : 'Planear ›' }}</span>
             </a>
           }
         </div>
@@ -64,7 +63,6 @@ import { Monto } from '../../shared/components/monto';
   `,
 })
 export class PlanearInicioPage {
-  private readonly actual = claveMes(mesDe(inject(PUERTOS).hoy()));
   protected readonly inicio = consulta(() => null, (p) => p.plan.inicio());
 
   protected clave(m: ResumenMesPlan): string {
@@ -89,7 +87,6 @@ export class PlanearInicioPage {
   protected destinoReciente(m: ResumenMesPlan): string[] {
     const clave = this.clave(m);
     if (m.estado === 'CERRADO') return ['/planear', clave, 'cierre'];
-    if (m.estado === 'ACTIVO' && clave === this.actual) return ['/hoy'];
     return ['/planear', clave];
   }
 }

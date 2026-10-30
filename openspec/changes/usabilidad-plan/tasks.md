@@ -64,8 +64,8 @@
 
 ## 5. Verificación y producción
 
-- [ ] 5.1 Probar `V9` con una copia de `steward.test` con datos de la Etapa 10 (líneas, diezmos y pagos). Verificar: cada diezmo queda enlazado a su línea, y los saldos de cuentas y créditos no cambian.
-- [ ] 5.2 Recorrido en Chrome en `steward.test` con dos usuarios de prueba:
+- [x] 5.1 Probar `V9` con una copia de `steward.test` con datos de la Etapa 10 (líneas, diezmos y pagos). Verificar: cada diezmo queda enlazado a su línea, y los saldos de cuentas y créditos no cambian.
+- [x] 5.2 Recorrido en Chrome en `steward.test` con dos usuarios de prueba:
   - editar el mes en curso con las hojas;
   - cambiar un salario y ver su diezmo;
   - ajustar un diezmo a mano y volverlo a calcular;

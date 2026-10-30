@@ -130,7 +130,7 @@ Sin editar ni borrar eventos, ni borrar un plan anual; el cierre de un mes no ac
 
 **Criterio de cierre**: `https://steward.srdejo.com.co/actuator/health` responde `{"status":"UP"}` con el backend dentro del presupuesto de memoria del VPS, y los dos miembros del hogar lo usan en sus teléfonos.
 
-- [ ] Passkeys (WebAuthn, RP ID `steward.srdejo.com.co`), biometría al abrir y "Ocultar montos".
+- Passkeys (WebAuthn, RP ID `steward.srdejo.com.co`), biometría al abrir y "Ocultar montos": pasan a la Etapa 13.
 - [ ] Backend dentro del presupuesto de memoria de `optimizar-recursos-plataforma-comun` como **binario nativo**: la lista "Antes de encender el VPS" de `DEPLOYMENT.md` (compilar, contrato contra el binario, medir < 120 MB y < 2 s). La unit nativa y el modo `Native` de `deploy.ps1` ya están listos (Etapa 2).
 - [ ] Encender el backend en el VPS (`BackendEnabled = $true`, `systemctl enable steward`; pasos en `DEPLOYMENT.md`) y publicar la PWA.
 - [ ] Pasar `develop` a `main` por PR cuando esté lista. Antes, tag `v1.0.2` en `main` para poder sacar correcciones de la v1, y actualizar el spec `steward-mobile-app`, que hoy pide que `main` siga generando la v1.
@@ -146,6 +146,26 @@ Cambio OpenSpec `diezmo-como-gasto`.
 - [x] Migración `V8` probada sobre una copia de `steward.test` con entregas y planes abiertos.
 - [x] Recorrido en `steward.test` con dos personas, por el acceso de desarrollo.
 - [x] En producción (2026-10-30): backup, deploy del binario nativo con `V8` (161/161 de contrato contra el binario, 36,8 MiB en reposo); los planes abiertos ganaron sus líneas y el diezmo de noviembre, sin duplicar el de octubre ya entregado.
+
+## Etapa 11 — Usabilidad del plan
+
+**Criterio de cierre**: el mes en curso se edita en Planear con hojas y "Guardar"; el diezmo sigue a su ingreso; un registro equivocado se corrige o se borra; el plan de un mes se borra y el hogar puede empezar de nuevo.
+
+Cambio OpenSpec `usabilidad-plan`.
+
+- [x] Hojas de ingreso y gasto con "Guardar", el mes en curso editable y "Borrar plan de {mes}".
+- [x] El diezmo enlazado a su línea, "ajustado a mano" y "Volver a calcular"; un ingreso fijo editado actualiza los meses abiertos.
+- [x] Corregir y borrar registros desde Hoy y el detalle de una cuenta; "Empezar de nuevo" en Ajustes.
+- [x] Migración `V9` probada sobre una copia del respaldo de producción, y recorrido en `steward.test` con dos personas.
+- [ ] En producción.
+
+## Etapa 12 — App móvil
+
+- [ ] Llevar el diseño nuevo a `mobile/`.
+
+## Etapa 13 — Passkeys
+
+- [ ] Passkeys, biometría al abrir y "Ocultar montos" (salen de la Etapa 9).
 
 ## Mejoras futuras
 

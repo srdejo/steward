@@ -14,7 +14,7 @@ describe('Planear (steward-planear)', () => {
     expect(t).toContain('Noviembre 2026 Borrador · 3 opciones');
     expect(t).toContain('Diciembre 2026 Sin plan Planear ›');
     expect(t).toContain('Enero 2027 Saldrá del plan anual $598.000');
-    expect(t).toContain('Octubre 2026 Activo · Opción A Ver hoy ›');
+    expect(t).toContain('Octubre 2026 Activo · Opción A Editar plan ›');
     expect(t).toContain('Septiembre 2026 Cerrado · sobró $1.840.000 Ver cierre');
   });
 
