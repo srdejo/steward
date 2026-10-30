@@ -170,7 +170,7 @@ cd mobile
 npm install
 npx expo start
 eas build --profile testflight --platform ios --auto-submit-with-profile testflight   # main y develop: solo TestFlight
-eas build --platform ios --profile production && eas submit --platform ios           # release/1.0.x: la v1
+eas build --platform ios --profile production && eas submit --platform ios           # release/1.0.x: la v1, desde la raíz (ahí la app no está en mobile/)
 ```
 
 El `projectId` de EAS (`app.json` → `extra.eas.projectId`) y la numeración remota de versiones (`appVersionSource: remote`) no dependen de la carpeta.

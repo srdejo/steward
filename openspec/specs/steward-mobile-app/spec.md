@@ -29,4 +29,4 @@ La app reescrita SHALL distribuirse solo por TestFlight, al grupo de pruebas int
 
 #### Scenario: La v1 sigue publicable
 - **WHEN** se revisa `release/1.0.x`, la rama que sale del tag `v1.0.2`
-- **THEN** `mobile/app.json` sigue en 1.0.2 y `mobile/eas.json` conserva el perfil `production` y su submit sin cambios
+- **THEN** `app.json`, en la raíz de esa rama, sigue en 1.0.2 y `eas.json` conserva el perfil `production` y su submit sin cambios
