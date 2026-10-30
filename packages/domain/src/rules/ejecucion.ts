@@ -2,7 +2,7 @@ import type { EstadoHogar, Fecha, Id, ItemPlan, MesRef, Movimiento, Origen, Peso
 import { formatCop, formatFechaCorta } from '../format';
 import { ReglaError, clonar, diasEntre, fechaEnMes, nuevoId, sumar } from './base';
 import { asegurarAbierto, categoria, escenarioPrincipal, movimientosDe, nombreUsuario, planDe } from './consultas';
-import { diezmoPlaneado, diezmosPendientes, ingresosDelMes, totalIngresos, type LineaIngreso, type ObligacionDiezmo } from './ingresos';
+import { ingresosDelMes, totalIngresos, type LineaIngreso } from './ingresos';
 
 /** Como va un item del plan en el mes. */
 export interface ItemEjecucion {
@@ -33,11 +33,16 @@ export interface ResumenMes {
   libre: Pesos;
   porPagar: ItemEjecucion[];
   yaPagado: ItemEjecucion[];
+  /** Gastos sin item del plan; incluye las entregas de diezmo registradas antes del diezmo como gasto (design D3). */
   noPlaneados: Movimiento[];
-  diezmo: { planeado: Pesos; detalle: string; pendientes: ObligacionDiezmo[] };
   ajustes: Pesos;
   /** El mes no tiene una opcion que ejecutar. */
   sinPlan: boolean;
+}
+
+/** Gasto sin item: "No estaba planeado", o una entrega de diezmo de antes del diezmo como gasto (design D3). */
+export function esGastoSinItem(m: Movimiento): boolean {
+  return (m.tipo === 'GASTO' && m.itemId === null) || m.tipo === 'DIEZMO_ENTREGADO';
 }
 
 function detalleVencimiento(item: ItemPlan, ref: MesRef, hoy: Fecha): string {
@@ -83,20 +88,18 @@ export function resumenMes(estado: EstadoHogar, ref: MesRef, hoy: Fecha): Resume
   const opcion = plan ? escenarioPrincipal(plan) : null;
   const items = (opcion?.items ?? []).map((i) => ejecucionItem(estado, i, ref, hoy));
   const movs = movimientosDe(estado, ref);
-  const noPlaneados = movs.filter((m) => m.tipo === 'GASTO' && m.itemId === null);
-  const diezmo = diezmoPlaneado(estado, ref);
-  const entregado = sumar(movs.filter((m) => m.tipo === 'DIEZMO_ENTREGADO').map((m) => m.monto));
+  const noPlaneados = movs.filter(esGastoSinItem);
   const ajustes = sumar(movs.filter((m) => m.tipo === 'AJUSTE_CUADRE').map((m) => m.monto));
-  const ingresos = ingresosDelMes(estado, ref, 'EJECUCION');
+  const ingresos = ingresosDelMes(estado, ref, 'EJECUCION', opcion);
 
-  const planTotal = sumar(items.map((i) => i.plan)) + diezmo.monto;
+  const planTotal = sumar(items.map((i) => i.plan));
   const noPlaneado = sumar(noPlaneados.map((m) => m.monto));
-  const pagado = sumar(items.map((i) => i.real)) + noPlaneado + entregado;
+  const pagado = sumar(items.map((i) => i.real)) + noPlaneado;
   const vsPlan =
     sumar(items.filter((i) => i.item.tipo !== 'VARIABLE' && i.pagado).map((i) => i.real - i.plan)) +
     sumar(items.filter((i) => i.item.tipo === 'VARIABLE').map((i) => Math.max(0, i.real - i.plan))) +
     noPlaneado;
-  const comprometido = sumar(items.map((i) => Math.max(i.plan, i.real))) + noPlaneado + Math.max(diezmo.monto, entregado);
+  const comprometido = sumar(items.map((i) => Math.max(i.plan, i.real))) + noPlaneado;
   const total = totalIngresos(ingresos);
 
   const porVencer = (i: ItemEjecucion) => i.item.diaVence ?? 99;
@@ -111,7 +114,6 @@ export function resumenMes(estado: EstadoHogar, ref: MesRef, hoy: Fecha): Resume
     porPagar: items.filter((i) => !i.pagado).sort((a, b) => porVencer(a) - porVencer(b)),
     yaPagado: items.filter((i) => i.pagado).sort((a, b) => (b.pagos.at(-1)?.seq ?? 0) - (a.pagos.at(-1)?.seq ?? 0)),
     noPlaneados,
-    diezmo: { planeado: diezmo.monto, detalle: diezmo.detalle, pendientes: diezmosPendientes(estado, ref) },
     ajustes,
     sinPlan: !opcion,
   };
@@ -141,7 +143,7 @@ export function marcarPago(estado: EstadoHogar, datos: { itemId: Id; ref: MesRef
   s.movimientos.push({
     id, seq: s.secuencia, tipo: item.tipo === 'VARIABLE' ? 'GASTO' : 'PAGO', ref: datos.ref, monto: datos.monto, fecha: datos.fecha,
     usuarioId: datos.usuarioId, creadoPor: datos.creadoPor, origen: datos.origen, nota: '', itemId: item.id,
-    ingresoFijoId: null, bruto: null, aplicaDiezmo: false, diezmoDe: [], cuentaDestinoId: null, creditoId: item.creditoId,
+    ingresoFijoId: null, bruto: null, aplicaDiezmo: false, diezmoDe: [], ingresoPlanId: null, cuentaDestinoId: null, creditoId: item.creditoId,
   });
   // La cuota de un credito baja su saldo en la parte de capital.
   if (item.creditoId) {
@@ -165,7 +167,7 @@ export function registrarGasto(estado: EstadoHogar, datos: { monto: Pesos; itemI
   s.movimientos.push({
     id, seq: s.secuencia, tipo: 'GASTO', ref: datos.ref, monto: datos.monto, fecha: datos.fecha, usuarioId: datos.usuarioId,
     creadoPor: datos.creadoPor, origen: datos.origen, nota: datos.nota.trim(), itemId: datos.itemId,
-    ingresoFijoId: null, bruto: null, aplicaDiezmo: false, diezmoDe: [], cuentaDestinoId: null, creditoId: null,
+    ingresoFijoId: null, bruto: null, aplicaDiezmo: false, diezmoDe: [], ingresoPlanId: null, cuentaDestinoId: null, creditoId: null,
   });
   return s;
 }

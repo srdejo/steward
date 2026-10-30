@@ -38,8 +38,6 @@ export interface Invitacion {
   enviadaEn: Fecha;
 }
 
-export type DiezmoEnHoy = 'SEPARADO' | 'AGRUPADO';
-
 export interface Hogar {
   id: Id;
   nombre: string;
@@ -47,7 +45,6 @@ export interface Hogar {
   invitaciones: Invitacion[];
   /** False hasta terminar el onboarding. */
   configurado: boolean;
-  diezmoEnHoy: DiezmoEnHoy;
 }
 
 export type BaseDiezmo = 'BRUTO' | 'NETO';
@@ -106,7 +103,7 @@ export interface Credito {
   pagos: PagoCredito[];
 }
 
-export type TipoCategoria = 'FIJO' | 'TARJETA' | 'VARIABLE' | 'CREDITO' | 'OTRO';
+export type TipoCategoria = 'DIEZMO' | 'FIJO' | 'TARJETA' | 'VARIABLE' | 'CREDITO' | 'OTRO';
 
 export interface Categoria {
   id: Id;
@@ -114,14 +111,14 @@ export interface Categoria {
   color: string;
   orden: number;
   tipo: TipoCategoria;
-  /** Las del sistema no se borran (si se renombran). */
+  /** Las del sistema no se borran (si se renombran, salvo Diezmo). */
   sistema: boolean;
 }
 
 export type EstadoMes = 'BORRADOR' | 'ACTIVO' | 'CERRADO';
 
 /** Tipo de un item del plan: decide como se ejecuta en Hoy. */
-export type TipoItem = 'FIJO' | 'VARIABLE' | 'CUOTA' | 'CREDITO';
+export type TipoItem = 'FIJO' | 'VARIABLE' | 'CUOTA' | 'CREDITO' | 'DIEZMO';
 
 export interface ItemPlan {
   id: Id;
@@ -134,6 +131,23 @@ export interface ItemPlan {
   cuota: { actual: number; total: number } | null;
   /** Credito al que corresponde (cuota o abono). */
   creditoId: Id | null;
+  /** DIEZMO: el ingreso fijo que lo origina (design D1 de diezmo-como-gasto). */
+  ingresoFijoId: Id | null;
+  /** DIEZMO: el movimiento APORTE que lo origina. */
+  aporteId: Id | null;
+}
+
+/** FIJO sale de Ajustes, EXTRA de un evento del plan anual, OTRO se agrego a mano (design D8 de diezmo-como-gasto). */
+export type TipoIngresoPlan = 'FIJO' | 'EXTRA' | 'OTRO';
+
+/** Linea de ingreso de una opcion: el plan es un cuaderno, cada opcion supone sus propios ingresos. */
+export interface IngresoPlan {
+  id: Id;
+  nombre: string;
+  monto: Pesos;
+  usuarioId: Id | null;
+  tipo: TipoIngresoPlan;
+  ingresoFijoId: Id | null;
 }
 
 export interface Escenario {
@@ -143,6 +157,7 @@ export interface Escenario {
   creadoPor: Id;
   nota: string;
   archivado: boolean;
+  ingresos: IngresoPlan[];
   items: ItemPlan[];
 }
 
@@ -187,9 +202,11 @@ export interface Movimiento {
   /** INGRESO_FIJO: cual ingreso y su bruto (base del diezmo). */
   ingresoFijoId: Id | null;
   bruto: Pesos | null;
-  /** APORTE / INGRESO_FIJO: si genera diezmo. */
+  /** INGRESO_FIJO: la linea de ingreso de la opcion que se recibio. */
+  ingresoPlanId: Id | null;
+  /** APORTE: si genera su item de diezmo. */
   aplicaDiezmo: boolean;
-  /** DIEZMO_ENTREGADO: movimientos cuyas obligaciones cubre. */
+  /** DIEZMO_ENTREGADO (historia, ya no se crea): movimientos cuyas obligaciones cubria. */
   diezmoDe: Id[];
   /** TRANSFERENCIA: cuenta destino. AJUSTE_CUADRE: la cuenta cuadrada va en `origen`. */
   cuentaDestinoId: Id | null;

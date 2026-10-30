@@ -1,25 +1,27 @@
-import type { EstadoHogar, Fecha, Id, MesRef, Movimiento, Pesos } from '../model';
-import { formatFechaCorta, formatPorcentaje, nombreMes } from '../format';
-import { ReglaError, clonar, nuevoId, sumar, sumarMeses } from './base';
-import { anualDe, asegurarAbierto, cierreDe, esAporteImplicito, movimientosDe, nombreUsuario, reglaDe } from './consultas';
+import type { Escenario, EstadoHogar, Fecha, Id, IngresoFijo, IngresoPlan, ItemPlan, MesRef, Movimiento, Pesos } from '../model';
+import { formatFechaCorta, nombreMes } from '../format';
+import { ReglaError, clonar, mesDe, nuevoId, sumar, sumarMeses } from './base';
+import { anualDe, asegurarAbierto, cierreDe, esAporteImplicito, escenarioPrincipal, movimientosDe, nombreUsuario, planDe, reglaDe } from './consultas';
 
 /** Linea de ingresos de un mes, tanto en Hoy como en Planear. */
 export interface LineaIngreso {
   clave: string;
-  tipo: 'FIJO' | 'APORTES' | 'PROYECCION' | 'EXTRA' | 'SOBRANTE';
+  tipo: 'FIJO' | 'APORTES' | 'PROYECCION' | 'EXTRA' | 'OTRO' | 'SOBRANTE';
   nombre: string;
   detalle: string;
   monto: Pesos;
   usuarioId: Id | null;
   /** FIJO: id del ingreso fijo y si ya se marco "Recibi". */
   ingresoFijoId: Id | null;
+  /** Linea de la opcion (FIJO, EXTRA u OTRO de un mes con plan): la que se edita en Planear y se recibe en Hoy. */
+  lineaId: Id | null;
   recibido: boolean;
   /** Proyectado (se ve tenue). */
   tenue: boolean;
 }
 
-function base(m: Omit<LineaIngreso, 'usuarioId' | 'ingresoFijoId' | 'recibido' | 'tenue'> & Partial<LineaIngreso>): LineaIngreso {
-  return { usuarioId: null, ingresoFijoId: null, recibido: false, tenue: false, ...m };
+function base(m: Omit<LineaIngreso, 'usuarioId' | 'ingresoFijoId' | 'lineaId' | 'recibido' | 'tenue'> & Partial<LineaIngreso>): LineaIngreso {
+  return { usuarioId: null, ingresoFijoId: null, lineaId: null, recibido: false, tenue: false, ...m };
 }
 
 function aportesReales(estado: EstadoHogar, ref: MesRef): Map<Id, Movimiento[]> {
@@ -41,31 +43,58 @@ function detalleAportes(movs: Movimiento[]): string {
   return partes.join(' · ');
 }
 
-function fijos(estado: EstadoHogar, ref: MesRef, ejecucion: boolean): LineaIngreso[] {
+/** Si un ingreso recibido corresponde a una linea: por la linea, o por su ingreso fijo (lo recibido antes de las lineas). */
+export function recibeLinea(m: Movimiento, linea: IngresoPlan): boolean {
+  return m.tipo === 'INGRESO_FIJO' && (m.ingresoPlanId === linea.id || (linea.ingresoFijoId !== null && m.ingresoFijoId === linea.ingresoFijoId));
+}
+
+const DETALLE_LINEA: Record<IngresoPlan['tipo'], string> = { FIJO: 'Fijo', EXTRA: 'Ingreso del año', OTRO: 'Agregado al plan' };
+
+/** Las lineas de una opcion (design D8). En Hoy, cada una recibida o "por recibir"; lo recibido sin linea se muestra igual. */
+function lineasDeOpcion(estado: EstadoHogar, ref: MesRef, esc: Escenario, ejecucion: boolean): LineaIngreso[] {
+  const recibidos = movimientosDe(estado, ref).filter((m) => m.tipo === 'INGRESO_FIJO');
+  const usados = new Set<Id>();
+  const lineas = esc.ingresos.map((l) => {
+    const recibido = ejecucion ? recibidos.find((m) => !usados.has(m.id) && recibeLinea(m, l)) : undefined;
+    if (recibido) usados.add(recibido.id);
+    const fijo = l.ingresoFijoId ? estado.ingresosFijos.find((f) => f.id === l.ingresoFijoId) : undefined;
+    let detalle = DETALLE_LINEA[l.tipo];
+    if (ejecucion) {
+      if (recibido) detalle = `${l.tipo === 'FIJO' ? 'Fijo · recibido' : 'Recibido'} ${formatFechaCorta(recibido.fecha)}`;
+      else detalle = fijo ? `Fijo · llega el día ${fijo.diaPago}` : 'Por recibir';
+    }
+    return base({
+      clave: `linea-${l.id}`, tipo: l.tipo, nombre: l.nombre, detalle, monto: recibido ? recibido.monto : l.monto,
+      usuarioId: l.usuarioId, ingresoFijoId: l.ingresoFijoId, lineaId: l.id, recibido: Boolean(recibido),
+    });
+  });
+  if (ejecucion) {
+    for (const m of recibidos.filter((x) => !usados.has(x.id))) {
+      const fijo = estado.ingresosFijos.find((f) => f.id === m.ingresoFijoId);
+      lineas.push(base({
+        clave: `recibido-${m.id}`, tipo: fijo ? 'FIJO' : 'OTRO', nombre: fijo?.nombre ?? 'Ingreso', detalle: `Recibido ${formatFechaCorta(m.fecha)}`,
+        monto: m.monto, usuarioId: m.usuarioId, ingresoFijoId: m.ingresoFijoId, recibido: true,
+      }));
+    }
+  }
+  return lineas;
+}
+
+/** Mes sin plan (o cerrado sin lineas): los fijos de Ajustes y los eventos del anual, como antes de las lineas. */
+function fijosDeAjustes(estado: EstadoHogar, ref: MesRef, ejecucion: boolean): LineaIngreso[] {
   const movs = movimientosDe(estado, ref);
-  return estado.ingresosFijos
+  const fijos = estado.ingresosFijos
     .filter((f) => f.activo)
     .map((f) => {
       const recibido = movs.find((m) => m.tipo === 'INGRESO_FIJO' && m.ingresoFijoId === f.id);
       // Al planear solo importa que es fijo; "recibido / llega" es de la ejecucion (Hoy).
       const detalle = !ejecucion ? 'Fijo' : recibido ? `Fijo · recibido ${formatFechaCorta(recibido.fecha)}` : `Fijo · llega el día ${f.diaPago}`;
-      return base({
-        clave: `fijo-${f.id}`,
-        tipo: 'FIJO',
-        nombre: f.nombre,
-        detalle,
-        monto: recibido ? recibido.monto : f.neto,
-        usuarioId: f.usuarioId,
-        ingresoFijoId: f.id,
-        recibido: Boolean(recibido),
-      });
+      return base({ clave: `fijo-${f.id}`, tipo: 'FIJO', nombre: f.nombre, detalle, monto: recibido ? recibido.monto : f.neto, usuarioId: f.usuarioId, ingresoFijoId: f.id, recibido: Boolean(recibido) });
     });
-}
-
-function extras(estado: EstadoHogar, ref: MesRef): LineaIngreso[] {
-  return (anualDe(estado, ref.anio)?.eventos ?? [])
+  const extras = (anualDe(estado, ref.anio)?.eventos ?? [])
     .filter((e) => e.tipo === 'INGRESO' && e.mes === ref.mes)
     .map((e) => base({ clave: `extra-${e.id}`, tipo: 'EXTRA', nombre: e.nombre, detalle: 'Ingreso del año', monto: e.monto, usuarioId: e.usuarioId }));
+  return [...fijos, ...extras];
 }
 
 function sobrante(estado: EstadoHogar, ref: MesRef): LineaIngreso[] {
@@ -77,12 +106,17 @@ function sobrante(estado: EstadoHogar, ref: MesRef): LineaIngreso[] {
 
 /**
  * Ingresos de un mes. `modo`:
- * - EJECUCION (Hoy): aportes reales agrupados por persona.
- * - PLANEACION (Planear): por persona, los aportes registrados o, si no hay, su proyeccion (tenue).
- * - PLAN (columna "plan" del cierre): la proyeccion cuando existe, si no lo registrado.
+ * - EJECUCION (Hoy): las lineas de la opcion en uso, recibidas o por recibir, y los aportes reales agrupados por persona.
+ * - PLANEACION (Planear): las lineas de la opcion y, por persona, los aportes registrados o, si no hay, su proyeccion (tenue).
+ * - PLAN (columna "plan" del cierre): las lineas y la proyeccion cuando existe, si no lo registrado.
+ * `escenario` es la opcion que se ve; por defecto la principal del mes.
  */
-export function ingresosDelMes(estado: EstadoHogar, ref: MesRef, modo: 'EJECUCION' | 'PLANEACION' | 'PLAN'): LineaIngreso[] {
-  const lineas = [...fijos(estado, ref, modo === 'EJECUCION'), ...extras(estado, ref)];
+export function ingresosDelMes(estado: EstadoHogar, ref: MesRef, modo: 'EJECUCION' | 'PLANEACION' | 'PLAN', escenario?: Escenario | null): LineaIngreso[] {
+  const plan = planDe(estado, ref);
+  const esc = escenario !== undefined ? escenario : plan ? escenarioPrincipal(plan) : null;
+  // Un mes cerrado antes de las lineas (design D8) sigue leyendo sus ingresos como antes.
+  const conLineas = esc && (esc.ingresos.length > 0 || plan?.estado !== 'CERRADO');
+  const lineas = conLineas ? lineasDeOpcion(estado, ref, esc, modo === 'EJECUCION') : fijosDeAjustes(estado, ref, modo === 'EJECUCION');
   const reales = aportesReales(estado, ref);
   const usuarios = new Set<Id>([...reales.keys(), ...estado.proyecciones.filter((p) => p.ref.anio === ref.anio && p.ref.mes === ref.mes).map((p) => p.usuarioId)]);
   for (const usuarioId of usuarios) {
@@ -109,6 +143,17 @@ export function totalIngresos(lineas: LineaIngreso[]): Pesos {
   return sumar(lineas.map((l) => l.monto));
 }
 
+/** Lineas con que nace una opcion (design D8): una por ingreso fijo activo (su neto) y una por evento de ingreso del anual del mes. */
+export function ingresosNuevos(s: EstadoHogar, ref: MesRef): IngresoPlan[] {
+  const fijos: IngresoPlan[] = s.ingresosFijos
+    .filter((f) => f.activo)
+    .map((f) => ({ id: nuevoId(s, 'ingp'), nombre: f.nombre, monto: f.neto, usuarioId: f.usuarioId, tipo: 'FIJO', ingresoFijoId: f.id }));
+  const extras: IngresoPlan[] = (anualDe(s, ref.anio)?.eventos ?? [])
+    .filter((e) => e.tipo === 'INGRESO' && e.mes === ref.mes)
+    .map((e) => ({ id: nuevoId(s, 'ingp'), nombre: e.nombre, monto: e.monto, usuarioId: e.usuarioId, tipo: 'EXTRA', ingresoFijoId: null }));
+  return [...fijos, ...extras];
+}
+
 // --- Diezmo -------------------------------------------------------------------
 
 /** Diezmo que una regla saca de un monto (bruto o neto segun la regla). */
@@ -116,105 +161,114 @@ export function calcularDiezmo(porcentaje: number, bruto: Pesos, neto: Pesos, ba
   return Math.round(((baseRegla === 'BRUTO' ? bruto : neto) * porcentaje) / 100);
 }
 
-/** Diezmo esperado del mes: fijos y extras de quien tiene regla, mas los aportes con diezmo. Se ve "Calculado" en el plan. */
-export function diezmoPlaneado(estado: EstadoHogar, ref: MesRef): { monto: Pesos; detalle: string } {
-  let monto = 0;
-  const origenes: string[] = [];
-  for (const f of estado.ingresosFijos.filter((x) => x.activo)) {
-    const regla = reglaDe(estado, f.usuarioId);
-    if (!regla) continue;
-    monto += calcularDiezmo(regla.porcentaje, f.bruto, f.neto, regla.base);
-    origenes.push(`${formatPorcentaje(regla.porcentaje)} de ${f.nombre}`);
+/** La categoria del sistema "Diezmo" (design D1 de diezmo-como-gasto). */
+export function categoriaDiezmo(s: EstadoHogar): Id {
+  const c = s.categorias.find((x) => x.tipo === 'DIEZMO');
+  if (!c) throw new ReglaError('NO_EXISTE', 'El hogar no tiene la categoría Diezmo');
+  return c.id;
+}
+
+function itemDiezmo(s: EstadoHogar, datos: { nombre: string; monto: Pesos; diaVence: number | null; ingresoFijoId?: Id; aporteId?: Id }): ItemPlan {
+  return {
+    id: nuevoId(s, 'item'), categoriaId: categoriaDiezmo(s), nombre: datos.nombre, monto: datos.monto, diaVence: datos.diaVence, tipo: 'DIEZMO',
+    cuota: null, creditoId: null, ingresoFijoId: datos.ingresoFijoId ?? null, aporteId: datos.aporteId ?? null,
+  };
+}
+
+/** Item de diezmo de un aporte: el porcentaje de la regla de quien aporto (10 % si no tiene). */
+function itemDiezmoAporte(s: EstadoHogar, aporte: Movimiento): ItemPlan {
+  const porcentaje = s.reglas.find((r) => r.usuarioId === aporte.usuarioId)?.porcentaje ?? 10;
+  return itemDiezmo(s, { nombre: `Diezmo · aporte ${formatFechaCorta(aporte.fecha)}`, monto: Math.round((aporte.monto * porcentaje) / 100), diaVence: null, aporteId: aporte.id });
+}
+
+/**
+ * Items de diezmo con que nace un mes (design D2): uno por ingreso fijo activo con regla, uno por evento de ingreso del anual
+ * con un miembro con regla, y uno por aporte del mes con "Aplicar diezmo" que todavia no tenga item en `items`.
+ */
+export function diezmosDelMes(s: EstadoHogar, ref: MesRef, items: ItemPlan[]): ItemPlan[] {
+  const nuevos: ItemPlan[] = [];
+  for (const f of s.ingresosFijos.filter((x) => x.activo)) {
+    const regla = reglaDe(s, f.usuarioId);
+    if (regla) nuevos.push(itemDiezmo(s, { nombre: `Diezmo · ${f.nombre}`, monto: calcularDiezmo(regla.porcentaje, f.bruto, f.neto, regla.base), diaVence: f.diaPago, ingresoFijoId: f.id }));
   }
-  for (const e of anualDe(estado, ref.anio)?.eventos ?? []) {
+  for (const e of anualDe(s, ref.anio)?.eventos ?? []) {
     if (e.tipo !== 'INGRESO' || e.mes !== ref.mes || !e.usuarioId) continue;
-    const regla = reglaDe(estado, e.usuarioId);
-    if (regla) monto += calcularDiezmo(regla.porcentaje, e.monto, e.monto, 'BRUTO');
+    const regla = reglaDe(s, e.usuarioId);
+    if (regla) nuevos.push(itemDiezmo(s, { nombre: `Diezmo · ${e.nombre}`, monto: calcularDiezmo(regla.porcentaje, e.monto, e.monto, 'BRUTO'), diaVence: null }));
   }
-  for (const m of movimientosDe(estado, ref)) {
-    if (m.tipo !== 'APORTE' || !m.aplicaDiezmo) continue;
-    const regla = estado.reglas.find((r) => r.usuarioId === m.usuarioId);
-    monto += Math.round((m.monto * (regla?.porcentaje ?? 10)) / 100);
+  const conItem = new Set(items.map((i) => i.aporteId).filter((id) => id !== null));
+  for (const m of movimientosDe(s, ref)) {
+    if (m.tipo === 'APORTE' && m.aplicaDiezmo && !conItem.has(m.id)) nuevos.push(itemDiezmoAporte(s, m));
   }
-  return { monto, detalle: origenes.length ? `Calculado · ${origenes.join(' + ')}` : 'Calculado' };
+  return nuevos;
 }
 
-export interface ObligacionDiezmo {
-  /** Id del movimiento que la genera (ingreso recibido o aporte). */
-  id: Id;
-  monto: Pesos;
-  detalle: string;
-  usuarioId: Id;
-  fecha: Fecha;
-}
-
-/** Obligaciones de diezmo pendientes del mes: se generan al recibir y se cierran con "Entregado". */
-export function diezmosPendientes(estado: EstadoHogar, ref: MesRef): ObligacionDiezmo[] {
-  const movs = movimientosDe(estado, ref);
-  const entregadas = new Set(movs.filter((m) => m.tipo === 'DIEZMO_ENTREGADO').flatMap((m) => m.diezmoDe));
-  const pendientes: ObligacionDiezmo[] = [];
-  for (const m of movs) {
-    if (!m.aplicaDiezmo || entregadas.has(m.id)) continue;
-    const regla = estado.reglas.find((r) => r.usuarioId === m.usuarioId);
-    if (!regla) continue;
-    if (m.tipo === 'INGRESO_FIJO') {
-      const fijo = estado.ingresosFijos.find((f) => f.id === m.ingresoFijoId);
-      const monto = calcularDiezmo(regla.porcentaje, m.bruto ?? m.monto, m.monto, regla.base);
-      pendientes.push({ id: m.id, monto, usuarioId: m.usuarioId, fecha: m.fecha, detalle: `${formatPorcentaje(regla.porcentaje)} de ${fijo?.nombre ?? 'ingreso'} · recibido ${formatFechaCorta(m.fecha)}` });
-    } else if (m.tipo === 'APORTE') {
-      pendientes.push({ id: m.id, monto: Math.round((m.monto * regla.porcentaje) / 100), usuarioId: m.usuarioId, fecha: m.fecha, detalle: `${formatPorcentaje(regla.porcentaje)} del aporte · ${formatFechaCorta(m.fecha)}` });
-    }
-  }
-  return pendientes;
+/**
+ * Un ingreso fijo nuevo entra a la opcion principal del mes en curso si tiene plan y no esta cerrado, con su item de diezmo
+ * si su dueño tiene regla activa (como la cuota de un credito nuevo, design D8 de diezmo-como-gasto). Muta el borrador.
+ */
+export function ingresoFijoAlMes(s: EstadoHogar, f: IngresoFijo, fecha: Fecha): void {
+  const plan = planDe(s, mesDe(fecha));
+  const principal = plan && plan.estado !== 'CERRADO' ? escenarioPrincipal(plan) : null;
+  if (!principal) return;
+  principal.ingresos.push({ id: nuevoId(s, 'ingp'), nombre: f.nombre, monto: f.neto, usuarioId: f.usuarioId, tipo: 'FIJO', ingresoFijoId: f.id });
+  const regla = reglaDe(s, f.usuarioId);
+  if (regla) principal.items.push(itemDiezmo(s, { nombre: `Diezmo · ${f.nombre}`, monto: calcularDiezmo(regla.porcentaje, f.bruto, f.neto, regla.base), diaVence: f.diaPago, ingresoFijoId: f.id }));
 }
 
 // --- Cambios --------------------------------------------------------------------
 
-/** "Recibi": registra el ingreso fijo del mes y, si su dueño tiene regla, genera la obligacion de diezmo. */
-export function marcarRecibido(estado: EstadoHogar, datos: { ingresoFijoId: Id; ref: MesRef; fecha: Fecha; creadoPor: Id; monto?: Pesos }): EstadoHogar {
+/**
+ * "Recibi" (design D8): una linea de la opcion principal del mes (`lineaId`) o, en un mes sin plan, un ingreso fijo. El monto es el que
+ * llego (por defecto el de la linea o el neto). No genera obligacion de diezmo: el diezmo ya es un item del plan.
+ */
+export function marcarRecibido(estado: EstadoHogar, datos: { ref: MesRef; lineaId?: Id; ingresoFijoId?: Id; fecha: Fecha; creadoPor: Id; monto?: Pesos }): EstadoHogar {
   asegurarAbierto(estado, datos.ref);
   const s = clonar(estado);
-  const fijo = s.ingresosFijos.find((f) => f.id === datos.ingresoFijoId);
-  if (!fijo) throw new ReglaError('NO_EXISTE', 'No existe el ingreso fijo');
-  if (s.movimientos.some((m) => m.tipo === 'INGRESO_FIJO' && m.ingresoFijoId === fijo.id && m.ref.anio === datos.ref.anio && m.ref.mes === datos.ref.mes)) {
-    throw new ReglaError('YA_RECIBIDO', `${fijo.nombre} ya se marcó como recibido este mes`);
+  const movs = movimientosDe(s, datos.ref);
+  let linea: IngresoPlan | null = null;
+  if (datos.lineaId) {
+    const plan = planDe(s, datos.ref);
+    linea = (plan && escenarioPrincipal(plan)?.ingresos.find((l) => l.id === datos.lineaId)) || null;
+    if (!linea) throw new ReglaError('NO_EXISTE', 'Ese ingreso no está en el plan del mes');
+    if (movs.some((m) => recibeLinea(m, linea!))) throw new ReglaError('YA_RECIBIDO', `${linea.nombre} ya se marcó como recibido este mes`);
   }
+  const fijoId = linea ? linea.ingresoFijoId : datos.ingresoFijoId ?? null;
+  const fijo = fijoId ? s.ingresosFijos.find((f) => f.id === fijoId) : undefined;
+  if (!linea && !fijo) throw new ReglaError('NO_EXISTE', 'No existe el ingreso fijo');
+  if (!linea && movs.some((m) => m.tipo === 'INGRESO_FIJO' && m.ingresoFijoId === fijo!.id)) {
+    throw new ReglaError('YA_RECIBIDO', `${fijo!.nombre} ya se marcó como recibido este mes`);
+  }
+  const monto = datos.monto ?? linea?.monto ?? fijo!.neto;
+  if (!(monto > 0)) throw new ReglaError('MONTO_INVALIDO', 'El monto recibido debe ser mayor que cero');
   const id = nuevoId(s, 'mov');
   s.movimientos.push({
-    id, seq: s.secuencia, tipo: 'INGRESO_FIJO', ref: datos.ref, monto: datos.monto ?? fijo.neto, fecha: datos.fecha,
-    usuarioId: fijo.usuarioId, creadoPor: datos.creadoPor,
-    origen: fijo.cuentaId ? { tipo: 'CUENTA', cuentaId: fijo.cuentaId } : { tipo: 'NINGUNO' },
-    nota: '', itemId: null, ingresoFijoId: fijo.id, bruto: fijo.bruto, aplicaDiezmo: Boolean(reglaDe(s, fijo.usuarioId)),
-    diezmoDe: [], cuentaDestinoId: null, creditoId: null,
+    id, seq: s.secuencia, tipo: 'INGRESO_FIJO', ref: datos.ref, monto, fecha: datos.fecha,
+    usuarioId: linea?.usuarioId ?? fijo?.usuarioId ?? datos.creadoPor, creadoPor: datos.creadoPor,
+    origen: fijo?.cuentaId ? { tipo: 'CUENTA', cuentaId: fijo.cuentaId } : { tipo: 'NINGUNO' },
+    nota: '', itemId: null, ingresoFijoId: fijo?.id ?? null, bruto: fijo?.bruto ?? null, aplicaDiezmo: false,
+    diezmoDe: [], ingresoPlanId: linea?.id ?? null, cuentaDestinoId: null, creditoId: null,
   });
   return s;
 }
 
-/** Un aporte: quien, cuanto, para que mes y (opcional) a que cuenta. Suma al libre del mes elegido. */
+/**
+ * Un aporte: quien, cuanto, para que mes y (opcional) a que cuenta. Suma al libre del mes elegido. Con "Aplicar diezmo" gana su
+ * item de diezmo en la opcion principal del mes si tiene plan abierto; si no, lo recoge `crearMes` (design D2).
+ */
 export function registrarAporte(estado: EstadoHogar, datos: { usuarioId: Id; monto: Pesos; ref: MesRef; cuentaId: Id | null; aplicaDiezmo: boolean; fecha: Fecha; creadoPor: Id }): EstadoHogar {
   if (!(datos.monto > 0)) throw new ReglaError('MONTO_INVALIDO', 'El aporte debe ser mayor que cero');
   asegurarAbierto(estado, datos.ref);
   const s = clonar(estado);
   const id = nuevoId(s, 'mov');
-  s.movimientos.push({
+  const aporte: Movimiento = {
     id, seq: s.secuencia, tipo: 'APORTE', ref: datos.ref, monto: datos.monto, fecha: datos.fecha, usuarioId: datos.usuarioId,
     creadoPor: datos.creadoPor, origen: datos.cuentaId ? { tipo: 'CUENTA', cuentaId: datos.cuentaId } : { tipo: 'NINGUNO' },
-    nota: '', itemId: null, ingresoFijoId: null, bruto: null, aplicaDiezmo: datos.aplicaDiezmo, diezmoDe: [], cuentaDestinoId: null, creditoId: null,
-  });
-  return s;
-}
-
-/** "Entregado": cierra una o varias obligaciones de diezmo (agrupado = todas las del mes). */
-export function entregarDiezmo(estado: EstadoHogar, datos: { obligaciones: Id[]; ref: MesRef; fecha: Fecha; usuarioId: Id; cuentaId: Id | null }): EstadoHogar {
-  asegurarAbierto(estado, datos.ref);
-  const pendientes = diezmosPendientes(estado, datos.ref).filter((o) => datos.obligaciones.includes(o.id));
-  if (!pendientes.length) throw new ReglaError('SIN_DIEZMO', 'No hay diezmo pendiente');
-  const s = clonar(estado);
-  const id = nuevoId(s, 'mov');
-  s.movimientos.push({
-    id, seq: s.secuencia, tipo: 'DIEZMO_ENTREGADO', ref: datos.ref, monto: sumar(pendientes.map((p) => p.monto)), fecha: datos.fecha,
-    usuarioId: datos.usuarioId, creadoPor: datos.usuarioId, origen: datos.cuentaId ? { tipo: 'CUENTA', cuentaId: datos.cuentaId } : { tipo: 'NINGUNO' },
-    nota: '', itemId: null, ingresoFijoId: null, bruto: null, aplicaDiezmo: false, diezmoDe: pendientes.map((p) => p.id), cuentaDestinoId: null, creditoId: null,
-  });
+    nota: '', itemId: null, ingresoFijoId: null, bruto: null, aplicaDiezmo: datos.aplicaDiezmo, diezmoDe: [], ingresoPlanId: null, cuentaDestinoId: null, creditoId: null,
+  };
+  s.movimientos.push(aporte);
+  const plan = planDe(s, datos.ref);
+  const principal = datos.aplicaDiezmo && plan && plan.estado !== 'CERRADO' ? escenarioPrincipal(plan) : null;
+  if (principal) principal.items.push(itemDiezmoAporte(s, aporte));
   return s;
 }

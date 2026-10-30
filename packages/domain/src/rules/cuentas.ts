@@ -83,7 +83,7 @@ export function moverDinero(estado: EstadoHogar, datos: { desde: Id; hacia: Id; 
   s.movimientos.push({
     id, seq: s.secuencia, tipo: 'TRANSFERENCIA', ref: mesDe(datos.fecha), monto: datos.monto, fecha: datos.fecha, usuarioId: datos.usuarioId,
     creadoPor: datos.usuarioId, origen: { tipo: 'CUENTA', cuentaId: datos.desde }, nota: '', itemId: null, ingresoFijoId: null,
-    bruto: null, aplicaDiezmo: false, diezmoDe: [], cuentaDestinoId: datos.hacia, creditoId: null,
+    bruto: null, aplicaDiezmo: false, diezmoDe: [], ingresoPlanId: null, cuentaDestinoId: datos.hacia, creditoId: null,
   });
   return s;
 }
@@ -110,7 +110,7 @@ export function cuadrarCuentas(estado: EstadoHogar, datos: { saldos: { cuentaId:
       s.movimientos.push({
         id, seq: s.secuencia, tipo: 'AJUSTE_CUADRE', ref: mesDe(datos.fecha), monto: diferencia, fecha: datos.fecha, usuarioId: datos.usuarioId,
         creadoPor: datos.usuarioId, origen: { tipo: 'CUENTA', cuentaId }, nota: 'Gastos sin registrar', itemId: null, ingresoFijoId: null,
-        bruto: null, aplicaDiezmo: false, diezmoDe: [], cuentaDestinoId: null, creditoId: null,
+        bruto: null, aplicaDiezmo: false, diezmoDe: [], ingresoPlanId: null, cuentaDestinoId: null, creditoId: null,
       });
     }
     cuenta.saldoCuadre = saldoBanco;

@@ -1,5 +1,6 @@
-import type { BaseDiezmo, DiezmoEnHoy, EstadoHogar, Fecha, Id, IngresoFijo, Pesos, ReglaDiezmo, TipoCategoria, Usuario } from '../model';
+import type { BaseDiezmo, EstadoHogar, Fecha, Id, IngresoFijo, Pesos, ReglaDiezmo, TipoCategoria, Usuario } from '../model';
 import { ReglaError, clonar, diasEntre, nuevoId } from './base';
+import { ingresoFijoAlMes } from './ingresos';
 
 /** Dias de vigencia de una invitacion (HANDOFF: token de un solo uso, sugerido 7 dias). */
 export const DIAS_INVITACION = 7;
@@ -39,14 +40,19 @@ export function guardarRegla(estado: EstadoHogar, regla: ReglaDiezmo): EstadoHog
   return s;
 }
 
-export function guardarIngresoFijo(estado: EstadoHogar, datos: Omit<IngresoFijo, 'id'> & { id?: Id }): EstadoHogar {
+/** Con `fecha`, uno nuevo entra al plan del mes en curso (design D8 de diezmo-como-gasto). */
+export function guardarIngresoFijo(estado: EstadoHogar, datos: Omit<IngresoFijo, 'id'> & { id?: Id }, fecha?: Fecha): EstadoHogar {
   if (!datos.nombre.trim()) throw new ReglaError('NOMBRE_REQUERIDO', 'El ingreso necesita un nombre');
   if (!(datos.neto > 0) || datos.bruto < datos.neto) throw new ReglaError('MONTO_INVALIDO', 'El bruto debe ser mayor o igual al neto');
   if (datos.diaPago < 1 || datos.diaPago > 31) throw new ReglaError('DIA_INVALIDO', 'El día de pago va de 1 a 31');
   const s = clonar(estado);
   const existente = datos.id ? s.ingresosFijos.find((f) => f.id === datos.id) : undefined;
   if (existente) Object.assign(existente, datos, { nombre: datos.nombre.trim() });
-  else s.ingresosFijos.push({ ...datos, nombre: datos.nombre.trim(), id: nuevoId(s, 'ing') });
+  else {
+    const nuevo = { ...datos, nombre: datos.nombre.trim(), id: nuevoId(s, 'ing') };
+    s.ingresosFijos.push(nuevo);
+    if (fecha) ingresoFijoAlMes(s, nuevo, fecha);
+  }
   return s;
 }
 
@@ -54,12 +60,6 @@ export function quitarIngresoFijo(estado: EstadoHogar, id: Id): EstadoHogar {
   const s = clonar(estado);
   const f = s.ingresosFijos.find((x) => x.id === id);
   if (f) f.activo = false;
-  return s;
-}
-
-export function definirDiezmoEnHoy(estado: EstadoHogar, modo: DiezmoEnHoy): EstadoHogar {
-  const s = clonar(estado);
-  s.hogar.diezmoEnHoy = modo;
   return s;
 }
 
@@ -126,7 +126,8 @@ export function completarOnboarding(estado: EstadoHogar): EstadoHogar {
 export function guardarCategoria(estado: EstadoHogar, datos: { id?: Id; nombre: string; color?: string; tipo?: TipoCategoria }): EstadoHogar {
   const nombre = datos.nombre.trim();
   if (!nombre) throw new ReglaError('NOMBRE_REQUERIDO', 'La categoría necesita un nombre');
-  if (nombre.toLowerCase() === 'diezmo') throw new ReglaError('RESERVADA', 'El diezmo se calcula solo; no es una categoría');
+  if (nombre.toLowerCase() === 'diezmo') throw new ReglaError('RESERVADA', 'Diezmo ya es una categoría del sistema');
+  if (estado.categorias.some((c) => c.id === datos.id && c.tipo === 'DIEZMO')) throw new ReglaError('RESERVADA', 'La categoría Diezmo no se renombra');
   const s = clonar(estado);
   if (s.categorias.some((c) => c.id !== datos.id && c.nombre.toLowerCase() === nombre.toLowerCase())) throw new ReglaError('DUPLICADA', 'Ya existe esa categoría');
   const existente = datos.id ? s.categorias.find((c) => c.id === datos.id) : undefined;

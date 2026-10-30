@@ -1,7 +1,8 @@
 import type { CierreMes, EstadoHogar, Fecha, FilaCierre, Id, MesRef, Pesos } from '../model';
 import { ReglaError, clonar, sumar, sumarMeses } from './base';
 import { cierreDe, escenarioPrincipal, movimientosDe, planDe } from './consultas';
-import { diezmoPlaneado, ingresosDelMes, totalIngresos } from './ingresos';
+import { esGastoSinItem } from './ejecucion';
+import { ingresosDelMes, totalIngresos } from './ingresos';
 import { gruposDe } from './plan';
 
 export interface VistaCierre {
@@ -37,11 +38,8 @@ export function vistaCierre(estado: EstadoHogar, ref: MesRef): VistaCierre {
   for (const g of gruposDe(estado, items)) {
     filas.push({ nombre: g.nombre, plan: g.total, real: realDe(new Set(g.items.map((i) => i.id))) });
   }
-  const noPlaneado = sumar(movs.filter((m) => m.tipo === 'GASTO' && m.itemId === null).map((m) => m.monto));
+  const noPlaneado = sumar(movs.filter(esGastoSinItem).map((m) => m.monto));
   if (noPlaneado) filas.push({ nombre: 'No estaba planeado', plan: null, real: noPlaneado });
-  const diezmo = diezmoPlaneado(estado, ref).monto;
-  const entregado = sumar(movs.filter((m) => m.tipo === 'DIEZMO_ENTREGADO').map((m) => m.monto));
-  if (diezmo || entregado) filas.push({ nombre: 'Diezmo', plan: diezmo, real: entregado });
 
   const sinRegistrar = sumar(movs.filter((m) => m.tipo === 'AJUSTE_CUADRE').map((m) => m.monto));
   const gastosReal = sumar(filas.slice(1).map((f) => f.real));

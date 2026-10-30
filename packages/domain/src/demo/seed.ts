@@ -1,13 +1,14 @@
-import type { Categoria, EstadoHogar, Fecha, Id, ItemPlan, MesRef, Movimiento, Origen, PlanMes, TipoItem, TipoMovimiento } from '../model';
+import type { Categoria, EstadoHogar, Fecha, Id, IngresoPlan, ItemPlan, MesRef, Movimiento, Origen, PlanMes, TipoItem, TipoMovimiento } from '../model';
 import { fechaEnMes, mesDe, sumarMeses } from '../rules/base';
 
-/** Version del esquema guardado: si cambia, el adaptador vuelve a sembrar. */
-export const VERSION_ESQUEMA = 1;
+/** Version del esquema guardado: si cambia, el adaptador vuelve a sembrar. 2: diezmo como gasto y lineas de ingreso. */
+export const VERSION_ESQUEMA = 2;
 
 export const DANIEL = 'u-daniel';
 export const ESPOSA = 'u-esposa';
 
 const CATEGORIAS: Categoria[] = [
+  { id: 'cat-diezmo', nombre: 'Diezmo', color: '#0F766E', orden: 0, tipo: 'DIEZMO', sistema: true },
   { id: 'cat-fijos', nombre: 'Gastos fijos', color: '#E2551B', orden: 1, tipo: 'FIJO', sistema: true },
   { id: 'cat-tarjetas', nombre: 'Tarjetas y cuotas', color: '#7C4DDB', orden: 2, tipo: 'TARJETA', sistema: true },
   { id: 'cat-variables', nombre: 'Variables', color: '#8D8F88', orden: 3, tipo: 'VARIABLE', sistema: true },
@@ -23,10 +24,15 @@ interface DefItem {
   tipo: TipoItem;
   cuota?: { actual: number; total: number };
   credito?: Id;
+  ingreso?: Id;
 }
 
-/** Plan de octubre de los artboards: fijos $795.000, tarjetas $2.675.000, variables $720.000, creditos $500.000. */
+/**
+ * Plan de octubre de los artboards: fijos $795.000, tarjetas $2.675.000, variables $720.000, creditos $500.000, y el diezmo del
+ * salario como gasto sin pagar (design D6 de diezmo-como-gasto): el plan sigue en $5.390.000.
+ */
 const ITEMS: DefItem[] = [
+  { id: 'diezmo-salario', cat: 'cat-diezmo', nombre: 'Diezmo · Salario Daniel', monto: 700_000, dia: 25, tipo: 'DIEZMO', ingreso: 'ing-salario' },
   { id: 'pension', cat: 'cat-fijos', nombre: 'Pensión', monto: 550_000, dia: 5, tipo: 'FIJO' },
   { id: 'celular', cat: 'cat-fijos', nombre: 'Celular', monto: 50_000, dia: 8, tipo: 'FIJO' },
   { id: 'internet', cat: 'cat-fijos', nombre: 'Internet', monto: 120_000, dia: 10, tipo: 'FIJO' },
@@ -45,7 +51,13 @@ function items(prefijo: string, cuotaExtra = 0): ItemPlan[] {
   return ITEMS.map((d) => ({
     id: `${prefijo}-${d.id}`, categoriaId: d.cat, nombre: d.nombre, monto: d.monto, diaVence: d.dia, tipo: d.tipo,
     cuota: d.cuota ? { actual: d.cuota.actual + cuotaExtra, total: d.cuota.total } : null, creditoId: d.credito ?? null,
+    ingresoFijoId: d.ingreso ?? null, aporteId: null,
   }));
+}
+
+/** Linea de ingreso de cada opcion: el salario con su neto (design D8). */
+function ingresos(prefijo: string): IngresoPlan[] {
+  return [{ id: `${prefijo}-ing-salario`, nombre: 'Salario Daniel', monto: 6_288_000, usuarioId: DANIEL, tipo: 'FIJO', ingresoFijoId: 'ing-salario' }];
 }
 
 function cuenta(id: Id): Origen {
@@ -70,7 +82,7 @@ export function crearSemilla(hoy: Fecha): EstadoHogar {
     seq += 1;
     movimientos.push({
       id: `seed-mov-${seq}`, seq, tipo, ref, monto, fecha: f(ref, dia), usuarioId, creadoPor: usuarioId, origen, nota: '',
-      itemId: null, ingresoFijoId: null, bruto: null, aplicaDiezmo: false, diezmoDe: [], cuentaDestinoId: null, creditoId: null, ...extra,
+      itemId: null, ingresoFijoId: null, bruto: null, aplicaDiezmo: false, diezmoDe: [], ingresoPlanId: null, cuentaDestinoId: null, creditoId: null, ...extra,
     });
   };
   const pago = (item: string, dia: number, monto: number, usuarioId: Id, origen: Origen, tipo: TipoMovimiento = 'PAGO') =>
@@ -91,31 +103,31 @@ export function crearSemilla(hoy: Fecha): EstadoHogar {
   pago('transporte', 17, 100_000, DANIEL, cuenta('cta-nu'), 'GASTO');
   pago('visa', 18, 800_000, DANIEL, cuenta('cta-nu'));
   pago('mercado', 21, 80_000, DANIEL, cuenta('cta-nu'), 'GASTO');
-  mov('INGRESO_FIJO', M, 25, 6_288_000, DANIEL, cuenta('cta-davivienda'), { ingresoFijoId: 'ing-salario', bruto: 7_000_000, aplicaDiezmo: true });
+  mov('INGRESO_FIJO', M, 25, 6_288_000, DANIEL, cuenta('cta-davivienda'), { ingresoFijoId: 'ing-salario', bruto: 7_000_000 });
   // Aporte de la esposa registrado para el mes siguiente (Planear: "Registrado el 26 oct").
   mov('APORTE', sig, 26, 2_000_000, ESPOSA, { tipo: 'NINGUNO' }, { fecha: f(M, 26) });
 
   const plan = (id: string, ref: MesRef, estado: PlanMes['estado'], prefijo: string, cuotaExtra: number): PlanMes => ({
     id, ref, estado, escenarioActivoId: `${id}-a`,
-    escenarios: [{ id: `${id}-a`, letra: 'A', creadoPor: DANIEL, nota: '', archivado: false, items: items(prefijo, cuotaExtra) }],
+    escenarios: [{ id: `${id}-a`, letra: 'A', creadoPor: DANIEL, nota: '', archivado: false, ingresos: ingresos(prefijo), items: items(prefijo, cuotaExtra) }],
   });
 
   const nov = items('m1', 1);
   const planSiguiente: PlanMes = {
     id: 'plan-m1', ref: sig, estado: 'BORRADOR', escenarioActivoId: null,
     escenarios: [
-      { id: 'plan-m1-a', letra: 'A', creadoPor: DANIEL, nota: 'Base del plan anual', archivado: false, items: nov },
+      { id: 'plan-m1-a', letra: 'A', creadoPor: DANIEL, nota: 'Base del plan anual', archivado: false, ingresos: ingresos('m1'), items: nov },
       {
-        id: 'plan-m1-b', letra: 'B', creadoPor: ESPOSA, nota: 'Navidad + viaje', archivado: false,
+        id: 'plan-m1-b', letra: 'B', creadoPor: ESPOSA, nota: 'Navidad + viaje', archivado: false, ingresos: ingresos('m1b'),
         items: [
           ...items('m1b', 1),
-          { id: 'm1b-regalos', categoriaId: 'cat-variables', nombre: 'Regalos de Navidad', monto: 600_000, diaVence: null, tipo: 'VARIABLE', cuota: null, creditoId: null },
-          { id: 'm1b-viaje', categoriaId: 'cat-ahorro', nombre: 'Ahorro viaje', monto: 1_000_000, diaVence: null, tipo: 'FIJO', cuota: null, creditoId: null },
+          { id: 'm1b-regalos', categoriaId: 'cat-variables', nombre: 'Regalos de Navidad', monto: 600_000, diaVence: null, tipo: 'VARIABLE', cuota: null, creditoId: null, ingresoFijoId: null, aporteId: null },
+          { id: 'm1b-viaje', categoriaId: 'cat-ahorro', nombre: 'Ahorro viaje', monto: 1_000_000, diaVence: null, tipo: 'FIJO', cuota: null, creditoId: null, ingresoFijoId: null, aporteId: null },
         ],
       },
       {
-        id: 'plan-m1-c', letra: 'C', creadoPor: DANIEL, nota: 'abono a crédito', archivado: false,
-        items: [...items('m1c', 1), { id: 'm1c-abono', categoriaId: 'cat-creditos', nombre: 'Abono extra crédito', monto: 1_500_000, diaVence: 15, tipo: 'CREDITO', cuota: null, creditoId: 'cred-libre' }],
+        id: 'plan-m1-c', letra: 'C', creadoPor: DANIEL, nota: 'abono a crédito', archivado: false, ingresos: ingresos('m1c'),
+        items: [...items('m1c', 1), { id: 'm1c-abono', categoriaId: 'cat-creditos', nombre: 'Abono extra crédito', monto: 1_500_000, diaVence: 15, tipo: 'CREDITO', cuota: null, creditoId: 'cred-libre', ingresoFijoId: null, aporteId: null }],
       },
     ],
   };
@@ -126,7 +138,7 @@ export function crearSemilla(hoy: Fecha): EstadoHogar {
     version: VERSION_ESQUEMA,
     secuencia: 1000,
     hogar: {
-      id: 'hogar-1', nombre: 'Nuestra casa', configurado: true, diezmoEnHoy: 'SEPARADO', invitaciones: [],
+      id: 'hogar-1', nombre: 'Nuestra casa', configurado: true, invitaciones: [],
       miembros: [{ usuarioId: DANIEL, unidoEn: f(ant2, 1) }, { usuarioId: ESPOSA, unidoEn: f(ant1, 27) }],
     },
     usuarios: [
@@ -196,7 +208,7 @@ export function crearHogarVacio(): EstadoHogar {
   return {
     version: VERSION_ESQUEMA,
     secuencia: 1000,
-    hogar: { id: 'hogar-1', nombre: '', configurado: false, diezmoEnHoy: 'SEPARADO', invitaciones: [], miembros: [{ usuarioId: DANIEL, unidoEn: '' }] },
+    hogar: { id: 'hogar-1', nombre: '', configurado: false, invitaciones: [], miembros: [{ usuarioId: DANIEL, unidoEn: '' }] },
     usuarios: [{ id: DANIEL, nombre: 'Daniel', email: 'daniel@ejemplo.com', inicial: 'D' }],
     reglas: [],
     ingresosFijos: [],

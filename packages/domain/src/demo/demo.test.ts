@@ -116,7 +116,8 @@ describe('adaptador demo (steward-ui-shell: modo demo)', () => {
     const p = crearAdaptadorDemo({ storage, ahora, superponer: (s) => ({ ...s, ingresosFijos: [...s.ingresosFijos, real] }) });
     await p.sesion.iniciar('GOOGLE');
 
-    expect((await p.movimientos.resumenMes(OCT)).ingresos.map((l) => l.nombre)).toContain('Salario real');
+    // Un mes con plan muestra sus lineas; uno sin plan, los ingresos fijos (design D8 de diezmo-como-gasto).
+    expect((await p.movimientos.resumenMes({ anio: 2026, mes: 12 })).ingresos.map((l) => l.nombre)).toContain('Salario real');
     expect((await p.ingresos.fijos()).map((f) => f.id)).toContain('ing-real');
     // Un cambio del adaptador se aplica sobre el estado de prueba: lo real no llega al storage.
     await p.movimientos.registrarGasto({ monto: 85_000, itemId: null, nota: 'Farmacia', usuarioId: 'u-daniel', origen: { tipo: 'NINGUNO' }, ref: OCT });

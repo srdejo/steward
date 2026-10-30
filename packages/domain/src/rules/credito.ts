@@ -64,7 +64,7 @@ export function registrarAbono(estado: EstadoHogar, datos: { creditoId: Id; mont
   s.movimientos.push({
     id, seq: s.secuencia, tipo: 'ABONO_CREDITO', ref: mesDe(datos.fecha), monto: datos.monto, fecha: datos.fecha, usuarioId: datos.usuarioId,
     creadoPor: datos.usuarioId, origen: datos.origen, nota: '', itemId: null, ingresoFijoId: null, bruto: null,
-    aplicaDiezmo: false, diezmoDe: [], cuentaDestinoId: null, creditoId: c.id,
+    aplicaDiezmo: false, diezmoDe: [], ingresoPlanId: null, cuentaDestinoId: null, creditoId: c.id,
   });
   return s;
 }
@@ -85,7 +85,7 @@ function itemCuota(s: EstadoHogar, credito: Credito): ItemPlan {
   if (!categoria) throw new ReglaError('NO_EXISTE', 'El hogar no tiene categorías');
   return {
     id: nuevoId(s, 'item'), categoriaId: categoria.id, nombre: `Cuota ${credito.nombre.toLowerCase()}`, monto: credito.cuota,
-    diaVence: credito.diaPago, tipo: 'CREDITO', cuota: null, creditoId: credito.id,
+    diaVence: credito.diaPago, tipo: 'CREDITO', cuota: null, creditoId: credito.id, ingresoFijoId: null, aporteId: null,
   };
 }
 

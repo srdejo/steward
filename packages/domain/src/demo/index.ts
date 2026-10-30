@@ -40,7 +40,7 @@ export interface OpcionesDemo {
   titular?: Pick<Usuario, 'nombre' | 'email' | 'inicial'>;
   /**
    * Modo conectado (design D5 de backend-ingresos-diezmo): reemplaza al leer partes del estado con los datos reales del
-   * backend (ingresos, reglas, cuentas, ingresos recibidos y diezmos entregados). Se aplica en cada lectura y nunca se
+   * backend (ingresos, reglas, cuentas, ingresos recibidos y diezmos entregados antes del diezmo como gasto). Se aplica en cada lectura y nunca se
    * guarda: los cambios del adaptador se aplican sobre el estado de prueba sin superponer.
    */
   superponer?: (s: EstadoHogar) => EstadoHogar;
@@ -237,9 +237,6 @@ export function crearAdaptadorDemo(opciones: OpcionesDemo): Puertos {
       async guardarCategoria(datos) {
         await cambiar((s) => R.guardarCategoria(s, datos));
       },
-      async definirDiezmoEnHoy(modo) {
-        await cambiar((s) => R.definirDiezmoEnHoy(s, modo));
-      },
     },
 
     ingresos: {
@@ -249,7 +246,7 @@ export function crearAdaptadorDemo(opciones: OpcionesDemo): Puertos {
       },
       async guardarFijo(datos) {
         const usuarioId = await usuarioActual();
-        await cambiar((s) => R.guardarIngresoFijo(s, { ...datos, usuarioId, activo: true }));
+        await cambiar((s) => R.guardarIngresoFijo(s, { ...datos, usuarioId, activo: true }, hoy()));
       },
       async quitarFijo(id) {
         await cambiar((s) => R.quitarIngresoFijo(s, id));
@@ -262,17 +259,13 @@ export function crearAdaptadorDemo(opciones: OpcionesDemo): Puertos {
         const usuarioId = await usuarioActual();
         await cambiar((s) => R.guardarRegla(s, { ...datos, usuarioId }));
       },
-      async marcarRecibido(ingresoFijoId, ref) {
+      async marcarRecibido(datos) {
         const creadoPor = await usuarioActual();
-        await cambiar((s) => R.marcarRecibido(s, { ingresoFijoId, ref, fecha: hoy(), creadoPor }));
+        await cambiar((s) => R.marcarRecibido(s, { ...datos, fecha: hoy(), creadoPor }));
       },
       async registrarAporte(datos) {
         const creadoPor = await usuarioActual();
         await cambiar((s) => R.registrarAporte(s, { ...datos, fecha: hoy(), creadoPor }));
-      },
-      async entregarDiezmo(obligaciones, ref, cuentaId) {
-        const usuarioId = await usuarioActual();
-        await cambiar((s) => R.entregarDiezmo(s, { obligaciones, ref, fecha: hoy(), usuarioId, cuentaId }));
       },
     },
 
@@ -328,6 +321,12 @@ export function crearAdaptadorDemo(opciones: OpcionesDemo): Puertos {
       },
       async quitarItem(planId, escenarioId, itemId) {
         await cambiar((s) => R.quitarItem(s, { planId, escenarioId, itemId }));
+      },
+      async guardarIngreso(planId, escenarioId, ingreso) {
+        await cambiar((s) => R.guardarIngresoPlan(s, { planId, escenarioId, ingreso }));
+      },
+      async quitarIngreso(planId, escenarioId, ingresoId) {
+        await cambiar((s) => R.quitarIngresoPlan(s, { planId, escenarioId, ingresoId }));
       },
       async comparar(ref) {
         return R.compararOpciones(await leerEstado(), ref);

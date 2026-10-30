@@ -3,7 +3,7 @@
 // Todo es asincrono porque asi sera contra la red. Las vistas que devuelven son las de rules/.
 
 import type {
-  BaseDiezmo, Categoria, CierreMes, Credito, DiezmoEnHoy, EventoAnual, Fecha, Hogar, Id, IngresoFijo, Invitacion,
+  BaseDiezmo, Categoria, CierreMes, Credito, EventoAnual, Fecha, Hogar, Id, IngresoFijo, IngresoPlan, Invitacion,
   ItemPlan, MesRef, Origen, Pesos, PlanMes, ReglaDiezmo, TipoCategoria, Usuario,
 } from '../model';
 import type {
@@ -68,7 +68,6 @@ export interface HogarPort {
   salir(): Promise<void>;
   categorias(): Promise<Categoria[]>;
   guardarCategoria(datos: { id?: Id; nombre: string; color?: string; tipo?: TipoCategoria }): Promise<void>;
-  definirDiezmoEnHoy(modo: DiezmoEnHoy): Promise<void>;
 }
 
 export interface IngresosPort {
@@ -79,9 +78,10 @@ export interface IngresosPort {
   /** Regla de diezmo del usuario actual (null si nunca la configuro). */
   regla(): Promise<ReglaDiezmo | null>;
   guardarRegla(datos: { activa: boolean; porcentaje: number; base: BaseDiezmo; aplicaAportes: boolean }): Promise<void>;
-  marcarRecibido(ingresoFijoId: Id, ref: MesRef): Promise<void>;
+  /** "Recibi": una linea de la opcion principal del mes (`lineaId`) o, sin plan, un ingreso fijo; `monto` es lo que llego. */
+  marcarRecibido(datos: { ref: MesRef; lineaId?: Id; ingresoFijoId?: Id; monto?: Pesos }): Promise<void>;
+  /** Con `aplicaDiezmo`, el aporte gana su item de diezmo en el plan de su mes. */
   registrarAporte(datos: { usuarioId: Id; monto: Pesos; ref: MesRef; cuentaId: Id | null; aplicaDiezmo: boolean }): Promise<void>;
-  entregarDiezmo(obligaciones: Id[], ref: MesRef, cuentaId: Id | null): Promise<void>;
 }
 
 export interface MovimientosPort {
@@ -109,6 +109,10 @@ export interface PlanPort {
   usar(planId: Id, escenarioId: Id): Promise<void>;
   guardarItem(planId: Id, escenarioId: Id, item: Omit<ItemPlan, 'id'> & { id?: Id }): Promise<void>;
   quitarItem(planId: Id, escenarioId: Id, itemId: Id): Promise<void>;
+  /** "+ Ingreso" o editar una linea de ingreso de la opcion. */
+  guardarIngreso(planId: Id, escenarioId: Id, ingreso: Omit<IngresoPlan, 'id'> & { id?: Id }): Promise<void>;
+  /** Una linea ya recibida no se quita (INGRESO_RECIBIDO). */
+  quitarIngreso(planId: Id, escenarioId: Id, ingresoId: Id): Promise<void>;
   comparar(ref: MesRef): Promise<ReturnType<typeof compararOpciones>>;
   anual(anio: number): Promise<ResumenAnual | null>;
   agregarEvento(anio: number, evento: Omit<EventoAnual, 'id'>): Promise<void>;

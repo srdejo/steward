@@ -2,7 +2,7 @@ import type { EstadoHogar, EventoAnual, Fecha, Id, ItemPlan, MesRef, Pesos } fro
 import { formatPorcentaje, nombreMesCapital } from '../format';
 import { ReglaError, clonar, compararMes, mesDe, nuevoId, sumar } from './base';
 import { anualDe, cierreDe, escenarioPrincipal, nombreUsuario, planDe, reglaDe } from './consultas';
-import { calcularDiezmo } from './ingresos';
+import { calcularDiezmo, diezmosDelMes, ingresosNuevos } from './ingresos';
 
 const MESES = Array.from({ length: 12 }, (_, i) => i + 1);
 export const CATEGORIA_EVENTOS = 'Eventos del año';
@@ -53,7 +53,7 @@ export function resumenAnual(estado: EstadoHogar, anio: number): ResumenAnual | 
   const conFila = new Set(anual.filas.map((f) => f.categoriaId));
   const filas = [
     ...anual.filas,
-    ...[...categorias.values()].filter((c) => !conFila.has(c.id) && c.nombre !== CATEGORIA_EVENTOS).sort((a, b) => a.orden - b.orden).map((c) => ({ categoriaId: c.id, montos: MESES.map(() => 0) })),
+    ...[...categorias.values()].filter((c) => !conFila.has(c.id) && c.nombre !== CATEGORIA_EVENTOS && c.tipo !== 'DIEZMO').sort((a, b) => a.orden - b.orden).map((c) => ({ categoriaId: c.id, montos: MESES.map(() => 0) })),
   ];
   const gastos: FilaAnualVista[] = filas.map((f) => ({ clave: f.categoriaId, nombre: categorias.get(f.categoriaId)?.nombre ?? '', detalle: '', valores: [...f.montos], tenue: false, calculado: false }));
 
@@ -111,7 +111,9 @@ export function editarMontoAnual(estado: EstadoHogar, datos: { anio: number; cat
   const s = clonar(estado);
   const anual = anualDe(s, datos.anio);
   if (!anual) throw new ReglaError('NO_EXISTE', 'No hay plan anual para ese año');
-  if (!s.categorias.some((c) => c.id === datos.categoriaId)) throw new ReglaError('NO_EXISTE', 'No existe esa categoría');
+  const cat = s.categorias.find((c) => c.id === datos.categoriaId);
+  if (!cat) throw new ReglaError('NO_EXISTE', 'No existe esa categoría');
+  if (cat.tipo === 'DIEZMO') throw new ReglaError('DATOS_INVALIDOS', 'El diezmo del año se calcula con las reglas');
   // Una categoria creada despues del anual gana su fila al editarla.
   let fila = anual.filas.find((f) => f.categoriaId === datos.categoriaId);
   if (!fila) {
@@ -153,7 +155,8 @@ export function crearMesesDesdeAnual(estado: EstadoHogar, datos: { anio: number;
   const anual = anualDe(s, datos.anio);
   if (!anual) throw new ReglaError('NO_EXISTE', 'No hay plan anual para ese año');
   const previos = s.planes.filter((p) => compararMes(p.ref, { anio: datos.anio, mes: 1 }) < 0).sort((a, b) => compararMes(b.ref, a.ref));
-  const plantilla = previos.length ? escenarioPrincipal(previos[0]!)?.items ?? [] : [];
+  // Los items de diezmo del plan base no se copian: cada mes gana los suyos (design D2 de diezmo-como-gasto).
+  const plantilla = (previos.length ? escenarioPrincipal(previos[0]!)?.items ?? [] : []).filter((i) => i.tipo !== 'DIEZMO');
   let eventosCat = s.categorias.find((c) => c.nombre === CATEGORIA_EVENTOS);
   if (!eventosCat && anual.eventos.some((e) => e.tipo === 'GASTO')) {
     eventosCat = { id: nuevoId(s, 'cat'), nombre: CATEGORIA_EVENTOS, color: '#5F625C', orden: 90, tipo: 'OTRO', sistema: false };
@@ -174,19 +177,21 @@ export function crearMesesDesdeAnual(estado: EstadoHogar, datos: { anio: number;
       // Los items no son negativos: si la columna es menor que lo copiado, la categoria entra como un solo item por la
       // columna (design D4 de backend-plan-anual).
       if (diferencia < 0) {
-        if (monto > 0) items.push({ id: nuevoId(s, 'item'), categoriaId: fila.categoriaId, nombre: nombreCategoria, monto, diaVence: null, tipo: 'VARIABLE', cuota: null, creditoId: null });
+        if (monto > 0) items.push({ id: nuevoId(s, 'item'), categoriaId: fila.categoriaId, nombre: nombreCategoria, monto, diaVence: null, tipo: 'VARIABLE', cuota: null, creditoId: null, ingresoFijoId: null, aporteId: null });
         continue;
       }
       items.push(...base);
       if (diferencia > 0) {
         const nombre = base.length ? 'Ajuste del plan anual' : nombreCategoria;
-        items.push({ id: nuevoId(s, 'item'), categoriaId: fila.categoriaId, nombre, monto: diferencia, diaVence: null, tipo: 'VARIABLE', cuota: null, creditoId: null });
+        items.push({ id: nuevoId(s, 'item'), categoriaId: fila.categoriaId, nombre, monto: diferencia, diaVence: null, tipo: 'VARIABLE', cuota: null, creditoId: null, ingresoFijoId: null, aporteId: null });
       }
     }
     for (const e of anual.eventos.filter((x) => x.tipo === 'GASTO' && x.mes === mes)) {
-      items.push({ id: nuevoId(s, 'item'), categoriaId: eventosCat!.id, nombre: e.nombre, monto: e.monto, diaVence: null, tipo: 'FIJO', cuota: null, creditoId: null });
+      items.push({ id: nuevoId(s, 'item'), categoriaId: eventosCat!.id, nombre: e.nombre, monto: e.monto, diaVence: null, tipo: 'FIJO', cuota: null, creditoId: null, ingresoFijoId: null, aporteId: null });
     }
-    s.planes.push({ id: nuevoId(s, 'plan'), ref, estado: 'BORRADOR', escenarioActivoId: null, escenarios: [{ id: nuevoId(s, 'esc'), letra: 'A', creadoPor: datos.creadoPor, nota: 'Del plan anual', archivado: false, items }] });
+    items.push(...diezmosDelMes(s, ref, items));
+    const ingresos = ingresosNuevos(s, ref);
+    s.planes.push({ id: nuevoId(s, 'plan'), ref, estado: 'BORRADOR', escenarioActivoId: null, escenarios: [{ id: nuevoId(s, 'esc'), letra: 'A', creadoPor: datos.creadoPor, nota: 'Del plan anual', archivado: false, ingresos, items }] });
   }
   anual.estado = 'CREADO';
   return s;

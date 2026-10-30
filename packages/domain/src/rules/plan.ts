@@ -1,10 +1,10 @@
-import type { Escenario, EstadoHogar, EstadoMes, Fecha, Id, ItemPlan, MesRef, Pesos, PlanMes } from '../model';
+import type { Escenario, EstadoHogar, EstadoMes, Fecha, Id, IngresoPlan, ItemPlan, MesRef, Pesos, PlanMes } from '../model';
 import { formatCop, nombreMes, nombreMesCapital } from '../format';
 import { libreAnualDelMes } from './anual';
 import { ReglaError, clonar, compararMes, mesDe, nuevoId, sumar, sumarMeses } from './base';
 import { cuotasDeCreditos } from './credito';
 import { anualDe, categoria, cierreDe, escenario, escenarioPrincipal, nombreUsuario, opciones, planDe, planPorId } from './consultas';
-import { diezmoPlaneado, ingresosDelMes, totalIngresos, type LineaIngreso } from './ingresos';
+import { diezmosDelMes, ingresosDelMes, ingresosNuevos, recibeLinea, totalIngresos, type LineaIngreso } from './ingresos';
 
 /** Un mes BORRADOR con opcion elegida pasa a ACTIVO cuando llega ("al iniciar el mes"). */
 export function estadoEfectivo(plan: PlanMes, hoy: Fecha): EstadoMes {
@@ -21,10 +21,16 @@ function siguienteLetra(plan: PlanMes): string {
   return libre;
 }
 
+/** Copia los items con ids nuevos. Al crear un mes (`avanzarCuotas`) los de diezmo no se copian: se calculan de nuevo (design D2). */
 function copiarItems(s: EstadoHogar, items: ItemPlan[], avanzarCuotas: boolean): ItemPlan[] {
   return items
+    .filter((i) => !avanzarCuotas || i.tipo !== 'DIEZMO')
     .map((i) => ({ ...i, id: nuevoId(s, 'item'), cuota: i.cuota && avanzarCuotas ? { ...i.cuota, actual: i.cuota.actual + 1 } : i.cuota }))
     .filter((i) => !i.cuota || i.cuota.actual <= i.cuota.total);
+}
+
+function copiarIngresos(s: EstadoHogar, ingresos: IngresoPlan[]): IngresoPlan[] {
+  return ingresos.map((l) => ({ ...l, id: nuevoId(s, 'ingp') }));
 }
 
 export type ModoNuevoMes = 'COPIAR' | 'FIJOS' | 'CERO';
@@ -34,17 +40,22 @@ export function crearMes(estado: EstadoHogar, datos: { ref: MesRef; modo: ModoNu
   if (planDe(estado, datos.ref)) throw new ReglaError('YA_EXISTE', 'Ese mes ya tiene plan');
   const s = clonar(estado);
   const anterior = planDe(s, sumarMeses(datos.ref, -1));
-  const base = anterior ? escenarioPrincipal(anterior)?.items ?? [] : [];
+  const principalAnterior = anterior ? escenarioPrincipal(anterior) : null;
+  const base = principalAnterior?.items ?? [];
   let items: ItemPlan[] = [];
   if (datos.modo === 'COPIAR') items = copiarItems(s, base, true);
   if (datos.modo === 'FIJOS') items = copiarItems(s, base, true).map((i) => (i.tipo === 'VARIABLE' ? { ...i, monto: 0 } : i));
   // Los creditos con saldo traen su cuota en los tres modos; la de un credito ya pagado no se copia.
   const pagados = new Set(s.creditos.filter((c) => c.saldo <= 0).map((c) => c.id));
   items = cuotasDeCreditos(s, items.filter((i) => !i.creditoId || !pagados.has(i.creditoId)));
+  items = [...items, ...diezmosDelMes(s, datos.ref, items)];
+  // Las lineas de Ajustes y del anual se calculan de nuevo; las agregadas a mano se copian (design D8).
+  const copiadas = datos.modo === 'CERO' ? [] : (principalAnterior?.ingresos ?? []).filter((l) => l.tipo === 'OTRO');
+  const ingresos = [...ingresosNuevos(s, datos.ref), ...copiarIngresos(s, copiadas)];
   const id = nuevoId(s, 'plan');
   s.planes.push({
     id, ref: datos.ref, estado: 'BORRADOR', escenarioActivoId: null,
-    escenarios: [{ id: nuevoId(s, 'esc'), letra: 'A', creadoPor: datos.creadoPor, nota: '', archivado: false, items }],
+    escenarios: [{ id: nuevoId(s, 'esc'), letra: 'A', creadoPor: datos.creadoPor, nota: '', archivado: false, ingresos, items }],
   });
   return s;
 }
@@ -71,7 +82,7 @@ export function duplicarEscenario(estado: EstadoHogar, datos: { planId: Id; esce
   const plan = planPorId(s, datos.planId);
   asegurarBorrador(plan, datos.hoy);
   const origen = escenario(plan, datos.escenarioId);
-  plan.escenarios.push({ id: nuevoId(s, 'esc'), letra: siguienteLetra(plan), creadoPor: datos.creadoPor, nota: datos.nota ?? '', archivado: false, items: copiarItems(s, origen.items, false) });
+  plan.escenarios.push({ id: nuevoId(s, 'esc'), letra: siguienteLetra(plan), creadoPor: datos.creadoPor, nota: datos.nota ?? '', archivado: false, ingresos: copiarIngresos(s, origen.ingresos), items: copiarItems(s, origen.items, false) });
   return s;
 }
 
@@ -129,6 +140,33 @@ export function guardarItem(estado: EstadoHogar, datos: { planId: Id; escenarioI
   return s;
 }
 
+/** "+ Ingreso" o editar una linea de ingreso de una opcion (design D8): no toca Ajustes, ni otros meses, ni otras opciones. */
+export function guardarIngresoPlan(estado: EstadoHogar, datos: { planId: Id; escenarioId: Id; ingreso: Omit<IngresoPlan, 'id'> & { id?: Id } }): EstadoHogar {
+  const nombre = datos.ingreso.nombre.trim();
+  if (!nombre || nombre.length > 60) throw new ReglaError('NOMBRE_REQUERIDO', 'El ingreso necesita un nombre de hasta 60 caracteres');
+  if (!(datos.ingreso.monto >= 0)) throw new ReglaError('MONTO_INVALIDO', 'El monto no puede ser negativo');
+  const s = clonar(estado);
+  const esc = escenarioEditable(s, datos.planId, datos.escenarioId);
+  const existente = datos.ingreso.id ? esc.ingresos.find((l) => l.id === datos.ingreso.id) : undefined;
+  if (existente) Object.assign(existente, datos.ingreso, { nombre });
+  else esc.ingresos.push({ ...datos.ingreso, nombre, id: nuevoId(s, 'ingp') });
+  return s;
+}
+
+/** Quitar una linea de ingreso; una ya recibida en su mes no se quita. */
+export function quitarIngresoPlan(estado: EstadoHogar, datos: { planId: Id; escenarioId: Id; ingresoId: Id }): EstadoHogar {
+  const s = clonar(estado);
+  const plan = planPorId(s, datos.planId);
+  const esc = escenarioEditable(s, datos.planId, datos.escenarioId);
+  const linea = esc.ingresos.find((l) => l.id === datos.ingresoId);
+  if (!linea) return s;
+  if (s.movimientos.some((m) => m.ref.anio === plan.ref.anio && m.ref.mes === plan.ref.mes && recibeLinea(m, linea))) {
+    throw new ReglaError('INGRESO_RECIBIDO', `${linea.nombre} ya se recibió este mes; no se puede quitar`);
+  }
+  esc.ingresos = esc.ingresos.filter((l) => l.id !== datos.ingresoId);
+  return s;
+}
+
 export function quitarItem(estado: EstadoHogar, datos: { planId: Id; escenarioId: Id; itemId: Id }): EstadoHogar {
   const s = clonar(estado);
   const esc = escenarioEditable(s, datos.planId, datos.escenarioId);
@@ -154,7 +192,6 @@ export interface VistaOpcion {
   ingresos: LineaIngreso[];
   totalIngresos: Pesos;
   grupos: GrupoCategoria[];
-  diezmo: { monto: Pesos; detalle: string };
   totalGastos: Pesos;
   libre: Pesos;
 }
@@ -170,12 +207,11 @@ export function gruposDe(estado: EstadoHogar, items: ItemPlan[]): GrupoCategoria
 }
 
 export function vistaOpcion(estado: EstadoHogar, ref: MesRef, esc: Escenario): VistaOpcion {
-  const ingresos = ingresosDelMes(estado, ref, 'PLANEACION');
-  const diezmo = diezmoPlaneado(estado, ref);
-  const totalGastos = sumar(esc.items.map((i) => i.monto)) + diezmo.monto;
+  const ingresos = ingresosDelMes(estado, ref, 'PLANEACION', esc);
+  const totalGastos = sumar(esc.items.map((i) => i.monto));
   const total = totalIngresos(ingresos);
   const autor = estado.usuarios.find((u) => u.id === esc.creadoPor);
-  return { escenario: esc, autor: autor?.nombre ?? '', inicialAutor: autor?.inicial ?? '', ingresos, totalIngresos: total, grupos: gruposDe(estado, esc.items), diezmo, totalGastos, libre: total - totalGastos };
+  return { escenario: esc, autor: autor?.nombre ?? '', inicialAutor: autor?.inicial ?? '', ingresos, totalIngresos: total, grupos: gruposDe(estado, esc.items), totalGastos, libre: total - totalGastos };
 }
 
 export function vistasOpciones(estado: EstadoHogar, ref: MesRef): VistaOpcion[] {
@@ -211,11 +247,6 @@ export function compararOpciones(estado: EstadoHogar, ref: MesRef): { letras: st
       continue;
     }
     filas.push({ clave: c.id, nombre: c.nombre, nota: notaDiferencia(vistas, c.id), valores, cambia: true });
-  }
-  const diezmos = vistas.map((v) => v.diezmo.monto);
-  if (diezmos.some((d) => d > 0)) {
-    iguales.push('diezmo');
-    igualesTotal = igualesTotal.map((t, i) => (t ?? 0) + (diezmos[i] ?? 0));
   }
   const sinCambios = iguales.length ? { clave: 'sin-cambios', nombre: 'Sin cambios', nota: iguales.join(', '), valores: igualesTotal, cambia: false } : null;
   return { letras, vistas, ingresos, filas, sinCambios, libre: vistas.map((v) => v.libre) };
@@ -316,7 +347,7 @@ export function probarAbonoComoOpcion(estado: EstadoHogar, datos: { creditoId: I
   const categoriaCreditos = s.categorias.find((c) => c.tipo === 'CREDITO') ?? s.categorias[0]!;
   s = guardarItem(s, {
     planId: plan.id, escenarioId: nueva.id,
-    item: { categoriaId: categoriaCreditos.id, nombre: `Abono extra ${credito.nombre.toLowerCase()}`, monto: datos.abono, diaVence: credito.diaPago, tipo: 'CREDITO', cuota: null, creditoId: credito.id },
+    item: { categoriaId: categoriaCreditos.id, nombre: `Abono extra ${credito.nombre.toLowerCase()}`, monto: datos.abono, diaVence: credito.diaPago, tipo: 'CREDITO', cuota: null, creditoId: credito.id, ingresoFijoId: null, aporteId: null },
   });
   return { estado: s, planId: plan.id, escenarioId: nueva.id };
 }
