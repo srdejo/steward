@@ -147,7 +147,7 @@ Cambio OpenSpec `diezmo-como-gasto`.
 - [x] Recorrido en `steward.test` con dos personas, por el acceso de desarrollo.
 - [x] En producción (2026-10-30): backup, deploy del binario nativo con `V8` (161/161 de contrato contra el binario, 36,8 MiB en reposo); los planes abiertos ganaron sus líneas y el diezmo de noviembre, sin duplicar el de octubre ya entregado.
 
-## Etapa 11 — Usabilidad del plan
+## Etapa 11 — Usabilidad del plan ✅
 
 **Criterio de cierre**: el mes en curso se edita en Planear con hojas y "Guardar"; el diezmo sigue a su ingreso; un registro equivocado se corrige o se borra; el plan de un mes se borra y el hogar puede empezar de nuevo.
 
@@ -157,7 +157,7 @@ Cambio OpenSpec `usabilidad-plan`.
 - [x] El diezmo enlazado a su línea, "ajustado a mano" y "Volver a calcular"; un ingreso fijo editado actualiza los meses abiertos.
 - [x] Corregir y borrar registros desde Hoy y el detalle de una cuenta; "Empezar de nuevo" en Ajustes.
 - [x] Migración `V9` probada sobre una copia del respaldo de producción, y recorrido en `steward.test` con dos personas.
-- [ ] En producción.
+- [x] En producción (2026-10-30): backup, deploy del binario nativo con `V9` (178/178 de contrato contra el binario); Flyway en versión 9 y el diezmo de noviembre enlazado a su línea.
 
 ## Etapa 12 — App móvil
 
