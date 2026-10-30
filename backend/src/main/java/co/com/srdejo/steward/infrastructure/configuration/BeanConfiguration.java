@@ -15,6 +15,7 @@ import co.com.srdejo.steward.domain.spi.IClockPort;
 import co.com.srdejo.steward.domain.spi.ICreditoPersistencePort;
 import co.com.srdejo.steward.domain.spi.ICuentaPersistencePort;
 import co.com.srdejo.steward.domain.spi.ICurrentUserPort;
+import co.com.srdejo.steward.domain.spi.IAppleIdentityPort;
 import co.com.srdejo.steward.domain.spi.IGoogleIdentityPort;
 import co.com.srdejo.steward.domain.spi.IHogarPersistencePort;
 import co.com.srdejo.steward.domain.spi.IIngresoFijoPersistencePort;
@@ -50,6 +51,8 @@ import co.com.srdejo.steward.infrastructure.out.r2dbc.PlanR2dbcAdapter;
 import co.com.srdejo.steward.infrastructure.out.r2dbc.ReglaDiezmoR2dbcAdapter;
 import co.com.srdejo.steward.infrastructure.out.r2dbc.TransaccionAdapter;
 import co.com.srdejo.steward.infrastructure.out.r2dbc.UsuarioR2dbcAdapter;
+import co.com.srdejo.steward.infrastructure.security.AppleIdentityAdapter;
+import co.com.srdejo.steward.infrastructure.security.AppleRevocacion;
 import co.com.srdejo.steward.infrastructure.security.GoogleIdentityAdapter;
 import co.com.srdejo.steward.infrastructure.security.JwtTokenAdapter;
 import co.com.srdejo.steward.infrastructure.security.SecureTokenGenerator;
@@ -86,8 +89,8 @@ public class BeanConfiguration {
     }
 
     @Bean
-    ICurrentUserPort currentUserPort() {
-        return new SecurityContextCurrentUserAdapter();
+    ICurrentUserPort currentUserPort(IUsuarioPersistencePort usuarios) {
+        return new SecurityContextCurrentUserAdapter(usuarios);
     }
 
     /** Google real por JWKS; con {@code google-test-public-key} (solo perfil contract), una llave RSA de prueba. */
@@ -96,10 +99,23 @@ public class BeanConfiguration {
         StewardProperties.Security security = properties.security();
         String llaveDePrueba = security.googleTestPublicKey();
         if (llaveDePrueba == null || llaveDePrueba.isBlank()) {
-            return GoogleIdentityAdapter.conJwksDeGoogle(security.googleClientId());
+            return GoogleIdentityAdapter.conJwksDeGoogle(security.googleClientId(), security.googleIosClientId());
         }
         return GoogleIdentityAdapter.conLlaveDePrueba(security.googleClientId(),
-                LlavePublicaRsa.leer(recursos.getResource(llaveDePrueba)));
+                LlavePublicaRsa.leer(recursos.getResource(llaveDePrueba)), security.googleIosClientId());
+    }
+
+    /** Apple real por JWKS; con {@code apple-test-public-key} (solo perfil contract), una llave RSA de prueba. */
+    @Bean
+    IAppleIdentityPort appleIdentityPort(StewardProperties properties, ResourceLoader recursos, WebClient.Builder builder) {
+        StewardProperties.Security security = properties.security();
+        AppleRevocacion revocacion = AppleRevocacion.deApple(builder, security.appleClientId(), security.appleTeamId(),
+                security.appleKeyId(), security.applePrivateKey());
+        String llaveDePrueba = security.appleTestPublicKey();
+        if (llaveDePrueba == null || llaveDePrueba.isBlank()) {
+            return AppleIdentityAdapter.conJwksDeApple(security.appleClientId(), revocacion);
+        }
+        return AppleIdentityAdapter.conLlaveDePrueba(security.appleClientId(), LlavePublicaRsa.leer(recursos.getResource(llaveDePrueba)), revocacion);
     }
 
     @Bean
@@ -250,13 +266,14 @@ public class BeanConfiguration {
     }
 
     @Bean
-    IAuthServicePort authServicePort(IGoogleIdentityPort google, IUsuarioPersistencePort usuarios,
-                                     IHogarPersistencePort hogares, ITokenPort tokens, ICurrentUserPort usuarioActual,
+    IAuthServicePort authServicePort(IGoogleIdentityPort google, IAppleIdentityPort apple, IUsuarioPersistencePort usuarios,
+                                     IHogarPersistencePort hogares, IIngresoFijoPersistencePort ingresos, ICuentaPersistencePort cuentas,
+                                     ITokenPort tokens, ICurrentUserPort usuarioActual, ITransaccionPort transaccion,
                                      IClockPort clock, StewardProperties properties) {
         boolean devLogin = properties.security().devLogin();
         if (devLogin) {
             log.warn("Acceso de desarrollo ENCENDIDO (steward.security.dev-login): se entra sin Google. Nunca en el VPS.");
         }
-        return new AuthUseCase(google, usuarios, hogares, tokens, usuarioActual, clock, devLogin);
+        return new AuthUseCase(google, apple, usuarios, hogares, ingresos, cuentas, tokens, usuarioActual, transaccion, clock, devLogin);
     }
 }

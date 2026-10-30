@@ -16,6 +16,7 @@ import org.springframework.security.oauth2.jwt.ReactiveJwtDecoder;
 import reactor.core.publisher.Mono;
 
 import java.security.interfaces.RSAPublicKey;
+import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 
@@ -38,30 +39,38 @@ public class GoogleIdentityAdapter implements IGoogleIdentityPort {
     }
 
     /** Produccion: llaves de Google por JWKS. Sin client id el login con Google queda deshabilitado. */
-    public static GoogleIdentityAdapter conJwksDeGoogle(String clientId) {
+    public static GoogleIdentityAdapter conJwksDeGoogle(String clientId, String... otros) {
         String id = limpio(clientId);
         if (id == null) {
             return new GoogleIdentityAdapter(null, null);
         }
         NimbusReactiveJwtDecoder decoder = NimbusReactiveJwtDecoder.withJwkSetUri(GOOGLE_JWKS).build();
-        decoder.setJwtValidator(validator(id));
+        decoder.setJwtValidator(validator(id, otros));
         return new GoogleIdentityAdapter(id, decoder);
     }
 
     /** Perfil contract (design D8): una llave RSA local en lugar de Google, con las mismas validaciones. */
-    public static GoogleIdentityAdapter conLlaveDePrueba(String clientId, RSAPublicKey llave) {
+    public static GoogleIdentityAdapter conLlaveDePrueba(String clientId, RSAPublicKey llave, String... otros) {
         String id = limpio(clientId);
         NimbusReactiveJwtDecoder decoder = NimbusReactiveJwtDecoder.withPublicKey(llave).build();
-        decoder.setJwtValidator(validator(id));
+        decoder.setJwtValidator(validator(id, otros));
         return new GoogleIdentityAdapter(id, decoder);
     }
 
-    public static OAuth2TokenValidator<Jwt> validator(String clientId) {
+    /** La audiencia puede ser el client web o los demas, como el de la app (design D3 de app-movil-conectada). */
+    public static OAuth2TokenValidator<Jwt> validator(String clientId, String... otros) {
+        Set<String> audiencias = new HashSet<>();
+        audiencias.add(clientId);
+        for (String otro : otros) {
+            if (limpio(otro) != null) {
+                audiencias.add(otro.trim());
+            }
+        }
         return new DelegatingOAuth2TokenValidator<>(
                 new JwtTimestampValidator(),
                 // El emisor puede venir sin esquema: no usar getIssuer().
                 jwt -> check(ISSUERS.contains(jwt.getClaimAsString("iss")), "issuer"),
-                jwt -> check(jwt.getAudience() != null && jwt.getAudience().contains(clientId), "audience"),
+                jwt -> check(jwt.getAudience() != null && jwt.getAudience().stream().anyMatch(audiencias::contains), "audience"),
                 jwt -> check(Boolean.TRUE.equals(jwt.getClaimAsBoolean("email_verified"))
                         && jwt.getClaimAsString("email") != null, "email_verified"));
     }

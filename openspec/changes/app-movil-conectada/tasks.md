@@ -5,9 +5,9 @@
 
 ## 2. Backend
 
-- [ ] 2.1 Varios client ids de Google (D3). Verificar: contrato con un token de cada client y uno ajeno rechazado.
-- [ ] 2.2 `V10` y `POST /api/auth/apple`, con el enlace por correo (D4). Verificar: test de migración y contrato de los escenarios de acceso con Apple, usando una llave de prueba como en Google.
-- [ ] 2.3 `POST /api/cuenta/eliminar`, con anonimizar y revocar (D5). Verificar: contrato de último miembro, hogar compartido y saldos del otro miembro sin cambios. `gradlew.bat check` en verde, en JVM y en `aotTest`. `backend/README.md` y `docs/DEPLOYMENT.md`. Commit.
+- [x] 2.1 Varios client ids de Google (D3). Verificar: contrato con un token de cada client y uno ajeno rechazado.
+- [x] 2.2 `V10` y `POST /api/auth/apple`, con el enlace por correo (D4). Verificar: test de migración y contrato de los escenarios de acceso con Apple, usando una llave de prueba como en Google.
+- [x] 2.3 `POST /api/cuenta/eliminar`, con anonimizar y revocar (D5). Verificar: contrato de último miembro, hogar compartido y saldos del otro miembro sin cambios. `gradlew.bat check` en verde, en JVM y en `aotTest`. `backend/README.md` y `docs/DEPLOYMENT.md`. Commit.
 - [ ] 2.4 PWA: "Eliminar mi cuenta" en Ajustes. Verificar: tests de pantalla y `conectado.spec.ts`. Commit.
 
 ## 3. Lo que prepara Daniel

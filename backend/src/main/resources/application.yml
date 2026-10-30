@@ -47,6 +47,13 @@ steward:
     jwt-ttl: 7d
     # El OAuth client "Aplicacion web" de beauty (design D5). Vacio = login con Google deshabilitado.
     google-client-id: ${GOOGLE_CLIENT_ID:}
+    # El client iOS de la app (design D3 de app-movil-conectada). Vacio = solo el web.
+    google-ios-client-id: ${GOOGLE_IOS_CLIENT_ID:}
+    # Sign in with Apple: la audiencia es el bundle id. Equipo, llave y .p8 solo para revocar (design D5).
+    apple-client-id: ${APPLE_CLIENT_ID:com.danieljimenez.steward}
+    apple-team-id: ${APPLE_TEAM_ID:}
+    apple-key-id: ${APPLE_KEY_ID:}
+    apple-private-key: ${APPLE_PRIVATE_KEY:}
     # Acceso de desarrollo sin Google (POST /api/auth/dev): apagado por defecto; nunca en el VPS (design D5).
     dev-login: ${STEWARD_DEV_LOGIN:false}
 
