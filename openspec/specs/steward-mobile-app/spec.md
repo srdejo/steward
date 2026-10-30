@@ -28,5 +28,5 @@ La app reescrita SHALL distribuirse solo por TestFlight, al grupo de pruebas int
 - **THEN** el build 1.1.0 aparece en TestFlight para los testers internos, ninguna versión se envía a revisión en App Store Connect y la tienda sigue mostrando la 1.0.2
 
 #### Scenario: La v1 sigue publicable
-- **WHEN** se revisa `main`
+- **WHEN** se revisa `release/1.0.x`, la rama que sale del tag `v1.0.2`
 - **THEN** `mobile/app.json` sigue en 1.0.2 y `mobile/eas.json` conserva el perfil `production` y su submit sin cambios

@@ -133,7 +133,7 @@ Sin editar ni borrar eventos, ni borrar un plan anual; el cierre de un mes no ac
 - Passkeys (WebAuthn, RP ID `steward.srdejo.com.co`), biometría al abrir y "Ocultar montos": pasan a la Etapa 13.
 - [ ] Backend dentro del presupuesto de memoria de `optimizar-recursos-plataforma-comun` como **binario nativo**: la lista "Antes de encender el VPS" de `DEPLOYMENT.md` (compilar, contrato contra el binario, medir < 120 MB y < 2 s). La unit nativa y el modo `Native` de `deploy.ps1` ya están listos (Etapa 2).
 - [ ] Encender el backend en el VPS (`BackendEnabled = $true`, `systemctl enable steward`; pasos en `DEPLOYMENT.md`) y publicar la PWA.
-- [ ] Pasar `develop` a `main` por PR cuando esté lista. Antes, tag `v1.0.2` en `main` para poder sacar correcciones de la v1, y actualizar el spec `steward-mobile-app`, que hoy pide que `main` siga generando la v1.
+- [x] Pasar `develop` a `main` (2026-10-30, por fast-forward). Antes, tag `v1.0.2` y rama `release/1.0.x` para sacar correcciones de la v1, y actualizado el spec `steward-mobile-app`.
 
 ## Etapa 10 — El diezmo como gasto y el plan como cuaderno ✅
 

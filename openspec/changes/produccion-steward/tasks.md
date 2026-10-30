@@ -19,5 +19,5 @@
 
 ## 4. Ramas y cierre
 
-- [ ] 4.1 Con confirmación: tag `v1.0.2` en `main`, rama `release/1.0.x` desde ese tag y PR de `develop` a `main` (D5). Actualizar `AGENTS.md` y `DEPLOYMENT.md` (la v1 sale de `release/1.0.x`). Verificar: el PR no tiene conflictos, y `release/1.0.x` tiene `mobile/app.json` en 1.0.2.
+- [x] 4.1 Con confirmación (por fast-forward, sin PR): tag `v1.0.2` en `main`, rama `release/1.0.x` desde ese tag y PR de `develop` a `main` (D5). Actualizar `AGENTS.md` y `DEPLOYMENT.md` (la v1 sale de `release/1.0.x`). Verificar: el PR no tiene conflictos, y `release/1.0.x` tiene `mobile/app.json` en 1.0.2.
 - [ ] 4.2 `docs/ROADMAP.md`: la Etapa 9 en producción y tres etapas nuevas: 10, el diezmo como gasto presupuestado (un ítem del plan por cada ingreso fijo con regla, con el monto sugerido, y uno por cada ingreso extra con diezmo; se marca con "Marcar pago" al llevarlo; sin la tarjeta "Disponible para diezmar" ni el diezmo sumado solo); 11, la app móvil Expo conectada al backend; 12, passkeys, biometría al abrir y "Ocultar montos". Verificar: `openspec validate produccion-steward --strict` sin errores. Commit.
