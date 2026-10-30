@@ -113,6 +113,11 @@ export class PuertosConectados implements Puertos {
     return this.conSesionNueva(await this.d.api.loginGoogle(credential));
   }
 
+  /** Sign in with Apple desde la app: Apple solo entrega el nombre la primera vez. */
+  async iniciarConApple(identityToken: string, nombre?: string): Promise<ResultadoLogin> {
+    return this.conSesionNueva(await this.d.api.loginApple(identityToken, nombre));
+  }
+
   /** Acceso de desarrollo (solo local): misma sesion que Google, por correo y nombre. */
   async iniciarDesarrollo(email: string, nombre: string): Promise<ResultadoLogin> {
     return this.conSesionNueva(await this.d.api.loginDesarrollo(email, nombre));
@@ -196,6 +201,12 @@ export class PuertosConectados implements Puertos {
         throw new ReglaError('USAR_GOOGLE', 'Entra con Google');
       },
       cerrar: async () => {
+        this.d.tokens.borrar();
+        this.finanzas = null;
+        this.avisar();
+      },
+      eliminarCuenta: async (appleAuthorizationCode) => {
+        await this.d.api.eliminarCuenta(appleAuthorizationCode);
         this.d.tokens.borrar();
         this.finanzas = null;
         this.avisar();

@@ -68,6 +68,19 @@ describe('Ajustes (steward-ajustes)', () => {
     expect(libre(a)).toBe('$3.436.000');
   });
 
+  it('eliminar mi cuenta pide escribir ELIMINAR y lleva a Acceso (app-movil-conectada)', async () => {
+    await conSesion();
+    const a = await app('/ajustes');
+    await a.tocar('Eliminar mi cuenta');
+    expect(a.texto()).toContain('Ex miembro');
+    const boton = () => [...a.raiz().querySelectorAll<HTMLButtonElement>('app-hoja button')].find((b) => b.textContent!.trim() === 'Eliminar mi cuenta')!;
+    expect(boton().disabled).toBe(true);
+    await a.escribir('Escribe ELIMINAR para confirmar', 'ELIMINAR');
+    boton().click();
+    await a.estable();
+    expect(a.url()).toBe('/acceso');
+  });
+
   it('empezar de nuevo pide escribir EMPEZAR y deja el mes sin plan (usabilidad-plan)', async () => {
     const p = await conSesion();
     const a = await app('/ajustes');

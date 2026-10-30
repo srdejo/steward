@@ -300,6 +300,14 @@ export class Api {
     return this.t.pedir<SesionApi>('POST', '/api/auth/google', { idToken });
   }
 
+  loginApple(identityToken: string, nombre?: string): Promise<SesionApi> {
+    return this.t.pedir<SesionApi>('POST', '/api/auth/apple', { identityToken, nombre });
+  }
+
+  eliminarCuenta(appleAuthorizationCode?: string): Promise<void> {
+    return this.t.pedir<void>('POST', '/api/cuenta/eliminar', { appleAuthorizationCode });
+  }
+
   sesion(): Promise<SesionApi> {
     return this.t.pedir<SesionApi>('GET', '/api/sesion');
   }

@@ -1,5 +1,5 @@
 import { Injectable, computed } from '@angular/core';
-import type { Id } from '@steward/domain';
+import { EX_MIEMBRO, type Id } from '@steward/domain';
 
 import { consulta } from '../datos/consulta';
 
@@ -21,6 +21,7 @@ export class MiembrosHogar {
   }
 
   nombreDe(usuarioId: Id | null): string {
-    return this.miembros().find((m) => m.usuario.id === usuarioId)?.usuario.nombre ?? '';
+    if (!usuarioId) return '';
+    return this.miembros().find((m) => m.usuario.id === usuarioId)?.usuario.nombre ?? EX_MIEMBRO;
   }
 }

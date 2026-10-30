@@ -7,8 +7,11 @@ export function usuario(estado: EstadoHogar, id: Id): Usuario {
   return u;
 }
 
+/** Quien ya no esta en el hogar: lo que registro se conserva (design D5 de app-movil-conectada). */
+export const EX_MIEMBRO = 'Ex miembro';
+
 export function nombreUsuario(estado: EstadoHogar, id: Id): string {
-  return estado.usuarios.find((x) => x.id === id)?.nombre ?? '';
+  return estado.usuarios.find((x) => x.id === id)?.nombre ?? EX_MIEMBRO;
 }
 
 export function reglaDe(estado: EstadoHogar, usuarioId: Id): ReglaDiezmo | null {

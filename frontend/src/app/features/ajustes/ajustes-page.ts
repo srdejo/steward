@@ -21,7 +21,8 @@ type Dialogo =
   | { tipo: 'aportes' }
   | { tipo: 'categoria'; categoria: Categoria | null }
   | { tipo: 'confirmar'; accion: 'salir' | 'restablecer' | 'desde-cero' }
-  | { tipo: 'empezar' };
+  | { tipo: 'empezar' }
+  | { tipo: 'eliminar' };
 
 const CONFIRMACIONES = {
   salir: { titulo: 'Salir del hogar', texto: 'Dejarás de ver y registrar en este presupuesto. Los demás miembros lo conservan.', boton: 'Salir del hogar' },
@@ -133,6 +134,7 @@ const CONFIRMACIONES = {
     <div class="mt-auto flex flex-col gap-1">
       <button type="button" class="boton h-12 rounded-[14px] border border-[#D9D8D2] bg-superficie" (click)="cerrarSesion()">Cerrar sesión</button>
       <button type="button" class="flex min-h-11 items-center justify-center text-sm font-medium text-negativo" (click)="abrir({ tipo: 'empezar' })">Empezar de nuevo</button>
+      <button type="button" class="flex min-h-11 items-center justify-center text-sm font-medium text-negativo" (click)="abrir({ tipo: 'eliminar' })">Eliminar mi cuenta</button>
       <button type="button" class="flex min-h-11 items-center justify-center text-sm font-medium text-negativo" (click)="abrir({ tipo: 'confirmar', accion: 'salir' })">Salir del hogar</button>
     </div>
 
@@ -186,6 +188,16 @@ const CONFIRMACIONES = {
               <input class="campo" placeholder="Ej: Educación" [value]="texto()" (input)="texto.set($any($event.target).value)" />
             </label>
             <ng-container [ngTemplateOutlet]="pie" [ngTemplateOutletContext]="{ boton: d.categoria ? 'Guardar' : 'Crear categoría', listo: !!texto().trim() }" />
+          </app-hoja>
+        }
+        @case ('eliminar') {
+          <app-hoja titulo="Eliminar mi cuenta" (cerrar)="cerrar()">
+            <p class="text-[15px] text-secundario">Se borran tu cuenta y tus datos personales, y no se puede deshacer. Si eres el único miembro, también se borra el hogar con todo lo suyo. Si compartes el hogar, lo que registraste se queda para los demás a nombre de "Ex miembro".</p>
+            <label class="flex flex-col gap-2">
+              <span class="rotulo">Escribe ELIMINAR para confirmar</span>
+              <input class="campo" autocomplete="off" [value]="texto()" (input)="texto.set($any($event.target).value)" />
+            </label>
+            <ng-container [ngTemplateOutlet]="pie" [ngTemplateOutletContext]="{ boton: 'Eliminar mi cuenta', listo: texto().trim() === 'ELIMINAR', peligro: true }" />
           </app-hoja>
         }
         @case ('empezar') {
@@ -318,6 +330,12 @@ export class AjustesPage {
           break;
         case 'confirmar':
           await this.ejecutarConfirmacion(d.accion);
+          return;
+        case 'eliminar':
+          await this.puertos.sesion.eliminarCuenta();
+          this.sesion.establecer(null);
+          this.cerrar();
+          await this.router.navigateByUrl('/acceso');
           return;
         case 'empezar':
           await this.puertos.hogar.empezarDeNuevo();

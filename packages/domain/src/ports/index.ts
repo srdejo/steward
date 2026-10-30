@@ -31,6 +31,8 @@ export interface SesionPort {
   iniciar(metodo: MetodoAcceso): Promise<Sesion>;
   cerrar(): Promise<void>;
   guardarPreferencias(cambios: Partial<Preferencias>): Promise<Preferencias>;
+  /** "Eliminar mi cuenta": deja sin sesion. El codigo de Apple permite revocar su acceso. */
+  eliminarCuenta(appleAuthorizationCode?: string): Promise<void>;
 }
 
 export interface VistaMiembro {
