@@ -135,6 +135,7 @@ const CONFIRMACIONES = {
       <button type="button" class="boton h-12 rounded-[14px] border border-[#D9D8D2] bg-superficie" (click)="cerrarSesion()">Cerrar sesión</button>
       <button type="button" class="flex min-h-11 items-center justify-center text-sm font-medium text-negativo" (click)="abrir({ tipo: 'empezar' })">Empezar de nuevo</button>
       <button type="button" class="flex min-h-11 items-center justify-center text-sm font-medium text-negativo" (click)="abrir({ tipo: 'eliminar' })">Eliminar mi cuenta</button>
+      <a class="flex min-h-11 items-center justify-center text-sm text-secundario underline" href="https://srdejo.github.io/steward-privacy" target="_blank" rel="noopener">Política de privacidad</a>
       <button type="button" class="flex min-h-11 items-center justify-center text-sm font-medium text-negativo" (click)="abrir({ tipo: 'confirmar', accion: 'salir' })">Salir del hogar</button>
     </div>
 

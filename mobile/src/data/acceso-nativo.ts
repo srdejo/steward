@@ -6,6 +6,8 @@ import * as AppleAuthentication from 'expo-apple-authentication';
 import Constants from 'expo-constants';
 import { Alert } from 'react-native';
 
+export const URL_PRIVACIDAD = 'https://srdejo.github.io/steward-privacy';
+
 /** Clave de la v1 en este dispositivo: solo se comprueba que exista, nunca se escribe ni se borra. */
 export const CLAVE_V1 = '@steward/budget_v3';
 const AVISO_VISTO = 'steward/aviso-v1-visto';

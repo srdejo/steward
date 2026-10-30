@@ -73,7 +73,7 @@ import { Icono } from '../../shared/components/icono';
 
     <div class="flex flex-col gap-1.5 text-center">
       <p class="text-[13px] leading-[1.45] text-secundario">Si es tu primera vez, se crea tu cuenta. Si te invitaron, entra con el correo de la invitación.</p>
-      <p class="text-xs text-secundario">Al continuar aceptas los Términos y la Privacidad (próximamente).</p>
+      <p class="text-xs text-secundario">Al continuar aceptas la <a class="underline" href="https://srdejo.github.io/steward-privacy" target="_blank" rel="noopener">Política de privacidad</a>.</p>
     </div>
   `,
 })

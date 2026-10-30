@@ -1,9 +1,10 @@
 import { claveMes, formatFechaCorta, formatPorcentaje, mesDe, type BaseDiezmo, type Categoria, type IngresoFijo } from '@steward/domain';
 import { router } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import { useState, type ReactNode } from 'react';
 import { Modal, Pressable, Text, TextInput, View } from 'react-native';
 
-import { codigoParaEliminar } from '@/data/acceso-nativo';
+import { codigoParaEliminar, URL_PRIVACIDAD } from '@/data/acceso-nativo';
 import { useMiembros } from '@/data/miembros';
 import { useAccion, useConsulta, usePuertos } from '@/data/puertos';
 import { useSesion } from '@/data/sesion';
@@ -199,6 +200,7 @@ export default function Ajustes() {
         <Pressable accessibilityRole="button" onPress={() => abrir({ tipo: 'eliminar' })} style={{ minHeight: 44, alignItems: 'center', justifyContent: 'center' }}>
           <Text style={{ fontFamily: fonts.medium, fontSize: 14, color: colors.negativo }}>Eliminar mi cuenta</Text>
         </Pressable>
+        <Boton tipo="enlace" titulo="Política de privacidad" onPress={() => void WebBrowser.openBrowserAsync(URL_PRIVACIDAD)} />
         <Pressable accessibilityRole="button" onPress={() => abrir({ tipo: 'confirmar', accion: 'salir' })} style={{ minHeight: 44, alignItems: 'center', justifyContent: 'center' }}>
           <Text style={{ fontFamily: fonts.medium, fontSize: 14, color: colors.negativo }}>Salir del hogar</Text>
         </Pressable>

@@ -1,11 +1,12 @@
 import { PuertosConectados, type ResultadoLogin } from '@steward/domain/conectado';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { router } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
-import { entrarConApple, entrarConGoogle } from '@/data/acceso-nativo';
+import { entrarConApple, entrarConGoogle, URL_PRIVACIDAD } from '@/data/acceso-nativo';
 import { mensajeDeError, usePuertos } from '@/data/puertos';
 import { useSesion } from '@/data/sesion';
 import { Aviso, Boton, colors, fonts, Icono, Pantalla, Texto } from '@/ui';
@@ -80,7 +81,9 @@ export default function Acceso() {
         <Texto style={{ fontSize: 13, lineHeight: 19, color: colors.secundario, textAlign: 'center' }}>
           Si es tu primera vez, se crea tu cuenta. Si te invitaron, entra con el correo de la invitación.
         </Texto>
-        <Texto v="detalle" style={{ textAlign: 'center' }}>Al continuar aceptas los Términos y la Privacidad.</Texto>
+        <Texto v="detalle" style={{ textAlign: 'center' }}>
+          Al continuar aceptas la <Texto v="detalle" accessibilityRole="link" onPress={() => void WebBrowser.openBrowserAsync(URL_PRIVACIDAD)} style={{ textDecorationLine: 'underline' }}>Política de privacidad</Texto>.
+        </Texto>
       </View>
     </Pantalla>
   );
