@@ -16,7 +16,7 @@
 
 ## 4. Verificación y producción
 
-- [ ] 4.1 Recorrido en Chrome en `steward.test` con dos usuarios de prueba:
+- [x] 4.1 Recorrido en Chrome en `steward.test` con dos usuarios de prueba:
   - recibir el salario en noviembre el mismo día, con octubre abierto;
   - pagar y registrar un gasto en noviembre, y ver que octubre no cambia y que el saldo de la cuenta sí;
   - que el otro miembro los vea en noviembre;
