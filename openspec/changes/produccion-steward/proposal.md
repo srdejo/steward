@@ -7,7 +7,7 @@ Con la Etapa 8, Presupuesto Hogar está completo en modo conectado: hogar, plan 
 - el binario nativo nunca se ha compilado ni medido contra el presupuesto de memoria del VPS;
 - `develop` no ha pasado a `main`.
 
-Esta es la parte de producción de la Etapa 9 del ROADMAP. Daniel eligió llevar la app a uso real primero; passkeys, biometría al abrir y "Ocultar montos" pasan a una Etapa 10.
+Esta es la parte de producción de la Etapa 9 del ROADMAP. Daniel eligió llevar la app a uso real primero; passkeys, biometría al abrir y "Ocultar montos" pasan a una etapa posterior (la 12, tras el diezmo como gasto y la app móvil conectada).
 
 Criterio de cierre: `https://steward.srdejo.com.co/actuator/health` responde `{"status":"UP"}` con el backend dentro del presupuesto de memoria del VPS, y los dos miembros del hogar entran con Google desde sus teléfonos y usan la app.
 
@@ -35,7 +35,7 @@ Criterio de cierre: `https://steward.srdejo.com.co/actuator/health` responde `{"
   - PR de `develop` a `main`.
 - **Spec `steward-mobile-app`**: la v1 se corrige desde `release/1.0.x`, no desde `main`. La app reescrita sigue solo en TestFlight.
 - **Spec `steward-backend-plataforma`**: el backend queda encendido en el VPS como binario nativo medido, y "Próximamente" deja de publicarse.
-- **ROADMAP**: la Etapa 9 queda en producción. Passkeys, biometría y "Ocultar montos" pasan a una Etapa 10 nueva.
+- **ROADMAP**: la Etapa 9 queda en producción. Siguen la Etapa 10 (diezmo como gasto presupuestado), la 11 (app móvil conectada) y la 12 (passkeys, biometría y "Ocultar montos").
 
 ## Capabilities
 
@@ -58,7 +58,7 @@ Ninguna.
   - `docs/DECISIONS.md` con las cifras medidas.
 - **`docs/`**:
   - `DEPLOYMENT.md` (Google real, encendido hecho, rama de la v1);
-  - `ROADMAP.md` (Etapa 9 y la nueva Etapa 10).
+  - `ROADMAP.md` (Etapa 9 y las Etapas 10 a 12).
 - **Workspace `infra/`**:
   - `deploy.ps1` (`BackendEnabled = $true`);
   - `PORTS.md` (8099 desplegado).

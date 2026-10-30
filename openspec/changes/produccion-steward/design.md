@@ -13,7 +13,8 @@ Estado al empezar (ver proposal.md, "Why"):
 - **Ramas.** `develop` tiene la app nueva; `main`, la v1 (1.0.2) de App Store, que la spec `steward-mobile-app` exige poder seguir publicando.
 
 Decisiones de Daniel al proponer:
-- producción primero; passkeys, biometría y "Ocultar montos" van a una Etapa 10;
+- producción primero; passkeys, biometría y "Ocultar montos" van a una etapa posterior;
+- al probar producción (2026-10-29), Daniel ordenó lo que sigue: Etapa 10, el diezmo como gasto presupuestado (un ítem por ingreso, que se marca al llevarlo); Etapa 11, la app móvil conectada al backend; Etapa 12, passkeys, biometría y "Ocultar montos";
 - cada paso que toca producción o GitHub espera su confirmación.
 
 ## Goals / Non-Goals
@@ -24,7 +25,7 @@ Decisiones de Daniel al proponer:
 - Que `main` tenga la app nueva sin perder la posibilidad de corregir la v1.
 
 **Non-Goals:**
-- Passkeys, biometría al abrir y "Ocultar montos" (Etapa 10).
+- El diezmo como gasto presupuestado (Etapa 10), la app móvil conectada (Etapa 11) y passkeys, biometría al abrir y "Ocultar montos" (Etapa 12).
 - Migrar los datos de `steward.test` a producción: el hogar real empieza desde cero.
 - Publicar la app Expo reescrita en App Store (sigue solo en TestFlight).
 - El apagado por inactividad (activación por socket) de `optimizar-recursos-plataforma-comun`: queda como mejora.

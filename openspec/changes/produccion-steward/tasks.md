@@ -10,8 +10,8 @@
 
 - [x] 2.1 Dejar en `docs/DEPLOYMENT.md` los pasos de Google (D4) y pedírselos a Daniel. Verificar: el origen `https://steward.srdejo.com.co` está autorizado en el cliente de beauty (lo confirma Daniel).
 - [x] 2.2 Con confirmación: subir la unit, el vhost y `setup-vps.sh` y que Daniel corra el sudo, y completar el `.env` del VPS. Verificar: `systemctl cat steward` muestra la unit nativa y `.env` tiene las variables de la tabla.
-- [ ] 2.3 Con confirmación: `BackendEnabled = $true` en `infra/deploy.ps1` (commit en el workspace), `systemctl enable steward` y `deploy.ps1 -Projects steward`. Verificar: `https://steward.srdejo.com.co/actuator/health` → `{"status":"UP"}`, la PWA en modo conectado, y `POST /api/auth/dev` sin acceso.
-- [ ] 2.4 Medir en el VPS con `infra/vps/resources/measure.sh` y anotar la memoria real en `infra/PORTS.md` (8099 desplegado). Verificar: dentro del presupuesto. Commit en el workspace.
+- [x] 2.3 Con confirmación: `BackendEnabled = $true` en `infra/deploy.ps1` (commit en el workspace), `systemctl enable steward` y `deploy.ps1 -Projects steward`. Verificar: `https://steward.srdejo.com.co/actuator/health` → `{"status":"UP"}`, la PWA en modo conectado, y `POST /api/auth/dev` sin acceso.
+- [x] 2.4 Medir en el VPS con `infra/vps/resources/measure.sh` y anotar la memoria real en `infra/PORTS.md` (8099 desplegado). Verificar: dentro del presupuesto. Commit en el workspace.
 
 ## 3. Uso real
 
@@ -20,4 +20,4 @@
 ## 4. Ramas y cierre
 
 - [ ] 4.1 Con confirmación: tag `v1.0.2` en `main`, rama `release/1.0.x` desde ese tag y PR de `develop` a `main` (D5). Actualizar `AGENTS.md` y `DEPLOYMENT.md` (la v1 sale de `release/1.0.x`). Verificar: el PR no tiene conflictos, y `release/1.0.x` tiene `mobile/app.json` en 1.0.2.
-- [ ] 4.2 `docs/ROADMAP.md`: la Etapa 9 en producción, y una Etapa 10 nueva con passkeys, biometría al abrir y "Ocultar montos". Verificar: `openspec validate produccion-steward --strict` sin errores. Commit.
+- [ ] 4.2 `docs/ROADMAP.md`: la Etapa 9 en producción y tres etapas nuevas: 10, el diezmo como gasto presupuestado (un ítem del plan por cada ingreso fijo con regla, con el monto sugerido, y uno por cada ingreso extra con diezmo; se marca con "Marcar pago" al llevarlo; sin la tarjeta "Disponible para diezmar" ni el diezmo sumado solo); 11, la app móvil Expo conectada al backend; 12, passkeys, biometría al abrir y "Ocultar montos". Verificar: `openspec validate produccion-steward --strict` sin errores. Commit.
