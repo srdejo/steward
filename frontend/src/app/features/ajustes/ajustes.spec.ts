@@ -53,22 +53,34 @@ describe('Ajustes (steward-ajustes)', () => {
     await a.tocar('Crear categoría');
     expect([...a.raiz().querySelectorAll('[data-testid="categoria"]')].map((c) => c.textContent!.replace('Editar', '').trim())).toContain('Educación');
     await a.ir('/planear/2026-11');
-    const opciones = [...a.raiz().querySelectorAll('select[aria-label="Categoría del gasto"] option')].map((o) => o.textContent!.trim());
+    await a.tocar('+ Gasto');
+    const opciones = [...a.raiz().querySelectorAll('app-hoja select option')].map((o) => o.textContent!.trim());
     expect(opciones).toContain('Educación');
   });
 
-  it('ocultar montos muestra $•••• hasta tocar', async () => {
-    await conSesion();
+  it('sin Face ID ni Ocultar montos, y los montos se ven siempre (usabilidad-plan)', async () => {
+    const p = await conSesion();
+    await p.sesion.guardarPreferencias({ ocultarMontos: true });
     const a = await app('/ajustes');
-    const interruptores = [...a.raiz().querySelectorAll<HTMLButtonElement>('[role="switch"]')];
-    const ocultar = interruptores.find((b) => a.raiz().querySelector(`#${b.getAttribute('aria-labelledby')}`)!.textContent!.trim() === 'Ocultar montos')!;
-    ocultar.click();
-    await a.estable();
+    expect(a.texto()).not.toContain('Face ID al abrir');
+    expect(a.texto()).not.toContain('Ocultar montos');
     await a.ir('/hoy');
-    expect(libre(a)).toBe('$••••');
-    (a.raiz().querySelector('[data-testid="libre"] button') as HTMLButtonElement).click();
-    await a.estable();
     expect(libre(a)).toBe('$3.436.000');
+  });
+
+  it('empezar de nuevo pide escribir EMPEZAR y deja el mes sin plan (usabilidad-plan)', async () => {
+    const p = await conSesion();
+    const a = await app('/ajustes');
+    await a.tocar('Empezar de nuevo');
+    expect(a.texto()).toContain('Se borran todos los planes');
+    const boton = () => [...a.raiz().querySelectorAll<HTMLButtonElement>('app-hoja button')].find((b) => b.textContent!.trim() === 'Empezar de nuevo')!;
+    expect(boton().disabled).toBe(true);
+    await a.escribir('Escribe EMPEZAR para confirmar', 'EMPEZAR');
+    boton().click();
+    await a.estable();
+    expect(a.url()).toBe('/planear/2026-10');
+    expect(a.texto()).toContain('Aún no tiene plan');
+    expect((await p.hogar.obtener()).miembros).toHaveLength(2);
   });
 
   it('cerrar sesión vuelve a Acceso y conserva los datos', async () => {

@@ -126,6 +126,7 @@ Los `APORTE`, `AJUSTE_CUADRE`, `TRANSFERENCIA`, `ABONO_CREDITO` y `DIEZMO_ENTREG
 ### D6. Hoy: hoja del registro
 
 - **Ruta:** `hoy/registro/:id`, en `registro-hoja.ts`, con el movimiento, su ítem o línea, la cuenta y el aviso del cuadre (D3).
+- **Lectura:** `MovimientosPort.registro(id)` y `registros(ref, filtro)` (`rules/registros.ts`), con lo que pasa al borrar; `LineaIngreso.movimientoId` abre lo recibido.
 - **Varios registros:** un ítem variable con varios gastos, o los aportes de una persona, abren primero la lista (`hoy/registros?item=` o `?aportes=usuarioId`).
 - **El diezmo en Por pagar:** el detalle sale de su línea o su aporte ("Del {nombre de la línea} · día N", "Del aporte del {dd mmm}"). No pasa por `detalleVencimiento`, que solo aplica a los otros tipos.
 

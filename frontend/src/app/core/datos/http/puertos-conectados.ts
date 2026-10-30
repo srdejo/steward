@@ -16,7 +16,7 @@ import type {
   Usuario,
   VistaHogar,
 } from '@steward/domain';
-import { ReglaError } from '@steward/domain';
+import { ReglaError, claveMes } from '@steward/domain';
 import { crearAdaptadorDemo, type StorageLike } from '@steward/domain/demo';
 
 import {
@@ -270,6 +270,9 @@ export class PuertosConectados implements Puertos {
       guardarCategoria: async (datos) => {
         await conFinanzas(datos.id ? api.renombrarCategoria(datos.id, datos.nombre) : api.crearCategoria(datos.nombre));
       },
+      empezarDeNuevo: async () => {
+        await conFinanzas(api.empezarDeNuevo());
+      },
     };
   }
 
@@ -336,6 +339,17 @@ export class PuertosConectados implements Puertos {
         await api.gastar({ itemId: datos.itemId, monto: datos.monto, nota: datos.nota, usuarioId: datos.usuarioId, origen: origenApi(datos.origen) });
         await this.recargarFinanzas();
       },
+      // Corregir y borrar van al backend; la hoja se calcula con el dominio sobre lo real (design D3 de usabilidad-plan).
+      corregirRegistro: async (datos) => {
+        await api.corregirRegistro(datos.movimientoId, { monto: datos.monto, origen: datos.origen && origenApi(datos.origen), nota: datos.nota });
+        await this.recargarFinanzas();
+      },
+      borrarRegistro: async (id) => {
+        await api.borrarRegistro(id);
+        await this.recargarFinanzas();
+      },
+      registro: (id) => this.demoActual.movimientos.registro(id),
+      registros: (ref, filtro) => this.demoActual.movimientos.registros(ref, filtro),
     };
   }
 
@@ -368,11 +382,14 @@ export class PuertosConectados implements Puertos {
       },
       quitarItem: (planId, escenarioId, itemId) => escribir(api.quitarItem(planId, escenarioId, itemId)),
       // Lineas de ingreso de la opcion (design D8 de diezmo-como-gasto): editar conserva su tipo y su ingreso fijo.
-      guardarIngreso: (planId, escenarioId, linea) => {
-        const cuerpo = { nombre: linea.nombre, monto: linea.monto, usuarioId: linea.usuarioId };
-        return escribir(linea.id ? api.editarIngresoPlan(planId, escenarioId, linea.id, cuerpo) : api.crearIngresoPlan(planId, escenarioId, cuerpo));
+      guardarIngreso: (planId, escenarioId, linea, aplicarDiezmo) => {
+        const cuerpo = { nombre: linea.nombre, monto: linea.monto, usuarioId: linea.usuarioId, bruto: linea.bruto };
+        return escribir(linea.id ? api.editarIngresoPlan(planId, escenarioId, linea.id, cuerpo) : api.crearIngresoPlan(planId, escenarioId, { ...cuerpo, aplicarDiezmo: Boolean(aplicarDiezmo) }));
       },
       quitarIngreso: (planId, escenarioId, ingresoId) => escribir(api.quitarIngresoPlan(planId, escenarioId, ingresoId)),
+      recalcularDiezmo: (planId, escenarioId, itemId) => escribir(api.recalcularDiezmo(planId, escenarioId, itemId)),
+      conteoBorrado: (ref) => api.conteoBorrado(claveMes(ref)),
+      borrarPlan: (ref) => escribir(api.borrarPlan(claveMes(ref))),
       usar: (planId, escenarioId) => escribir(api.usarOpcion(planId, escenarioId)),
       // Varias opciones solo en Borrador (design D4 de backend-opciones-mes): la nueva es la de la letra mas alta.
       duplicar: async (planId, escenarioId) => {
@@ -397,6 +414,7 @@ export class PuertosConectados implements Puertos {
     };
     return {
       cuentas: (filtro) => this.demoActual.cuentas.cuentas(filtro),
+      movimientos: (cuentaId) => this.demoActual.cuentas.movimientos(cuentaId),
       agregar: async (datos) => {
         if (datos.titularId !== null && datos.titularId !== this.titularId) {
           throw new ReglaError('SOLO_TUYAS', 'Solo puedes agregar cuentas a tu nombre o conjuntas.');

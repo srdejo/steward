@@ -79,8 +79,15 @@ describe('Planear (steward-planear)', () => {
     expect(a.raiz().querySelector('[data-testid="fila-diezmo"]')).toBeNull();
     expect(a.raiz().querySelector('[data-testid="dejaria-libre"]')!.textContent!.trim()).toBe('$2.898.000');
     await a.tocar(/^Diezmo/);
-    await a.escribir('Monto de Diezmo · Salario Daniel', '750000');
+    await a.tocar(/^Diezmo · Salario Daniel/);
+    expect(a.raiz().querySelector('[data-testid="origen-diezmo"]')!.textContent).toContain('Viene de Salario Daniel');
+    await a.escribir('Monto', '750000');
+    await a.tocar('Guardar');
     expect(a.raiz().querySelector('[data-testid="dejaria-libre"]')!.textContent!.trim()).toBe('$2.848.000');
+    // Quedo ajustado a mano: "Volver a calcular" lo devuelve a lo que sugiere su linea.
+    await a.tocar(/^Diezmo · Salario Daniel/);
+    await a.tocar('Volver a calcular');
+    expect(a.raiz().querySelector('[data-testid="dejaria-libre"]')!.textContent!.trim()).toBe('$2.898.000');
   });
 
   it('los ingresos de cada opción se editan y se agregan, sin tocar las otras ni Ajustes (diezmo-como-gasto)', async () => {
@@ -88,14 +95,18 @@ describe('Planear (steward-planear)', () => {
     const a = await app('/planear/2026-11');
     a.porTexto(/^Opción B/, '[role="tab"]').click();
     await a.estable();
-    await a.escribir('Monto de Salario Daniel', '7000000');
+    await a.tocar(/^Salario Daniel/);
+    await a.escribir('Monto', '7000000');
+    await a.tocar('Guardar');
+    expect(a.raiz().querySelector('[data-testid="guardado"]')!.textContent).toContain('Guardado');
     expect(a.raiz().querySelector('[data-testid="dejaria-libre"]')!.textContent!.trim()).toBe('$2.010.000');
     expect((await p.plan.mes(NOV)).opciones[0]!.libre).toBe(2_898_000);
     expect((await p.ingresos.fijos())[0]!.neto).toBe(6_288_000);
 
-    await a.escribir('Nombre del ingreso', 'Venta bicicleta');
-    await a.escribir('Monto del ingreso', '400000');
     await a.tocar('+ Ingreso');
+    await a.escribir('Nombre', 'Venta bicicleta');
+    await a.escribir('Monto', '400000');
+    await a.tocar('Guardar');
     expect(a.raiz().querySelector('[data-testid="dejaria-libre"]')!.textContent!.trim()).toBe('$2.410.000');
     expect(a.texto()).toContain('Agregado al plan');
   });
@@ -104,8 +115,77 @@ describe('Planear (steward-planear)', () => {
     await conSesion();
     const a = await app('/planear/2026-11');
     await a.tocar(/^Variables/);
-    await a.escribir('Monto de Mercado', '420000');
+    await a.tocar(/^Mercado/);
+    await a.escribir('Monto', '420000');
+    await a.tocar('Guardar');
     expect(a.raiz().querySelector('[data-testid="dejaria-libre"]')!.textContent!.trim()).toBe('$2.798.000');
+  });
+
+  it('cerrar la hoja sin guardar no cambia nada (usabilidad-plan)', async () => {
+    await conSesion();
+    const a = await app('/planear/2026-11');
+    await a.tocar(/^Variables/);
+    await a.tocar(/^Mercado/);
+    await a.escribir('Monto', '420000');
+    await a.tocar('Cancelar');
+    expect(a.raiz().querySelector('[data-testid="dejaria-libre"]')!.textContent!.trim()).toBe('$2.898.000');
+  });
+
+  it('+ Gasto pide su monto y Quitar confirma (usabilidad-plan)', async () => {
+    const p = await conSesion();
+    const a = await app('/planear/2026-11');
+    await a.tocar('+ Gasto');
+    await a.escribir('Nombre', 'Regalo');
+    await a.escribir('Monto', '150000');
+    await a.tocar('Guardar');
+    expect(a.raiz().querySelector('[data-testid="dejaria-libre"]')!.textContent!.trim()).toBe('$2.748.000');
+    const regalo = (await p.plan.mes(NOV)).opciones[0]!.escenario.items.find((i) => i.nombre === 'Regalo')!;
+    expect(regalo.monto).toBe(150_000);
+
+    const grupo = (await p.hogar.categorias()).find((c) => c.id === regalo.categoriaId)!;
+    await a.tocar(new RegExp('^' + grupo.nombre));
+    await a.tocar(/^Regalo/);
+    await a.tocar('Quitar');
+    expect(a.texto()).toContain('¿Quitar Regalo de la Opción A?');
+    await a.tocar('Sí, quitar');
+    expect((await p.plan.mes(NOV)).opciones[0]!.escenario.items.some((i) => i.nombre === 'Regalo')).toBe(false);
+  });
+
+  it('el mes en curso se edita sin + Duplicar, y las categorías dicen que se abren (usabilidad-plan)', async () => {
+    const p = await conSesion();
+    const a = await app('/planear/2026-10');
+    expect(a.texto()).not.toContain('+ Duplicar');
+    expect(a.porTexto(/^Variables/).textContent).toContain('›');
+    await a.tocar(/^Variables/);
+    expect(a.porTexto(/^Variables/).textContent).toContain('⌄');
+    await a.tocar(/^Mercado/);
+    await a.escribir('Monto', '400000');
+    await a.tocar('Guardar');
+    expect((await p.plan.mes(OCT)).opciones[0]!.escenario.items.find((i) => i.nombre === 'Mercado')!.monto).toBe(400_000);
+  });
+
+  it('un mes cerrado sigue en solo lectura (usabilidad-plan)', async () => {
+    await conSesion();
+    const a = await app('/planear/2026-09');
+    expect(a.texto()).not.toContain('+ Gasto');
+    expect(a.raiz().querySelector('[data-testid="linea-ingreso"]')).toBeNull();
+  });
+
+  it('borrar el plan de un mes dice qué se borra y lo deja sin plan (usabilidad-plan)', async () => {
+    const p = await conSesion();
+    const a = await app('/planear/2026-11');
+    await a.tocar('Borrar plan de noviembre');
+    expect(a.raiz().querySelector('[data-testid="que-se-borra"]')!.textContent).toContain('Se borra el plan de noviembre');
+    await a.tocar('Borrar plan');
+    expect((await p.plan.mes(NOV)).estado).toBe('SIN_PLAN');
+    expect(a.texto()).toContain('Aún no tiene plan');
+
+    await a.ir('/planear/2026-10');
+    await a.tocar('Borrar plan de octubre');
+    expect(a.raiz().querySelector('[data-testid="que-se-borra"]')!.textContent).toMatch(/Se borran .* de octubre; los aportes se conservan\./);
+    await a.tocar('Continuar');
+    await a.tocar('Sí, borrar el plan y sus registros');
+    expect((await p.plan.mes(OCT)).estado).toBe('SIN_PLAN');
   });
 
   it('usar una opción archiva las demás', async () => {

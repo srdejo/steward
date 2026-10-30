@@ -3,6 +3,7 @@ export * from './consultas';
 export * from './ingresos';
 export * from './ejecucion';
 export * from './cuentas';
+export * from './registros';
 export * from './credito';
 export * from './plan';
 export * from './anual';

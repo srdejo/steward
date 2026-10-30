@@ -52,12 +52,21 @@ import { Monto } from '../../shared/components/monto';
         </div>
         <div class="flex flex-col divide-y divide-divisor">
           @for (l of r.ingresos; track l.clave) {
-            <app-fila [titulo]="l.nombre" [detalle]="l.detalle">
-              @if (porRecibir(l)) {
-                <a [routerLink]="['recibir', l.clave]" class="boton-texto font-semibold">Recibí</a>
-              }
-              <app-monto class="text-sm" [class.text-positivo]="!porRecibir(l)" [class.text-secundario]="porRecibir(l)" [valor]="l.monto" />
-            </app-fila>
+            @if (l.movimientoId || l.tipo === 'APORTES') {
+              <!-- Lo recibido y los aportes se abren para corregirlos o borrarlos (design D6 de usabilidad-plan). -->
+              <a [routerLink]="l.movimientoId ? ['registro', l.movimientoId] : 'registros'" [queryParams]="l.movimientoId ? null : { aportes: l.usuarioId }" class="block hover:bg-superficie">
+                <app-fila [titulo]="l.nombre" [detalle]="l.detalle">
+                  <app-monto class="text-sm text-positivo" [valor]="l.monto" />
+                </app-fila>
+              </a>
+            } @else {
+              <app-fila [titulo]="l.nombre" [detalle]="l.detalle">
+                @if (porRecibir(l)) {
+                  <a [routerLink]="['recibir', l.clave]" class="boton-texto font-semibold">Recibí</a>
+                }
+                <app-monto class="text-sm" [class.text-positivo]="!porRecibir(l)" [class.text-secundario]="porRecibir(l)" [valor]="l.monto" />
+              </app-fila>
+            }
           } @empty {
             <p class="py-2.5 text-sm text-secundario">Aún no hay ingresos este mes.</p>
           }
@@ -88,24 +97,28 @@ import { Monto } from '../../shared/components/monto';
           <h2 id="ya-pagado" class="text-base font-semibold">Ya pagado</h2>
           <div class="flex flex-col divide-y divide-divisor">
             @for (i of r.yaPagado; track i.item.id) {
-              <app-fila [titulo]="i.item.nombre">
-                <span detalle class="text-xs text-secundario">
-                  @if (i.diferencia) {
-                    plan <app-monto [valor]="i.plan" /> ·
-                    <span [class]="i.diferencia < 0 ? 'text-positivo' : 'text-negativo'"><app-monto [valor]="i.diferencia" [signo]="true" /></span>
-                  } @else {
-                    {{ i.detalle }}
-                  }
-                </span>
-                <app-monto class="text-sm" [valor]="i.real" />
-                <app-avatar [inicial]="miembros.inicialDe(i.pagadoPor)" [variante]="miembros.varianteDe(i.pagadoPor)" [tamano]="24" [nombre]="'Pagó ' + miembros.nombreDe(i.pagadoPor)" />
-              </app-fila>
+              <a [routerLink]="i.pagos.length === 1 ? ['registro', i.pagos[0]!.id] : 'registros'" [queryParams]="i.pagos.length === 1 ? null : { item: i.item.id }" class="block hover:bg-superficie">
+                <app-fila [titulo]="i.item.nombre">
+                  <span detalle class="text-xs text-secundario">
+                    @if (i.diferencia) {
+                      plan <app-monto [valor]="i.plan" /> ·
+                      <span [class]="i.diferencia < 0 ? 'text-positivo' : 'text-negativo'"><app-monto [valor]="i.diferencia" [signo]="true" /></span>
+                    } @else {
+                      {{ i.detalle }}
+                    }
+                  </span>
+                  <app-monto class="text-sm" [valor]="i.real" />
+                  <app-avatar [inicial]="miembros.inicialDe(i.pagadoPor)" [variante]="miembros.varianteDe(i.pagadoPor)" [tamano]="24" [nombre]="'Pagó ' + miembros.nombreDe(i.pagadoPor)" />
+                </app-fila>
+              </a>
             }
             @for (m of r.noPlaneados; track m.id) {
-              <app-fila [titulo]="m.nota || 'Gasto'" detalle="No estaba planeado">
-                <app-monto class="text-sm" [valor]="m.monto" />
-                <app-avatar [inicial]="miembros.inicialDe(m.usuarioId)" [variante]="miembros.varianteDe(m.usuarioId)" [tamano]="24" [nombre]="'Pagó ' + miembros.nombreDe(m.usuarioId)" />
-              </app-fila>
+              <a [routerLink]="m.tipo === 'GASTO' ? ['registro', m.id] : null" class="block hover:bg-superficie">
+                <app-fila [titulo]="m.nota || 'Gasto'" detalle="No estaba planeado">
+                  <app-monto class="text-sm" [valor]="m.monto" />
+                  <app-avatar [inicial]="miembros.inicialDe(m.usuarioId)" [variante]="miembros.varianteDe(m.usuarioId)" [tamano]="24" [nombre]="'Pagó ' + miembros.nombreDe(m.usuarioId)" />
+                </app-fila>
+              </a>
             }
           </div>
         </section>

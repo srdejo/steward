@@ -293,6 +293,12 @@ export function crearAdaptadorDemo(opciones: OpcionesDemo): Puertos {
       async borrarRegistro(movimientoId) {
         await cambiar((s) => R.borrarRegistro(s, { movimientoId }));
       },
+      async registro(movimientoId) {
+        return R.vistaRegistro(await leerEstado(), movimientoId);
+      },
+      async registros(ref, filtro) {
+        return R.registrosDe(await leerEstado(), ref, filtro);
+      },
     },
 
     plan: {

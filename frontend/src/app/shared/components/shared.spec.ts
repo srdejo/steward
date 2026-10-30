@@ -75,16 +75,13 @@ describe('componentes compartidos', () => {
     f.nativeElement.remove();
   });
 
-  it('monto oculto muestra $•••• hasta tocarlo', async () => {
+  it('los montos se ven siempre mientras "Ocultar montos" no esté disponible', async () => {
     await conSesion();
     const sesion = TestBed.inject(SesionActual);
     await sesion.cargar();
     await sesion.guardarPreferencias({ ocultarMontos: true });
     const f = TestBed.createComponent(Monto);
     f.componentRef.setInput('valor', 3_436_000);
-    await f.whenStable();
-    expect(f.nativeElement.textContent.trim()).toBe('$••••');
-    (f.nativeElement.querySelector('button') as HTMLButtonElement).click();
     await f.whenStable();
     expect(f.nativeElement.textContent.trim()).toBe('$3.436.000');
   });

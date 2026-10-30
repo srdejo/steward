@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { mesDe, type Id } from '@steward/domain';
 
 import { consulta, mensajeDeError } from '../../core/datos/consulta';
@@ -15,7 +16,7 @@ const NO_PLANEADO = '__no_planeado__';
 /** Gasto.dc.html: monto, a que gasto del plan (los variables acumulan) o "No estaba planeado", nota, quien y desde. */
 @Component({
   selector: 'app-gasto-hoja',
-  imports: [Hoja, Monto, MontoInput, Segmentado],
+  imports: [RouterLink, Hoja, Monto, MontoInput, Segmentado],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-hoja titulo="Registrar gasto" (cerrar)="hoja.cerrar()">
@@ -26,6 +27,9 @@ const NO_PLANEADO = '__no_planeado__';
           <p class="text-xs text-secundario" data-testid="vista-previa-gasto">
             {{ v.nombre }}: llevas <app-monto [valor]="v.llevado" [siempreVisible]="true" /> de <app-monto [valor]="v.presupuesto" [siempreVisible]="true" /> con este gasto.
           </p>
+        }
+        @if (conGastos(); as g) {
+          <a routerLink="/hoy/registros" [queryParams]="{ item: g.item.id }" class="boton-texto self-start text-sm">Ver los gastos de {{ g.item.nombre }}</a>
         }
       </div>
       <label class="flex flex-col gap-2">
@@ -85,6 +89,9 @@ export class GastoHoja {
   protected readonly desde = signal('');
   protected readonly guardando = signal(false);
   protected readonly error = signal('');
+
+  /** Un variable con gastos: desde aqui se abren para corregirlos o borrarlos. */
+  protected readonly conGastos = computed(() => this.variables().find((v) => v.item.id === this.itemElegido() && v.pagos.length > 0) ?? null);
 
   protected readonly vistaPrevia = computed(() => {
     const i = this.variables().find((v) => v.item.id === this.itemElegido());

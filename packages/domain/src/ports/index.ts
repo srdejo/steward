@@ -7,7 +7,7 @@ import type {
   ItemPlan, MesRef, Origen, Pesos, PlanMes, ReglaDiezmo, TipoCategoria, Usuario,
 } from '../model';
 import type {
-  ConteoBorrado, DatosCredito, FiltroTitular, ModoNuevoMes, MovimientoCuenta, ResumenAnual, ResumenMes, ResumenMesPlan, VistaCierre, VistaCuenta, VistaOpcion,
+  ConteoBorrado, DatosCredito, FiltroTitular, ModoNuevoMes, MovimientoCuenta, ResumenAnual, ResumenMes, ResumenMesPlan, VistaCierre, VistaCuenta, VistaOpcion, VistaRegistro,
 } from '../rules';
 import type { compararOpciones, loQueTraeElMes } from '../rules';
 
@@ -94,6 +94,10 @@ export interface MovimientosPort {
   /** Corregir un pago, gasto, ingreso recibido o aporte (design D3 de usabilidad-plan). */
   corregirRegistro(datos: { movimientoId: Id; monto?: Pesos; origen?: Origen; nota?: string }): Promise<void>;
   borrarRegistro(movimientoId: Id): Promise<void>;
+  /** Un registro para su hoja; null si ya no existe. */
+  registro(movimientoId: Id): Promise<VistaRegistro | null>;
+  /** Los gastos de un item o los aportes de una persona en el mes. */
+  registros(ref: MesRef, filtro: { itemId?: Id; aportesDe?: Id }): Promise<VistaRegistro[]>;
 }
 
 export interface VistaMes {

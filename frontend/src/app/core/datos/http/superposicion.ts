@@ -107,10 +107,10 @@ function plan(p: PlanApi): PlanMes {
       creadoPor: e.creadoPor,
       nota: e.nota,
       archivado: e.archivado,
-      ingresos: (e.ingresos ?? []).map((l): IngresoPlan => ({ id: l.id, nombre: l.nombre, monto: l.monto, usuarioId: l.usuarioId ?? null, tipo: l.tipo, ingresoFijoId: l.ingresoFijoId ?? null })),
+      ingresos: (e.ingresos ?? []).map((l): IngresoPlan => ({ id: l.id, nombre: l.nombre, monto: l.monto, usuarioId: l.usuarioId ?? null, tipo: l.tipo, ingresoFijoId: l.ingresoFijoId ?? null, bruto: l.bruto ?? l.monto })),
       items: e.items.map((i): ItemPlan => ({
         id: i.id, categoriaId: i.categoriaId, nombre: i.nombre, monto: i.monto, diaVence: i.diaVence, tipo: i.tipo, cuota: i.cuota,
-        creditoId: i.creditoId ?? null, ingresoFijoId: i.ingresoFijoId ?? null, aporteId: i.aporteId ?? null,
+        creditoId: i.creditoId ?? null, ingresoFijoId: i.ingresoFijoId ?? null, aporteId: i.aporteId ?? null, ingresoPlanId: i.ingresoPlanId ?? null, ajustadoAMano: i.ajustadoAMano ?? false,
       })),
     })),
   };
@@ -141,5 +141,6 @@ function movimiento(m: MovimientoApi, seq: number): Movimiento {
     cuentaDestinoId: m.cuentaDestinoId ?? null,
     creditoId: m.creditoId ?? null,
     ingresoPlanId: m.ingresoPlanId ?? null,
+    capital: m.capital ?? null,
   };
 }

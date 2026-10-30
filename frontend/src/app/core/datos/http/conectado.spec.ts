@@ -339,17 +339,39 @@ describe('finanzas en el backend (steward-finanzas, design D5)', () => {
   });
 
   it('líneas de ingreso de una opción: agregar, editar y quitar en el backend (diezmo-como-gasto)', async () => {
-    const agregar = p.plan.guardarIngreso('plan-oct', 'esc-a', { nombre: 'Venta bicicleta', monto: 400_000, usuarioId: null, tipo: 'OTRO', ingresoFijoId: null });
+    const agregar = p.plan.guardarIngreso('plan-oct', 'esc-a', { nombre: 'Venta bicicleta', monto: 400_000, usuarioId: null, tipo: 'OTRO', ingresoFijoId: null, bruto: 400_000 }, true);
     const r1 = await responder('POST', '/api/planes/plan-oct/escenarios/esc-a/ingresos', { id: 'lin-2', nombre: 'Venta bicicleta', monto: 400_000, usuarioId: null, tipo: 'OTRO', ingresoFijoId: null }, tick, 201);
     await agregar;
-    expect(r1.request.body).toEqual({ nombre: 'Venta bicicleta', monto: 400_000, usuarioId: null });
-    const editar = p.plan.guardarIngreso('plan-oct', 'esc-a', { ...LINEA_SALARIO, monto: 7_000_000 });
+    expect(r1.request.body).toEqual({ nombre: 'Venta bicicleta', monto: 400_000, usuarioId: null, bruto: 400_000, aplicarDiezmo: true });
+    const editar = p.plan.guardarIngreso('plan-oct', 'esc-a', { ...LINEA_SALARIO, monto: 7_000_000, bruto: 7_500_000 });
     const r2 = await responder('PUT', '/api/planes/plan-oct/escenarios/esc-a/ingresos/lin-1', { ...LINEA_SALARIO, monto: 7_000_000 }, tick);
     await editar;
-    expect(r2.request.body).toEqual({ nombre: 'Salario Ana', monto: 7_000_000, usuarioId: USUARIO.id });
+    expect(r2.request.body).toEqual({ nombre: 'Salario Ana', monto: 7_000_000, usuarioId: USUARIO.id, bruto: 7_500_000 });
     const quitar = p.plan.quitarIngreso('plan-oct', 'esc-a', 'lin-2');
     await responder('DELETE', '/api/planes/plan-oct/escenarios/esc-a/ingresos/lin-2', null, tick, 204);
     await quitar;
+  });
+
+  it('borrar y corregir un registro, volver a calcular y borrar un plan van al backend (usabilidad-plan)', async () => {
+    const corregir = p.movimientos.corregirRegistro({ movimientoId: 'mov-1', monto: 120_000, origen: { tipo: 'CUENTA', cuentaId: 'cta-1' } });
+    const r1 = await responder('PATCH', '/api/registros/mov-1', RECIBIDO, tick);
+    await corregir;
+    expect(r1.request.body).toEqual({ monto: 120_000, origen: { tipo: 'CUENTA', cuentaId: 'cta-1' } });
+    const borrar = p.movimientos.borrarRegistro('mov-1');
+    await responder('DELETE', '/api/registros/mov-1', null, tick, 204);
+    await borrar;
+    const recalcular = p.plan.recalcularDiezmo('plan-oct', 'esc-a', 'it-diezmo');
+    await responder('POST', '/api/planes/plan-oct/escenarios/esc-a/items/it-diezmo/recalcular', DIEZMO_SALARIO, tick);
+    await recalcular;
+    const conteo = p.plan.conteoBorrado(OCT);
+    await responder('GET', '/api/meses/2026-10/borrado', { pagos: 1, gastos: 2, ingresos: 0, cerrado: false }, tick);
+    expect(await conteo).toEqual({ pagos: 1, gastos: 2, ingresos: 0, cerrado: false });
+    const plan = p.plan.borrarPlan(OCT);
+    await responder('DELETE', '/api/meses/2026-10', null, tick, 204);
+    await plan;
+    const empezar = p.hogar.empezarDeNuevo();
+    await responder('POST', '/api/hogar/empezar-de-nuevo', null, tick, 204);
+    await empezar;
   });
 
   it('YA_RECIBIDO: llega el mensaje y el ingreso queda como recibido', async () => {
@@ -571,7 +593,7 @@ describe('plan del mes y registros en el backend (steward-plan-mes, design D5)',
     await crear;
     expect(r1.request.body).toEqual({ anio: 2026, mes: 11, modo: 'COPIAR' });
 
-    const item = { categoriaId: 'cat-1', nombre: 'Luz', monto: 50_000, diaVence: 10, tipo: 'FIJO' as const, cuota: null, creditoId: null, ingresoFijoId: null, aporteId: null };
+    const item = { categoriaId: 'cat-1', nombre: 'Luz', monto: 50_000, diaVence: 10, tipo: 'FIJO' as const, cuota: null, creditoId: null, ingresoFijoId: null, aporteId: null, ingresoPlanId: null, ajustadoAMano: false };
     const agregar = p.plan.guardarItem('plan-oct', 'esc-a', item);
     const r2 = await responder('POST', '/api/planes/plan-oct/escenarios/esc-a/items', { ...item, id: 'it-luz' }, tick, 201);
     await agregar;
@@ -1096,11 +1118,13 @@ describe('pantallas con el plan real (backend-plan-mes-hoy)', () => {
     expect(crear.request.body).toEqual({ anio: 2026, mes: 10, modo: 'CERO' });
     await atenderHogar(a);
 
-    await a.escribir('Nombre del gasto', 'Internet');
-    a.porTexto('+ Agregar').click();
+    await a.tocar('+ Gasto');
+    await a.escribir('Nombre', 'Internet');
+    await a.escribir('Monto', '120000');
+    a.porTexto('Guardar').click();
     finanzasPrueba.valor = finanzas({ planes: [{ ...vacio, escenarios: [{ ...vacio.escenarios[0]!, items: [{ ...PLAN_OCT.escenarios[0]!.items[0]!, monto: 0 }] }] }] });
     const item = await responder('POST', '/api/planes/plan-oct/escenarios/esc-a/items', { id: 'it-internet' }, a.estable, 201);
-    expect(item.request.body).toMatchObject({ categoriaId: 'cat-1', nombre: 'Internet', monto: 0, tipo: 'FIJO' });
+    expect(item.request.body).toMatchObject({ categoriaId: 'cat-1', nombre: 'Internet', monto: 120_000, tipo: 'FIJO' });
     await atenderHogar(a);
 
     a.porTexto('Usar opción A').click();
@@ -1175,7 +1199,8 @@ describe('pantallas con el plan real (backend-plan-mes-hoy)', () => {
     expect(req.request.body).toEqual({ nombre: 'Educación' });
     await a.ir('/planear/2026-10');
     await atenderHogar(a);
-    const opciones = [...a.raiz().querySelectorAll('select[aria-label="Categoría del gasto"] option')].map((o) => o.textContent?.trim());
+    await a.tocar('+ Gasto');
+    const opciones = [...a.raiz().querySelectorAll('app-hoja select option')].map((o) => o.textContent?.trim());
     expect(opciones).toContain('Educación');
   });
 });

@@ -16,12 +16,14 @@ export interface LineaIngreso {
   /** Linea de la opcion (FIJO, EXTRA u OTRO de un mes con plan): la que se edita en Planear y se recibe en Hoy. */
   lineaId: Id | null;
   recibido: boolean;
+  /** Lo recibido: se abre para corregirlo o borrarlo (design D6 de usabilidad-plan). */
+  movimientoId: Id | null;
   /** Proyectado (se ve tenue). */
   tenue: boolean;
 }
 
-function base(m: Omit<LineaIngreso, 'usuarioId' | 'ingresoFijoId' | 'lineaId' | 'recibido' | 'tenue'> & Partial<LineaIngreso>): LineaIngreso {
-  return { usuarioId: null, ingresoFijoId: null, lineaId: null, recibido: false, tenue: false, ...m };
+function base(m: Omit<LineaIngreso, 'usuarioId' | 'ingresoFijoId' | 'lineaId' | 'recibido' | 'movimientoId' | 'tenue'> & Partial<LineaIngreso>): LineaIngreso {
+  return { usuarioId: null, ingresoFijoId: null, lineaId: null, recibido: false, movimientoId: null, tenue: false, ...m };
 }
 
 function aportesReales(estado: EstadoHogar, ref: MesRef): Map<Id, Movimiento[]> {
@@ -65,7 +67,7 @@ function lineasDeOpcion(estado: EstadoHogar, ref: MesRef, esc: Escenario, ejecuc
     }
     return base({
       clave: `linea-${l.id}`, tipo: l.tipo, nombre: l.nombre, detalle, monto: recibido ? recibido.monto : l.monto,
-      usuarioId: l.usuarioId, ingresoFijoId: l.ingresoFijoId, lineaId: l.id, recibido: Boolean(recibido),
+      usuarioId: l.usuarioId, ingresoFijoId: l.ingresoFijoId, lineaId: l.id, recibido: Boolean(recibido), movimientoId: recibido?.id ?? null,
     });
   });
   if (ejecucion) {
@@ -73,7 +75,7 @@ function lineasDeOpcion(estado: EstadoHogar, ref: MesRef, esc: Escenario, ejecuc
       const fijo = estado.ingresosFijos.find((f) => f.id === m.ingresoFijoId);
       lineas.push(base({
         clave: `recibido-${m.id}`, tipo: fijo ? 'FIJO' : 'OTRO', nombre: fijo?.nombre ?? 'Ingreso', detalle: `Recibido ${formatFechaCorta(m.fecha)}`,
-        monto: m.monto, usuarioId: m.usuarioId, ingresoFijoId: m.ingresoFijoId, recibido: true,
+        monto: m.monto, usuarioId: m.usuarioId, ingresoFijoId: m.ingresoFijoId, recibido: true, movimientoId: m.id,
       }));
     }
   }
@@ -89,7 +91,7 @@ function fijosDeAjustes(estado: EstadoHogar, ref: MesRef, ejecucion: boolean): L
       const recibido = movs.find((m) => m.tipo === 'INGRESO_FIJO' && m.ingresoFijoId === f.id);
       // Al planear solo importa que es fijo; "recibido / llega" es de la ejecucion (Hoy).
       const detalle = !ejecucion ? 'Fijo' : recibido ? `Fijo · recibido ${formatFechaCorta(recibido.fecha)}` : `Fijo · llega el día ${f.diaPago}`;
-      return base({ clave: `fijo-${f.id}`, tipo: 'FIJO', nombre: f.nombre, detalle, monto: recibido ? recibido.monto : f.neto, usuarioId: f.usuarioId, ingresoFijoId: f.id, recibido: Boolean(recibido) });
+      return base({ clave: `fijo-${f.id}`, tipo: 'FIJO', nombre: f.nombre, detalle, monto: recibido ? recibido.monto : f.neto, usuarioId: f.usuarioId, ingresoFijoId: f.id, recibido: Boolean(recibido), movimientoId: recibido?.id ?? null });
     });
   const extras = (anualDe(estado, ref.anio)?.eventos ?? [])
     .filter((e) => e.tipo === 'INGRESO' && e.mes === ref.mes)

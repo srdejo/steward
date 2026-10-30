@@ -21,6 +21,27 @@ describe('Cuentas (steward-cuentas)', () => {
     expect([...a.raiz().querySelectorAll('[data-cuenta]')].map((e) => e.getAttribute('data-cuenta'))).toEqual(['Ahorros Esposa']);
   });
 
+  it('el detalle de una cuenta muestra de dónde sale su saldo (usabilidad-plan)', async () => {
+    const p = await conSesion();
+    await p.cuentas.agregar({ nombre: 'Bancolombia', titularId: null, saldo: 4_000_000 });
+    const id = (await p.cuentas.cuentas()).cuentas.find((c) => c.cuenta.nombre === 'Bancolombia')!.cuenta.id;
+    await p.movimientos.registrarGasto({ monto: 1_500_000, itemId: null, nota: 'Arriendo', usuarioId: 'u-daniel', origen: { tipo: 'CUENTA', cuentaId: id }, ref: OCT });
+    const a = await app('/cuentas');
+    await a.tocar(/^Bancolombia/);
+    expect(a.url()).toBe('/cuentas/cuenta/' + id);
+    expect(a.texto()).toContain('$4.000.000');
+    expect(a.texto()).toContain('Arriendo');
+    expect(a.texto()).toContain('−$1.500.000');
+    expect(a.raiz().querySelector('[data-testid="saldo-cuenta"]')!.textContent!.replace(/\s+/g, ' ').trim()).toBe('≈ $2.500.000');
+
+    await a.tocar(/^Arriendo/);
+    await a.tocar('Borrar este registro');
+    expect(a.raiz().querySelector('[data-testid="efecto-borrar"]')!.textContent).toContain('El saldo de Bancolombia sube $1.500.000');
+    await a.tocar('Sí, borrar');
+    expect(a.url()).toBe('/cuentas/cuenta/' + id);
+    expect(a.raiz().querySelector('[data-testid="saldo-cuenta"]')!.textContent!.replace(/\s+/g, ' ').trim()).toBe('≈ $4.000.000');
+  });
+
   it('agregar una cuenta y mover dinero', async () => {
     const p = await conSesion();
     const a = await app('/cuentas');

@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { fechaEnMes, formatFechaCorta, mesDe, nombreMes, type Id } from '@steward/domain';
 
 import { consulta, mensajeDeError } from '../../core/datos/consulta';
@@ -16,7 +17,7 @@ import { SU_CUENTA, opcionesDeHoja } from './opciones-hoja';
  */
 @Component({
   selector: 'app-pagar-hoja',
-  imports: [Hoja, Monto, MontoInput, Segmentado],
+  imports: [RouterLink, Hoja, Monto, MontoInput, Segmentado],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-hoja [titulo]="ejecucion()?.item?.nombre ?? 'Marcar pago'" [antetitulo]="ejecucion()?.categoriaNombre ?? ''" [colorAntetitulo]="categoria()?.color ?? null" (cerrar)="hoja.cerrar()">
@@ -28,6 +29,7 @@ import { SU_CUENTA, opcionesDeHoja } from './opciones-hoja';
         @if (yaPagado(); as aviso) {
           <p role="status" class="rounded-xl bg-aviso-suave px-4 py-3.5 text-sm text-aviso" data-testid="ya-pagado">{{ aviso }}</p>
           <button type="button" class="boton-grande" (click)="hoja.cerrar()">Entendido</button>
+          <a [routerLink]="['/hoy/registro', e.pagos[0]!.id]" class="boton-texto self-center">Abrir ese pago</a>
         } @else {
           <app-monto-input etiqueta="Valor pagado" [grande]="true" [(valor)]="monto" ayuda="Viene lleno con el plan. Si pagas otro valor, la diferencia se ve en el mes." />
           <app-segmentado etiqueta="Pagado por" [opciones]="hoja.personas()" [(valor)]="quien" />

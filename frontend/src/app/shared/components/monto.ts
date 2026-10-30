@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { MONTO_OCULTO, formatCop, type Pesos } from '@steward/domain';
 
-import { SesionActual } from '../../core/sesion/sesion';
+import { SEGURIDAD_DISPONIBLE, SesionActual } from '../../core/sesion/sesion';
 
 /**
  * Un monto en COP con fuente monoespaciada. Con "Ocultar montos" se ve `$••••` hasta que se toca
@@ -30,5 +30,5 @@ export class Monto {
   protected readonly revelado = signal(false);
   protected readonly textoOculto = MONTO_OCULTO;
   protected readonly texto = computed(() => formatCop(this.valor(), { signo: this.signo() }));
-  protected readonly oculto = computed(() => this.preferencias().ocultarMontos && !this.revelado() && !this.siempreVisible());
+  protected readonly oculto = computed(() => SEGURIDAD_DISPONIBLE && this.preferencias().ocultarMontos && !this.revelado() && !this.siempreVisible());
 }

@@ -38,6 +38,8 @@ src/app/
 │   ├── sesion/      SesionActual, guards y el cargador de Google Identity Services
 │   └── layout/      Shell responsive, avatares del hogar, miembros
 ├── features/        acceso · hoy · planear · cuentas · ajustes (una pantalla por artboard)
+│                       (usabilidad-plan: en Planear, hojas con "Guardar" de ingreso y gasto, el mes en curso editable y "Borrar plan de {mes}";
+│                       en Hoy y en el detalle de una cuenta, la hoja de un registro para corregirlo o borrarlo; en Ajustes, "Empezar de nuevo")
 └── shared/components/  monto, monto-input, segmentado, interruptor, hoja, encabezado, fila, kpi, icono, avatar
 ```
 

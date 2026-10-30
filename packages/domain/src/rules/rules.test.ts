@@ -5,7 +5,7 @@ import { crearHogarVacio, crearSemilla, DANIEL, ESPOSA } from '../demo/seed';
 import type { EstadoHogar, MesRef } from '../model';
 import {
   ReglaError, aceptarInvitacion, quitarEscenario, crearAnual, editarProyeccion, editarMontoAnual, agregarCredito, actualizarSaldoCredito, agregarEvento, compararOpciones, crearMes, crearMesesDesdeAnual, cuadrarCuentas, cuentasDelHogar,
-  borrarPlan, borrarRegistro, conteoBorrado, corregirRegistro, empezarDeNuevo, movimientosDeCuenta, quitarItem, recalcularDiezmo,
+  registrosDe, vistaRegistro, borrarPlan, borrarRegistro, conteoBorrado, corregirRegistro, empezarDeNuevo, movimientosDeCuenta, quitarItem, recalcularDiezmo,
   cerrarMes, diferenciaCuadre, duplicarEscenario, guardarCategoria, guardarIngresoFijo, guardarIngresoPlan, guardarItem, guardarRegla, invitar, loQueTraeElMes, quitarIngresoPlan,
   marcarPago, marcarRecibido, planDe, planInicio, previsualizarDiezmo, previsualizarGasto, probarAbonoComoOpcion, registrarAporte,
   registrarGasto, repartoValido, resumenAnual, resumenMes, simularAbono, cuotasRestantes, porcentajePagado, usarEscenario,
@@ -484,6 +484,15 @@ describe('Cierre (steward-planear)', () => {
 });
 
 describe('Usabilidad del plan (usabilidad-plan)', () => {
+  it('un registro dice qué pasa al borrarlo, y un item lista sus gastos', () => {
+    const s0 = semilla();
+    const gasto = s0.movimientos.find((m) => m.tipo === 'GASTO' && m.itemId)!;
+    expect(registrosDe(s0, gasto.ref, { itemId: gasto.itemId! }).map((r) => r.movimiento.id)).toContain(gasto.id);
+    const v = vistaRegistro(s0, gasto.id)!;
+    expect(v.avisos[0]).toContain('Se quita de lo que llevas en');
+    expect(vistaRegistro(s0, 'no-existe')).toBeNull();
+  });
+
   const LINEA = (s: EstadoHogar, ref: MesRef, esc = 0) => planDe(s, ref)!.escenarios[esc]!.ingresos.find((l) => l.nombre === 'Salario Daniel')!;
   const DIEZMO = (s: EstadoHogar, ref: MesRef, esc = 0) => planDe(s, ref)!.escenarios[esc]!.items.find((i) => i.nombre === 'Diezmo · Salario Daniel')!;
 

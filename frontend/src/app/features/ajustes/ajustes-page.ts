@@ -1,12 +1,12 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
-import { formatFechaCorta, formatPorcentaje, type BaseDiezmo, type Categoria, type IngresoFijo } from '@steward/domain';
+import { claveMes, formatFechaCorta, formatPorcentaje, mesDe, type BaseDiezmo, type Categoria, type IngresoFijo } from '@steward/domain';
 
 import { consulta, mensajeDeError } from '../../core/datos/consulta';
 import { PUERTOS, puertosConectados } from '../../core/datos/puertos';
 import { MiembrosHogar } from '../../core/layout/miembros';
-import { SesionActual } from '../../core/sesion/sesion';
+import { SEGURIDAD_DISPONIBLE, SesionActual } from '../../core/sesion/sesion';
 import { Avatar } from '../../shared/components/avatar';
 import { Hoja } from '../../shared/components/hoja';
 import { Interruptor } from '../../shared/components/interruptor';
@@ -20,7 +20,8 @@ type Dialogo =
   | { tipo: 'ingreso'; ingreso: IngresoFijo | null }
   | { tipo: 'aportes' }
   | { tipo: 'categoria'; categoria: Categoria | null }
-  | { tipo: 'confirmar'; accion: 'salir' | 'restablecer' | 'desde-cero' };
+  | { tipo: 'confirmar'; accion: 'salir' | 'restablecer' | 'desde-cero' }
+  | { tipo: 'empezar' };
 
 const CONFIRMACIONES = {
   salir: { titulo: 'Salir del hogar', texto: 'Dejarás de ver y registrar en este presupuesto. Los demás miembros lo conservan.', boton: 'Salir del hogar' },
@@ -103,13 +104,15 @@ const CONFIRMACIONES = {
       </div>
     </section>
 
-    <section class="flex flex-col gap-2" aria-labelledby="ajustes-seguridad">
-      <h2 id="ajustes-seguridad" class="rotulo">Seguridad y privacidad</h2>
-      <div class="flex flex-col divide-y divide-divisor rounded-[14px] border border-borde bg-superficie px-4 py-1">
-        <app-interruptor class="py-3" titulo="Face ID al abrir" detalle="Tras 5 min sin usar" [activo]="preferencias().faceIdAlAbrir" (activoChange)="preferir({ faceIdAlAbrir: $event })" />
-        <app-interruptor class="py-3" titulo="Ocultar montos" detalle="Muestra $•••• hasta tocar" [activo]="preferencias().ocultarMontos" (activoChange)="preferir({ ocultarMontos: $event })" />
-      </div>
-    </section>
+    @if (seguridadDisponible) {
+      <section class="flex flex-col gap-2" aria-labelledby="ajustes-seguridad">
+        <h2 id="ajustes-seguridad" class="rotulo">Seguridad y privacidad</h2>
+        <div class="flex flex-col divide-y divide-divisor rounded-[14px] border border-borde bg-superficie px-4 py-1">
+          <app-interruptor class="py-3" titulo="Face ID al abrir" detalle="Tras 5 min sin usar" [activo]="preferencias().faceIdAlAbrir" (activoChange)="preferir({ faceIdAlAbrir: $event })" />
+          <app-interruptor class="py-3" titulo="Ocultar montos" detalle="Muestra $•••• hasta tocar" [activo]="preferencias().ocultarMontos" (activoChange)="preferir({ ocultarMontos: $event })" />
+        </div>
+      </section>
+    }
 
     @if (esDemo) {
       <section class="flex flex-col gap-2" aria-labelledby="ajustes-demo">
@@ -129,6 +132,7 @@ const CONFIRMACIONES = {
 
     <div class="mt-auto flex flex-col gap-1">
       <button type="button" class="boton h-12 rounded-[14px] border border-[#D9D8D2] bg-superficie" (click)="cerrarSesion()">Cerrar sesión</button>
+      <button type="button" class="flex min-h-11 items-center justify-center text-sm font-medium text-negativo" (click)="abrir({ tipo: 'empezar' })">Empezar de nuevo</button>
       <button type="button" class="flex min-h-11 items-center justify-center text-sm font-medium text-negativo" (click)="abrir({ tipo: 'confirmar', accion: 'salir' })">Salir del hogar</button>
     </div>
 
@@ -184,6 +188,16 @@ const CONFIRMACIONES = {
             <ng-container [ngTemplateOutlet]="pie" [ngTemplateOutletContext]="{ boton: d.categoria ? 'Guardar' : 'Crear categoría', listo: !!texto().trim() }" />
           </app-hoja>
         }
+        @case ('empezar') {
+          <app-hoja titulo="Empezar de nuevo" (cerrar)="cerrar()">
+            <p class="text-[15px] text-secundario">Se borran todos los planes, los cierres, el plan anual y lo registrado. Se conservan los miembros, los ingresos, las reglas, las categorías, las cuentas con su saldo de hoy y los créditos.</p>
+            <label class="flex flex-col gap-2">
+              <span class="rotulo">Escribe EMPEZAR para confirmar</span>
+              <input class="campo" autocomplete="off" [value]="texto()" (input)="texto.set($any($event.target).value)" />
+            </label>
+            <ng-container [ngTemplateOutlet]="pie" [ngTemplateOutletContext]="{ boton: 'Empezar de nuevo', listo: texto().trim() === 'EMPEZAR', peligro: true }" />
+          </app-hoja>
+        }
         @case ('confirmar') {
           <app-hoja [titulo]="confirmaciones[d.accion].titulo" (cerrar)="cerrar()">
             <p class="text-[15px] text-secundario">{{ confirmaciones[d.accion].texto }}</p>
@@ -210,6 +224,7 @@ export class AjustesPage {
   /** Modo conectado: el hogar es real, asi que no hay "Probar desde cero" (spec steward-ui-shell). */
   protected readonly conectado = puertosConectados(this.puertos) !== null;
   protected readonly confirmaciones = CONFIRMACIONES;
+  protected readonly seguridadDisponible = SEGURIDAD_DISPONIBLE;
 
   protected readonly hogar = this.miembros.hogar;
   protected readonly fijos = consulta(() => null, (p) => p.ingresos.fijos());
@@ -303,6 +318,11 @@ export class AjustesPage {
           break;
         case 'confirmar':
           await this.ejecutarConfirmacion(d.accion);
+          return;
+        case 'empezar':
+          await this.puertos.hogar.empezarDeNuevo();
+          this.cerrar();
+          await this.router.navigate(['/planear', claveMes(mesDe(this.puertos.hoy()))]);
           return;
       }
       this.cerrar();

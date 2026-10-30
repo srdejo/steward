@@ -47,8 +47,8 @@
 
 ## 3. PWA
 
-- [ ] 3.1 `api.ts`, `superposicion.ts` y `PuertosConectados` con los campos y los endpoints nuevos. Verificar: `conectado.spec.ts` con borrar un registro, borrar un plan y "Volver a calcular".
-- [ ] 3.2 Planear (D5):
+- [x] 3.1 `api.ts`, `superposicion.ts` y `PuertosConectados` con los campos y los endpoints nuevos. Verificar: `conectado.spec.ts` con borrar un registro, borrar un plan y "Volver a calcular".
+- [x] 3.2 Planear (D5):
   - hojas de ingreso y de gasto con "Guardar", "Quitar" con confirmación y el aviso "Guardado";
   - "+ Gasto" y "+ Ingreso" con su monto;
   - categorías con indicador;
@@ -56,11 +56,11 @@
   - "Borrar plan de {mes}" con sus conteos.
 
   Verificar: tests de pantalla de los escenarios de `steward-planear`.
-- [ ] 3.3 Hoy (D6): la hoja del registro (corregir y borrar) y la lista de registros; el diezmo sin "Venció". Cuentas: el detalle con sus movimientos. Ajustes (D7): "Empezar de nuevo"; sin Face ID ni "Ocultar montos". Verificar: tests de pantalla de los escenarios de `steward-hoy`, `steward-cuentas` y `steward-ajustes`; `npx ng test` y `ng build` sin avisos. Actualizar `frontend/README.md`. Commit.
+- [x] 3.3 Hoy (D6): la hoja del registro (corregir y borrar) y la lista de registros; el diezmo sin "Venció". Cuentas: el detalle con sus movimientos. Ajustes (D7): "Empezar de nuevo"; sin Face ID ni "Ocultar montos". Verificar: tests de pantalla de los escenarios de `steward-hoy`, `steward-cuentas` y `steward-ajustes`; `npx ng test` y `ng build` sin avisos. Actualizar `frontend/README.md`. Commit.
 
 ## 4. App Expo
 
-- [ ] 4.1 `mobile/`: lo mínimo para compilar con el dominio nuevo. Verificar: `npx tsc --noEmit` y `npm test` en verde. Commit.
+- [x] 4.1 `mobile/`: lo mínimo para compilar con el dominio nuevo. Verificar: `npx tsc --noEmit` y `npm test` en verde. Commit.
 
 ## 5. Verificación y producción
 

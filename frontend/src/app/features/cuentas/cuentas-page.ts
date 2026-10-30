@@ -40,9 +40,11 @@ const CONJUNTA = '__conjunta__';
         <app-filtro-titular [(valor)]="filtro" />
         <div class="flex flex-col divide-y divide-divisor">
           @for (c of d.cuentas; track c.cuenta.id) {
-            <app-fila [titulo]="c.cuenta.nombre" [detalle]="c.titular + ' · ' + c.estadoCuadre" [tonoDetalle]="c.aviso ? 'text-aviso' : 'text-secundario'" [attr.data-cuenta]="c.cuenta.nombre">
-              <span class="monto text-sm" [class.text-secundario]="c.estimado">{{ c.estimado ? '≈ ' : '' }}<app-monto [valor]="c.saldo" /></span>
-            </app-fila>
+            <a [routerLink]="['/cuentas/cuenta', c.cuenta.id]" class="block hover:bg-superficie">
+              <app-fila [titulo]="c.cuenta.nombre" [detalle]="c.titular + ' · ' + c.estadoCuadre" [tonoDetalle]="c.aviso ? 'text-aviso' : 'text-secundario'" [attr.data-cuenta]="c.cuenta.nombre">
+                <span class="monto text-sm" [class.text-secundario]="c.estimado">{{ c.estimado ? '≈ ' : '' }}<app-monto [valor]="c.saldo" /></span>
+              </app-fila>
+            </a>
           } @empty {
             <p class="py-2.5 text-sm text-secundario">No hay cuentas{{ filtro() === 'TODAS' ? '' : ' con ese titular' }}.</p>
           }

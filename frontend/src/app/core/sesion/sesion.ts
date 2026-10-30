@@ -4,6 +4,9 @@ import type { MetodoAcceso, Preferencias, Sesion } from '@steward/domain';
 import { PUERTOS } from '../datos/puertos';
 
 /** Sesion actual de la app (en modo demo, la del adaptador de prueba). */
+/** Face ID y "Ocultar montos" llegan con passkeys: hasta entonces no se ofrecen ni aplican (design D7 de usabilidad-plan). */
+export const SEGURIDAD_DISPONIBLE = false as boolean;
+
 @Injectable({ providedIn: 'root' })
 export class SesionActual {
   private readonly puertos = inject(PUERTOS);

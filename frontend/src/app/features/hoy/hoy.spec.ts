@@ -100,6 +100,75 @@ describe('Hoy (steward-hoy)', () => {
     expect(a.texto()).not.toContain('Marcar pagado');
   });
 
+  it('borrar un gasto equivocado desde Hoy (usabilidad-plan)', async () => {
+    const p = await conSesion();
+    await p.movimientos.registrarGasto({ monto: 95_000, itemId: null, nota: 'Farmacia (error)', usuarioId: 'u-daniel', origen: { tipo: 'NINGUNO' }, ref: OCT });
+    const a = await app('/hoy');
+    const antes = libre(a);
+    await a.tocar(/^Farmacia \(error\)/);
+    expect(a.url()).toMatch(/^\/hoy\/registro\//);
+    await a.tocar('Borrar este registro');
+    expect(a.raiz().querySelector('[data-testid="efecto-borrar"]')!.textContent).toContain('Pagado baja $95.000');
+    await a.tocar('Sí, borrar');
+    expect(a.url()).toBe('/hoy');
+    expect(a.texto()).not.toContain('Farmacia (error)');
+    expect(libre(a)).toBe('$3.436.000');
+    expect(antes).toBe('$3.341.000');
+  });
+
+  it('corregir un pago y deshacer un Recibí (usabilidad-plan)', async () => {
+    const p = await conSesion();
+    const a = await app('/hoy');
+    await a.tocar(/^Recibo Luz/);
+    await a.escribir('Monto', '50000');
+    await a.tocar('Guardar');
+    expect(a.url()).toBe('/hoy');
+    const luz = (await p.movimientos.resumenMes(OCT)).yaPagado.find((i) => i.item.nombre === 'Recibo Luz')!;
+    expect(luz.real).toBe(50_000);
+    expect(luz.detalle).toContain('igual al plan');
+
+    const linea = (await p.movimientos.resumenMes(OCT)).ingresos.find((l) => l.movimientoId)!;
+    await a.tocar(new RegExp('^' + linea.nombre));
+    await a.tocar('Borrar este registro');
+    expect(a.raiz().querySelector('[data-testid="efecto-borrar"]')!.textContent).toContain(linea.nombre + ' vuelve a Por recibir');
+    await a.tocar('Sí, borrar');
+    expect((await p.movimientos.resumenMes(OCT)).ingresos.find((l) => l.nombre === linea.nombre)!.recibido).toBe(false);
+  });
+
+  it('la cuota no cambia su monto: se borra y el saldo del crédito vuelve (usabilidad-plan)', async () => {
+    const p = await conSesion();
+    await p.cuentas.agregarCredito({ nombre: 'Moto', entidad: 'Banco', saldo: 10_000_000, totalOriginal: 10_000_000, cuota: 500_000, tasaEM: 1, diaPago: 15 });
+    const credito = (await p.cuentas.creditos()).find((c) => c.credito.nombre === 'Moto')!.credito;
+    const item = (await p.movimientos.resumenMes(OCT)).porPagar.find((i) => i.item.creditoId === credito.id)!;
+    await p.movimientos.marcarPago({ itemId: item.item.id, ref: OCT, monto: 500_000, usuarioId: 'u-daniel', origen: { tipo: 'NINGUNO' } });
+    const a = await app('/hoy');
+    await a.tocar(new RegExp('^' + item.item.nombre));
+    expect(a.raiz().querySelector('[data-testid="aviso-cuota"]')).not.toBeNull();
+    await a.tocar('Borrar este registro');
+    await a.tocar('Sí, borrar');
+    expect((await p.cuentas.creditos()).find((c) => c.credito.nombre === 'Moto')!.credito.saldo).toBe(10_000_000);
+  });
+
+  it('los aportes de una persona abren su lista (usabilidad-plan)', async () => {
+    await conSesion();
+    const a = await app('/hoy');
+    await a.tocar(/^Aportes Esposa/);
+    expect(a.url()).toContain('/hoy/registros?aportes=');
+    expect(a.texto()).toContain('Registros del mes');
+    await a.tocar(/Aporte Esposa|Tarjeta|Recibo/, 'app-hoja a');
+    expect(a.url()).toMatch(/^\/hoy\/registro\//);
+  });
+
+  it('el diezmo por pagar dice de dónde viene, sin Venció (usabilidad-plan)', async () => {
+    const p = await conSesion();
+    const diezmo = (await p.movimientos.resumenMes(OCT)).porPagar.find((i) => i.item.tipo === 'DIEZMO')!;
+    expect(diezmo.detalle).toMatch(/^Del /);
+    const a = await app('/hoy');
+    const fila = [...a.raiz().querySelectorAll('app-fila')].find((f) => f.textContent!.includes(diezmo.item.nombre))!;
+    expect(fila.textContent).not.toContain('Venció');
+    expect(fila.querySelector('.text-negativo')).toBeNull();
+  });
+
   it('gasto variable acumula y gasto no planeado resta del libre', async () => {
     await conSesion();
     const a = await app('/hoy/gasto?item=m0-mercado');

@@ -6,7 +6,7 @@ import { nombreUsuario } from './consultas';
 /** Cuantos dias sin cuadrar antes del aviso suave. */
 export const DIAS_AVISO_CUADRE = 30;
 
-function efecto(m: Movimiento, cuentaId: Id): Pesos {
+export function efecto(m: Movimiento, cuentaId: Id): Pesos {
   const desde = m.origen.tipo === 'CUENTA' && m.origen.cuentaId === cuentaId;
   switch (m.tipo) {
     case 'INGRESO_FIJO':

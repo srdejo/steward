@@ -116,6 +116,8 @@ export interface MovimientoApi {
   creditoId: string | null;
   /** INGRESO_FIJO: la linea de ingreso de la opcion que se recibio (design D8 de diezmo-como-gasto). */
   ingresoPlanId: string | null;
+  /** PAGO de una cuota y ABONO_CREDITO: cuanto bajo el saldo del credito; null en los de antes de V9. */
+  capital?: number | null;
   /** Orden de registro: el saldo estimado suma lo registrado despues del ultimo cuadre. */
   seq: number;
 }
@@ -141,6 +143,9 @@ export interface ItemPlanApi {
   /** DIEZMO: el ingreso fijo o el aporte que lo origina (design D1 de diezmo-como-gasto). */
   ingresoFijoId: string | null;
   aporteId: string | null;
+  /** DIEZMO: la linea de la opcion de la que sale y si su monto se cambio a mano (design D1 de usabilidad-plan). */
+  ingresoPlanId?: string | null;
+  ajustadoAMano?: boolean;
 }
 
 /** Linea de ingreso de una opcion (design D8 de diezmo-como-gasto). */
@@ -151,6 +156,7 @@ export interface IngresoPlanApi {
   usuarioId: string | null;
   tipo: 'FIJO' | 'EXTRA' | 'OTRO';
   ingresoFijoId: string | null;
+  bruto?: number;
 }
 
 export interface EscenarioApi {
@@ -236,12 +242,15 @@ export interface FinanzasApi {
 }
 
 /** El ingreso o el aporte de un diezmo los pone el backend y los conserva al editar. */
-export type ItemPlanRequest = Omit<ItemPlanApi, 'id' | 'ingresoFijoId' | 'aporteId'>;
+export type ItemPlanRequest = Omit<ItemPlanApi, 'id' | 'ingresoFijoId' | 'aporteId' | 'ingresoPlanId' | 'ajustadoAMano'>;
 
 export interface IngresoPlanRequest {
   nombre: string;
   monto: number;
   usuarioId: string | null;
+  bruto?: number;
+  /** Solo al agregar: nace su item de diezmo enlazado. */
+  aplicarDiezmo?: boolean;
 }
 
 export interface OrigenRequest {
@@ -479,6 +488,31 @@ export class Api {
 
   abonar(id: string, datos: { monto: number; usuarioId: string; origen: OrigenRequest }): Promise<MovimientoApi> {
     return this.pedir(this.http.post<MovimientoApi>(`/api/creditos/${encodeURIComponent(id)}/abonos`, datos));
+  }
+
+  recalcularDiezmo(planId: string, escenarioId: string, itemId: string): Promise<ItemPlanApi> {
+    return this.pedir(this.http.post<ItemPlanApi>(`${rutaItems(planId, escenarioId)}/${encodeURIComponent(itemId)}/recalcular`, {}));
+  }
+
+  /** {@code mes} como 2026-10. */
+  conteoBorrado(mes: string): Promise<{ pagos: number; gastos: number; ingresos: number; cerrado: boolean }> {
+    return this.pedir(this.http.get<{ pagos: number; gastos: number; ingresos: number; cerrado: boolean }>(`/api/meses/${encodeURIComponent(mes)}/borrado`));
+  }
+
+  borrarPlan(mes: string): Promise<void> {
+    return this.pedir(this.http.delete<void>(`/api/meses/${encodeURIComponent(mes)}`));
+  }
+
+  empezarDeNuevo(): Promise<void> {
+    return this.pedir(this.http.post<void>('/api/hogar/empezar-de-nuevo', {}));
+  }
+
+  corregirRegistro(id: string, datos: { monto?: number; origen?: OrigenRequest; nota?: string }): Promise<MovimientoApi> {
+    return this.pedir(this.http.patch<MovimientoApi>(`/api/registros/${encodeURIComponent(id)}`, datos));
+  }
+
+  borrarRegistro(id: string): Promise<void> {
+    return this.pedir(this.http.delete<void>(`/api/registros/${encodeURIComponent(id)}`));
   }
 
   private async pedir<T>(peticion: Observable<T>): Promise<T> {
