@@ -73,13 +73,31 @@ describe('Planear (steward-planear)', () => {
     expect(a.texto()).not.toContain('+ Duplicar');
   });
 
-  it('el diezmo se ve calculado y no se puede editar', async () => {
+  it('el diezmo es la categoría Diezmo y se edita como cualquier gasto (diezmo-como-gasto)', async () => {
     await conSesion();
     const a = await app('/planear/2026-11');
-    const fila = a.raiz().querySelector('[data-testid="fila-diezmo"]')!;
-    expect(fila.textContent).toContain('Calculado · 10% de Salario Daniel');
-    expect(fila.querySelector('input, button')).toBeNull();
+    expect(a.raiz().querySelector('[data-testid="fila-diezmo"]')).toBeNull();
     expect(a.raiz().querySelector('[data-testid="dejaria-libre"]')!.textContent!.trim()).toBe('$2.898.000');
+    await a.tocar(/^Diezmo/);
+    await a.escribir('Monto de Diezmo · Salario Daniel', '750000');
+    expect(a.raiz().querySelector('[data-testid="dejaria-libre"]')!.textContent!.trim()).toBe('$2.848.000');
+  });
+
+  it('los ingresos de cada opción se editan y se agregan, sin tocar las otras ni Ajustes (diezmo-como-gasto)', async () => {
+    const p = await conSesion();
+    const a = await app('/planear/2026-11');
+    a.porTexto(/^Opción B/, '[role="tab"]').click();
+    await a.estable();
+    await a.escribir('Monto de Salario Daniel', '7000000');
+    expect(a.raiz().querySelector('[data-testid="dejaria-libre"]')!.textContent!.trim()).toBe('$2.010.000');
+    expect((await p.plan.mes(NOV)).opciones[0]!.libre).toBe(2_898_000);
+    expect((await p.ingresos.fijos())[0]!.neto).toBe(6_288_000);
+
+    await a.escribir('Nombre del ingreso', 'Venta bicicleta');
+    await a.escribir('Monto del ingreso', '400000');
+    await a.tocar('+ Ingreso');
+    expect(a.raiz().querySelector('[data-testid="dejaria-libre"]')!.textContent!.trim()).toBe('$2.410.000');
+    expect(a.texto()).toContain('Agregado al plan');
   });
 
   it('editar un monto de la opción cambia lo que dejaría libre', async () => {
@@ -105,7 +123,7 @@ describe('Planear (steward-planear)', () => {
     const a = await app('/planear/2026-11/comparar');
     const resaltadas = () => [...a.raiz().querySelectorAll('tr[data-cambia="true"] th')].map((th) => th.firstElementChild!.textContent!.trim());
     expect(resaltadas()).toEqual(['Variables', 'Créditos', 'Ahorro']);
-    expect(a.texto()).toContain('Sin cambios Gastos fijos, Tarjetas y cuotas, diezmo 4.170.000 4.170.000 4.170.000');
+    expect(a.texto()).toContain('Sin cambios Diezmo, Gastos fijos, Tarjetas y cuotas 4.170.000 4.170.000 4.170.000');
     expect(a.texto()).toContain('Queda libre 2.898.000 1.298.000 1.398.000');
     expect(a.raiz().querySelector('[data-testid="tabla-comparar"]')!.classList).toContain('overflow-x-auto');
     await a.tocar('Mostrar solo lo que cambia', 'label');
@@ -139,8 +157,8 @@ describe('Planear (steward-planear)', () => {
     await pagar('m0-cuotas', 375_000);
     await p.movimientos.registrarGasto({ monto: 140_000, itemId: 'm0-mercado', nota: '', usuarioId: 'u-daniel', origen: { tipo: 'NINGUNO' }, ref: OCT });
     await p.movimientos.registrarGasto({ monto: 112_000, itemId: null, nota: 'Farmacia', usuarioId: 'u-daniel', origen: { tipo: 'NINGUNO' }, ref: OCT });
-    const diezmo = (await p.movimientos.resumenMes(OCT)).diezmo.pendientes[0]!;
-    await p.ingresos.entregarDiezmo([diezmo.id], OCT, null);
+    // El diezmo es un item del plan: se marca pagado como los demas (diezmo-como-gasto).
+    await p.movimientos.marcarPago({ itemId: 'm0-diezmo-salario', ref: OCT, monto: 700_000, usuarioId: 'u-daniel', origen: { tipo: 'NINGUNO' } });
     await p.cuentas.cuadrar([{ cuentaId: 'cta-nu', saldoBanco: 3_190_000 }, { cuentaId: 'cta-efectivo', saldoBanco: 150_000 }]);
 
     const a = await app('/planear/2026-10/cierre');

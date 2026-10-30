@@ -56,8 +56,8 @@ interface Dependencias {
  * Puertos del modo conectado (design D9 de backend-acceso-hogar, D5 de backend-ingresos-diezmo y backend-plan-mes-hoy, y
  * D7 de backend-cuentas-creditos):
  * - del backend: sesion, hogar, miembros, invitaciones, categorias, ingresos fijos, regla de diezmo, cuentas con su cuadre,
- *   creditos, el plan de cada mes con su Opcion A y todo lo registrado ("Recibi", "Entregado", pagos, gastos, aportes,
- *   ajustes, transferencias y abonos);
+ *   creditos, el plan de cada mes con sus opciones, sus lineas de ingreso y sus items (con los de diezmo), y todo lo
+ *   registrado ("Recibi", pagos, gastos, aportes, ajustes, transferencias y abonos);
  * - ya nada es de prueba: el adaptador de prueba solo calcula las vistas sobre lo real (design D6 de backend-plan-anual);
  * - lo que llega en otras etapas (varias opciones, cerrar el mes, crear meses desde el anual) avisa sin cambiar nada.
  *
@@ -270,13 +270,10 @@ export class PuertosConectados implements Puertos {
       guardarCategoria: async (datos) => {
         await conFinanzas(datos.id ? api.renombrarCategoria(datos.id, datos.nombre) : api.crearCategoria(datos.nombre));
       },
-      definirDiezmoEnHoy: async (modo) => {
-        await conFinanzas(api.definirDiezmoEnHoy(modo));
-      },
     };
   }
 
-  /** Ingresos fijos, regla, "Recibi", aportes y "Entregado", todo en el backend. */
+  /** Ingresos fijos, regla, "Recibi" y aportes, todo en el backend. */
   private crearIngresos(): IngresosPort {
     const api = this.d.api;
     const escribir = async (accion: Promise<unknown>): Promise<void> => {
@@ -296,10 +293,18 @@ export class PuertosConectados implements Puertos {
         return r ? regla(r) : null;
       },
       guardarRegla: (datos) => escribir(api.guardarRegla(datos)),
-      marcarRecibido: async (ingresoFijoId, ref) => {
-        this.mesDelBackend(ref);
+      // Una linea de la opcion principal del mes (design D8 de diezmo-como-gasto) o, sin plan, el ingreso fijo.
+      marcarRecibido: async (datos) => {
+        this.mesDelBackend(datos.ref);
         try {
-          await escribir(api.recibido(ingresoFijoId));
+          if (datos.lineaId) {
+            const plan = this.finanzas?.planes.find((p) => p.ref.anio === datos.ref.anio && p.ref.mes === datos.ref.mes);
+            const opcion = plan?.escenarios.find((e) => e.ingresos?.some((l) => l.id === datos.lineaId));
+            if (!plan || !opcion) throw new ReglaError('NO_EXISTE', 'Ese ingreso no está en el plan del mes');
+            await escribir(api.recibirLinea(plan.id, opcion.id, datos.lineaId, datos.monto));
+          } else if (datos.ingresoFijoId) {
+            await escribir(api.recibido(datos.ingresoFijoId, datos.monto));
+          }
         } catch (e) {
           // Ya estaba recibido (otro miembro, otra pestana): se muestra el mensaje con el ingreso ya como recibido.
           if (e instanceof ReglaError && e.codigo === 'YA_RECIBIDO') await this.recargarFinanzas();
@@ -308,12 +313,6 @@ export class PuertosConectados implements Puertos {
       },
       registrarAporte: (datos) =>
         escribir(api.aportar({ usuarioId: datos.usuarioId, monto: datos.monto, mes: datos.ref, cuentaId: datos.cuentaId, aplicaDiezmo: datos.aplicaDiezmo })),
-      // Todas las obligaciones son reales: de ingresos recibidos y de aportes.
-      entregarDiezmo: async (obligaciones, ref, cuentaId) => {
-        this.mesDelBackend(ref);
-        const cuentaReal = cuentaId && this.finanzas?.cuentas.some((c) => c.id === cuentaId) ? cuentaId : null;
-        await escribir(api.entregarDiezmo(obligaciones, cuentaReal));
-      },
     };
   }
 
@@ -368,6 +367,12 @@ export class PuertosConectados implements Puertos {
         return escribir(item.id ? api.editarItem(planId, escenarioId, item.id, cuerpo) : api.crearItem(planId, escenarioId, cuerpo));
       },
       quitarItem: (planId, escenarioId, itemId) => escribir(api.quitarItem(planId, escenarioId, itemId)),
+      // Lineas de ingreso de la opcion (design D8 de diezmo-como-gasto): editar conserva su tipo y su ingreso fijo.
+      guardarIngreso: (planId, escenarioId, linea) => {
+        const cuerpo = { nombre: linea.nombre, monto: linea.monto, usuarioId: linea.usuarioId };
+        return escribir(linea.id ? api.editarIngresoPlan(planId, escenarioId, linea.id, cuerpo) : api.crearIngresoPlan(planId, escenarioId, cuerpo));
+      },
+      quitarIngreso: (planId, escenarioId, ingresoId) => escribir(api.quitarIngresoPlan(planId, escenarioId, ingresoId)),
       usar: (planId, escenarioId) => escribir(api.usarOpcion(planId, escenarioId)),
       // Varias opciones solo en Borrador (design D4 de backend-opciones-mes): la nueva es la de la letra mas alta.
       duplicar: async (planId, escenarioId) => {
@@ -468,14 +473,12 @@ export class PuertosConectados implements Puertos {
       this.miembrosReales = nuevos;
       this.avisar();
     }
-    const diezmoEnHoy = this.finanzas?.diezmoEnHoy ?? 'SEPARADO';
     const invitaciones = h.invitaciones.map(invitacion);
     return {
       hogar: {
         id: h.id,
         nombre: h.nombre,
         configurado: h.configurado,
-        diezmoEnHoy,
         miembros: h.miembros.map((m) => ({ usuarioId: m.usuario.id, unidoEn: m.unidoEn })),
         invitaciones,
       },

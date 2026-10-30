@@ -31,7 +31,7 @@ describe('Hoy (steward-hoy)', () => {
     expect(luz.querySelector('app-avatar')?.getAttribute('aria-label')).toBe('Pagó Esposa');
   });
 
-  it('al recibir el salario aparece el diezmo y Entregado lo quita', async () => {
+  it('el diezmo es un gasto por pagar: Recibí no crea tarjeta y se marca pagado (diezmo-como-gasto)', async () => {
     const p = puertos();
     await p.demo!.probarDesdeCero();
     await p.sesion.iniciar('GOOGLE');
@@ -41,13 +41,25 @@ describe('Hoy (steward-hoy)', () => {
     await p.hogar.completarOnboarding();
     await p.plan.crearMes(OCT, 'CERO');
     const a = await app('/hoy');
-    expect(a.raiz().querySelector('[data-testid="tarjeta-diezmo"]')).toBeNull();
+    expect(a.texto()).toContain('Diezmo · Salario Daniel');
+    const libre = a.raiz().querySelector('[data-testid="libre"]')!.textContent!.trim();
+
+    // Recibí abre el monto de la linea para confirmarlo o cambiarlo.
     await a.tocar('Recibí');
-    const tarjeta = a.raiz().querySelector('[data-testid="tarjeta-diezmo"]')!;
-    expect(tarjeta.textContent!.replace(/\s+/g, ' ')).toContain('10% de Salario Daniel · recibido 26 oct');
-    expect(tarjeta.textContent).toContain('$700.000');
-    await a.tocar('Entregado');
-    expect(a.raiz().querySelector('[data-testid="tarjeta-diezmo"]')).toBeNull();
+    expect(a.url()).toMatch(/^\/hoy\/recibir\//);
+    await a.escribir('Valor recibido', '6350000');
+    await a.tocar('Marcar recibido');
+    expect(a.url()).toBe('/hoy');
+    expect(a.texto()).not.toContain('Disponible para diezmar');
+    expect(a.texto()).toContain('Fijo · recibido 26 oct');
+    expect(a.raiz().querySelector('[data-testid="libre"]')!.textContent!.trim()).not.toBe(libre);
+
+    // Llevar el diezmo: Marcar pago desde una cuenta, como cualquier gasto.
+    const diezmo = (await p.movimientos.resumenMes(OCT)).porPagar.find((i) => i.item.tipo === 'DIEZMO')!;
+    expect(diezmo.plan).toBe(700_000);
+    await a.ir(`/hoy/pagar/${diezmo.item.id}`);
+    await a.tocar('Marcar pagado');
+    expect((await p.movimientos.resumenMes(OCT)).yaPagado.map((i) => i.item.nombre)).toContain('Diezmo · Salario Daniel');
   });
 
   it('un aporte para el mes siguiente no cambia el libre de este mes', async () => {

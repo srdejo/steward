@@ -114,6 +114,8 @@ export interface MovimientoApi {
   cuentaDestinoId: string | null;
   /** PAGO de la cuota de un credito y ABONO_CREDITO. */
   creditoId: string | null;
+  /** INGRESO_FIJO: la linea de ingreso de la opcion que se recibio (design D8 de diezmo-como-gasto). */
+  ingresoPlanId: string | null;
   /** Orden de registro: el saldo estimado suma lo registrado despues del ultimo cuadre. */
   seq: number;
 }
@@ -123,7 +125,7 @@ export interface CategoriaApi {
   nombre: string;
   color: string;
   orden: number;
-  tipo: 'FIJO' | 'TARJETA' | 'VARIABLE' | 'CREDITO' | 'OTRO';
+  tipo: 'DIEZMO' | 'FIJO' | 'TARJETA' | 'VARIABLE' | 'CREDITO' | 'OTRO';
   sistema: boolean;
 }
 
@@ -133,9 +135,22 @@ export interface ItemPlanApi {
   nombre: string;
   monto: number;
   diaVence: number | null;
-  tipo: 'FIJO' | 'VARIABLE' | 'CUOTA' | 'CREDITO';
+  tipo: 'FIJO' | 'VARIABLE' | 'CUOTA' | 'CREDITO' | 'DIEZMO';
   cuota: { actual: number; total: number } | null;
   creditoId: string | null;
+  /** DIEZMO: el ingreso fijo o el aporte que lo origina (design D1 de diezmo-como-gasto). */
+  ingresoFijoId: string | null;
+  aporteId: string | null;
+}
+
+/** Linea de ingreso de una opcion (design D8 de diezmo-como-gasto). */
+export interface IngresoPlanApi {
+  id: string;
+  nombre: string;
+  monto: number;
+  usuarioId: string | null;
+  tipo: 'FIJO' | 'EXTRA' | 'OTRO';
+  ingresoFijoId: string | null;
 }
 
 export interface EscenarioApi {
@@ -144,6 +159,7 @@ export interface EscenarioApi {
   creadoPor: string;
   nota: string;
   archivado: boolean;
+  ingresos: IngresoPlanApi[];
   items: ItemPlanApi[];
 }
 
@@ -203,7 +219,6 @@ export interface ProyeccionApi {
 
 export interface FinanzasApi {
   mes: MesApi;
-  diezmoEnHoy: 'SEPARADO' | 'AGRUPADO';
   categorias: CategoriaApi[];
   ingresosFijos: IngresoFijoApi[];
   reglas: ReglaDiezmoApi[];
@@ -220,7 +235,14 @@ export interface FinanzasApi {
   proyecciones: ProyeccionApi[];
 }
 
-export type ItemPlanRequest = Omit<ItemPlanApi, 'id'>;
+/** El ingreso o el aporte de un diezmo los pone el backend y los conserva al editar. */
+export type ItemPlanRequest = Omit<ItemPlanApi, 'id' | 'ingresoFijoId' | 'aporteId'>;
+
+export interface IngresoPlanRequest {
+  nombre: string;
+  monto: number;
+  usuarioId: string | null;
+}
 
 export interface OrigenRequest {
   tipo: OrigenApi;
@@ -335,16 +357,14 @@ export class Api {
     return this.pedir(this.http.delete<void>(`/api/ingresos-fijos/${encodeURIComponent(id)}`));
   }
 
-  recibido(ingresoId: string): Promise<MovimientoApi> {
-    return this.pedir(this.http.post<MovimientoApi>(`/api/ingresos-fijos/${encodeURIComponent(ingresoId)}/recibido`, null));
+  /** "Recibi" un ingreso fijo en un mes sin plan; sin monto, su neto. */
+  recibido(ingresoId: string, monto?: number): Promise<MovimientoApi> {
+    return this.pedir(this.http.post<MovimientoApi>(`/api/ingresos-fijos/${encodeURIComponent(ingresoId)}/recibido`, monto === undefined ? null : { monto }));
   }
 
-  entregarDiezmo(obligaciones: string[], cuentaId: string | null): Promise<MovimientoApi> {
-    return this.pedir(this.http.post<MovimientoApi>('/api/diezmo/entregas', { obligaciones, cuentaId }));
-  }
-
-  definirDiezmoEnHoy(modo: 'SEPARADO' | 'AGRUPADO'): Promise<void> {
-    return this.pedir(this.http.put<void>('/api/hogar/diezmo-en-hoy', { modo }));
+  /** "Recibi" una linea de ingreso de la opcion principal del mes en curso; sin monto, el de la linea. */
+  recibirLinea(planId: string, escenarioId: string, lineaId: string, monto?: number): Promise<MovimientoApi> {
+    return this.pedir(this.http.post<MovimientoApi>(`${rutaIngresos(planId, escenarioId)}/${encodeURIComponent(lineaId)}/recibido`, monto === undefined ? null : { monto }));
   }
 
   crearCuenta(nombre: string, titular: 'YO' | 'CONJUNTA', saldo: number): Promise<CuentaApi> {
@@ -379,6 +399,18 @@ export class Api {
 
   quitarItem(planId: string, escenarioId: string, itemId: string): Promise<void> {
     return this.pedir(this.http.delete<void>(`${rutaItems(planId, escenarioId)}/${encodeURIComponent(itemId)}`));
+  }
+
+  crearIngresoPlan(planId: string, escenarioId: string, linea: IngresoPlanRequest): Promise<IngresoPlanApi> {
+    return this.pedir(this.http.post<IngresoPlanApi>(rutaIngresos(planId, escenarioId), linea));
+  }
+
+  editarIngresoPlan(planId: string, escenarioId: string, lineaId: string, linea: IngresoPlanRequest): Promise<IngresoPlanApi> {
+    return this.pedir(this.http.put<IngresoPlanApi>(`${rutaIngresos(planId, escenarioId)}/${encodeURIComponent(lineaId)}`, linea));
+  }
+
+  quitarIngresoPlan(planId: string, escenarioId: string, lineaId: string): Promise<void> {
+    return this.pedir(this.http.delete<void>(`${rutaIngresos(planId, escenarioId)}/${encodeURIComponent(lineaId)}`));
   }
 
   pagar(datos: { itemId: string; monto: number; usuarioId: string; origen: OrigenRequest }): Promise<MovimientoApi> {
@@ -475,4 +507,8 @@ function rutaItems(planId: string, escenarioId: string): string {
 
 export function usuarioDe(u: UsuarioApi): Usuario {
   return { id: u.id, nombre: u.nombre, email: u.email, inicial: u.inicial };
+}
+
+function rutaIngresos(planId: string, escenarioId: string): string {
+  return `/api/planes/${encodeURIComponent(planId)}/escenarios/${encodeURIComponent(escenarioId)}/ingresos`;
 }

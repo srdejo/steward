@@ -6,7 +6,7 @@ Tiene dos **modos de datos** (`src/app/config/modo.ts`):
 
 | Modo | Build | Qué viene del backend | Qué sigue con datos de prueba |
 |---|---|---|---|
-| **conectado** | `production` (lo que publica `local-deploy.ps1`) y `conectado` | sesión (Google), hogar, miembros, invitaciones, categorías, ingresos fijos, regla de diezmo, "Diezmo en Hoy", las cuentas con su cuadre y "Mover dinero", los créditos, el plan de cada mes con sus opciones (duplicar, quitar, probar un abono, Comparar y Usar, mientras el mes está en Borrador) y todo lo registrado ("Recibí", "Entregado", pagos, gastos, aportes, ajustes de cuadre, transferencias y abonos) los cierres de mes (un mes cerrado queda en solo lectura y su sobrante pasa al siguiente), y el plan anual con sus aportes proyectados | nada: sin aviso "Datos de prueba" ni "Restablecer" |
+| **conectado** | `production` (lo que publica `local-deploy.ps1`) y `conectado` | sesión (Google), hogar, miembros, invitaciones, categorías (con la del sistema Diezmo), ingresos fijos, regla de diezmo, las cuentas con su cuadre y "Mover dinero", los créditos, el plan de cada mes con sus opciones (duplicar, quitar, probar un abono, Comparar y Usar, mientras el mes está en Borrador), las líneas de ingreso de cada opción (editar y "+ Ingreso"), los ítems de diezmo, y todo lo registrado ("Recibí" con el monto que llegó, pagos, gastos, aportes, ajustes de cuadre, transferencias y abonos; las entregas de diezmo de antes, como historia) los cierres de mes (un mes cerrado queda en solo lectura y su sobrante pasa al siguiente), y el plan anual con sus aportes proyectados | nada: sin aviso "Datos de prueba" ni "Restablecer" |
 | **demo** | `demo` y `development` (`npm start`) | nada | todo |
 
 **Al pasar a la Etapa 4, el plan de prueba desaparece en modo conectado.** Hoy y Planear muestran solo los planes reales. Un hogar que todavía no tiene el plan del mes en curso (por ejemplo, "Jimenez Navarro" en `steward.test`) ve en Hoy "Este mes no tiene plan" y lo crea desde Planear, con "Empezar desde cero" o "Solo fijos e ingresos". Desde la Etapa 8 tampoco hay plan anual de prueba: un año sin anual muestra "Crear plan anual {año}", que lo crea vacío.
@@ -48,7 +48,7 @@ Las reglas de negocio no están aquí: viven en `../packages/domain` (`@steward/
 Las pantallas solo hablan con `PUERTOS` (`Puertos` de `@steward/domain`), así que no cambian. En modo conectado, `PuertosConectados` (`core/datos/http/puertos-conectados.ts`) decide qué puerto va por HTTP y cuál sigue con el adaptador de prueba.
 
 **Datos mezclados.** Las vistas (Hoy, Planear, Cuentas, el Cierre) se calculan con las reglas del dominio sobre un solo `EstadoHogar`. Por eso lo real no se compone pantalla por pantalla, sino que se **superpone** al estado de prueba en cada lectura:
-- `GET /api/finanzas` trae ingresos, reglas, cuentas, créditos, "Diezmo en Hoy", los planes y los movimientos reales;
+- `GET /api/finanzas` trae ingresos, reglas, cuentas, créditos, los planes (con sus líneas de ingreso y sus ítems de diezmo) y los movimientos reales;
 - `superposicion.ts` los pone en lugar de los de prueba, con los ids reales y el orden real de registro (`seq`): así el saldo estimado de cada cuenta (último cuadre más lo registrado después) es el mismo que usa el backend al cuadrar;
 - el adaptador de prueba los ve al leer y nunca los guarda.
 

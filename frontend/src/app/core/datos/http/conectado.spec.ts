@@ -4,7 +4,7 @@ import { ReglaError, type Puertos } from '@steward/domain';
 
 import { GoogleDePrueba, USUARIO, finanzasPrueba, finanzasVacias, hogarApi, http, provideConectadoPrueba, responder } from '../../../../testing/conectado';
 import { CLAVE_ESTADO } from '@steward/domain/demo';
-import type { CreditoApi, FinanzasApi, MovimientoApi, PlanApi } from './api';
+import type { CreditoApi, FinanzasApi, IngresoPlanApi, ItemPlanApi, MovimientoApi, PlanApi } from './api';
 import { provideAppPrueba } from '../../../../testing/demo';
 import { app } from '../../../../testing/harness';
 import { PUERTOS, puertosConectados } from '../puertos';
@@ -58,7 +58,6 @@ describe('adaptador HTTP (contrato del backend)', () => {
     expect(v.hogar.nombre).toBe('Nuestra casa');
     expect(v.miembros[0]).toMatchObject({ usuario: { nombre: 'Ana María', inicial: 'A' }, esActual: true });
     expect(v.invitaciones[0]).toMatchObject({ email: 'esposa@ejemplo.com', estado: 'PENDIENTE', expiraEn: '2026-11-02', token: '' });
-    expect(v.hogar.diezmoEnHoy).toBe('SEPARADO');
   });
 
   it('nombrar crea el hogar si todavía no existe', async () => {
@@ -285,7 +284,7 @@ const REGLA = { usuarioId: USUARIO.id, activa: true, porcentaje: 10, base: 'BRUT
 const RECIBIDO: MovimientoApi = {
   id: 'mov-1', tipo: 'INGRESO_FIJO', ref: OCT, monto: 6_288_000, fecha: '2026-10-26', usuarioId: USUARIO.id, creadoPor: USUARIO.id,
   cuentaId: null, ingresoFijoId: 'ing-1', bruto: 7_000_000, aplicaDiezmo: true, diezmoDe: [], itemId: null, nota: '', origen: 'NINGUNO',
-  cuentaDestinoId: null, creditoId: null, seq: 1,
+  cuentaDestinoId: null, creditoId: null, ingresoPlanId: null, seq: 1,
 };
 
 function finanzas(extra: Partial<FinanzasApi> = {}): FinanzasApi {
@@ -316,26 +315,46 @@ describe('finanzas en el backend (steward-finanzas, design D5)', () => {
     expect(localStorage.getItem(CLAVE_ESTADO) ?? '').not.toContain('Salario Ana');
   });
 
-  it('Recibí genera el diezmo y Entregado lo cierra, en el backend', async () => {
-    const recibir = p.ingresos.marcarRecibido('ing-1', OCT);
-    finanzasPrueba.valor = finanzas({ movimientos: [RECIBIDO] });
-    await responder('POST', '/api/ingresos-fijos/ing-1/recibido', RECIBIDO, tick, 201);
-    await recibir;
-    const pendientes = (await p.movimientos.resumenMes(OCT)).diezmo.pendientes;
-    expect(pendientes).toEqual([expect.objectContaining({ id: 'mov-1', monto: 700_000, detalle: '10% de Salario Ana · recibido 26 oct' })]);
+  it('Recibí una línea del plan con otro monto, en el backend, sin obligación de diezmo (diezmo-como-gasto)', async () => {
+    const plan: PlanApi = { ...PLAN_OCT, escenarios: [{ ...PLAN_OCT.escenarios[0]!, ingresos: [LINEA_SALARIO], items: [...PLAN_OCT.escenarios[0]!.items, DIEZMO_SALARIO] }] };
+    finanzasPrueba.valor = finanzas({ planes: [plan] });
+    const relee = p.cuentas.agregar({ nombre: 'Otra', titularId: null, saldo: 0 });
+    await responder('POST', '/api/cuentas', { id: 'cta-x' }, tick, 201);
+    await relee;
+    const antes = await p.movimientos.resumenMes(OCT);
+    expect(antes.ingresos.find((l) => l.lineaId === 'lin-1')).toMatchObject({ nombre: 'Salario Ana', monto: 6_288_000, recibido: false });
+    expect(antes.porPagar.map((i) => i.item.nombre)).toContain('Diezmo · Salario Ana');
 
-    const entregar = p.ingresos.entregarDiezmo(['mov-1'], OCT, null);
-    const entrega: MovimientoApi = { ...RECIBIDO, id: 'mov-2', tipo: 'DIEZMO_ENTREGADO', monto: 700_000, ingresoFijoId: null, bruto: null, aplicaDiezmo: false, diezmoDe: ['mov-1'] };
-    finanzasPrueba.valor = finanzas({ movimientos: [RECIBIDO, entrega] });
-    const req = await responder('POST', '/api/diezmo/entregas', entrega, tick, 201);
-    await entregar;
-    expect(req.request.body).toEqual({ obligaciones: ['mov-1'], cuentaId: null });
-    expect((await p.movimientos.resumenMes(OCT)).diezmo.pendientes).toHaveLength(0);
+    const recibir = p.ingresos.marcarRecibido({ ref: OCT, lineaId: 'lin-1', monto: 6_350_000 });
+    const recibido: MovimientoApi = { ...RECIBIDO, monto: 6_350_000, ingresoPlanId: 'lin-1', aplicaDiezmo: false };
+    finanzasPrueba.valor = finanzas({ planes: [plan], movimientos: [recibido] });
+    const req = await responder('POST', '/api/planes/plan-oct/escenarios/esc-a/ingresos/lin-1/recibido', recibido, tick, 201);
+    await recibir;
+    expect(req.request.body).toEqual({ monto: 6_350_000 });
+    const r = await p.movimientos.resumenMes(OCT);
+    expect(r.ingresos.find((l) => l.lineaId === 'lin-1')).toMatchObject({ monto: 6_350_000, recibido: true });
+    expect(r.libre).toBe(antes.libre + 62_000);
+    // El diezmo sigue como item por pagar: no hay tarjeta ni obligacion.
+    expect(r.porPagar.find((i) => i.item.nombre === 'Diezmo · Salario Ana')?.plan).toBe(700_000);
+  });
+
+  it('líneas de ingreso de una opción: agregar, editar y quitar en el backend (diezmo-como-gasto)', async () => {
+    const agregar = p.plan.guardarIngreso('plan-oct', 'esc-a', { nombre: 'Venta bicicleta', monto: 400_000, usuarioId: null, tipo: 'OTRO', ingresoFijoId: null });
+    const r1 = await responder('POST', '/api/planes/plan-oct/escenarios/esc-a/ingresos', { id: 'lin-2', nombre: 'Venta bicicleta', monto: 400_000, usuarioId: null, tipo: 'OTRO', ingresoFijoId: null }, tick, 201);
+    await agregar;
+    expect(r1.request.body).toEqual({ nombre: 'Venta bicicleta', monto: 400_000, usuarioId: null });
+    const editar = p.plan.guardarIngreso('plan-oct', 'esc-a', { ...LINEA_SALARIO, monto: 7_000_000 });
+    const r2 = await responder('PUT', '/api/planes/plan-oct/escenarios/esc-a/ingresos/lin-1', { ...LINEA_SALARIO, monto: 7_000_000 }, tick);
+    await editar;
+    expect(r2.request.body).toEqual({ nombre: 'Salario Ana', monto: 7_000_000, usuarioId: USUARIO.id });
+    const quitar = p.plan.quitarIngreso('plan-oct', 'esc-a', 'lin-2');
+    await responder('DELETE', '/api/planes/plan-oct/escenarios/esc-a/ingresos/lin-2', null, tick, 204);
+    await quitar;
   });
 
   it('YA_RECIBIDO: llega el mensaje y el ingreso queda como recibido', async () => {
     // Se captura ya: el rechazo llega antes de que el test lo espere.
-    const recibir = p.ingresos.marcarRecibido('ing-1', OCT).catch((e: unknown) => e);
+    const recibir = p.ingresos.marcarRecibido({ ref: OCT, ingresoFijoId: 'ing-1' }).catch((e: unknown) => e);
     finanzasPrueba.valor = finanzas({ movimientos: [RECIBIDO] });
     await responder('POST', '/api/ingresos-fijos/ing-1/recibido', { codigo: 'YA_RECIBIDO', mensaje: 'Ese ingreso ya se marcó como recibido este mes' }, tick, 409);
     expect(await recibir).toMatchObject({ codigo: 'YA_RECIBIDO' });
@@ -436,7 +455,7 @@ describe('finanzas en el backend (steward-finanzas, design D5)', () => {
     expect((await p.ingresos.fijos()).map((f) => f.nombre)).toEqual(['Salario Ana']);
   });
 
-  it('los aportes y Diezmo en Hoy van al backend (Etapa 4)', async () => {
+  it('los aportes van al backend (Etapa 4)', async () => {
     const aportar = p.ingresos.registrarAporte({ usuarioId: USUARIO.id, monto: 500_000, ref: OCT, cuentaId: null, aplicaDiezmo: false });
     const aporte: MovimientoApi = { ...RECIBIDO, id: 'mov-a', tipo: 'APORTE', monto: 500_000, ingresoFijoId: null, bruto: null, aplicaDiezmo: false };
     finanzasPrueba.valor = finanzas({ movimientos: [aporte] });
@@ -445,12 +464,6 @@ describe('finanzas en el backend (steward-finanzas, design D5)', () => {
     expect(reqAporte.request.body).toEqual({ usuarioId: USUARIO.id, monto: 500_000, mes: OCT, cuentaId: null, aplicaDiezmo: false });
     const r = await p.movimientos.resumenMes(OCT);
     expect(r.ingresos.find((l) => l.tipo === 'APORTES' && l.usuarioId === USUARIO.id)?.monto).toBe(500_000);
-
-    const agrupar = p.hogar.definirDiezmoEnHoy('AGRUPADO');
-    finanzasPrueba.valor = finanzas({ diezmoEnHoy: 'AGRUPADO' });
-    const req = await responder('PUT', '/api/hogar/diezmo-en-hoy', null, tick, 204);
-    await agrupar;
-    expect(req.request.body).toEqual({ modo: 'AGRUPADO' });
   });
 });
 
@@ -459,12 +472,19 @@ describe('finanzas en el backend (steward-finanzas, design D5)', () => {
 const PLAN_OCT: PlanApi = {
   id: 'plan-oct', ref: OCT, estado: 'ACTIVO', escenarioActivoId: 'esc-a',
   escenarios: [{
-    id: 'esc-a', letra: 'A', creadoPor: USUARIO.id, nota: '', archivado: false,
+    id: 'esc-a', letra: 'A', creadoPor: USUARIO.id, nota: '', archivado: false, ingresos: [],
     items: [
-      { id: 'it-internet', categoriaId: 'cat-1', nombre: 'Internet', monto: 120_000, diaVence: 28, tipo: 'FIJO', cuota: null, creditoId: null },
-      { id: 'it-mercado', categoriaId: 'cat-3', nombre: 'Mercado', monto: 320_000, diaVence: null, tipo: 'VARIABLE', cuota: null, creditoId: null },
+      { id: 'it-internet', categoriaId: 'cat-1', nombre: 'Internet', monto: 120_000, diaVence: 28, tipo: 'FIJO', cuota: null, creditoId: null, ingresoFijoId: null, aporteId: null },
+      { id: 'it-mercado', categoriaId: 'cat-3', nombre: 'Mercado', monto: 320_000, diaVence: null, tipo: 'VARIABLE', cuota: null, creditoId: null, ingresoFijoId: null, aporteId: null },
     ],
   }],
+};
+
+/** La linea del salario y su diezmo, como nacen con el mes (design D2 y D8 de diezmo-como-gasto). */
+const LINEA_SALARIO: IngresoPlanApi = { id: 'lin-1', nombre: 'Salario Ana', monto: 6_288_000, usuarioId: USUARIO.id, tipo: 'FIJO', ingresoFijoId: 'ing-1' };
+const DIEZMO_SALARIO: ItemPlanApi = {
+  id: 'it-diezmo', categoriaId: 'cat-0', nombre: 'Diezmo · Salario Ana', monto: 700_000, diaVence: 25, tipo: 'DIEZMO', cuota: null, creditoId: null,
+  ingresoFijoId: 'ing-1', aporteId: null,
 };
 
 const CREDITO: CreditoApi = {
@@ -492,9 +512,9 @@ describe('plan del mes y registros en el backend (steward-plan-mes, design D5)',
   it('el plan real reemplaza al de prueba y lo registrado de prueba no se ve', async () => {
     const r = await p.movimientos.resumenMes(OCT);
     expect([...r.porPagar, ...r.yaPagado].map((i) => i.item.nombre).sort()).toEqual(['Internet', 'Mercado']);
-    expect(r.plan).toBe(440_000 + 700_000); // los items + el diezmo calculado del salario
+    expect(r.plan).toBe(440_000); // solo los items: el diezmo es un item mas (diezmo-como-gasto)
     expect(r.noPlaneados).toHaveLength(0);
-    expect((await p.hogar.categorias()).map((c) => c.nombre)).toEqual(['Gastos fijos', 'Tarjetas y cuotas', 'Variables', 'Créditos']);
+    expect((await p.hogar.categorias()).map((c) => c.nombre)).toEqual(['Diezmo', 'Gastos fijos', 'Tarjetas y cuotas', 'Variables', 'Créditos']);
     expect(await p.cierre.vista(OCT)).toMatchObject({ cerrado: false });
   });
 
@@ -551,7 +571,7 @@ describe('plan del mes y registros en el backend (steward-plan-mes, design D5)',
     await crear;
     expect(r1.request.body).toEqual({ anio: 2026, mes: 11, modo: 'COPIAR' });
 
-    const item = { categoriaId: 'cat-1', nombre: 'Luz', monto: 50_000, diaVence: 10, tipo: 'FIJO' as const, cuota: null, creditoId: null };
+    const item = { categoriaId: 'cat-1', nombre: 'Luz', monto: 50_000, diaVence: 10, tipo: 'FIJO' as const, cuota: null, creditoId: null, ingresoFijoId: null, aporteId: null };
     const agregar = p.plan.guardarItem('plan-oct', 'esc-a', item);
     const r2 = await responder('POST', '/api/planes/plan-oct/escenarios/esc-a/items', { ...item, id: 'it-luz' }, tick, 201);
     await agregar;
@@ -657,12 +677,16 @@ describe('plan del mes y registros en el backend (steward-plan-mes, design D5)',
     expect(await p.plan.loQueTrae({ anio: 2026, mes: 11 })).toContainEqual(expect.objectContaining({ nombre: 'Sobrante de octubre', monto: 1_166_000 }));
   });
 
-  it('el diezmo de un aporte se entrega en el backend, junto con el del salario', async () => {
-    // Ya no hay obligaciones de prueba: todas van al backend en una sola entrega.
-    const entregar = p.ingresos.entregarDiezmo(['mov-1', 'mov-a'], OCT, null);
-    const req = await responder('POST', '/api/diezmo/entregas', registro({ tipo: 'DIEZMO_ENTREGADO' }), tick, 201);
-    await entregar;
-    expect(req.request.body).toEqual({ obligaciones: ['mov-1', 'mov-a'], cuentaId: null });
+  it('un aporte con diezmo: su ítem llega en el plan leído (diezmo-como-gasto)', async () => {
+    const aportar = p.ingresos.registrarAporte({ usuarioId: USUARIO.id, monto: 2_000_000, ref: OCT, cuentaId: null, aplicaDiezmo: true });
+    const aporte = registro({ id: 'mov-a', tipo: 'APORTE', monto: 2_000_000, aplicaDiezmo: true });
+    const item: ItemPlanApi = { ...DIEZMO_SALARIO, id: 'it-aporte', nombre: 'Diezmo · aporte 26 oct', monto: 200_000, diaVence: null, ingresoFijoId: null, aporteId: 'mov-a' };
+    finanzasPrueba.valor = finanzas({ planes: [{ ...PLAN_OCT, escenarios: [{ ...PLAN_OCT.escenarios[0]!, items: [...PLAN_OCT.escenarios[0]!.items, item] }] }], movimientos: [aporte] });
+    const req = await responder('POST', '/api/aportes', aporte, tick, 201);
+    await aportar;
+    expect(req.request.body).toMatchObject({ aplicaDiezmo: true });
+    const r = await p.movimientos.resumenMes(OCT);
+    expect(r.porPagar.find((i) => i.item.aporteId === 'mov-a')).toMatchObject({ plan: 200_000, item: { tipo: 'DIEZMO', nombre: 'Diezmo · aporte 26 oct' } });
   });
 });
 
@@ -726,34 +750,35 @@ describe('pantallas con finanzas reales (backend-ingresos-diezmo)', () => {
     expect(a.url()).toBe('/onboarding/5');
   });
 
-  it('Hoy: Recibí muestra el diezmo real y Entregado lo quita', async () => {
+  it('Hoy: Recibí abre el monto, lo registra en el backend y no aparece tarjeta de diezmo', async () => {
     finanzasPrueba.valor = finanzas();
     const a = await entrarA('/hoy');
     expect(a.texto()).toContain('Salario Ana');
     a.porTexto('Recibí').click();
-    finanzasPrueba.valor = finanzas({ movimientos: [RECIBIDO] });
-    await responder('POST', '/api/ingresos-fijos/ing-1/recibido', RECIBIDO, a.estable, 201);
     await atenderHogar(a);
-    const tarjeta = a.raiz().querySelector('[data-testid="tarjeta-diezmo"]');
-    expect(tarjeta?.textContent).toContain('$700.000');
-    expect(tarjeta?.textContent).toContain('10% de Salario Ana');
-
-    a.porTexto('Entregado').click();
-    const entrega: MovimientoApi = { ...RECIBIDO, id: 'mov-2', tipo: 'DIEZMO_ENTREGADO', monto: 700_000, ingresoFijoId: null, bruto: null, aplicaDiezmo: false, diezmoDe: ['mov-1'] };
-    finanzasPrueba.valor = finanzas({ movimientos: [RECIBIDO, entrega] });
-    await responder('POST', '/api/diezmo/entregas', entrega, a.estable, 201);
+    await a.escribir('Valor recibido', '6350000');
+    a.porTexto('Marcar recibido').click();
+    finanzasPrueba.valor = finanzas({ movimientos: [{ ...RECIBIDO, monto: 6_350_000 }] });
+    const req = await responder('POST', '/api/ingresos-fijos/ing-1/recibido', { ...RECIBIDO, monto: 6_350_000 }, a.estable, 201);
+    expect(req.request.body).toEqual({ monto: 6_350_000 });
     await atenderHogar(a);
-    expect([...a.raiz().querySelectorAll('[data-testid="tarjeta-diezmo"]')].some((t) => t.textContent?.includes('Salario Ana'))).toBe(false);
+    expect(a.url()).toBe('/hoy');
+    expect(a.texto()).toContain('Fijo · recibido 26 oct');
+    expect(a.texto()).not.toContain('Disponible para diezmar');
   });
 
   it('Hoy: si ya estaba recibido, muestra el mensaje y el ingreso queda recibido', async () => {
     finanzasPrueba.valor = finanzas();
     const a = await entrarA('/hoy');
     a.porTexto('Recibí').click();
+    await atenderHogar(a);
+    a.porTexto('Marcar recibido').click();
     finanzasPrueba.valor = finanzas({ movimientos: [RECIBIDO] });
     await responder('POST', '/api/ingresos-fijos/ing-1/recibido', { codigo: 'YA_RECIBIDO', mensaje: 'Ese ingreso ya se marcó como recibido este mes' }, a.estable, 409);
     await atenderHogar(a);
     expect(a.texto()).toContain('Ese ingreso ya se marcó como recibido este mes');
+    await a.ir('/hoy');
+    await atenderHogar(a);
     expect(a.texto()).toContain('Fijo · recibido 26 oct');
   });
 
@@ -906,7 +931,7 @@ describe('pantallas con el plan real (backend-plan-mes-hoy)', () => {
     await atenderHogar(a);
     await a.escribir('Abono', '2000000');
     a.porTexto(/Probarlo como opción de noviembre/).click();
-    const abono = { id: 'it-abono', categoriaId: 'cat-4', nombre: 'Abono extra libre inversión', monto: 2_000_000, diaVence: 15, tipo: 'CREDITO' as const, cuota: null, creditoId: 'cred-1' };
+    const abono = { id: 'it-abono', categoriaId: 'cat-4', nombre: 'Abono extra libre inversión', monto: 2_000_000, diaVence: 15, tipo: 'CREDITO' as const, cuota: null, creditoId: 'cred-1', ingresoFijoId: null, aporteId: null };
     finanzasPrueba.valor = finanzas({ planes: [PLAN_OCT, nov([a0, copia('nov-b', 'B'), copia('nov-c', 'C', [abono])])], creditos: [CREDITO] });
     const pr = await responder('POST', '/api/creditos/cred-1/probar', { planId: 'plan-nov', escenarioId: 'nov-c' }, a.estable, 201);
     expect(pr.request.body).toEqual({ anio: 2026, mes: 11, abono: 2_000_000 });
@@ -938,7 +963,7 @@ describe('pantallas con el plan real (backend-plan-mes-hoy)', () => {
 
   it('recorrido de la Etapa 5: crédito con su cuota, pagarla, abonar y cuadrar (backend-cuentas-creditos)', async () => {
     const DAVIVIENDA = { id: 'cta-d', nombre: 'Davivienda', titularId: USUARIO.id, saldoCuadre: 4_000_000, fechaCuadre: '2026-10-01', cuadrada: false, seqCuadre: 0 };
-    const CUOTA = { id: 'it-cuota', categoriaId: 'cat-4', nombre: 'Cuota libre inversión', monto: 500_000, diaVence: 15, tipo: 'CREDITO' as const, cuota: null, creditoId: 'cred-1' };
+    const CUOTA = { id: 'it-cuota', categoriaId: 'cat-4', nombre: 'Cuota libre inversión', monto: 500_000, diaVence: 15, tipo: 'CREDITO' as const, cuota: null, creditoId: 'cred-1', ingresoFijoId: null, aporteId: null };
     const conCuota: PlanApi = { ...PLAN_OCT, escenarios: [{ ...PLAN_OCT.escenarios[0]!, items: [...PLAN_OCT.escenarios[0]!.items, CUOTA] }] };
     finanzasPrueba.valor = finanzas({ planes: [PLAN_OCT], cuentas: [DAVIVIENDA] });
     const a = await entrarA('/cuentas');
@@ -1087,10 +1112,12 @@ describe('pantallas con el plan real (backend-plan-mes-hoy)', () => {
   });
 
   it('criterio de cierre: pago bajo el plan, aporte y gasto no planeado cuadran en Hoy', async () => {
-    finanzasPrueba.valor = finanzas({ planes: [PLAN_OCT] });
+    // Un plan del backend nace con su linea de ingreso y su diezmo (diezmo-como-gasto).
+    const OCT_CON_LINEA: PlanApi = { ...PLAN_OCT, escenarios: [{ ...PLAN_OCT.escenarios[0]!, ingresos: [LINEA_SALARIO], items: [...PLAN_OCT.escenarios[0]!.items, DIEZMO_SALARIO] }] };
+    finanzasPrueba.valor = finanzas({ planes: [OCT_CON_LINEA] });
     const a = await entrarA('/hoy');
     const libre = () => a.raiz().querySelector('[data-testid="libre"]')!.textContent!.trim();
-    // Ingresos $6.288.000 (salario por recibir); comprometido: Internet $120.000 + Mercado $320.000 + diezmo $700.000.
+    // Ingresos $6.288.000 (salario por recibir); comprometido: Internet $120.000 + Mercado $320.000 + el item de diezmo $700.000.
     expect(libre()).toBe('$5.148.000');
 
     // Daniel paga Internet por $100.000 (plan $120.000) desde la hoja de pago.
@@ -1099,7 +1126,7 @@ describe('pantallas con el plan real (backend-plan-mes-hoy)', () => {
     await a.escribir('Valor pagado', '100000');
     a.porTexto('Marcar pagado').click();
     const pago = registro({ id: 'mov-p', tipo: 'PAGO', monto: 100_000, itemId: 'it-internet', origen: 'NINGUNO' });
-    finanzasPrueba.valor = finanzas({ planes: [PLAN_OCT], movimientos: [pago] });
+    finanzasPrueba.valor = finanzas({ planes: [OCT_CON_LINEA], movimientos: [pago] });
     await responder('POST', '/api/pagos', pago, a.estable, 201);
     await atenderHogar(a);
 
@@ -1107,12 +1134,12 @@ describe('pantallas con el plan real (backend-plan-mes-hoy)', () => {
     const p = TestBed.inject(PUERTOS);
     const aporte = registro({ id: 'mov-a', tipo: 'APORTE', monto: 500_000 });
     const aportar = p.ingresos.registrarAporte({ usuarioId: USUARIO.id, monto: 500_000, ref: OCT, cuentaId: null, aplicaDiezmo: false });
-    finanzasPrueba.valor = finanzas({ planes: [PLAN_OCT], movimientos: [pago, aporte] });
+    finanzasPrueba.valor = finanzas({ planes: [OCT_CON_LINEA], movimientos: [pago, aporte] });
     await responder('POST', '/api/aportes', aporte, a.estable, 201);
     await aportar;
     const gasto = registro({ id: 'mov-g', tipo: 'GASTO', monto: 85_000, nota: 'Farmacia' });
     const gastar = p.movimientos.registrarGasto({ monto: 85_000, itemId: null, nota: 'Farmacia', usuarioId: USUARIO.id, origen: { tipo: 'NINGUNO' }, ref: OCT });
-    finanzasPrueba.valor = finanzas({ planes: [PLAN_OCT], movimientos: [pago, aporte, gasto] });
+    finanzasPrueba.valor = finanzas({ planes: [OCT_CON_LINEA], movimientos: [pago, aporte, gasto] });
     await responder('POST', '/api/gastos', gasto, a.estable, 201);
     await gastar;
 

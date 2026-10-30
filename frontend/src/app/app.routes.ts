@@ -23,6 +23,7 @@ export const routes: Routes = [
         children: [
           { path: 'aporte', loadComponent: () => import('./features/hoy/aporte-hoja').then((m) => m.AporteHoja) },
           { path: 'pagar/:itemId', loadComponent: () => import('./features/hoy/pagar-hoja').then((m) => m.PagarHoja) },
+          { path: 'recibir/:clave', loadComponent: () => import('./features/hoy/recibir-hoja').then((m) => m.RecibirHoja) },
           { path: 'gasto', loadComponent: () => import('./features/hoy/gasto-hoja').then((m) => m.GastoHoja) },
         ],
       },

@@ -34,8 +34,9 @@ export class GoogleDePrueba implements GoogleAccountsId {
   }
 }
 
-/** Las cuatro del sistema, como las crea el backend con cada hogar. */
+/** Las cinco del sistema, como las crea el backend con cada hogar. */
 export const CATEGORIAS_SISTEMA: CategoriaApi[] = [
+  { id: 'cat-0', nombre: 'Diezmo', color: '#0F766E', orden: 0, tipo: 'DIEZMO', sistema: true },
   { id: 'cat-1', nombre: 'Gastos fijos', color: '#E2551B', orden: 1, tipo: 'FIJO', sistema: true },
   { id: 'cat-2', nombre: 'Tarjetas y cuotas', color: '#7C4DDB', orden: 2, tipo: 'TARJETA', sistema: true },
   { id: 'cat-3', nombre: 'Variables', color: '#8D8F88', orden: 3, tipo: 'VARIABLE', sistema: true },
@@ -44,7 +45,7 @@ export const CATEGORIAS_SISTEMA: CategoriaApi[] = [
 
 /** Finanzas sin plan ni registros, del mes de AHORA (octubre 2026). */
 export function finanzasVacias(): FinanzasApi {
-  return { mes: { anio: 2026, mes: 10 }, diezmoEnHoy: 'SEPARADO', categorias: CATEGORIAS_SISTEMA.map((c) => ({ ...c })), ingresosFijos: [], reglas: [], cuentas: [], planes: [], movimientos: [], creditos: [], cierres: [], anuales: [], proyecciones: [] };
+  return { mes: { anio: 2026, mes: 10 }, categorias: CATEGORIAS_SISTEMA.map((c) => ({ ...c })), ingresosFijos: [], reglas: [], cuentas: [], planes: [], movimientos: [], creditos: [], cierres: [], anuales: [], proyecciones: [] };
 }
 
 /**

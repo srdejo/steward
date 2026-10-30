@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
-import { formatFechaCorta, formatPorcentaje, type BaseDiezmo, type Categoria, type DiezmoEnHoy, type IngresoFijo } from '@steward/domain';
+import { formatFechaCorta, formatPorcentaje, type BaseDiezmo, type Categoria, type IngresoFijo } from '@steward/domain';
 
 import { consulta, mensajeDeError } from '../../core/datos/consulta';
 import { PUERTOS, puertosConectados } from '../../core/datos/puertos';
@@ -78,17 +78,8 @@ const CONFIRMACIONES = {
           <span class="flex flex-col gap-0.5"><span class="text-[15px]">Aportes variables</span><span class="text-xs text-diezmo">Contratos, negocio · {{ textoDiezmoAportes() }}</span></span>
           <span class="text-[13px] text-secundario">Editar ›</span>
         </button>
-        <div class="flex items-center justify-between gap-3 py-3">
-          <span class="flex flex-col gap-0.5"><span class="text-[15px]" id="diezmo-en-hoy">Diezmo en Hoy</span><span class="text-xs text-secundario">{{ diezmoEnHoy() === 'AGRUPADO' ? 'Uno solo con la suma' : 'Uno por cada ingreso recibido' }}</span></span>
-          <div class="grid grid-cols-2 gap-1 rounded-control bg-[#F1F0EB] p-[3px]" role="radiogroup" aria-labelledby="diezmo-en-hoy">
-            @for (o of modosDiezmo; track o.valor) {
-              <button type="button" role="radio" [attr.aria-checked]="diezmoEnHoy() === o.valor" (click)="definirDiezmoEnHoy(o.valor)"
-                class="tocable h-8 rounded-lg px-2.5 text-xs" [class]="diezmoEnHoy() === o.valor ? 'bg-superficie font-semibold' : 'font-medium text-secundario'">{{ o.etiqueta }}</button>
-            }
-          </div>
-        </div>
       </div>
-      <p class="text-xs text-secundario">Cada persona configura su propio diezmo.</p>
+      <p class="text-xs text-secundario" data-testid="nota-regla">Cada persona configura su propio diezmo. La regla sugiere el monto de los ítems de diezmo de cada mes nuevo; cambiarla no cambia los meses ya creados.</p>
     </section>
 
     <section class="flex flex-col gap-2" aria-labelledby="ajustes-categorias">
@@ -101,7 +92,12 @@ const CONFIRMACIONES = {
           <div class="flex items-center gap-2.5 py-3" data-testid="categoria">
             <span class="h-2.5 w-2.5 rounded-[3px]" [style.background]="c.color" aria-hidden="true"></span>
             <span class="grow text-[15px]">{{ c.nombre }}</span>
-            <button type="button" class="boton-texto font-normal text-secundario" [attr.aria-label]="'Editar ' + c.nombre" (click)="abrir({ tipo: 'categoria', categoria: c })">Editar</button>
+            <!-- Diezmo es la categoria del sistema y no se renombra (diezmo-como-gasto). -->
+            @if (c.tipo === 'DIEZMO') {
+              <span class="text-xs text-secundario">Del sistema</span>
+            } @else {
+              <button type="button" class="boton-texto font-normal text-secundario" [attr.aria-label]="'Editar ' + c.nombre" (click)="abrir({ tipo: 'categoria', categoria: c })">Editar</button>
+            }
           </div>
         }
       </div>
@@ -166,7 +162,7 @@ const CONFIRMACIONES = {
         }
         @case ('aportes') {
           <app-hoja titulo="Mi diezmo" (cerrar)="cerrar()">
-            <app-interruptor titulo="Diezmar de mis ingresos" detalle="Se calcula solo al recibir cada ingreso" [(activo)]="reglaActiva" />
+            <app-interruptor titulo="Diezmar de mis ingresos" detalle="Sugiere el diezmo de cada ingreso al crear el mes" [(activo)]="reglaActiva" />
             @if (reglaActiva()) {
               <label class="flex items-center justify-between gap-3">
                 <span class="text-sm font-medium">Porcentaje</span>
@@ -222,7 +218,6 @@ export class AjustesPage {
   protected readonly preferencias = this.sesion.preferencias;
 
   protected readonly pendientes = computed(() => (this.hogar.value()?.invitaciones ?? []).filter((i) => i.estado === 'PENDIENTE'));
-  protected readonly diezmoEnHoy = computed<DiezmoEnHoy>(() => this.hogar.value()?.hogar.diezmoEnHoy ?? 'SEPARADO');
   protected readonly textoDiezmo = computed(() => {
     const r = this.regla.value();
     return r?.activa ? `diezmo ${formatPorcentaje(r.porcentaje)} del ${r.base === 'BRUTO' ? 'bruto' : 'neto'}` : 'sin diezmo';
@@ -232,10 +227,6 @@ export class AjustesPage {
     return r?.activa && r.aplicaAportes ? `diezmo ${formatPorcentaje(r.porcentaje)}` : 'sin diezmo';
   });
 
-  protected readonly modosDiezmo: Opcion<DiezmoEnHoy>[] = [
-    { valor: 'SEPARADO', etiqueta: 'Separado' },
-    { valor: 'AGRUPADO', etiqueta: 'Agrupado' },
-  ];
   protected readonly bases: Opcion<BaseDiezmo>[] = [
     { valor: 'BRUTO', etiqueta: 'Bruto' },
     { valor: 'NETO', etiqueta: 'Neto' },
@@ -280,10 +271,6 @@ export class AjustesPage {
 
   protected cerrar(): void {
     this.dialogo.set(null);
-  }
-
-  protected async definirDiezmoEnHoy(modo: DiezmoEnHoy): Promise<void> {
-    await this.puertos.hogar.definirDiezmoEnHoy(modo);
   }
 
   protected async preferir(cambios: { faceIdAlAbrir?: boolean; ocultarMontos?: boolean }): Promise<void> {

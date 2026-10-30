@@ -20,16 +20,14 @@ describe('Ajustes (steward-ajustes)', () => {
     expect(a.texto()).toContain('Salario Daniel Fijo · diezmo 10% del bruto $6.288.000 ›');
   });
 
-  it('Agrupado muestra una sola tarjeta de diezmo con la suma', async () => {
-    const p = await conSesion();
-    await p.ingresos.registrarAporte({ usuarioId: 'u-daniel', monto: 2_000_000, ref: OCT, cuentaId: null, aplicaDiezmo: true });
+  it('Diezmo aparece primero y sin Editar; la regla explica que sugiere el monto (diezmo-como-gasto)', async () => {
+    await conSesion();
     const a = await app('/ajustes');
-    await a.tocar('Agrupado');
-    await a.ir('/hoy');
-    const tarjetas = a.raiz().querySelectorAll('[data-testid="tarjeta-diezmo"]');
-    expect(tarjetas).toHaveLength(1);
-    expect(tarjetas[0]!.textContent).toContain('$900.000');
-    expect(tarjetas[0]!.textContent).toContain('2 ingresos recibidos');
+    const categorias = [...a.raiz().querySelectorAll('[data-testid="categoria"]')].map((c) => textoLegible(c));
+    expect(categorias[0]).toBe('Diezmo Del sistema');
+    expect(categorias.slice(1).every((c) => c.endsWith('Editar'))).toBe(true);
+    expect(a.texto()).not.toContain('Diezmo en Hoy');
+    expect(a.raiz().querySelector('[data-testid="nota-regla"]')!.textContent).toContain('cambiarla no cambia los meses ya creados');
   });
 
   it('+ Agregar ingreso fijo: lo crea y Hoy lo muestra por recibir', async () => {

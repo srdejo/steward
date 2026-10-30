@@ -1,4 +1,4 @@
-import type { Categoria, CierreMes, Credito, PlanAnual, Cuenta, EstadoHogar, IngresoFijo, ItemPlan, Movimiento, Origen, PlanMes, ReglaDiezmo } from '@steward/domain';
+import type { Categoria, CierreMes, Credito, PlanAnual, Cuenta, EstadoHogar, IngresoFijo, IngresoPlan, ItemPlan, Movimiento, Origen, PlanMes, ReglaDiezmo } from '@steward/domain';
 
 import {
   usuarioDe,
@@ -18,7 +18,7 @@ import {
  * Superpone las finanzas reales del backend al estado de prueba (design D5 de backend-ingresos-diezmo y de
  * backend-plan-mes-hoy, D2 y D7 de backend-cuentas-creditos), para que Hoy, Planear, Cuentas y el Cierre calculen con las
  * reglas del dominio:
- * - categorias, ingresos fijos, reglas, cuentas, creditos, "Diezmo en Hoy" y los planes son los reales;
+ * - categorias, ingresos fijos, reglas, cuentas, creditos y los planes (con sus lineas de ingreso) son los reales;
  * - lo registrado es solo lo real: todos los movimientos de prueba se quitan;
  * - los cierres son los reales (design D5 de backend-cierre-mes): un mes cerrado muestra su foto y el siguiente su sobrante;
  * - los miembros reales entran a `usuarios` con su id, que es el que usan las hojas de Hoy al registrar.
@@ -39,7 +39,7 @@ export function superponerFinanzas(estado: EstadoHogar, finanzas: FinanzasApi, m
     secuencia: base + ultimo,
     usuarios: [...estado.usuarios, ...miembros.filter((m) => !ids.has(m.id)).map(usuarioDe)],
     // Los miembros reales: el anual muestra una fila de aportes por cada uno.
-    hogar: { ...estado.hogar, diezmoEnHoy: finanzas.diezmoEnHoy, miembros: miembros.map((m) => ({ usuarioId: m.id, unidoEn: '' })) },
+    hogar: { ...estado.hogar, miembros: miembros.map((m) => ({ usuarioId: m.id, unidoEn: '' })) },
     categorias: finanzas.categorias.map(categoria),
     ingresosFijos: finanzas.ingresosFijos.map(ingresoFijo),
     reglas: finanzas.reglas.map(regla),
@@ -107,7 +107,11 @@ function plan(p: PlanApi): PlanMes {
       creadoPor: e.creadoPor,
       nota: e.nota,
       archivado: e.archivado,
-      items: e.items.map((i): ItemPlan => ({ id: i.id, categoriaId: i.categoriaId, nombre: i.nombre, monto: i.monto, diaVence: i.diaVence, tipo: i.tipo, cuota: i.cuota, creditoId: i.creditoId ?? null })),
+      ingresos: (e.ingresos ?? []).map((l): IngresoPlan => ({ id: l.id, nombre: l.nombre, monto: l.monto, usuarioId: l.usuarioId ?? null, tipo: l.tipo, ingresoFijoId: l.ingresoFijoId ?? null })),
+      items: e.items.map((i): ItemPlan => ({
+        id: i.id, categoriaId: i.categoriaId, nombre: i.nombre, monto: i.monto, diaVence: i.diaVence, tipo: i.tipo, cuota: i.cuota,
+        creditoId: i.creditoId ?? null, ingresoFijoId: i.ingresoFijoId ?? null, aporteId: i.aporteId ?? null,
+      })),
     })),
   };
 }
@@ -136,5 +140,6 @@ function movimiento(m: MovimientoApi, seq: number): Movimiento {
     diezmoDe: m.diezmoDe,
     cuentaDestinoId: m.cuentaDestinoId ?? null,
     creditoId: m.creditoId ?? null,
+    ingresoPlanId: m.ingresoPlanId ?? null,
   };
 }

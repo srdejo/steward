@@ -110,8 +110,8 @@ export class CompararPage {
     }
     const destacadas = new Map(c.filas.map((f) => [f.clave, f]));
     const todas = [...nombres.values()].map((f) => destacadas.get(f.clave) ?? f);
-    const diezmo: FilaComparacion = { clave: 'diezmo', nombre: 'Diezmo', nota: 'Calculado', valores: c.vistas.map((v) => v.diezmo.monto), cambia: false };
-    return [c.ingresos, ...todas, diezmo];
+    // El diezmo es una categoria mas (design D4 de diezmo-como-gasto).
+    return [c.ingresos, ...todas];
   });
 
   protected numero(v: Pesos): string {

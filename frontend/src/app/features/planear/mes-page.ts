@@ -2,26 +2,27 @@ import { ChangeDetectionStrategy, Component, computed, inject, input, signal } f
 import { NgTemplateOutlet } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import {
-  claveMes, formatCop, formatMesAnio, mesDe, nombreMesCapital, parseClaveMes, sumarMeses, type Id, type ItemPlan, type ModoNuevoMes, type VistaOpcion,
+  claveMes, formatCop, formatMesAnio, mesDe, nombreMesCapital, parseClaveMes, sumarMeses, type Id, type IngresoPlan, type ItemPlan, type LineaIngreso,
+  type ModoNuevoMes, type TipoItem, type VistaOpcion,
 } from '@steward/domain';
 
 import { consulta, mensajeDeError } from '../../core/datos/consulta';
 import { PUERTOS } from '../../core/datos/puertos';
 import { Encabezado } from '../../shared/components/encabezado';
 import { Hoja } from '../../shared/components/hoja';
-import { Icono } from '../../shared/components/icono';
 import { Kpi } from '../../shared/components/kpi';
 import { Monto } from '../../shared/components/monto';
 import { MontoInput } from '../../shared/components/monto-input';
 
 /**
  * Un mes en Planear. Sin plan: MesVacio.dc.html (tres formas de empezar y lo que ya trae).
- * Borrador: Planear.dc.html (opciones, lo que dejaria libre, ingresos y gastos por categoria, diezmo calculado).
+ * Borrador: Planear.dc.html (opciones, lo que dejaria libre, ingresos y gastos por categoria). Todo se edita: las lineas
+ * de ingreso de cada opcion y sus gastos, tambien los de la categoria Diezmo (design D4 y D8 de diezmo-como-gasto).
  * Activo o cerrado: el plan elegido en solo lectura, con acceso a Hoy o al cierre.
  */
 @Component({
   selector: 'app-mes-page',
-  imports: [NgTemplateOutlet, RouterLink, Encabezado, Hoja, Icono, Kpi, Monto, MontoInput],
+  imports: [NgTemplateOutlet, RouterLink, Encabezado, Hoja, Kpi, Monto, MontoInput],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'flex flex-col gap-[18px] px-5 pt-6 pb-4' },
   template: `
@@ -146,12 +147,32 @@ import { MontoInput } from '../../shared/components/monto-input';
         <h2 id="plan-ingresos" class="text-base font-semibold">Ingresos</h2>
         <div class="flex flex-col divide-y divide-divisor">
           @for (l of o.ingresos; track l.clave) {
-            <div class="flex items-center justify-between py-2.5" [class.italic]="l.tenue" [class.text-secundario]="l.tenue">
-              <div class="flex flex-col gap-0.5"><span class="text-[15px]">{{ l.nombre }}</span><span class="text-xs text-secundario not-italic">{{ l.detalle }}</span></div>
-              <app-monto class="text-sm" [valor]="l.monto" />
-            </div>
+            @if (editable && l.lineaId) {
+              <div class="flex items-center justify-between gap-2 py-2" data-testid="linea-ingreso">
+                <div class="flex min-w-0 grow flex-col gap-0.5">
+                  <input class="h-9 min-w-0 rounded-control border border-transparent bg-transparent px-1 text-[15px] hover:border-borde focus:border-acento focus:outline-none"
+                    [value]="l.nombre" [attr.aria-label]="'Nombre del ingreso ' + l.nombre" (change)="renombrarIngreso(o, l, $any($event.target).value)" />
+                  <span class="px-1 text-xs text-secundario">{{ l.detalle }}</span>
+                </div>
+                <app-monto-input class="w-36" [valor]="l.monto" [etiquetaAccesible]="'Monto de ' + l.nombre" (valorChange)="cambiarIngreso(o, l, $event)" />
+                <button type="button" class="tocable text-secundario hover:text-negativo" [attr.aria-label]="'Quitar ' + l.nombre" (click)="quitarIngreso(o, l)">×</button>
+              </div>
+            } @else {
+              <div class="flex items-center justify-between py-2.5" [class.italic]="l.tenue" [class.text-secundario]="l.tenue">
+                <div class="flex flex-col gap-0.5"><span class="text-[15px]">{{ l.nombre }}</span><span class="text-xs text-secundario not-italic">{{ l.detalle }}</span></div>
+                <app-monto class="text-sm" [valor]="l.monto" />
+              </div>
+            }
           }
         </div>
+        @if (editable) {
+          <form class="mt-2 flex flex-wrap items-center gap-2 rounded-xl bg-nota p-3" (submit)="$event.preventDefault(); agregarIngreso(o)" aria-label="Agregar un ingreso a la opción">
+            <input class="h-11 min-w-0 grow rounded-control border border-borde bg-superficie px-3 text-sm focus:border-acento focus:outline-none" placeholder="Nuevo ingreso" aria-label="Nombre del ingreso"
+              [value]="nuevoIngreso()" (input)="nuevoIngreso.set($any($event.target).value)" />
+            <app-monto-input class="w-36" [valor]="montoIngreso()" etiquetaAccesible="Monto del ingreso" (valorChange)="montoIngreso.set($event)" />
+            <button type="submit" class="boton-texto font-semibold" [disabled]="!nuevoIngreso().trim()">+ Ingreso</button>
+          </form>
+        }
       </section>
       <section class="flex flex-col gap-1" aria-labelledby="plan-gastos">
         <h2 id="plan-gastos" class="text-base font-semibold">Gastos</h2>
@@ -178,23 +199,12 @@ import { MontoInput } from '../../shared/components/monto-input';
               }
             </div>
           }
-          <div class="flex items-center justify-between py-2.5" data-testid="fila-diezmo">
-            <div class="flex flex-col gap-0.5">
-              <span class="flex items-center gap-2 text-[15px]"><span class="h-2 w-2 rounded-[2px] bg-cat-diezmo" aria-hidden="true"></span>Diezmo</span>
-              <span class="pl-4 text-xs text-secundario">{{ o.diezmo.detalle }}</span>
-            </div>
-            <span class="flex items-center gap-1.5 text-secundario">
-              <app-monto class="text-sm" [valor]="o.diezmo.monto" />
-              <app-icono nombre="candado" [tamano]="14" />
-              <span class="sr-only">No editable: se calcula solo</span>
-            </span>
-          </div>
         </div>
         @if (editable) {
           <form class="mt-2 flex flex-wrap items-center gap-2 rounded-xl bg-nota p-3" (submit)="$event.preventDefault(); agregar(o)" aria-label="Agregar un gasto a la opción">
             <select class="h-11 rounded-control border border-borde bg-superficie px-2 text-sm focus:border-acento focus:outline-none" aria-label="Categoría del gasto"
               [value]="categoriaNueva() ?? ''" (change)="categoriaNueva.set($any($event.target).value)">
-              @for (c of categorias.value() ?? []; track c.id) {
+              @for (c of categoriasParaAgregar(); track c.id) {
                 <option [value]="c.id">{{ c.nombre }}</option>
               }
             </select>
@@ -224,10 +234,17 @@ export class MesPage {
   protected readonly usuarioActual = computed(() => this.sesion.value()?.usuario.id ?? null);
 
   protected readonly categorias = consulta(() => null, (p) => p.hogar.categorias());
+  /** Diezmo al final: un gasto nuevo casi nunca es diezmo, y el primero de la lista es el que se elige sin tocar. */
+  protected readonly categoriasParaAgregar = computed(() => {
+    const todas = this.categorias.value() ?? [];
+    return [...todas.filter((c) => c.tipo !== 'DIEZMO'), ...todas.filter((c) => c.tipo === 'DIEZMO')];
+  });
   protected readonly categoriaNueva = signal<Id | null>(null);
   protected readonly elegida = signal<Id | null>(null);
   protected readonly abierta = signal<Id | null>(null);
   protected readonly nuevo = signal('');
+  protected readonly nuevoIngreso = signal('');
+  protected readonly montoIngreso = signal<number | null>(null);
   protected readonly guardando = signal(false);
   protected readonly error = signal('');
 
@@ -249,7 +266,7 @@ export class MesPage {
         detalle: base ? `Opción ${base.escenario.letra} · gastos ${formatCop(base.totalGastos)}` : 'El mes anterior no tiene plan: empieza vacío',
       },
       { modo: 'FIJOS' as ModoNuevoMes, titulo: 'Solo fijos e ingresos', detalle: 'Salario, fijos, tarjetas y créditos. Variables en blanco.' },
-      { modo: 'CERO' as ModoNuevoMes, titulo: 'Empezar desde cero', detalle: 'Solo el salario y el diezmo calculado' },
+      { modo: 'CERO' as ModoNuevoMes, titulo: 'Empezar desde cero', detalle: 'Solo los ingresos, sus diezmos y las cuotas' },
     ];
   });
 
@@ -306,13 +323,53 @@ export class MesPage {
   /** "+ Agregar": un gasto nuevo en cualquier categoria (tambien las recien creadas en Ajustes); se abre para darle monto. */
   protected async agregar(o: VistaOpcion): Promise<void> {
     const plan = this.vista.value()?.plan;
-    const categoria = (this.categorias.value() ?? []).find((c) => c.id === this.categoriaNueva()) ?? this.categorias.value()?.[0];
+    const categoria = this.categoriasParaAgregar().find((c) => c.id === this.categoriaNueva()) ?? this.categoriasParaAgregar()[0];
     if (!plan || !categoria || !this.nuevo().trim()) return;
-    const tipo = categoria.tipo === 'VARIABLE' ? 'VARIABLE' : categoria.tipo === 'CREDITO' ? 'CREDITO' : 'FIJO';
+    const tipo: TipoItem = categoria.tipo === 'VARIABLE' ? 'VARIABLE' : categoria.tipo === 'CREDITO' ? 'CREDITO' : categoria.tipo === 'DIEZMO' ? 'DIEZMO' : 'FIJO';
     await this.ejecutar(async () => {
-      await this.puertos.plan.guardarItem(plan.id, o.escenario.id, { categoriaId: categoria.id, nombre: this.nuevo(), monto: 0, diaVence: null, tipo, cuota: null, creditoId: null });
+      await this.puertos.plan.guardarItem(plan.id, o.escenario.id, {
+        categoriaId: categoria.id, nombre: this.nuevo(), monto: 0, diaVence: null, tipo, cuota: null, creditoId: null, ingresoFijoId: null, aporteId: null,
+      });
       this.nuevo.set('');
       this.abierta.set(categoria.id);
+    });
+  }
+
+  /** La linea de la opcion detras de lo que se ve (solo las de la opcion se editan; los aportes y el sobrante no). */
+  private lineaDe(o: VistaOpcion, l: LineaIngreso): IngresoPlan | null {
+    return o.escenario.ingresos.find((x) => x.id === l.lineaId) ?? null;
+  }
+
+  protected async cambiarIngreso(o: VistaOpcion, l: LineaIngreso, monto: number | null): Promise<void> {
+    const plan = this.vista.value()?.plan;
+    const linea = this.lineaDe(o, l);
+    if (!plan || !linea || monto === null || monto === linea.monto) return;
+    await this.ejecutar(() => this.puertos.plan.guardarIngreso(plan.id, o.escenario.id, { ...linea, monto }));
+  }
+
+  protected async renombrarIngreso(o: VistaOpcion, l: LineaIngreso, nombre: string): Promise<void> {
+    const plan = this.vista.value()?.plan;
+    const linea = this.lineaDe(o, l);
+    if (!plan || !linea || !nombre.trim() || nombre.trim() === linea.nombre) return;
+    await this.ejecutar(() => this.puertos.plan.guardarIngreso(plan.id, o.escenario.id, { ...linea, nombre: nombre.trim() }));
+  }
+
+  protected async quitarIngreso(o: VistaOpcion, l: LineaIngreso): Promise<void> {
+    const plan = this.vista.value()?.plan;
+    if (!plan || !l.lineaId) return;
+    await this.ejecutar(() => this.puertos.plan.quitarIngreso(plan.id, o.escenario.id, l.lineaId!));
+  }
+
+  /** "+ Ingreso": una linea agregada a mano en esta opcion; no toca Ajustes ni las otras opciones. */
+  protected async agregarIngreso(o: VistaOpcion): Promise<void> {
+    const plan = this.vista.value()?.plan;
+    if (!plan || !this.nuevoIngreso().trim()) return;
+    await this.ejecutar(async () => {
+      await this.puertos.plan.guardarIngreso(plan.id, o.escenario.id, {
+        nombre: this.nuevoIngreso(), monto: this.montoIngreso() ?? 0, usuarioId: null, tipo: 'OTRO', ingresoFijoId: null,
+      });
+      this.nuevoIngreso.set('');
+      this.montoIngreso.set(null);
     });
   }
 
