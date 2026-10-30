@@ -534,7 +534,7 @@ function invitacionConectada(r: InvitacionEnviadaApi): InvitacionConectada {
 
 /** El backend arma el enlace con su origen publico; la PWA usa la ruta sobre su propio origen. */
 function rutaDe(enlace: string): string {
-  return enlace.replace(/^https?://[^/]+/, '') || enlace;
+  return enlace.replace(/^https?:\/\/[^/]+/, '') || enlace;
 }
 
 function recibida(token: string, r: InvitacionRecibidaApi): InvitacionRecibida {
