@@ -125,8 +125,8 @@ describe('Planear (steward-planear)', () => {
     await pagar('m0-cuotas', 375_000);
     await p.movimientos.registrarGasto({ monto: 140_000, itemId: 'm0-mercado', nota: '', usuarioId: 'u-daniel', origen: { tipo: 'NINGUNO' }, ref: OCT });
     await p.movimientos.registrarGasto({ monto: 112_000, itemId: null, nota: 'Farmacia', usuarioId: 'u-daniel', origen: { tipo: 'NINGUNO' }, ref: OCT });
-    const diezmo = (await p.movimientos.resumenMes(OCT)).diezmo.pendientes[0]!;
-    await p.ingresos.entregarDiezmo([diezmo.id], OCT, null);
+    // El diezmo es un item del plan: se marca pagado como los demas (diezmo-como-gasto).
+    await p.movimientos.marcarPago({ itemId: 'm0-diezmo-salario', ref: OCT, monto: 700_000, usuarioId: 'u-daniel', origen: { tipo: 'NINGUNO' } });
     await p.cuentas.cuadrar([{ cuentaId: 'cta-nu', saldoBanco: 3_190_000 }, { cuentaId: 'cta-efectivo', saldoBanco: 150_000 }]);
 
     renderRouter('./src/app', { initialUrl: '/cierre/2026-10' });
@@ -141,11 +141,13 @@ describe('Planear (steward-planear)', () => {
     expect(screen.getByText('Sobrante de octubre')).toBeTruthy();
   });
 
-  it('duplicar crea una opción nueva y el diezmo no se edita', async () => {
+  it('duplicar crea una opción nueva y el diezmo es la categoría Diezmo', async () => {
     const p = await conSesion();
     renderRouter('./src/app', { initialUrl: '/mes/2026-11' });
     await waitFor(() => expect(screen.getByTestId('dejaria-libre')).toHaveTextContent('$2.898.000'));
-    expect(screen.getByTestId('fila-diezmo')).toHaveTextContent(/Calculado · 10% de Salario Daniel/);
+    // El diezmo es un item de la categoria Diezmo, sin fila calculada aparte (diezmo-como-gasto).
+    expect(screen.queryByTestId('fila-diezmo')).toBeNull();
+    expect(screen.getAllByText('Diezmo').length).toBeGreaterThan(0);
     await tocar('+ Duplicar');
     expect(await screen.findByText('Opción D')).toBeTruthy();
     expect((await p.plan.mes({ anio: 2026, mes: 11 })).opciones).toHaveLength(4);

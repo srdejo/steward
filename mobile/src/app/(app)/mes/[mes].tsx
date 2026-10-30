@@ -5,11 +5,11 @@ import { Pressable, Text, TextInput, View } from 'react-native';
 
 import { useAccion, useConsulta } from '@/data/puertos';
 import { useSesion } from '@/data/sesion';
-import { Aviso, Boton, colors, Encabezado, fonts, Icono, Kpi, Monto, MontoInput, Pantalla, Segmentado, Texto } from '@/ui';
+import { Aviso, Boton, colors, Encabezado, fonts, Kpi, Monto, MontoInput, Pantalla, Segmentado, Texto } from '@/ui';
 
 /**
  * Un mes en Planear. Sin plan: MesVacio.dc.html. Borrador: Planear.dc.html (opciones, lo que dejaria libre,
- * ingresos y gastos por categoria, diezmo calculado). Activo o cerrado: el plan elegido en solo lectura.
+ * ingresos y gastos por categoria, con el diezmo como categoria). Activo o cerrado: el plan elegido en solo lectura.
  */
 export default function Mes() {
   const { mes } = useLocalSearchParams<{ mes: string }>();
@@ -146,19 +146,6 @@ export default function Mes() {
                 )}
               </View>
             ))}
-            <View testID="fila-diezmo" style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10 }}>
-              <View style={{ gap: 2 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <View style={{ width: 8, height: 8, borderRadius: 2, backgroundColor: '#0F766E' }} />
-                  <Texto>Diezmo</Texto>
-                </View>
-                <Texto v="detalle" style={{ paddingLeft: 16 }}>{o.diezmo.detalle}</Texto>
-              </View>
-              <View accessible accessibilityLabel={`${formatCop(o.diezmo.monto)}, no editable: se calcula solo`} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Monto valor={o.diezmo.monto} style={{ color: colors.secundario }} />
-                <Icono nombre="candado" tamano={14} color={colors.secundario} />
-              </View>
-            </View>
             {editable && (
               <View style={{ gap: 8, padding: 12, marginTop: 8, borderRadius: 12, backgroundColor: colors.nota }}>
                 <Segmentado chips etiqueta="Agregar un gasto en" opciones={(categorias.data ?? []).map((c) => ({ valor: c.id, etiqueta: c.nombre }))} valor={categoriaNueva ?? categorias.data?.[0]?.id ?? null} onCambio={setCategoriaNueva} />
@@ -168,8 +155,8 @@ export default function Mes() {
                   <Boton tipo="texto" titulo="+ Agregar" deshabilitado={!nuevo.trim()} onPress={() => {
                     const c = categorias.data?.find((x) => x.id === (categoriaNueva ?? categorias.data?.[0]?.id));
                     if (!c || !v.plan) return;
-                    const tipo = c.tipo === 'VARIABLE' ? 'VARIABLE' : c.tipo === 'CREDITO' ? 'CREDITO' : 'FIJO';
-                    accion.ejecutar((p) => p.plan.guardarItem(v.plan!.id, o.escenario.id, { categoriaId: c.id, nombre: nuevo, monto: 0, diaVence: null, tipo, cuota: null, creditoId: null })).then(() => { setNuevo(''); setAbierta(c.id); });
+                    const tipo = c.tipo === 'VARIABLE' ? 'VARIABLE' : c.tipo === 'CREDITO' ? 'CREDITO' : c.tipo === 'DIEZMO' ? 'DIEZMO' : 'FIJO';
+                    accion.ejecutar((p) => p.plan.guardarItem(v.plan!.id, o.escenario.id, { categoriaId: c.id, nombre: nuevo, monto: 0, diaVence: null, tipo, cuota: null, creditoId: null, ingresoFijoId: null, aporteId: null })).then(() => { setNuevo(''); setAbierta(c.id); });
                   }} />
                 </View>
               </View>

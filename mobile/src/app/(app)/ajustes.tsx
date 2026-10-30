@@ -1,4 +1,4 @@
-import { formatFechaCorta, formatPorcentaje, type BaseDiezmo, type Categoria, type DiezmoEnHoy, type IngresoFijo } from '@steward/domain';
+import { formatFechaCorta, formatPorcentaje, type BaseDiezmo, type Categoria, type IngresoFijo } from '@steward/domain';
 import { router } from 'expo-router';
 import { useState, type ReactNode } from 'react';
 import { Modal, Pressable, Text, TextInput, View } from 'react-native';
@@ -54,7 +54,6 @@ export default function Ajustes() {
   const [mensaje, setMensaje] = useState('');
 
   const r = regla.data;
-  const diezmoEnHoy: DiezmoEnHoy = m.hogar?.hogar.diezmoEnHoy ?? 'SEPARADO';
   const textoDiezmo = r?.activa ? `diezmo ${formatPorcentaje(r.porcentaje)} del ${r.base === 'BRUTO' ? 'bruto' : 'neto'}` : 'sin diezmo';
   const textoAportes = r?.activa && r.aplicaAportes ? `diezmo ${formatPorcentaje(r.porcentaje)}` : 'sin diezmo';
 
@@ -141,19 +140,8 @@ export default function Ajustes() {
             <View style={{ gap: 2 }}><Texto>Aportes variables</Texto><Texto v="detalle" style={{ color: colors.diezmo }}>Contratos, negocio · {textoAportes}</Texto></View>
             <Texto v="pequeno">Editar ›</Texto>
           </Pressable>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, gap: 12 }}>
-            <View style={{ flexShrink: 1, gap: 2 }}><Texto>Diezmo en Hoy</Texto><Texto v="detalle">{diezmoEnHoy === 'AGRUPADO' ? 'Uno solo con la suma' : 'Uno por cada ingreso recibido'}</Texto></View>
-            <View accessibilityRole="radiogroup" accessibilityLabel="Diezmo en Hoy" style={{ flexDirection: 'row', gap: 4, padding: 3, borderRadius: 10, backgroundColor: '#F1F0EB' }}>
-              {(['SEPARADO', 'AGRUPADO'] as const).map((modo) => (
-                <Pressable key={modo} accessibilityRole="radio" accessibilityState={{ checked: diezmoEnHoy === modo }} hitSlop={6} onPress={() => accion.ejecutar((p) => p.hogar.definirDiezmoEnHoy(modo))}
-                  style={{ height: 32, paddingHorizontal: 10, borderRadius: 8, justifyContent: 'center', backgroundColor: diezmoEnHoy === modo ? colors.superficie : 'transparent' }}>
-                  <Text style={{ fontFamily: diezmoEnHoy === modo ? fonts.semibold : fonts.medium, fontSize: 12, color: diezmoEnHoy === modo ? colors.texto : colors.secundario }}>{modo === 'SEPARADO' ? 'Separado' : 'Agrupado'}</Text>
-                </Pressable>
-              ))}
-            </View>
-          </View>
         </Seccion>
-        <Texto v="detalle">Cada persona configura su propio diezmo.</Texto>
+        <Texto v="detalle">Cada persona configura su propio diezmo. La regla sugiere el monto de los ítems de diezmo de cada mes nuevo; cambiarla no cambia los meses ya creados.</Texto>
       </View>
 
       <Seccion titulo="Categorías" accion={<Boton tipo="texto" titulo="+ Nueva" onPress={() => abrir({ tipo: 'categoria', categoria: null })} />}>

@@ -1,4 +1,4 @@
-import { formatDiaSemana, formatMesAnio, mesDe, claveMes, sumar, type ItemEjecucion } from '@steward/domain';
+import { formatDiaSemana, formatMesAnio, mesDe, claveMes, type ItemEjecucion, type LineaIngreso } from '@steward/domain';
 import { router } from 'expo-router';
 import { Pressable, View } from 'react-native';
 
@@ -6,7 +6,10 @@ import { useMiembros } from '@/data/miembros';
 import { useAccion, useConsulta, usePuertos } from '@/data/puertos';
 import { Avatar, Aviso, Boton, colors, Encabezado, Fila, fonts, Kpi, Monto, Pantalla, Tarjeta, Texto } from '@/ui';
 
-/** Main.dc.html: el mes en curso (spec steward-hoy). Las hojas de registro se abren encima (formSheet). */
+/**
+ * Main.dc.html: el mes en curso (spec steward-hoy). Las hojas de registro se abren encima (formSheet). El diezmo es un
+ * item del plan, sin tarjeta aparte (diezmo-como-gasto); conectar esta app y "Recibí" con monto llegan en la Etapa 11.
+ */
 export default function Hoy() {
   const puertos = usePuertos();
   const hoy = puertos.hoy();
@@ -16,11 +19,7 @@ export default function Hoy() {
   const accion = useAccion();
   const r = resumen.data;
 
-  const pendientes = r?.diezmo.pendientes ?? [];
-  const tarjetas =
-    m.hogar?.hogar.diezmoEnHoy === 'AGRUPADO' && pendientes.length > 1
-      ? [{ ids: pendientes.map((d) => d.id), monto: sumar(pendientes.map((d) => d.monto)), detalle: `${pendientes.length} ingresos recibidos` }]
-      : pendientes.map((d) => ({ ids: [d.id], monto: d.monto, detalle: d.detalle }));
+  const porRecibir = (l: LineaIngreso) => !l.recibido && Boolean(l.lineaId || l.ingresoFijoId);
   const urgente = (i: ItemEjecucion) => /^Vence (en|hoy)|^Venció/.test(i.detalle);
 
   return (
@@ -55,19 +54,6 @@ export default function Hoy() {
             </View>
           </Tarjeta>
 
-          {tarjetas.map((d) => (
-            <View key={d.ids.join()} testID="tarjeta-diezmo" style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, borderRadius: 14, backgroundColor: colors.diezmoSuave, paddingHorizontal: 16, paddingVertical: 14 }}>
-              <View style={{ flexShrink: 1, gap: 2 }}>
-                <Texto style={{ fontSize: 13, fontFamily: fonts.semibold, color: colors.diezmo }}>Disponible para diezmar</Texto>
-                <Texto style={{ fontSize: 12, color: colors.diezmoTexto }}>{d.detalle}</Texto>
-              </View>
-              <View style={{ alignItems: 'flex-end', gap: 6 }}>
-                <Monto valor={d.monto} style={{ fontSize: 15, fontFamily: fonts.monoSemibold, color: colors.diezmo }} />
-                <Boton titulo="Entregado" onPress={() => accion.ejecutar((p) => p.ingresos.entregarDiezmo(d.ids, ref, null))} style={{ minHeight: 30, height: 30, borderRadius: 15, paddingHorizontal: 12, backgroundColor: colors.diezmo }} />
-              </View>
-            </View>
-          ))}
-
           <View style={{ gap: 6 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
               <Texto v="subtitulo" accessibilityRole="header">Ingresos</Texto>
@@ -75,8 +61,10 @@ export default function Hoy() {
             </View>
             {r.ingresos.map((l, i) => (
               <Fila key={l.clave} titulo={l.nombre} detalle={l.detalle} ultima={i === r.ingresos.length - 1}>
-                {l.tipo === 'FIJO' && !l.recibido && <Boton tipo="texto" titulo="Recibí" onPress={() => accion.ejecutar((p) => p.ingresos.marcarRecibido(l.ingresoFijoId!, ref))} />}
-                <Monto valor={l.monto} style={{ color: l.tipo === 'FIJO' && !l.recibido ? colors.secundario : colors.positivo }} />
+                {porRecibir(l) && (
+                  <Boton tipo="texto" titulo="Recibí" onPress={() => accion.ejecutar((p) => p.ingresos.marcarRecibido(l.lineaId ? { ref, lineaId: l.lineaId } : { ref, ingresoFijoId: l.ingresoFijoId! }))} />
+                )}
+                <Monto valor={l.monto} style={{ color: porRecibir(l) ? colors.secundario : colors.positivo }} />
               </Fila>
             ))}
           </View>
