@@ -177,20 +177,20 @@ export function crearMesesDesdeAnual(estado: EstadoHogar, datos: { anio: number;
       // Los items no son negativos: si la columna es menor que lo copiado, la categoria entra como un solo item por la
       // columna (design D4 de backend-plan-anual).
       if (diferencia < 0) {
-        if (monto > 0) items.push({ id: nuevoId(s, 'item'), categoriaId: fila.categoriaId, nombre: nombreCategoria, monto, diaVence: null, tipo: 'VARIABLE', cuota: null, creditoId: null, ingresoFijoId: null, aporteId: null });
+        if (monto > 0) items.push({ id: nuevoId(s, 'item'), categoriaId: fila.categoriaId, nombre: nombreCategoria, monto, diaVence: null, tipo: 'VARIABLE', cuota: null, creditoId: null, ingresoFijoId: null, aporteId: null, ingresoPlanId: null, ajustadoAMano: false });
         continue;
       }
       items.push(...base);
       if (diferencia > 0) {
         const nombre = base.length ? 'Ajuste del plan anual' : nombreCategoria;
-        items.push({ id: nuevoId(s, 'item'), categoriaId: fila.categoriaId, nombre, monto: diferencia, diaVence: null, tipo: 'VARIABLE', cuota: null, creditoId: null, ingresoFijoId: null, aporteId: null });
+        items.push({ id: nuevoId(s, 'item'), categoriaId: fila.categoriaId, nombre, monto: diferencia, diaVence: null, tipo: 'VARIABLE', cuota: null, creditoId: null, ingresoFijoId: null, aporteId: null, ingresoPlanId: null, ajustadoAMano: false });
       }
     }
     for (const e of anual.eventos.filter((x) => x.tipo === 'GASTO' && x.mes === mes)) {
-      items.push({ id: nuevoId(s, 'item'), categoriaId: eventosCat!.id, nombre: e.nombre, monto: e.monto, diaVence: null, tipo: 'FIJO', cuota: null, creditoId: null, ingresoFijoId: null, aporteId: null });
+      items.push({ id: nuevoId(s, 'item'), categoriaId: eventosCat!.id, nombre: e.nombre, monto: e.monto, diaVence: null, tipo: 'FIJO', cuota: null, creditoId: null, ingresoFijoId: null, aporteId: null, ingresoPlanId: null, ajustadoAMano: false });
     }
-    items.push(...diezmosDelMes(s, ref, items));
     const ingresos = ingresosNuevos(s, ref);
+    items.push(...diezmosDelMes(s, ref, items, ingresos));
     s.planes.push({ id: nuevoId(s, 'plan'), ref, estado: 'BORRADOR', escenarioActivoId: null, escenarios: [{ id: nuevoId(s, 'esc'), letra: 'A', creadoPor: datos.creadoPor, nota: 'Del plan anual', archivado: false, ingresos, items }] });
   }
   anual.estado = 'CREADO';

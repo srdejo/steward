@@ -2,7 +2,8 @@ import type { EstadoHogar, Fecha, Id, ItemPlan, MesRef, Movimiento, Origen, Peso
 import { formatCop, formatFechaCorta } from '../format';
 import { ReglaError, clonar, diasEntre, fechaEnMes, nuevoId, sumar } from './base';
 import { asegurarAbierto, categoria, escenarioPrincipal, movimientosDe, nombreUsuario, planDe } from './consultas';
-import { ingresosDelMes, totalIngresos, type LineaIngreso } from './ingresos';
+import { devolverCapital } from './credito';
+import { ingresosDelMes, itemConPagos, seguirAporte, totalIngresos, type LineaIngreso } from './ingresos';
 
 /** Como va un item del plan en el mes. */
 export interface ItemEjecucion {
@@ -45,6 +46,17 @@ export function esGastoSinItem(m: Movimiento): boolean {
   return (m.tipo === 'GASTO' && m.itemId === null) || m.tipo === 'DIEZMO_ENTREGADO';
 }
 
+/** El diezmo no es una factura: dice de donde viene, sin "Venció" (spec steward-hoy, "Diezmo sin vencimiento"). */
+function detalleDiezmo(estado: EstadoHogar, item: ItemPlan, ref: MesRef): string {
+  const dia = item.diaVence ? ` · día ${item.diaVence}` : '';
+  const linea = item.ingresoPlanId ? planDe(estado, ref)?.escenarios.flatMap((e) => e.ingresos).find((l) => l.id === item.ingresoPlanId) : undefined;
+  if (linea) return `Del ${linea.nombre}${dia}`;
+  const aporte = item.aporteId ? estado.movimientos.find((m) => m.id === item.aporteId) : undefined;
+  if (aporte) return `Del aporte del ${formatFechaCorta(aporte.fecha)}`;
+  const fijo = item.ingresoFijoId ? estado.ingresosFijos.find((f) => f.id === item.ingresoFijoId) : undefined;
+  return fijo ? `Del ${fijo.nombre}${dia}` : 'Diezmo';
+}
+
 function detalleVencimiento(item: ItemPlan, ref: MesRef, hoy: Fecha): string {
   if (item.cuota) return `Vence día ${item.diaVence ?? '—'} · cuota ${item.cuota.actual} de ${item.cuota.total}`;
   if (item.diaVence === null) return categoriaVacia(item);
@@ -73,7 +85,7 @@ export function ejecucionItem(estado: EstadoHogar, item: ItemPlan, ref: MesRef, 
     };
   }
   const pagado = pagos.length > 0;
-  let detalle = detalleVencimiento(item, ref, hoy);
+  let detalle = item.tipo === 'DIEZMO' ? detalleDiezmo(estado, item, ref) : detalleVencimiento(item, ref, hoy);
   if (pagado) {
     const dif = real - item.monto;
     const desde = ultimo && ultimo.origen.tipo === 'CUENTA' ? estado.cuentas.find((c) => c.id === (ultimo.origen as { cuentaId: Id }).cuentaId)?.nombre : ultimo?.origen.tipo === 'EXTERNA' ? 'su cuenta' : null;
@@ -143,15 +155,67 @@ export function marcarPago(estado: EstadoHogar, datos: { itemId: Id; ref: MesRef
   s.movimientos.push({
     id, seq: s.secuencia, tipo: item.tipo === 'VARIABLE' ? 'GASTO' : 'PAGO', ref: datos.ref, monto: datos.monto, fecha: datos.fecha,
     usuarioId: datos.usuarioId, creadoPor: datos.creadoPor, origen: datos.origen, nota: '', itemId: item.id,
-    ingresoFijoId: null, bruto: null, aplicaDiezmo: false, diezmoDe: [], ingresoPlanId: null, cuentaDestinoId: null, creditoId: item.creditoId,
+    ingresoFijoId: null, bruto: null, aplicaDiezmo: false, diezmoDe: [], ingresoPlanId: null, cuentaDestinoId: null, creditoId: item.creditoId, capital: null,
   });
   // La cuota de un credito baja su saldo en la parte de capital.
   if (item.creditoId) {
     const credito = s.creditos.find((c) => c.id === item.creditoId);
     if (credito) {
       const interes = Math.round((credito.saldo * credito.tasaEM) / 100);
+      const antes = credito.saldo;
       credito.saldo = Math.max(0, credito.saldo - Math.max(0, datos.monto - interes));
       credito.pagos.unshift({ fecha: datos.fecha, monto: datos.monto, tipo: 'CUOTA' });
+      // Lo que bajo el saldo, para devolverlo si se borra el pago (design D3 de usabilidad-plan).
+      s.movimientos.at(-1)!.capital = antes - credito.saldo;
+    }
+  }
+  return s;
+}
+
+// --- Corregir y borrar registros (design D3 de usabilidad-plan) ------------------------------------------------------
+
+const CORREGIBLES = new Set<Movimiento['tipo']>(['PAGO', 'GASTO', 'INGRESO_FIJO', 'APORTE']);
+
+function registroDe(s: EstadoHogar, id: Id): Movimiento {
+  const m = s.movimientos.find((x) => x.id === id);
+  if (!m) throw new ReglaError('NO_EXISTE', 'Ese registro no existe');
+  if (!CORREGIBLES.has(m.tipo)) throw new ReglaError('DATOS_INVALIDOS', 'Ese movimiento no se corrige desde aquí');
+  asegurarAbierto(s, m.ref);
+  return m;
+}
+
+/** Corregir un pago, gasto, ingreso recibido o aporte: el monto, la cuenta o la nota. Una cuota de credito no cambia su monto. */
+export function corregirRegistro(estado: EstadoHogar, datos: { movimientoId: Id; monto?: Pesos; origen?: Origen; nota?: string }): EstadoHogar {
+  const s = clonar(estado);
+  const m = registroDe(s, datos.movimientoId);
+  if (datos.monto !== undefined && datos.monto !== m.monto) {
+    if (!(datos.monto > 0)) throw new ReglaError('MONTO_INVALIDO', 'El monto debe ser mayor que cero');
+    if (m.tipo === 'PAGO' && m.creditoId) throw new ReglaError('DATOS_INVALIDOS', 'Para cambiar el monto de una cuota, borra el pago y márcalo otra vez');
+    m.monto = datos.monto;
+  }
+  if (datos.origen) m.origen = datos.origen;
+  if (datos.nota !== undefined && m.tipo === 'GASTO') m.nota = datos.nota.trim();
+  if (m.tipo === 'APORTE') seguirAporte(s, m);
+  return s;
+}
+
+/**
+ * Borrar un pago, gasto, ingreso recibido o aporte. Su item vuelve a por pagar (o su linea a por recibir); una cuota devuelve su
+ * capital al credito; un aporte se lleva su item de diezmo si no tiene pagos, o lo deja sin enlace.
+ */
+export function borrarRegistro(estado: EstadoHogar, datos: { movimientoId: Id }): EstadoHogar {
+  const s = clonar(estado);
+  const m = registroDe(s, datos.movimientoId);
+  devolverCapital(s, m);
+  s.movimientos = s.movimientos.filter((x) => x.id !== m.id);
+  if (m.tipo === 'APORTE') {
+    for (const plan of s.planes) {
+      for (const esc of plan.escenarios) {
+        for (const i of esc.items.filter((x) => x.aporteId === m.id)) {
+          if (itemConPagos(s, plan.ref, i.id)) i.aporteId = null;
+          else esc.items = esc.items.filter((x) => x.id !== i.id);
+        }
+      }
     }
   }
   return s;
@@ -167,7 +231,7 @@ export function registrarGasto(estado: EstadoHogar, datos: { monto: Pesos; itemI
   s.movimientos.push({
     id, seq: s.secuencia, tipo: 'GASTO', ref: datos.ref, monto: datos.monto, fecha: datos.fecha, usuarioId: datos.usuarioId,
     creadoPor: datos.creadoPor, origen: datos.origen, nota: datos.nota.trim(), itemId: datos.itemId,
-    ingresoFijoId: null, bruto: null, aplicaDiezmo: false, diezmoDe: [], ingresoPlanId: null, cuentaDestinoId: null, creditoId: null,
+    ingresoFijoId: null, bruto: null, aplicaDiezmo: false, diezmoDe: [], ingresoPlanId: null, cuentaDestinoId: null, creditoId: null, capital: null,
   });
   return s;
 }

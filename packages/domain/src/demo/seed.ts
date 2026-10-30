@@ -1,8 +1,8 @@
 import type { Categoria, EstadoHogar, Fecha, Id, IngresoPlan, ItemPlan, MesRef, Movimiento, Origen, PlanMes, TipoItem, TipoMovimiento } from '../model';
 import { fechaEnMes, mesDe, sumarMeses } from '../rules/base';
 
-/** Version del esquema guardado: si cambia, el adaptador vuelve a sembrar. 2: diezmo como gasto y lineas de ingreso. */
-export const VERSION_ESQUEMA = 2;
+/** Version del esquema guardado: si cambia, el adaptador vuelve a sembrar. 2: diezmo como gasto y lineas de ingreso; 3: el diezmo enlazado a su linea. */
+export const VERSION_ESQUEMA = 3;
 
 export const DANIEL = 'u-daniel';
 export const ESPOSA = 'u-esposa';
@@ -51,13 +51,13 @@ function items(prefijo: string, cuotaExtra = 0): ItemPlan[] {
   return ITEMS.map((d) => ({
     id: `${prefijo}-${d.id}`, categoriaId: d.cat, nombre: d.nombre, monto: d.monto, diaVence: d.dia, tipo: d.tipo,
     cuota: d.cuota ? { actual: d.cuota.actual + cuotaExtra, total: d.cuota.total } : null, creditoId: d.credito ?? null,
-    ingresoFijoId: d.ingreso ?? null, aporteId: null,
+    ingresoFijoId: d.ingreso ?? null, aporteId: null, ingresoPlanId: d.ingreso ? `${prefijo}-ing-salario` : null, ajustadoAMano: false,
   }));
 }
 
 /** Linea de ingreso de cada opcion: el salario con su neto (design D8). */
 function ingresos(prefijo: string): IngresoPlan[] {
-  return [{ id: `${prefijo}-ing-salario`, nombre: 'Salario Daniel', monto: 6_288_000, usuarioId: DANIEL, tipo: 'FIJO', ingresoFijoId: 'ing-salario' }];
+  return [{ id: `${prefijo}-ing-salario`, nombre: 'Salario Daniel', monto: 6_288_000, usuarioId: DANIEL, tipo: 'FIJO', ingresoFijoId: 'ing-salario', bruto: 7_000_000 }];
 }
 
 function cuenta(id: Id): Origen {
@@ -82,7 +82,7 @@ export function crearSemilla(hoy: Fecha): EstadoHogar {
     seq += 1;
     movimientos.push({
       id: `seed-mov-${seq}`, seq, tipo, ref, monto, fecha: f(ref, dia), usuarioId, creadoPor: usuarioId, origen, nota: '',
-      itemId: null, ingresoFijoId: null, bruto: null, aplicaDiezmo: false, diezmoDe: [], ingresoPlanId: null, cuentaDestinoId: null, creditoId: null, ...extra,
+      itemId: null, ingresoFijoId: null, bruto: null, aplicaDiezmo: false, diezmoDe: [], ingresoPlanId: null, cuentaDestinoId: null, creditoId: null, capital: null, ...extra,
     });
   };
   const pago = (item: string, dia: number, monto: number, usuarioId: Id, origen: Origen, tipo: TipoMovimiento = 'PAGO') =>
@@ -121,13 +121,13 @@ export function crearSemilla(hoy: Fecha): EstadoHogar {
         id: 'plan-m1-b', letra: 'B', creadoPor: ESPOSA, nota: 'Navidad + viaje', archivado: false, ingresos: ingresos('m1b'),
         items: [
           ...items('m1b', 1),
-          { id: 'm1b-regalos', categoriaId: 'cat-variables', nombre: 'Regalos de Navidad', monto: 600_000, diaVence: null, tipo: 'VARIABLE', cuota: null, creditoId: null, ingresoFijoId: null, aporteId: null },
-          { id: 'm1b-viaje', categoriaId: 'cat-ahorro', nombre: 'Ahorro viaje', monto: 1_000_000, diaVence: null, tipo: 'FIJO', cuota: null, creditoId: null, ingresoFijoId: null, aporteId: null },
+          { id: 'm1b-regalos', categoriaId: 'cat-variables', nombre: 'Regalos de Navidad', monto: 600_000, diaVence: null, tipo: 'VARIABLE', cuota: null, creditoId: null, ingresoFijoId: null, aporteId: null, ingresoPlanId: null, ajustadoAMano: false },
+          { id: 'm1b-viaje', categoriaId: 'cat-ahorro', nombre: 'Ahorro viaje', monto: 1_000_000, diaVence: null, tipo: 'FIJO', cuota: null, creditoId: null, ingresoFijoId: null, aporteId: null, ingresoPlanId: null, ajustadoAMano: false },
         ],
       },
       {
         id: 'plan-m1-c', letra: 'C', creadoPor: DANIEL, nota: 'abono a crédito', archivado: false, ingresos: ingresos('m1c'),
-        items: [...items('m1c', 1), { id: 'm1c-abono', categoriaId: 'cat-creditos', nombre: 'Abono extra crédito', monto: 1_500_000, diaVence: 15, tipo: 'CREDITO', cuota: null, creditoId: 'cred-libre', ingresoFijoId: null, aporteId: null }],
+        items: [...items('m1c', 1), { id: 'm1c-abono', categoriaId: 'cat-creditos', nombre: 'Abono extra crédito', monto: 1_500_000, diaVence: 15, tipo: 'CREDITO', cuota: null, creditoId: 'cred-libre', ingresoFijoId: null, aporteId: null, ingresoPlanId: null, ajustadoAMano: false }],
       },
     ],
   };

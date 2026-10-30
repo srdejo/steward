@@ -4,7 +4,8 @@ import { libreAnualDelMes } from './anual';
 import { ReglaError, clonar, compararMes, mesDe, nuevoId, sumar, sumarMeses } from './base';
 import { cuotasDeCreditos } from './credito';
 import { anualDe, categoria, cierreDe, escenario, escenarioPrincipal, nombreUsuario, opciones, planDe, planPorId } from './consultas';
-import { diezmosDelMes, ingresosDelMes, ingresosNuevos, recibeLinea, totalIngresos, type LineaIngreso } from './ingresos';
+import { diezmoDeLineaNueva, diezmoSugerido, diezmosDelMes, ingresosDelMes, ingresosNuevos, itemConPagos, recibeLinea, seguirLinea, totalIngresos, type LineaIngreso } from './ingresos';
+import { devolverCapital } from './credito';
 
 /** Un mes BORRADOR con opcion elegida pasa a ACTIVO cuando llega ("al iniciar el mes"). */
 export function estadoEfectivo(plan: PlanMes, hoy: Fecha): EstadoMes {
@@ -33,6 +34,14 @@ function copiarIngresos(s: EstadoHogar, ingresos: IngresoPlan[]): IngresoPlan[] 
   return ingresos.map((l) => ({ ...l, id: nuevoId(s, 'ingp') }));
 }
 
+/** Copia una opcion: sus lineas y sus items, con el diezmo enlazado a la copia de su linea (design D1 de usabilidad-plan). */
+function copiarOpcion(s: EstadoHogar, origen: Escenario): { ingresos: IngresoPlan[]; items: ItemPlan[] } {
+  const ingresos = copiarIngresos(s, origen.ingresos);
+  const nuevaDe = new Map(origen.ingresos.map((l, i) => [l.id, ingresos[i]!.id]));
+  const items = copiarItems(s, origen.items, false).map((i) => (i.ingresoPlanId ? { ...i, ingresoPlanId: nuevaDe.get(i.ingresoPlanId) ?? null } : i));
+  return { ingresos, items };
+}
+
 export type ModoNuevoMes = 'COPIAR' | 'FIJOS' | 'CERO';
 
 /** Mes sin plan: crea el mes en BORRADOR con la Opcion A. */
@@ -48,10 +57,15 @@ export function crearMes(estado: EstadoHogar, datos: { ref: MesRef; modo: ModoNu
   // Los creditos con saldo traen su cuota en los tres modos; la de un credito ya pagado no se copia.
   const pagados = new Set(s.creditos.filter((c) => c.saldo <= 0).map((c) => c.id));
   items = cuotasDeCreditos(s, items.filter((i) => !i.creditoId || !pagados.has(i.creditoId)));
-  items = [...items, ...diezmosDelMes(s, datos.ref, items)];
-  // Las lineas de Ajustes y del anual se calculan de nuevo; las agregadas a mano se copian (design D8).
+  // Las lineas de Ajustes y del anual se calculan de nuevo; las agregadas a mano se copian (design D8), con su diezmo si lo tenian.
   const copiadas = datos.modo === 'CERO' ? [] : (principalAnterior?.ingresos ?? []).filter((l) => l.tipo === 'OTRO');
-  const ingresos = [...ingresosNuevos(s, datos.ref), ...copiarIngresos(s, copiadas)];
+  const nuevas = ingresosNuevos(s, datos.ref);
+  const otras = copiarIngresos(s, copiadas);
+  const ingresos = [...nuevas, ...otras];
+  items = [...items, ...diezmosDelMes(s, datos.ref, items, nuevas)];
+  copiadas.forEach((l, i) => {
+    if (principalAnterior!.items.some((x) => x.tipo === 'DIEZMO' && x.ingresoPlanId === l.id)) items.push(diezmoDeLineaNueva(s, otras[i]!));
+  });
   const id = nuevoId(s, 'plan');
   s.planes.push({
     id, ref: datos.ref, estado: 'BORRADOR', escenarioActivoId: null,
@@ -82,7 +96,7 @@ export function duplicarEscenario(estado: EstadoHogar, datos: { planId: Id; esce
   const plan = planPorId(s, datos.planId);
   asegurarBorrador(plan, datos.hoy);
   const origen = escenario(plan, datos.escenarioId);
-  plan.escenarios.push({ id: nuevoId(s, 'esc'), letra: siguienteLetra(plan), creadoPor: datos.creadoPor, nota: datos.nota ?? '', archivado: false, ingresos: copiarIngresos(s, origen.ingresos), items: copiarItems(s, origen.items, false) });
+  plan.escenarios.push({ id: nuevoId(s, 'esc'), letra: siguienteLetra(plan), creadoPor: datos.creadoPor, nota: datos.nota ?? '', archivado: false, ...copiarOpcion(s, origen) });
   return s;
 }
 
@@ -135,21 +149,52 @@ export function guardarItem(estado: EstadoHogar, datos: { planId: Id; escenarioI
   categoria(s, datos.item.categoriaId);
   const esc = escenarioEditable(s, datos.planId, datos.escenarioId);
   const existente = datos.item.id ? esc.items.find((i) => i.id === datos.item.id) : undefined;
-  if (existente) Object.assign(existente, datos.item);
-  else esc.items.push({ ...datos.item, id: nuevoId(s, 'item') } as ItemPlan);
+  if (existente) {
+    // Los enlaces del diezmo no cambian al editar; cambiar su monto lo deja "ajustado a mano" (design D1 de usabilidad-plan).
+    const { ingresoFijoId, aporteId, ingresoPlanId } = existente;
+    const linea = ingresoPlanId ? esc.ingresos.find((l) => l.id === ingresoPlanId) : undefined;
+    const ajustado = linea && datos.item.monto !== existente.monto ? datos.item.monto !== diezmoSugerido(s, linea) : existente.ajustadoAMano;
+    Object.assign(existente, datos.item, { ingresoFijoId, aporteId, ingresoPlanId, ajustadoAMano: ajustado });
+  } else {
+    esc.items.push({ ...datos.item, ingresoPlanId: null, ajustadoAMano: false, id: nuevoId(s, 'item') } as ItemPlan);
+  }
+  return s;
+}
+
+/** "Volver a calcular": el diezmo vuelve al monto que sugiere su linea y deja de estar ajustado a mano. */
+export function recalcularDiezmo(estado: EstadoHogar, datos: { planId: Id; escenarioId: Id; itemId: Id }): EstadoHogar {
+  const s = clonar(estado);
+  const esc = escenarioEditable(s, datos.planId, datos.escenarioId);
+  const item = esc.items.find((i) => i.id === datos.itemId);
+  const linea = item?.ingresoPlanId ? esc.ingresos.find((l) => l.id === item.ingresoPlanId) : undefined;
+  if (!item || !linea) throw new ReglaError('NO_EXISTE', 'Ese diezmo no viene de un ingreso del plan');
+  item.monto = diezmoSugerido(s, linea);
+  item.ajustadoAMano = false;
   return s;
 }
 
 /** "+ Ingreso" o editar una linea de ingreso de una opcion (design D8): no toca Ajustes, ni otros meses, ni otras opciones. */
-export function guardarIngresoPlan(estado: EstadoHogar, datos: { planId: Id; escenarioId: Id; ingreso: Omit<IngresoPlan, 'id'> & { id?: Id } }): EstadoHogar {
+export function guardarIngresoPlan(
+  estado: EstadoHogar,
+  datos: { planId: Id; escenarioId: Id; ingreso: Omit<IngresoPlan, 'id'> & { id?: Id }; aplicarDiezmo?: boolean },
+): EstadoHogar {
   const nombre = datos.ingreso.nombre.trim();
   if (!nombre || nombre.length > 60) throw new ReglaError('NOMBRE_REQUERIDO', 'El ingreso necesita un nombre de hasta 60 caracteres');
-  if (!(datos.ingreso.monto >= 0)) throw new ReglaError('MONTO_INVALIDO', 'El monto no puede ser negativo');
+  if (!(datos.ingreso.monto >= 0) || !(datos.ingreso.bruto >= 0)) throw new ReglaError('MONTO_INVALIDO', 'El monto no puede ser negativo');
   const s = clonar(estado);
+  const plan = planPorId(s, datos.planId);
   const esc = escenarioEditable(s, datos.planId, datos.escenarioId);
   const existente = datos.ingreso.id ? esc.ingresos.find((l) => l.id === datos.ingreso.id) : undefined;
-  if (existente) Object.assign(existente, datos.ingreso, { nombre });
-  else esc.ingresos.push({ ...datos.ingreso, nombre, id: nuevoId(s, 'ingp') });
+  if (existente) {
+    // Conserva su tipo y su ingreso fijo; su diezmo la sigue (design D1 de usabilidad-plan).
+    const anterior = existente.nombre;
+    Object.assign(existente, datos.ingreso, { nombre, tipo: existente.tipo, ingresoFijoId: existente.ingresoFijoId });
+    seguirLinea(s, plan.ref, esc, existente, anterior);
+  } else {
+    const linea: IngresoPlan = { ...datos.ingreso, nombre, id: nuevoId(s, 'ingp') };
+    esc.ingresos.push(linea);
+    if (datos.aplicarDiezmo) esc.items.push(diezmoDeLineaNueva(s, linea));
+  }
   return s;
 }
 
@@ -164,13 +209,55 @@ export function quitarIngresoPlan(estado: EstadoHogar, datos: { planId: Id; esce
     throw new ReglaError('INGRESO_RECIBIDO', `${linea.nombre} ya se recibió este mes; no se puede quitar`);
   }
   esc.ingresos = esc.ingresos.filter((l) => l.id !== datos.ingresoId);
+  // Su diezmo se va con ella si no tiene pagos; si los tiene, queda sin enlace (design D1 de usabilidad-plan).
+  for (const i of esc.items.filter((x) => x.ingresoPlanId === linea.id)) {
+    if (itemConPagos(s, plan.ref, i.id)) i.ingresoPlanId = null;
+    else esc.items = esc.items.filter((x) => x.id !== i.id);
+  }
   return s;
 }
 
 export function quitarItem(estado: EstadoHogar, datos: { planId: Id; escenarioId: Id; itemId: Id }): EstadoHogar {
   const s = clonar(estado);
+  const plan = planPorId(s, datos.planId);
   const esc = escenarioEditable(s, datos.planId, datos.escenarioId);
+  if (itemConPagos(s, plan.ref, datos.itemId)) throw new ReglaError('ITEM_CON_PAGOS', 'Este gasto ya tiene pagos este mes; no se puede quitar');
   esc.items = esc.items.filter((i) => i.id !== datos.itemId);
+  return s;
+}
+
+/** Lo que se borra con el plan de un mes, para la confirmacion (design D4 de usabilidad-plan). */
+export interface ConteoBorrado {
+  pagos: number;
+  gastos: number;
+  ingresos: number;
+  cerrado: boolean;
+}
+
+const TIPOS_DEL_PLAN = new Set(['PAGO', 'GASTO', 'INGRESO_FIJO']);
+
+export function conteoBorrado(estado: EstadoHogar, ref: MesRef): ConteoBorrado {
+  const movs = estado.movimientos.filter((m) => m.ref.anio === ref.anio && m.ref.mes === ref.mes);
+  return {
+    pagos: movs.filter((m) => m.tipo === 'PAGO').length,
+    gastos: movs.filter((m) => m.tipo === 'GASTO').length,
+    ingresos: movs.filter((m) => m.tipo === 'INGRESO_FIJO').length,
+    cerrado: Boolean(cierreDe(estado, ref)),
+  };
+}
+
+/**
+ * "Borrar plan de {mes}" (design D4): el plan, sus pagos, gastos e ingresos recibidos, y su cierre. Los aportes, ajustes,
+ * transferencias y abonos se conservan; una cuota borrada devuelve su capital al credito.
+ */
+export function borrarPlan(estado: EstadoHogar, ref: MesRef): EstadoHogar {
+  if (!planDe(estado, ref) && !cierreDe(estado, ref)) throw new ReglaError('NO_EXISTE', 'Ese mes no tiene plan');
+  const s = clonar(estado);
+  const delMes = (x: { ref: MesRef }) => x.ref.anio === ref.anio && x.ref.mes === ref.mes;
+  for (const m of s.movimientos.filter((x) => delMes(x) && TIPOS_DEL_PLAN.has(x.tipo))) devolverCapital(s, m);
+  s.movimientos = s.movimientos.filter((m) => !(delMes(m) && TIPOS_DEL_PLAN.has(m.tipo)));
+  s.planes = s.planes.filter((p) => !delMes(p));
+  s.cierres = s.cierres.filter((c) => !delMes(c));
   return s;
 }
 
@@ -347,7 +434,7 @@ export function probarAbonoComoOpcion(estado: EstadoHogar, datos: { creditoId: I
   const categoriaCreditos = s.categorias.find((c) => c.tipo === 'CREDITO') ?? s.categorias[0]!;
   s = guardarItem(s, {
     planId: plan.id, escenarioId: nueva.id,
-    item: { categoriaId: categoriaCreditos.id, nombre: `Abono extra ${credito.nombre.toLowerCase()}`, monto: datos.abono, diaVence: credito.diaPago, tipo: 'CREDITO', cuota: null, creditoId: credito.id, ingresoFijoId: null, aporteId: null },
+    item: { categoriaId: categoriaCreditos.id, nombre: `Abono extra ${credito.nombre.toLowerCase()}`, monto: datos.abono, diaVence: credito.diaPago, tipo: 'CREDITO', cuota: null, creditoId: credito.id, ingresoFijoId: null, aporteId: null, ingresoPlanId: null, ajustadoAMano: false },
   });
   return { estado: s, planId: plan.id, escenarioId: nueva.id };
 }

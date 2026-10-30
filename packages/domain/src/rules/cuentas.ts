@@ -29,6 +29,55 @@ export function saldoEstimado(estado: EstadoHogar, cuenta: Cuenta): Pesos {
   return cuenta.saldoCuadre + sumar(estado.movimientos.filter((m) => m.seq > cuenta.seqCuadre).map((m) => efecto(m, cuenta.id)));
 }
 
+/** Un movimiento en el detalle de una cuenta (spec steward-cuentas, "Movimientos de una cuenta"). */
+export interface MovimientoCuenta {
+  movimiento: Movimiento;
+  /** "Arriendo", "Aporte Esposa", "Mover a Efectivo", "Gastos sin registrar". */
+  descripcion: string;
+  /** Con su signo: lo que suma o resta a la cuenta. */
+  efecto: Pesos;
+  /** Pago, gasto, ingreso recibido o aporte: se abre para corregirlo o borrarlo. */
+  corregible: boolean;
+}
+
+function descripcionDe(estado: EstadoHogar, m: Movimiento, cuentaId: Id): string {
+  const cuenta = (id: Id | null) => estado.cuentas.find((c) => c.id === id)?.nombre ?? 'otra cuenta';
+  switch (m.tipo) {
+    case 'PAGO':
+    case 'GASTO': {
+      const item = m.itemId ? estado.planes.flatMap((p) => p.escenarios).flatMap((e) => e.items).find((i) => i.id === m.itemId) : undefined;
+      return item?.nombre ?? (m.nota || 'Gasto');
+    }
+    case 'INGRESO_FIJO': {
+      const linea = m.ingresoPlanId ? estado.planes.flatMap((p) => p.escenarios).flatMap((e) => e.ingresos).find((l) => l.id === m.ingresoPlanId) : undefined;
+      return linea?.nombre ?? estado.ingresosFijos.find((f) => f.id === m.ingresoFijoId)?.nombre ?? 'Ingreso';
+    }
+    case 'APORTE':
+      return `Aporte ${nombreUsuario(estado, m.usuarioId)}`;
+    case 'TRANSFERENCIA':
+      return m.cuentaDestinoId === cuentaId ? `Desde ${cuenta(m.origen.tipo === 'CUENTA' ? m.origen.cuentaId : null)}` : `Mover a ${cuenta(m.cuentaDestinoId)}`;
+    case 'AJUSTE_CUADRE':
+      return m.nota || 'Gastos sin registrar';
+    case 'ABONO_CREDITO':
+      return `Abono ${estado.creditos.find((c) => c.id === m.creditoId)?.nombre ?? 'crédito'}`;
+    case 'DIEZMO_ENTREGADO':
+      return 'Diezmo entregado';
+  }
+}
+
+/** Lo registrado despues del ultimo cuadre que mueve la cuenta, del mas reciente al mas antiguo. */
+export function movimientosDeCuenta(estado: EstadoHogar, cuentaId: Id): MovimientoCuenta[] {
+  const cuenta = estado.cuentas.find((c) => c.id === cuentaId);
+  if (!cuenta) throw new ReglaError('NO_EXISTE', 'No existe la cuenta');
+  return estado.movimientos
+    .filter((m) => m.seq > cuenta.seqCuadre && efecto(m, cuentaId) !== 0)
+    .sort((a, b) => b.seq - a.seq)
+    .map((m) => ({
+      movimiento: m, descripcion: descripcionDe(estado, m, cuentaId), efecto: efecto(m, cuentaId),
+      corregible: ['PAGO', 'GASTO', 'INGRESO_FIJO', 'APORTE'].includes(m.tipo),
+    }));
+}
+
 export interface VistaCuenta {
   cuenta: Cuenta;
   titular: string;
@@ -83,7 +132,7 @@ export function moverDinero(estado: EstadoHogar, datos: { desde: Id; hacia: Id; 
   s.movimientos.push({
     id, seq: s.secuencia, tipo: 'TRANSFERENCIA', ref: mesDe(datos.fecha), monto: datos.monto, fecha: datos.fecha, usuarioId: datos.usuarioId,
     creadoPor: datos.usuarioId, origen: { tipo: 'CUENTA', cuentaId: datos.desde }, nota: '', itemId: null, ingresoFijoId: null,
-    bruto: null, aplicaDiezmo: false, diezmoDe: [], ingresoPlanId: null, cuentaDestinoId: datos.hacia, creditoId: null,
+    bruto: null, aplicaDiezmo: false, diezmoDe: [], ingresoPlanId: null, cuentaDestinoId: datos.hacia, creditoId: null, capital: null,
   });
   return s;
 }
@@ -110,7 +159,7 @@ export function cuadrarCuentas(estado: EstadoHogar, datos: { saldos: { cuentaId:
       s.movimientos.push({
         id, seq: s.secuencia, tipo: 'AJUSTE_CUADRE', ref: mesDe(datos.fecha), monto: diferencia, fecha: datos.fecha, usuarioId: datos.usuarioId,
         creadoPor: datos.usuarioId, origen: { tipo: 'CUENTA', cuentaId }, nota: 'Gastos sin registrar', itemId: null, ingresoFijoId: null,
-        bruto: null, aplicaDiezmo: false, diezmoDe: [], ingresoPlanId: null, cuentaDestinoId: null, creditoId: null,
+        bruto: null, aplicaDiezmo: false, diezmoDe: [], ingresoPlanId: null, cuentaDestinoId: null, creditoId: null, capital: null,
       });
     }
     cuenta.saldoCuadre = saldoBanco;

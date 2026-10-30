@@ -135,6 +135,10 @@ export interface ItemPlan {
   ingresoFijoId: Id | null;
   /** DIEZMO: el movimiento APORTE que lo origina. */
   aporteId: Id | null;
+  /** DIEZMO: la linea de ingreso de la opcion de la que sale; se recalcula con ella (design D1 de usabilidad-plan). */
+  ingresoPlanId: Id | null;
+  /** DIEZMO: su monto se cambio a mano; ya no sigue a su linea hasta "Volver a calcular". */
+  ajustadoAMano: boolean;
 }
 
 /** FIJO sale de Ajustes, EXTRA de un evento del plan anual, OTRO se agrego a mano (design D8 de diezmo-como-gasto). */
@@ -148,6 +152,8 @@ export interface IngresoPlan {
   usuarioId: Id | null;
   tipo: TipoIngresoPlan;
   ingresoFijoId: Id | null;
+  /** Base del diezmo cuando la regla usa el bruto; en las lineas que no son de un ingreso fijo, igual al monto. */
+  bruto: Pesos;
 }
 
 export interface Escenario {
@@ -212,6 +218,8 @@ export interface Movimiento {
   cuentaDestinoId: Id | null;
   /** ABONO_CREDITO */
   creditoId: Id | null;
+  /** PAGO de una cuota y ABONO_CREDITO: cuanto bajo el saldo del credito; se devuelve al borrarlo (null en los de antes). */
+  capital: Pesos | null;
 }
 
 export interface FilaCierre {

@@ -1,4 +1,4 @@
-import type { Credito, EstadoHogar, Fecha, Id, ItemPlan, Origen, Pesos } from '../model';
+import type { Credito, EstadoHogar, Fecha, Id, ItemPlan, Movimiento, Origen, Pesos } from '../model';
 import { ReglaError, clonar, mesDe, nuevoId } from './base';
 import { escenarioPrincipal, planDe } from './consultas';
 
@@ -64,9 +64,23 @@ export function registrarAbono(estado: EstadoHogar, datos: { creditoId: Id; mont
   s.movimientos.push({
     id, seq: s.secuencia, tipo: 'ABONO_CREDITO', ref: mesDe(datos.fecha), monto: datos.monto, fecha: datos.fecha, usuarioId: datos.usuarioId,
     creadoPor: datos.usuarioId, origen: datos.origen, nota: '', itemId: null, ingresoFijoId: null, bruto: null,
-    aplicaDiezmo: false, diezmoDe: [], ingresoPlanId: null, cuentaDestinoId: null, creditoId: c.id,
+    aplicaDiezmo: false, diezmoDe: [], ingresoPlanId: null, cuentaDestinoId: null, creditoId: c.id, capital: datos.monto,
   });
   return s;
+}
+
+/**
+ * Al borrar un pago de cuota o un abono, el credito recupera lo que le habia bajado (`capital`, design D3 de usabilidad-plan).
+ * Uno de antes, sin `capital`, no toca el saldo. Muta el borrador.
+ */
+export function devolverCapital(s: EstadoHogar, m: Movimiento): void {
+  if (!m.creditoId || m.capital === null) return;
+  const c = s.creditos.find((x) => x.id === m.creditoId);
+  if (!c) return;
+  c.saldo += m.capital;
+  const tipo = m.tipo === 'ABONO_CREDITO' ? 'ABONO' : 'CUOTA';
+  const i = c.pagos.findIndex((p) => p.fecha === m.fecha && p.monto === m.monto && p.tipo === tipo);
+  if (i >= 0) c.pagos.splice(i, 1);
 }
 
 export interface DatosCredito {
@@ -85,7 +99,7 @@ function itemCuota(s: EstadoHogar, credito: Credito): ItemPlan {
   if (!categoria) throw new ReglaError('NO_EXISTE', 'El hogar no tiene categorías');
   return {
     id: nuevoId(s, 'item'), categoriaId: categoria.id, nombre: `Cuota ${credito.nombre.toLowerCase()}`, monto: credito.cuota,
-    diaVence: credito.diaPago, tipo: 'CREDITO', cuota: null, creditoId: credito.id, ingresoFijoId: null, aporteId: null,
+    diaVence: credito.diaPago, tipo: 'CREDITO', cuota: null, creditoId: credito.id, ingresoFijoId: null, aporteId: null, ingresoPlanId: null, ajustadoAMano: false,
   };
 }
 

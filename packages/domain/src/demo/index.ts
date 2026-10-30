@@ -237,6 +237,9 @@ export function crearAdaptadorDemo(opciones: OpcionesDemo): Puertos {
       async guardarCategoria(datos) {
         await cambiar((s) => R.guardarCategoria(s, datos));
       },
+      async empezarDeNuevo() {
+        await cambiar((s) => R.empezarDeNuevo(s, { fecha: hoy() }));
+      },
     },
 
     ingresos: {
@@ -284,6 +287,12 @@ export function crearAdaptadorDemo(opciones: OpcionesDemo): Puertos {
       async previsualizarGasto(ref, itemId, monto) {
         return R.previsualizarGasto(await leerEstado(), ref, itemId, monto, hoy());
       },
+      async corregirRegistro(datos) {
+        await cambiar((s) => R.corregirRegistro(s, datos));
+      },
+      async borrarRegistro(movimientoId) {
+        await cambiar((s) => R.borrarRegistro(s, { movimientoId }));
+      },
     },
 
     plan: {
@@ -322,8 +331,17 @@ export function crearAdaptadorDemo(opciones: OpcionesDemo): Puertos {
       async quitarItem(planId, escenarioId, itemId) {
         await cambiar((s) => R.quitarItem(s, { planId, escenarioId, itemId }));
       },
-      async guardarIngreso(planId, escenarioId, ingreso) {
-        await cambiar((s) => R.guardarIngresoPlan(s, { planId, escenarioId, ingreso }));
+      async guardarIngreso(planId, escenarioId, ingreso, aplicarDiezmo) {
+        await cambiar((s) => R.guardarIngresoPlan(s, { planId, escenarioId, ingreso, aplicarDiezmo }));
+      },
+      async recalcularDiezmo(planId, escenarioId, itemId) {
+        await cambiar((s) => R.recalcularDiezmo(s, { planId, escenarioId, itemId }));
+      },
+      async conteoBorrado(ref) {
+        return R.conteoBorrado(await leerEstado(), ref);
+      },
+      async borrarPlan(ref) {
+        await cambiar((s) => R.borrarPlan(s, ref));
       },
       async quitarIngreso(planId, escenarioId, ingresoId) {
         await cambiar((s) => R.quitarIngresoPlan(s, { planId, escenarioId, ingresoId }));
@@ -355,6 +373,9 @@ export function crearAdaptadorDemo(opciones: OpcionesDemo): Puertos {
     cuentas: {
       async cuentas(filtro) {
         return R.cuentasDelHogar(await leerEstado(), hoy(), filtro);
+      },
+      async movimientos(cuentaId) {
+        return R.movimientosDeCuenta(await leerEstado(), cuentaId);
       },
       async agregar(datos) {
         await cambiar((s) => R.agregarCuenta(s, { ...datos, fecha: hoy() }));

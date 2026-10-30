@@ -84,6 +84,23 @@ describe('adaptador demo (steward-ui-shell: modo demo)', () => {
     expect((await p.hogar.obtener()).miembros).toHaveLength(2);
   });
 
+  it('corregir, borrar, borrar el plan y empezar de nuevo por los puertos (usabilidad-plan)', async () => {
+    const p = crearAdaptadorDemo({ storage: storageEnMemoria(), ahora });
+    await p.sesion.iniciar('GOOGLE');
+    await p.movimientos.registrarGasto({ monto: 95_000, itemId: null, nota: 'Farmacia', usuarioId: 'u-daniel', origen: { tipo: 'NINGUNO' }, ref: OCT });
+    const gasto = (await p.movimientos.resumenMes(OCT)).noPlaneados[0]!;
+    await p.movimientos.corregirRegistro({ movimientoId: gasto.id, monto: 90_000, nota: 'Droguería' });
+    expect((await p.movimientos.resumenMes(OCT)).noPlaneados[0]).toMatchObject({ monto: 90_000, nota: 'Droguería' });
+    await p.movimientos.borrarRegistro(gasto.id);
+    expect((await p.movimientos.resumenMes(OCT)).libre).toBe(3_436_000);
+    expect((await p.plan.conteoBorrado({ anio: 2026, mes: 11 })).pagos).toBe(0);
+    await p.plan.borrarPlan({ anio: 2026, mes: 11 });
+    expect((await p.plan.mes({ anio: 2026, mes: 11 })).estado).toBe('SIN_PLAN');
+    expect((await p.cuentas.movimientos('cta-davivienda'))).toEqual([]);
+    await p.hogar.empezarDeNuevo();
+    expect((await p.movimientos.resumenMes(OCT)).sinPlan).toBe(true);
+  });
+
   it('una regla que falla no cambia el estado', async () => {
     const p = crearAdaptadorDemo({ storage: storageEnMemoria(), ahora });
     await p.sesion.iniciar('GOOGLE');

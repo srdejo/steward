@@ -7,7 +7,7 @@ import type {
   ItemPlan, MesRef, Origen, Pesos, PlanMes, ReglaDiezmo, TipoCategoria, Usuario,
 } from '../model';
 import type {
-  DatosCredito, FiltroTitular, ModoNuevoMes, ResumenAnual, ResumenMes, ResumenMesPlan, VistaCierre, VistaCuenta, VistaOpcion,
+  ConteoBorrado, DatosCredito, FiltroTitular, ModoNuevoMes, MovimientoCuenta, ResumenAnual, ResumenMes, ResumenMesPlan, VistaCierre, VistaCuenta, VistaOpcion,
 } from '../rules';
 import type { compararOpciones, loQueTraeElMes } from '../rules';
 
@@ -68,6 +68,8 @@ export interface HogarPort {
   salir(): Promise<void>;
   categorias(): Promise<Categoria[]>;
   guardarCategoria(datos: { id?: Id; nombre: string; color?: string; tipo?: TipoCategoria }): Promise<void>;
+  /** "Empezar de nuevo": sin planes, cierres, anuales ni registros; las cuentas conservan su saldo de hoy. */
+  empezarDeNuevo(): Promise<void>;
 }
 
 export interface IngresosPort {
@@ -89,6 +91,9 @@ export interface MovimientosPort {
   marcarPago(datos: { itemId: Id; ref: MesRef; monto: Pesos; usuarioId: Id; origen: Origen }): Promise<void>;
   registrarGasto(datos: { monto: Pesos; itemId: Id | null; nota: string; usuarioId: Id; origen: Origen; ref: MesRef }): Promise<void>;
   previsualizarGasto(ref: MesRef, itemId: Id, monto: Pesos): Promise<{ llevado: Pesos; presupuesto: Pesos }>;
+  /** Corregir un pago, gasto, ingreso recibido o aporte (design D3 de usabilidad-plan). */
+  corregirRegistro(datos: { movimientoId: Id; monto?: Pesos; origen?: Origen; nota?: string }): Promise<void>;
+  borrarRegistro(movimientoId: Id): Promise<void>;
 }
 
 export interface VistaMes {
@@ -110,9 +115,15 @@ export interface PlanPort {
   guardarItem(planId: Id, escenarioId: Id, item: Omit<ItemPlan, 'id'> & { id?: Id }): Promise<void>;
   quitarItem(planId: Id, escenarioId: Id, itemId: Id): Promise<void>;
   /** "+ Ingreso" o editar una linea de ingreso de la opcion. */
-  guardarIngreso(planId: Id, escenarioId: Id, ingreso: Omit<IngresoPlan, 'id'> & { id?: Id }): Promise<void>;
+  guardarIngreso(planId: Id, escenarioId: Id, ingreso: Omit<IngresoPlan, 'id'> & { id?: Id }, aplicarDiezmo?: boolean): Promise<void>;
   /** Una linea ya recibida no se quita (INGRESO_RECIBIDO). */
   quitarIngreso(planId: Id, escenarioId: Id, ingresoId: Id): Promise<void>;
+  /** "Volver a calcular" un diezmo ajustado a mano. */
+  recalcularDiezmo(planId: Id, escenarioId: Id, itemId: Id): Promise<void>;
+  /** Lo que se borra con el plan de un mes, para la confirmacion. */
+  conteoBorrado(ref: MesRef): Promise<ConteoBorrado>;
+  /** "Borrar plan de {mes}" (design D4 de usabilidad-plan). */
+  borrarPlan(ref: MesRef): Promise<void>;
   comparar(ref: MesRef): Promise<ReturnType<typeof compararOpciones>>;
   anual(anio: number): Promise<ResumenAnual | null>;
   agregarEvento(anio: number, evento: Omit<EventoAnual, 'id'>): Promise<void>;
@@ -132,6 +143,8 @@ export interface VistaCredito {
 
 export interface CuentasPort {
   cuentas(filtro?: FiltroTitular): Promise<{ cuentas: VistaCuenta[]; total: Pesos }>;
+  /** Lo registrado despues del ultimo cuadre de la cuenta. */
+  movimientos(cuentaId: Id): Promise<MovimientoCuenta[]>;
   agregar(datos: { nombre: string; titularId: Id | null; saldo: Pesos }): Promise<void>;
   mover(datos: { desde: Id; hacia: Id; monto: Pesos }): Promise<void>;
   diferencia(cuentaId: Id, saldoBanco: Pesos): Promise<Pesos>;

@@ -5,6 +5,7 @@ import { crearHogarVacio, crearSemilla, DANIEL, ESPOSA } from '../demo/seed';
 import type { EstadoHogar, MesRef } from '../model';
 import {
   ReglaError, aceptarInvitacion, quitarEscenario, crearAnual, editarProyeccion, editarMontoAnual, agregarCredito, actualizarSaldoCredito, agregarEvento, compararOpciones, crearMes, crearMesesDesdeAnual, cuadrarCuentas, cuentasDelHogar,
+  borrarPlan, borrarRegistro, conteoBorrado, corregirRegistro, empezarDeNuevo, movimientosDeCuenta, quitarItem, recalcularDiezmo,
   cerrarMes, diferenciaCuadre, duplicarEscenario, guardarCategoria, guardarIngresoFijo, guardarIngresoPlan, guardarItem, guardarRegla, invitar, loQueTraeElMes, quitarIngresoPlan,
   marcarPago, marcarRecibido, planDe, planInicio, previsualizarDiezmo, previsualizarGasto, probarAbonoComoOpcion, registrarAporte,
   registrarGasto, repartoValido, resumenAnual, resumenMes, simularAbono, cuotasRestantes, porcentajePagado, usarEscenario,
@@ -89,9 +90,9 @@ describe('Hoy (steward-hoy)', () => {
 
   it('un ingreso editado en el plan cuenta asi en Hoy, y uno agregado a mano se recibe', () => {
     const base = sinDiezmoNiSalario(semilla());
-    let s = guardarIngresoPlan(base, { planId: 'plan-m0', escenarioId: 'plan-m0-a', ingreso: { id: 'm0-ing-salario', nombre: 'Salario Daniel', monto: 6_500_000, usuarioId: DANIEL, tipo: 'FIJO', ingresoFijoId: 'ing-salario' } });
+    let s = guardarIngresoPlan(base, { planId: 'plan-m0', escenarioId: 'plan-m0-a', ingreso: { id: 'm0-ing-salario', nombre: 'Salario Daniel', monto: 6_500_000, usuarioId: DANIEL, tipo: 'FIJO', ingresoFijoId: 'ing-salario', bruto: 7_000_000 } });
     expect(resumenMes(s, OCT, HOY).libre).toBe(resumenMes(base, OCT, HOY).libre + 212_000);
-    s = guardarIngresoPlan(s, { planId: 'plan-m0', escenarioId: 'plan-m0-a', ingreso: { nombre: 'Venta bicicleta', monto: 400_000, usuarioId: null, tipo: 'OTRO', ingresoFijoId: null } });
+    s = guardarIngresoPlan(s, { planId: 'plan-m0', escenarioId: 'plan-m0-a', ingreso: { nombre: 'Venta bicicleta', monto: 400_000, usuarioId: null, tipo: 'OTRO', ingresoFijoId: null, bruto: 400_000 } });
     const linea = planDe(s, OCT)!.escenarios[0]!.ingresos.find((l) => l.nombre === 'Venta bicicleta')!;
     expect(resumenMes(s, OCT, HOY).ingresos.find((l) => l.lineaId === linea.id)).toMatchObject({ detalle: 'Por recibir', recibido: false });
     s = marcarRecibido(s, { lineaId: linea.id, ref: OCT, fecha: HOY, creadoPor: DANIEL });
@@ -271,12 +272,12 @@ describe('Planear (steward-planear)', () => {
     let s = guardarItem(semilla(), { planId: 'plan-m1', escenarioId: 'plan-m1-a', item: { ...planDe(semilla(), NOV)!.escenarios[0]!.items.find((i) => i.tipo === 'DIEZMO')!, monto: 750_000 } });
     expect(vistasOpciones(s, NOV)[0]!.libre).toBe(2_898_000 - 50_000);
     expect(planDe(s, NOV)!.escenarios[0]!.items.find((i) => i.tipo === 'DIEZMO')).toMatchObject({ monto: 750_000, ingresoFijoId: 'ing-salario' });
-    s = guardarIngresoPlan(semilla(), { planId: 'plan-m1', escenarioId: 'plan-m1-b', ingreso: { id: 'm1b-ing-salario', nombre: 'Salario Daniel', monto: 7_000_000, usuarioId: DANIEL, tipo: 'FIJO', ingresoFijoId: 'ing-salario' } });
+    s = guardarIngresoPlan(semilla(), { planId: 'plan-m1', escenarioId: 'plan-m1-b', ingreso: { id: 'm1b-ing-salario', nombre: 'Salario Daniel', monto: 7_000_000, usuarioId: DANIEL, tipo: 'FIJO', ingresoFijoId: 'ing-salario', bruto: 7_000_000 } });
     expect(vistasOpciones(s, NOV).map((v) => v.libre)).toEqual([2_898_000, 1_298_000 + 712_000, 1_398_000]);
     expect(s.ingresosFijos[0]!.neto).toBe(6_288_000);
-    s = guardarIngresoPlan(semilla(), { planId: 'plan-m1', escenarioId: 'plan-m1-a', ingreso: { nombre: 'Venta bicicleta', monto: 400_000, usuarioId: null, tipo: 'OTRO', ingresoFijoId: null } });
+    s = guardarIngresoPlan(semilla(), { planId: 'plan-m1', escenarioId: 'plan-m1-a', ingreso: { nombre: 'Venta bicicleta', monto: 400_000, usuarioId: null, tipo: 'OTRO', ingresoFijoId: null, bruto: 400_000 } });
     expect(vistasOpciones(s, NOV)[0]!.libre).toBe(2_898_000 + 400_000);
-    expect(() => guardarIngresoPlan(semilla(), { planId: 'plan-m1', escenarioId: 'plan-m1-a', ingreso: { nombre: ' ', monto: 1, usuarioId: null, tipo: 'OTRO', ingresoFijoId: null } })).toThrow(ReglaError);
+    expect(() => guardarIngresoPlan(semilla(), { planId: 'plan-m1', escenarioId: 'plan-m1-a', ingreso: { nombre: ' ', monto: 1, usuarioId: null, tipo: 'OTRO', ingresoFijoId: null, bruto: 1 } })).toThrow(ReglaError);
   });
 
   it('items de diezmo al crear el mes: uno por ingreso, sin regla sin item, y no se copia el editado', () => {
@@ -306,8 +307,8 @@ describe('Planear (steward-planear)', () => {
   });
 
   it('ingresos al crear el mes: los de Ajustes de nuevo, los agregados a mano se copian; duplicar copia todo', () => {
-    let s = guardarIngresoPlan(semilla(), { planId: 'plan-m1', escenarioId: 'plan-m1-a', ingreso: { id: 'm1-ing-salario', nombre: 'Salario Daniel', monto: 6_500_000, usuarioId: DANIEL, tipo: 'FIJO', ingresoFijoId: 'ing-salario' } });
-    s = guardarIngresoPlan(s, { planId: 'plan-m1', escenarioId: 'plan-m1-a', ingreso: { nombre: 'Venta bicicleta', monto: 400_000, usuarioId: null, tipo: 'OTRO', ingresoFijoId: null } });
+    let s = guardarIngresoPlan(semilla(), { planId: 'plan-m1', escenarioId: 'plan-m1-a', ingreso: { id: 'm1-ing-salario', nombre: 'Salario Daniel', monto: 6_500_000, usuarioId: DANIEL, tipo: 'FIJO', ingresoFijoId: 'ing-salario', bruto: 7_000_000 } });
+    s = guardarIngresoPlan(s, { planId: 'plan-m1', escenarioId: 'plan-m1-a', ingreso: { nombre: 'Venta bicicleta', monto: 400_000, usuarioId: null, tipo: 'OTRO', ingresoFijoId: null, bruto: 400_000 } });
     s = usarEscenario(s, { planId: 'plan-m1', escenarioId: 'plan-m1-a', hoy: HOY });
     const dic = planDe(crearMes(s, { ref: DIC, modo: 'COPIAR', creadoPor: DANIEL }), DIC)!.escenarios[0]!;
     expect(dic.ingresos.map((l) => [l.nombre, l.monto])).toEqual([['Salario Daniel', 6_288_000], ['Prima', 3_500_000], ['Venta bicicleta', 400_000]]);
@@ -479,6 +480,148 @@ describe('Cierre (steward-planear)', () => {
     expect(() => registrarGasto(s, { monto: 1_000, itemId: null, nota: '', usuarioId: DANIEL, origen: { tipo: 'NINGUNO' }, ref: OCT, fecha: HOY, creadoPor: DANIEL })).toThrow('El mes está cerrado');
     expect(() => registrarAporte(s, { usuarioId: ESPOSA, monto: 1_000, ref: OCT, cuentaId: null, aplicaDiezmo: false, fecha: HOY, creadoPor: ESPOSA })).toThrow('El mes está cerrado');
     expect(() => cerrarMes(s0, { ref: OCT, aAhorro: 2_000_000, aSiguiente: 1_000_000, cerradoPor: DANIEL, fecha: HOY })).toThrow('El reparto debe sumar lo que sobró');
+  });
+});
+
+describe('Usabilidad del plan (usabilidad-plan)', () => {
+  const LINEA = (s: EstadoHogar, ref: MesRef, esc = 0) => planDe(s, ref)!.escenarios[esc]!.ingresos.find((l) => l.nombre === 'Salario Daniel')!;
+  const DIEZMO = (s: EstadoHogar, ref: MesRef, esc = 0) => planDe(s, ref)!.escenarios[esc]!.items.find((i) => i.nombre === 'Diezmo · Salario Daniel')!;
+
+  it('el diezmo sigue a su linea: cambiar el bruto lo recalcula', () => {
+    const s = guardarIngresoPlan(semilla(), { planId: 'plan-m1', escenarioId: 'plan-m1-a', ingreso: { ...LINEA(semilla(), NOV), bruto: 7_500_000 } });
+    expect(DIEZMO(s, NOV)).toMatchObject({ monto: 750_000, ingresoPlanId: 'm1-ing-salario', ajustadoAMano: false });
+  });
+
+  it('diezmo ajustado a mano: no sigue a la linea hasta Volver a calcular', () => {
+    let s = guardarItem(semilla(), { planId: 'plan-m1', escenarioId: 'plan-m1-a', item: { ...DIEZMO(semilla(), NOV), monto: 600_000 } });
+    expect(DIEZMO(s, NOV).ajustadoAMano).toBe(true);
+    s = guardarIngresoPlan(s, { planId: 'plan-m1', escenarioId: 'plan-m1-a', ingreso: { ...LINEA(s, NOV), bruto: 7_500_000 } });
+    expect(DIEZMO(s, NOV).monto).toBe(600_000);
+    s = recalcularDiezmo(s, { planId: 'plan-m1', escenarioId: 'plan-m1-a', itemId: DIEZMO(s, NOV).id });
+    expect(DIEZMO(s, NOV)).toMatchObject({ monto: 750_000, ajustadoAMano: false });
+  });
+
+  it('un diezmo ya pagado no cambia', () => {
+    let s = marcarPago(semilla(), { itemId: 'm0-diezmo-salario', ref: OCT, monto: 700_000, usuarioId: DANIEL, origen: { tipo: 'NINGUNO' }, fecha: HOY, creadoPor: DANIEL });
+    s = guardarIngresoPlan(s, { planId: 'plan-m0', escenarioId: 'plan-m0-a', ingreso: { ...LINEA(s, OCT), bruto: 8_000_000 } });
+    expect(DIEZMO(s, OCT).monto).toBe(700_000);
+  });
+
+  it('ingreso agregado con Aplicar diezmo; quitarlo se lleva su diezmo', () => {
+    let s = guardarIngresoPlan(semilla(), { planId: 'plan-m1', escenarioId: 'plan-m1-a', ingreso: { nombre: 'Venta bicicleta', monto: 400_000, bruto: 400_000, usuarioId: DANIEL, tipo: 'OTRO', ingresoFijoId: null }, aplicarDiezmo: true });
+    const linea = planDe(s, NOV)!.escenarios[0]!.ingresos.find((l) => l.nombre === 'Venta bicicleta')!;
+    expect(planDe(s, NOV)!.escenarios[0]!.items.find((i) => i.ingresoPlanId === linea.id)).toMatchObject({ nombre: 'Diezmo · Venta bicicleta', monto: 40_000 });
+    s = quitarIngresoPlan(s, { planId: 'plan-m1', escenarioId: 'plan-m1-a', ingresoId: linea.id });
+    expect(planDe(s, NOV)!.escenarios[0]!.items.some((i) => i.ingresoPlanId === linea.id)).toBe(false);
+  });
+
+  it('duplicar enlaza el diezmo a la copia de su linea; crear el mes enlaza al nacer', () => {
+    const s = duplicarEscenario(semilla(), { planId: 'plan-m1', escenarioId: 'plan-m1-a', creadoPor: DANIEL, hoy: HOY });
+    const d = opciones(planDe(s, NOV)!).at(-1)!;
+    expect(d.items.find((i) => i.tipo === 'DIEZMO')!.ingresoPlanId).toBe(d.ingresos[0]!.id);
+    const dic = planDe(crearMes(semilla(), { ref: DIC, modo: 'CERO', creadoPor: DANIEL }), DIC)!.escenarios[0]!;
+    const salario = dic.ingresos.find((l) => l.nombre === 'Salario Daniel')!;
+    expect(dic.items.find((i) => i.nombre === 'Diezmo · Salario Daniel')!.ingresoPlanId).toBe(salario.id);
+    expect(dic.items.find((i) => i.nombre === 'Diezmo · Prima')!.ingresoPlanId).toBe(dic.ingresos.find((l) => l.nombre === 'Prima')!.id);
+  });
+
+  it('aumento de salario en Ajustes: los meses abiertos lo siguen, salvo la linea cambiada a mano', () => {
+    let s = sinDiezmoNiSalario(semilla());
+    s = guardarIngresoPlan(s, { planId: 'plan-m1', escenarioId: 'plan-m1-b', ingreso: { ...LINEA(s, NOV, 1), monto: 6_000_000 } });
+    s = guardarIngresoFijo(s, { ...s.ingresosFijos[0]!, neto: 6_500_000, bruto: 7_500_000 }, HOY);
+    expect(LINEA(s, OCT)).toMatchObject({ monto: 6_500_000, bruto: 7_500_000 });
+    expect(DIEZMO(s, OCT).monto).toBe(750_000);
+    expect(LINEA(s, NOV)).toMatchObject({ monto: 6_500_000 });
+    expect(LINEA(s, NOV, 1).monto).toBe(6_000_000);
+    // Un mes cerrado no cambia.
+    expect(planDe(s, { anio: 2026, mes: 9 })!.escenarios[0]!.ingresos[0]!.monto).toBe(6_288_000);
+  });
+
+  it('borrar un gasto equivocado, corregir un pago y deshacer un Recibi', () => {
+    let s = registrarGasto(semilla(), { monto: 95_000, itemId: null, nota: 'Farmacia', usuarioId: DANIEL, origen: { tipo: 'NINGUNO' }, ref: OCT, fecha: HOY, creadoPor: DANIEL });
+    const antes = resumenMes(semilla(), OCT, HOY);
+    s = borrarRegistro(s, { movimientoId: s.movimientos.at(-1)!.id });
+    expect(resumenMes(s, OCT, HOY)).toMatchObject({ pagado: antes.pagado, libre: antes.libre });
+    // Internet: pagado $75.000 desde Davivienda; se corrige a $120.000.
+    const internet = s.movimientos.find((m) => m.itemId === 'm0-internet')!;
+    const davivienda = () => cuentasDelHogar(s, HOY).cuentas.find((c) => c.cuenta.nombre === 'Davivienda')!.saldo;
+    const saldo = davivienda();
+    s = corregirRegistro(s, { movimientoId: internet.id, monto: 120_000 });
+    expect(resumenMes(s, OCT, HOY).yaPagado.find((i) => i.item.nombre === 'Internet')!.detalle).toContain('igual al plan');
+    // Ya estaba en el cuadre de Davivienda (19 oct): su saldo no cambia.
+    expect(davivienda()).toBe(saldo);
+    const recibido = s.movimientos.find((m) => m.tipo === 'INGRESO_FIJO')!;
+    s = borrarRegistro(s, { movimientoId: recibido.id });
+    expect(resumenMes(s, OCT, HOY).ingresos.find((l) => l.nombre === 'Salario Daniel')!.recibido).toBe(false);
+    expect(() => borrarRegistro(s, { movimientoId: 'nada' })).toThrow(expect.objectContaining({ codigo: 'NO_EXISTE' }));
+  });
+
+  it('corregir un pago despues del cuadre mueve el saldo de su cuenta', () => {
+    let s = marcarPago(semilla(), { itemId: 'm0-mastercard', ref: OCT, monto: 1_600_000, usuarioId: DANIEL, origen: { tipo: 'CUENTA', cuentaId: 'cta-nu' }, fecha: HOY, creadoPor: DANIEL });
+    const nu = () => cuentasDelHogar(s, HOY).cuentas.find((c) => c.cuenta.nombre === 'Nu')!.saldo;
+    const antes = nu();
+    s = corregirRegistro(s, { movimientoId: s.movimientos.at(-1)!.id, monto: 1_500_000 });
+    expect(nu()).toBe(antes + 100_000);
+    expect(movimientosDeCuenta(s, 'cta-nu')[0]).toMatchObject({ descripcion: 'Tarjeta Mastercard', efecto: -1_500_000, corregible: true });
+  });
+
+  it('borrar el pago de una cuota devuelve su capital; su monto no se corrige', () => {
+    let s = sinDiezmoNiSalario(semilla());
+    s = { ...s, movimientos: s.movimientos.filter((m) => m.itemId !== 'm0-cuota-credito') };
+    const saldo = s.creditos[0]!.saldo;
+    s = marcarPago(s, { itemId: 'm0-cuota-credito', ref: OCT, monto: 500_000, usuarioId: DANIEL, origen: { tipo: 'NINGUNO' }, fecha: HOY, creadoPor: DANIEL });
+    const pago = s.movimientos.at(-1)!;
+    expect(pago.capital).toBe(272_000);
+    expect(() => corregirRegistro(s, { movimientoId: pago.id, monto: 400_000 })).toThrow(expect.objectContaining({ codigo: 'DATOS_INVALIDOS' }));
+    s = borrarRegistro(s, { movimientoId: pago.id });
+    expect(s.creditos[0]!.saldo).toBe(saldo);
+    expect(resumenMes(s, OCT, HOY).porPagar.map((i) => i.item.nombre)).toContain('Cuota libre inversión');
+  });
+
+  it('borrar un aporte se lleva su diezmo sin pagos', () => {
+    let s = registrarAporte(semilla(), { usuarioId: DANIEL, monto: 2_000_000, ref: OCT, cuentaId: null, aplicaDiezmo: true, fecha: HOY, creadoPor: DANIEL });
+    const aporte = s.movimientos.at(-1)!;
+    s = corregirRegistro(s, { movimientoId: aporte.id, monto: 3_000_000 });
+    expect(planDe(s, OCT)!.escenarios[0]!.items.find((i) => i.aporteId === aporte.id)!.monto).toBe(300_000);
+    s = borrarRegistro(s, { movimientoId: aporte.id });
+    expect(planDe(s, OCT)!.escenarios[0]!.items.some((i) => i.aporteId === aporte.id)).toBe(false);
+  });
+
+  it('borrar el plan de un mes con pagos y de un mes cerrado', () => {
+    const base = registrarAporte(semilla(), { usuarioId: ESPOSA, monto: 100_000, ref: OCT, cuentaId: null, aplicaDiezmo: false, fecha: HOY, creadoPor: ESPOSA });
+    const conteo = conteoBorrado(base, OCT);
+    expect(conteo).toEqual({ pagos: 7, gastos: 5, ingresos: 1, cerrado: false });
+    const aportes = base.movimientos.filter((m) => m.tipo === 'APORTE' && m.ref.mes === 10).length;
+    const saldoCredito = base.creditos[0]!.saldo;
+    const s = borrarPlan(base, OCT);
+    expect(planDe(s, OCT)).toBeNull();
+    expect(s.movimientos.filter((m) => m.ref.mes === 10 && m.ref.anio === 2026).map((m) => m.tipo).every((t) => t === 'APORTE')).toBe(true);
+    expect(s.movimientos.filter((m) => m.tipo === 'APORTE' && m.ref.mes === 10)).toHaveLength(aportes);
+    // La cuota de la semilla no registro su capital: el saldo del credito no cambia.
+    expect(s.creditos[0]!.saldo).toBe(saldoCredito);
+    // Septiembre cerrado: se borra con su cierre.
+    const sep = { anio: 2026, mes: 9 };
+    expect(conteoBorrado(semilla(), sep).cerrado).toBe(true);
+    expect(planDe(borrarPlan(semilla(), sep), sep)).toBeNull();
+    expect(planInicio(borrarPlan(semilla(), sep), HOY).recientes[1]!.detalle).toBe('Sin plan');
+    expect(() => borrarPlan(semilla(), DIC)).toThrow(expect.objectContaining({ codigo: 'NO_EXISTE' }));
+  });
+
+  it('empezar de nuevo conserva el saldo de las cuentas, los ingresos y las reglas', () => {
+    const saldos = cuentasDelHogar(semilla(), HOY).cuentas.map((c) => [c.cuenta.nombre, c.saldo]);
+    const s = empezarDeNuevo(semilla(), { fecha: HOY });
+    expect(s.planes).toHaveLength(0);
+    expect(s.movimientos).toHaveLength(0);
+    expect(s.anuales).toHaveLength(0);
+    expect(s.cierres).toHaveLength(0);
+    expect(cuentasDelHogar(s, HOY).cuentas.map((c) => [c.cuenta.nombre, c.saldo])).toEqual(saldos);
+    expect(s.ingresosFijos.map((f) => f.nombre)).toEqual(['Salario Daniel']);
+    expect(s.reglas).toHaveLength(1);
+  });
+
+  it('quitar un gasto con pagos no se deja; el diezmo en Hoy dice de donde viene', () => {
+    expect(() => quitarItem(semilla(), { planId: 'plan-m0', escenarioId: 'plan-m0-a', itemId: 'm0-luz' })).toThrow(expect.objectContaining({ codigo: 'ITEM_CON_PAGOS' }));
+    expect(resumenMes(semilla(), OCT, HOY).porPagar.find((i) => i.item.tipo === 'DIEZMO')!.detalle).toBe('Del Salario Daniel · día 25');
   });
 });
 

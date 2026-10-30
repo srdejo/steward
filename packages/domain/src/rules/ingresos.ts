@@ -1,6 +1,6 @@
 import type { Escenario, EstadoHogar, Fecha, Id, IngresoFijo, IngresoPlan, ItemPlan, MesRef, Movimiento, Pesos } from '../model';
 import { formatFechaCorta, nombreMes } from '../format';
-import { ReglaError, clonar, mesDe, nuevoId, sumar, sumarMeses } from './base';
+import { ReglaError, clonar, compararMes, mesDe, nuevoId, sumar, sumarMeses } from './base';
 import { anualDe, asegurarAbierto, cierreDe, esAporteImplicito, escenarioPrincipal, movimientosDe, nombreUsuario, planDe, reglaDe } from './consultas';
 
 /** Linea de ingresos de un mes, tanto en Hoy como en Planear. */
@@ -147,10 +147,10 @@ export function totalIngresos(lineas: LineaIngreso[]): Pesos {
 export function ingresosNuevos(s: EstadoHogar, ref: MesRef): IngresoPlan[] {
   const fijos: IngresoPlan[] = s.ingresosFijos
     .filter((f) => f.activo)
-    .map((f) => ({ id: nuevoId(s, 'ingp'), nombre: f.nombre, monto: f.neto, usuarioId: f.usuarioId, tipo: 'FIJO', ingresoFijoId: f.id }));
+    .map((f) => ({ id: nuevoId(s, 'ingp'), nombre: f.nombre, monto: f.neto, usuarioId: f.usuarioId, tipo: 'FIJO', ingresoFijoId: f.id, bruto: f.bruto }));
   const extras: IngresoPlan[] = (anualDe(s, ref.anio)?.eventos ?? [])
     .filter((e) => e.tipo === 'INGRESO' && e.mes === ref.mes)
-    .map((e) => ({ id: nuevoId(s, 'ingp'), nombre: e.nombre, monto: e.monto, usuarioId: e.usuarioId, tipo: 'EXTRA', ingresoFijoId: null }));
+    .map((e) => ({ id: nuevoId(s, 'ingp'), nombre: e.nombre, monto: e.monto, usuarioId: e.usuarioId, tipo: 'EXTRA', ingresoFijoId: null, bruto: e.monto }));
   return [...fijos, ...extras];
 }
 
@@ -168,39 +168,77 @@ export function categoriaDiezmo(s: EstadoHogar): Id {
   return c.id;
 }
 
-function itemDiezmo(s: EstadoHogar, datos: { nombre: string; monto: Pesos; diaVence: number | null; ingresoFijoId?: Id; aporteId?: Id }): ItemPlan {
+function itemDiezmo(s: EstadoHogar, datos: { nombre: string; monto: Pesos; diaVence: number | null; ingresoFijoId?: Id; aporteId?: Id; ingresoPlanId?: Id }): ItemPlan {
   return {
     id: nuevoId(s, 'item'), categoriaId: categoriaDiezmo(s), nombre: datos.nombre, monto: datos.monto, diaVence: datos.diaVence, tipo: 'DIEZMO',
     cuota: null, creditoId: null, ingresoFijoId: datos.ingresoFijoId ?? null, aporteId: datos.aporteId ?? null,
+    ingresoPlanId: datos.ingresoPlanId ?? null, ajustadoAMano: false,
   };
+}
+
+/** Porcentaje del diezmo de un aporte: el de la regla de quien aporto, activa o no (10 % si no tiene). */
+function porcentajeAporte(s: EstadoHogar, usuarioId: Id): number {
+  return s.reglas.find((r) => r.usuarioId === usuarioId)?.porcentaje ?? 10;
 }
 
 /** Item de diezmo de un aporte: el porcentaje de la regla de quien aporto (10 % si no tiene). */
 function itemDiezmoAporte(s: EstadoHogar, aporte: Movimiento): ItemPlan {
-  const porcentaje = s.reglas.find((r) => r.usuarioId === aporte.usuarioId)?.porcentaje ?? 10;
-  return itemDiezmo(s, { nombre: `Diezmo · aporte ${formatFechaCorta(aporte.fecha)}`, monto: Math.round((aporte.monto * porcentaje) / 100), diaVence: null, aporteId: aporte.id });
+  return itemDiezmo(s, { nombre: `Diezmo · aporte ${formatFechaCorta(aporte.fecha)}`, monto: Math.round((aporte.monto * porcentajeAporte(s, aporte.usuarioId)) / 100), diaVence: null, aporteId: aporte.id });
 }
 
 /**
- * Items de diezmo con que nace un mes (design D2): uno por ingreso fijo activo con regla, uno por evento de ingreso del anual
- * con un miembro con regla, y uno por aporte del mes con "Aplicar diezmo" que todavia no tenga item en `items`.
+ * El diezmo que sugiere una linea de ingreso (design D1 de usabilidad-plan): la regla activa de su persona sobre el bruto o el
+ * monto de la linea segun la base; sin regla, el 10 % del monto, como en los aportes.
  */
-export function diezmosDelMes(s: EstadoHogar, ref: MesRef, items: ItemPlan[]): ItemPlan[] {
+export function diezmoSugerido(s: EstadoHogar, linea: IngresoPlan): Pesos {
+  const regla = linea.usuarioId ? reglaDe(s, linea.usuarioId) : null;
+  if (!regla) return Math.round((linea.monto * 10) / 100);
+  return calcularDiezmo(regla.porcentaje, linea.bruto, linea.monto, regla.base);
+}
+
+/** Item de diezmo de una linea de ingreso, enlazado a ella. */
+function itemDiezmoDeLinea(s: EstadoHogar, linea: IngresoPlan, diaVence: number | null): ItemPlan {
+  return itemDiezmo(s, { nombre: `Diezmo · ${linea.nombre}`, monto: diezmoSugerido(s, linea), diaVence, ingresoFijoId: linea.ingresoFijoId ?? undefined, ingresoPlanId: linea.id });
+}
+
+/** Si un item ya tiene pagos o gastos en el mes de su plan. */
+export function itemConPagos(s: EstadoHogar, ref: MesRef, itemId: Id): boolean {
+  return movimientosDe(s, ref).some((m) => (m.tipo === 'PAGO' || m.tipo === 'GASTO') && m.itemId === itemId);
+}
+
+/**
+ * El diezmo sigue a su linea (design D1): si no esta ajustado a mano ni tiene pagos, toma el monto sugerido, y su nombre si
+ * seguia el de la linea. `nombreAnterior` es el de la linea antes del cambio. Muta el borrador.
+ */
+export function seguirLinea(s: EstadoHogar, ref: MesRef, esc: Escenario, linea: IngresoPlan, nombreAnterior: string): void {
+  const item = esc.items.find((i) => i.tipo === 'DIEZMO' && i.ingresoPlanId === linea.id);
+  if (!item || itemConPagos(s, ref, item.id)) return;
+  if (item.nombre === `Diezmo · ${nombreAnterior}`) item.nombre = `Diezmo · ${linea.nombre}`;
+  if (!item.ajustadoAMano) item.monto = diezmoSugerido(s, linea);
+}
+
+/**
+ * Items de diezmo con que nace un mes (design D2 de diezmo-como-gasto, D1 de usabilidad-plan): uno por linea de un ingreso
+ * fijo activo con regla y uno por linea de un evento de ingreso con un miembro con regla, enlazados a su linea, y uno por
+ * aporte del mes con "Aplicar diezmo" que todavia no tenga item en `items`.
+ */
+export function diezmosDelMes(s: EstadoHogar, ref: MesRef, items: ItemPlan[], lineas: IngresoPlan[]): ItemPlan[] {
   const nuevos: ItemPlan[] = [];
-  for (const f of s.ingresosFijos.filter((x) => x.activo)) {
-    const regla = reglaDe(s, f.usuarioId);
-    if (regla) nuevos.push(itemDiezmo(s, { nombre: `Diezmo · ${f.nombre}`, monto: calcularDiezmo(regla.porcentaje, f.bruto, f.neto, regla.base), diaVence: f.diaPago, ingresoFijoId: f.id }));
-  }
-  for (const e of anualDe(s, ref.anio)?.eventos ?? []) {
-    if (e.tipo !== 'INGRESO' || e.mes !== ref.mes || !e.usuarioId) continue;
-    const regla = reglaDe(s, e.usuarioId);
-    if (regla) nuevos.push(itemDiezmo(s, { nombre: `Diezmo · ${e.nombre}`, monto: calcularDiezmo(regla.porcentaje, e.monto, e.monto, 'BRUTO'), diaVence: null }));
+  for (const linea of lineas) {
+    if (linea.tipo === 'OTRO' || !linea.usuarioId || !reglaDe(s, linea.usuarioId)) continue;
+    const fijo = linea.ingresoFijoId ? s.ingresosFijos.find((f) => f.id === linea.ingresoFijoId) : undefined;
+    nuevos.push(itemDiezmoDeLinea(s, linea, fijo?.diaPago ?? null));
   }
   const conItem = new Set(items.map((i) => i.aporteId).filter((id) => id !== null));
   for (const m of movimientosDe(s, ref)) {
     if (m.tipo === 'APORTE' && m.aplicaDiezmo && !conItem.has(m.id)) nuevos.push(itemDiezmoAporte(s, m));
   }
   return nuevos;
+}
+
+/** Diezmo de una linea agregada a mano con "Aplicar diezmo" (design D1). */
+export function diezmoDeLineaNueva(s: EstadoHogar, linea: IngresoPlan): ItemPlan {
+  return itemDiezmoDeLinea(s, linea, null);
 }
 
 /**
@@ -211,9 +249,41 @@ export function ingresoFijoAlMes(s: EstadoHogar, f: IngresoFijo, fecha: Fecha): 
   const plan = planDe(s, mesDe(fecha));
   const principal = plan && plan.estado !== 'CERRADO' ? escenarioPrincipal(plan) : null;
   if (!principal) return;
-  principal.ingresos.push({ id: nuevoId(s, 'ingp'), nombre: f.nombre, monto: f.neto, usuarioId: f.usuarioId, tipo: 'FIJO', ingresoFijoId: f.id });
-  const regla = reglaDe(s, f.usuarioId);
-  if (regla) principal.items.push(itemDiezmo(s, { nombre: `Diezmo · ${f.nombre}`, monto: calcularDiezmo(regla.porcentaje, f.bruto, f.neto, regla.base), diaVence: f.diaPago, ingresoFijoId: f.id }));
+  const linea: IngresoPlan = { id: nuevoId(s, 'ingp'), nombre: f.nombre, monto: f.neto, usuarioId: f.usuarioId, tipo: 'FIJO', ingresoFijoId: f.id, bruto: f.bruto };
+  principal.ingresos.push(linea);
+  if (reglaDe(s, f.usuarioId)) principal.items.push(itemDiezmoDeLinea(s, linea, f.diaPago));
+}
+
+/**
+ * Un ingreso fijo editado (design D2 de usabilidad-plan): en los planes no cerrados desde `desde`, las lineas enlazadas que
+ * todavia tenian el valor anterior y no se recibieron toman el nuevo, y su diezmo las sigue. Muta el borrador.
+ */
+export function ingresoFijoEditado(s: EstadoHogar, anterior: IngresoFijo, nuevo: IngresoFijo, desde: MesRef): void {
+  for (const plan of s.planes) {
+    if (plan.estado === 'CERRADO' || compararMes(plan.ref, desde) < 0) continue;
+    const recibidos = movimientosDe(s, plan.ref).filter((m) => m.tipo === 'INGRESO_FIJO');
+    for (const esc of plan.escenarios) {
+      for (const linea of esc.ingresos) {
+        if (linea.ingresoFijoId !== anterior.id || linea.monto !== anterior.neto || linea.bruto !== anterior.bruto) continue;
+        if (recibidos.some((m) => recibeLinea(m, linea))) continue;
+        const nombreAnterior = linea.nombre;
+        linea.monto = nuevo.neto;
+        linea.bruto = nuevo.bruto;
+        if (linea.nombre === anterior.nombre) linea.nombre = nuevo.nombre;
+        seguirLinea(s, plan.ref, esc, linea, nombreAnterior);
+      }
+    }
+  }
+}
+
+/** Recalcula el diezmo de un aporte corregido, si no esta ajustado a mano ni tiene pagos. Muta el borrador. */
+export function seguirAporte(s: EstadoHogar, aporte: Movimiento): void {
+  for (const plan of s.planes) {
+    for (const esc of plan.escenarios) {
+      const item = esc.items.find((i) => i.aporteId === aporte.id);
+      if (item && !item.ajustadoAMano && !itemConPagos(s, plan.ref, item.id)) item.monto = Math.round((aporte.monto * porcentajeAporte(s, aporte.usuarioId)) / 100);
+    }
+  }
 }
 
 // --- Cambios --------------------------------------------------------------------
@@ -247,7 +317,7 @@ export function marcarRecibido(estado: EstadoHogar, datos: { ref: MesRef; lineaI
     usuarioId: linea?.usuarioId ?? fijo?.usuarioId ?? datos.creadoPor, creadoPor: datos.creadoPor,
     origen: fijo?.cuentaId ? { tipo: 'CUENTA', cuentaId: fijo.cuentaId } : { tipo: 'NINGUNO' },
     nota: '', itemId: null, ingresoFijoId: fijo?.id ?? null, bruto: fijo?.bruto ?? null, aplicaDiezmo: false,
-    diezmoDe: [], ingresoPlanId: linea?.id ?? null, cuentaDestinoId: null, creditoId: null,
+    diezmoDe: [], ingresoPlanId: linea?.id ?? null, cuentaDestinoId: null, creditoId: null, capital: null,
   });
   return s;
 }
@@ -264,7 +334,7 @@ export function registrarAporte(estado: EstadoHogar, datos: { usuarioId: Id; mon
   const aporte: Movimiento = {
     id, seq: s.secuencia, tipo: 'APORTE', ref: datos.ref, monto: datos.monto, fecha: datos.fecha, usuarioId: datos.usuarioId,
     creadoPor: datos.creadoPor, origen: datos.cuentaId ? { tipo: 'CUENTA', cuentaId: datos.cuentaId } : { tipo: 'NINGUNO' },
-    nota: '', itemId: null, ingresoFijoId: null, bruto: null, aplicaDiezmo: datos.aplicaDiezmo, diezmoDe: [], ingresoPlanId: null, cuentaDestinoId: null, creditoId: null,
+    nota: '', itemId: null, ingresoFijoId: null, bruto: null, aplicaDiezmo: datos.aplicaDiezmo, diezmoDe: [], ingresoPlanId: null, cuentaDestinoId: null, creditoId: null, capital: null,
   };
   s.movimientos.push(aporte);
   const plan = planDe(s, datos.ref);

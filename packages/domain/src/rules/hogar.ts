@@ -1,6 +1,8 @@
 import type { BaseDiezmo, EstadoHogar, Fecha, Id, IngresoFijo, Pesos, ReglaDiezmo, TipoCategoria, Usuario } from '../model';
 import { ReglaError, clonar, diasEntre, nuevoId } from './base';
-import { ingresoFijoAlMes } from './ingresos';
+import { ingresoFijoAlMes, ingresoFijoEditado } from './ingresos';
+import { mesDe } from './base';
+import { saldoEstimado } from './cuentas';
 
 /** Dias de vigencia de una invitacion (HANDOFF: token de un solo uso, sugerido 7 dias). */
 export const DIAS_INVITACION = 7;
@@ -47,7 +49,12 @@ export function guardarIngresoFijo(estado: EstadoHogar, datos: Omit<IngresoFijo,
   if (datos.diaPago < 1 || datos.diaPago > 31) throw new ReglaError('DIA_INVALIDO', 'El día de pago va de 1 a 31');
   const s = clonar(estado);
   const existente = datos.id ? s.ingresosFijos.find((f) => f.id === datos.id) : undefined;
-  if (existente) Object.assign(existente, datos, { nombre: datos.nombre.trim() });
+  if (existente) {
+    const anterior = { ...existente };
+    Object.assign(existente, datos, { nombre: datos.nombre.trim() });
+    // Los meses abiertos desde hoy siguen al ingreso editado (design D2 de usabilidad-plan).
+    if (fecha) ingresoFijoEditado(s, anterior, existente, mesDe(fecha));
+  }
   else {
     const nuevo = { ...datos, nombre: datos.nombre.trim(), id: nuevoId(s, 'ing') };
     s.ingresosFijos.push(nuevo);
@@ -138,6 +145,26 @@ export function guardarCategoria(estado: EstadoHogar, datos: { id?: Id; nombre: 
     const orden = Math.max(0, ...s.categorias.filter((c) => c.orden < 90).map((c) => c.orden)) + 1;
     s.categorias.push({ id: nuevoId(s, 'cat'), nombre, color: datos.color ?? '#8D8F88', orden, tipo: datos.tipo ?? 'OTRO', sistema: false });
   }
+  return s;
+}
+
+/**
+ * "Empezar de nuevo" (design D4 de usabilidad-plan): sin planes, cierres, planes anuales, proyecciones ni registros. Cada cuenta
+ * parte del saldo estimado que tenia; miembros, ingresos, reglas, categorias y creditos se conservan.
+ */
+export function empezarDeNuevo(estado: EstadoHogar, datos: { fecha: Fecha }): EstadoHogar {
+  const s = clonar(estado);
+  for (const c of s.cuentas) {
+    c.saldoCuadre = saldoEstimado(estado, c);
+    c.fechaCuadre = datos.fecha;
+    c.seqCuadre = s.secuencia;
+  }
+  for (const c of s.creditos) c.pagos = [];
+  s.planes = [];
+  s.cierres = [];
+  s.anuales = [];
+  s.proyecciones = [];
+  s.movimientos = [];
   return s;
 }
 
