@@ -5,11 +5,9 @@ import co.com.srdejo.steward.domain.exception.DomainException;
 import co.com.srdejo.steward.domain.model.CierreMes;
 import co.com.srdejo.steward.domain.model.Credito;
 import co.com.srdejo.steward.domain.model.Cuenta;
-import co.com.srdejo.steward.domain.model.DiezmoEnHoy;
 import co.com.srdejo.steward.domain.model.Finanzas;
 import co.com.srdejo.steward.domain.model.IngresoFijo;
 import co.com.srdejo.steward.domain.model.Movimiento;
-import co.com.srdejo.steward.domain.model.ObligacionDiezmo;
 import co.com.srdejo.steward.domain.model.PlanMes;
 import co.com.srdejo.steward.domain.model.ReglaDiezmo;
 import co.com.srdejo.steward.domain.spi.ICategoriaPersistencePort;
@@ -27,25 +25,21 @@ import co.com.srdejo.steward.domain.spi.IMovimientoPersistencePort;
 import co.com.srdejo.steward.domain.spi.IReglaDiezmoPersistencePort;
 import co.com.srdejo.steward.domain.spi.ITransaccionPort;
 import co.com.srdejo.steward.domain.usecase.Registro.Contexto;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
 import java.time.YearMonth;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 /**
- * Finanzas del hogar de la sesion (spec steward-finanzas). Reproduce las reglas del dominio compartido: "Recibi"
- * ({@code marcarRecibido}), las obligaciones ({@code diezmosPendientes}, con la regla actual del dueno, design D3) y
- * "Entregado" ({@code entregarDiezmo}), y los registros de Hoy: {@code marcarPago}, {@code registrarGasto} y
- * {@code registrarAporte}. Pagos y gastos son del mes en curso del backend; los aportes, de este mes o el siguiente. Las
+ * Finanzas del hogar de la sesion (spec steward-finanzas). Reproduce las reglas del dominio compartido: "Recibi" una linea
+ * de ingreso o un ingreso fijo ({@code marcarRecibido}, design D8 de diezmo-como-gasto) y los registros de Hoy:
+ * {@code marcarPago}, {@code registrarGasto} y {@code registrarAporte}, que con "Aplicar diezmo" agrega su item de diezmo
+ * (design D2). Las entregas de diezmo de antes se leen como historia (design D3). Pagos y gastos son del mes en curso del backend; los aportes, de este mes o el siguiente. Las
  * vistas (libre, vs. plan, aportes implicitos) las calcula el cliente con el dominio compartido (design D3). Pagar la cuota
  * de un credito baja su saldo (design D4 de backend-cuentas-creditos).
  */
@@ -103,7 +97,6 @@ public class FinanzasUseCase implements IFinanzasServicePort {
         YearMonth mes = mesEnCurso();
         YearMonth desde = mes.minusMonths(2);
         return contexto().flatMap(ctx -> Mono.zip(
-                        hogares.diezmoEnHoy(ctx.hogar().id()).defaultIfEmpty(DiezmoEnHoy.SEPARADO),
                         ingresos.delHogar(ctx.hogar().id()).filter(IngresoFijo::activo).collectList(),
                         cuentas.delHogar(ctx.hogar().id()).collectList(),
                         movimientos.desde(ctx.hogar().id(), desde).collectList(),
@@ -113,20 +106,19 @@ public class FinanzasUseCase implements IFinanzasServicePort {
                         planes.desde(ctx.hogar().id(), desde)
                                 .map(p -> new PlanMes(p.id(), p.hogarId(), p.ref(), p.estadoEn(clock.hoy()),
                                         p.escenarioActivoId(), p.escenarios()))
-                                .collectList(),
-                        creditosConPagos(ctx.hogar().id()))
-                .zipWith(Mono.zip(cierres.desde(ctx.hogar().id(), desde.minusMonths(1)).collectList(),
+                                .collectList())
+                .zipWith(Mono.zip(creditosConPagos(ctx.hogar().id()), cierres.desde(ctx.hogar().id(), desde.minusMonths(1)).collectList(),
                         anuales.desde(ctx.hogar().id(), desde.getYear()).collectList(),
                         anuales.proyeccionesDesde(ctx.hogar().id(), desde.getYear()).collectList()))
                 .flatMap(tc -> {
                     var t = tc.getT1();
-                    List<CierreMes> cierresLeidos = tc.getT2().getT1();
+                    List<CierreMes> cierresLeidos = tc.getT2().getT2();
                     // Las reglas de los miembros y de los duenos de lo registrado (aunque ya no esten).
-                    Set<UUID> personas = new HashSet<>(t.getT5());
-                    t.getT4().forEach(m -> personas.add(m.usuarioId()));
+                    Set<UUID> personas = new HashSet<>(t.getT4());
+                    t.getT3().forEach(m -> personas.add(m.usuarioId()));
                     return reglas.dePersonas(personas).collectList()
-                            .map(r -> new Finanzas(mes, t.getT1(), t.getT6(), t.getT2(), r, t.getT3(), t.getT7(), t.getT4(),
-                                    t.getT8(), cierresLeidos, tc.getT2().getT2(), tc.getT2().getT3()));
+                            .map(r -> new Finanzas(mes, t.getT5(), t.getT1(), r, t.getT2(), t.getT6(), t.getT3(),
+                                    tc.getT2().getT1(), cierresLeidos, tc.getT2().getT3(), tc.getT2().getT4()));
                 }));
     }
 
@@ -204,9 +196,30 @@ public class FinanzasUseCase implements IFinanzasServicePort {
                 })
                 .flatMap(ref -> contexto().flatMap(ctx -> mesAbierto(ctx, ref)
                         .then(registro.origenValido(ctx, usuarioId, cuentaId == null ? "NINGUNO" : "CUENTA", cuentaId))
-                        .flatMap(o -> movimientos.registrar(new Movimiento(UUID.randomUUID(), ctx.hogar().id(),
-                                Movimiento.Tipo.APORTE, ref, monto, clock.hoy(), usuarioId, ctx.usuario(), o.cuentaId(), null,
-                                null, aplicaDiezmo, List.of(), null, "", o.origen())))));
+                        .flatMap(o -> {
+                            Movimiento aporte = new Movimiento(UUID.randomUUID(), ctx.hogar().id(), Movimiento.Tipo.APORTE, ref,
+                                    monto, clock.hoy(), usuarioId, ctx.usuario(), o.cuentaId(), null, null, aplicaDiezmo, List.of(),
+                                    null, "", o.origen());
+                            // El item de diezmo entra en la misma transaccion; sin plan abierto lo recoge crearPlan.
+                            return aplicaDiezmo
+                                    ? transaccion.enTransaccion(movimientos.registrar(aporte).flatMap(g -> diezmoDelAporte(ctx, g).thenReturn(g)))
+                                    : movimientos.registrar(aporte);
+                        })));
+    }
+
+    /** registrarAporte del dominio: el item "Diezmo · aporte {dd mmm}" en la opcion principal del plan abierto del mes. */
+    private Mono<Void> diezmoDelAporte(Contexto ctx, Movimiento aporte) {
+        return planes.deMes(ctx.hogar().id(), aporte.ref())
+                .filter(plan -> plan.estado() != PlanMes.Estado.CERRADO && plan.principal() != null)
+                .flatMap(plan -> Mono.zip(categorias.delHogar(ctx.hogar().id()).collectList(),
+                                reglas.dePersona(aporte.usuarioId()).map(java.util.Optional::of).defaultIfEmpty(java.util.Optional.empty()))
+                        .flatMap(t -> {
+                            PlanMes.Escenario principal = plan.principal();
+                            int orden = principal.items().stream().mapToInt(PlanMes.ItemPlan::orden).max().orElse(0) + 1;
+                            return planes.crearItem(NacimientoMes.deAporte(principal.id(), NacimientoMes.categoriaDiezmo(t.getT1()),
+                                    aporte, t.getT2().orElse(null), orden));
+                        }))
+                .then();
     }
 
     private static final int NOTA_MAX = 120;
@@ -272,8 +285,34 @@ public class FinanzasUseCase implements IFinanzasServicePort {
     public Mono<IngresoFijo> crearIngreso(DatosIngreso datos) {
         return Mono.fromCallable(() -> ingresoValido(datos)).flatMap(limpio -> contexto()
                 .flatMap(ctx -> cuentaDelHogar(limpio.cuentaId(), ctx.hogar().id())
-                        .then(ingresos.crear(new IngresoFijo(UUID.randomUUID(), ctx.hogar().id(), ctx.usuario(),
-                                limpio.nombre(), limpio.bruto(), limpio.neto(), limpio.diaPago(), limpio.cuentaId(), true)))));
+                        .then(transaccion.enTransaccion(ingresos.crear(new IngresoFijo(UUID.randomUUID(), ctx.hogar().id(), ctx.usuario(),
+                                        limpio.nombre(), limpio.bruto(), limpio.neto(), limpio.diaPago(), limpio.cuentaId(), true))
+                                .flatMap(nuevo -> alMesEnCurso(ctx, nuevo).thenReturn(nuevo))))));
+    }
+
+    /**
+     * {@code ingresoFijoAlMes} del dominio (design D8 de diezmo-como-gasto): un ingreso fijo nuevo entra a la opcion
+     * principal del mes en curso si tiene plan y no esta cerrado, con su item de diezmo si su dueno tiene regla activa.
+     */
+    private Mono<Void> alMesEnCurso(Contexto ctx, IngresoFijo nuevo) {
+        return planes.deMes(ctx.hogar().id(), mesEnCurso())
+                .filter(plan -> plan.estado() != PlanMes.Estado.CERRADO && plan.principal() != null)
+                .flatMap(plan -> {
+                    PlanMes.Escenario principal = plan.principal();
+                    int orden = principal.ingresos().stream().mapToInt(PlanMes.IngresoPlan::orden).max().orElse(0) + 1;
+                    Mono<Void> linea = planes.crearIngreso(new PlanMes.IngresoPlan(UUID.randomUUID(), principal.id(), nuevo.nombre(),
+                            nuevo.neto(), nuevo.usuarioId(), PlanMes.IngresoPlan.Tipo.FIJO, nuevo.id(), orden)).then();
+                    Mono<Void> diezmo = reglas.dePersona(nuevo.usuarioId())
+                            .filter(ReglaDiezmo::activa)
+                            .zipWith(categorias.delHogar(ctx.hogar().id()).collectList())
+                            .flatMap(t -> planes.crearItem(new PlanMes.ItemPlan(UUID.randomUUID(), principal.id(),
+                                    NacimientoMes.categoriaDiezmo(t.getT2()), "Diezmo · " + nuevo.nombre(),
+                                    CalculoDiezmo.monto(t.getT1().porcentaje(), nuevo.bruto(), nuevo.neto(), t.getT1().base()), nuevo.diaPago(),
+                                    PlanMes.ItemPlan.Tipo.DIEZMO, null, null,
+                                    principal.items().stream().mapToInt(PlanMes.ItemPlan::orden).max().orElse(0) + 1, null, nuevo.id(), null)))
+                            .then();
+                    return linea.then(diezmo);
+                });
     }
 
     @Override
@@ -320,97 +359,55 @@ public class FinanzasUseCase implements IFinanzasServicePort {
         return registro.cuentaDelHogar(cuentaId, hogarId);
     }
 
-    // --- Recibir y diezmo -------------------------------------------------------------------------------------------
+    // --- Recibir ---------------------------------------------------------------------------------------------------
 
+    /** "Recibi" un ingreso fijo (un mes sin plan): el neto o el monto que llego. No genera obligacion de diezmo. */
     @Override
-    public Mono<Movimiento> recibir(UUID ingresoId) {
-        return contexto().flatMap(ctx -> mesAbierto(ctx, mesEnCurso()).then(ingresos.porIdEnHogar(ingresoId, ctx.hogar().id()))
+    public Mono<Movimiento> recibir(UUID ingresoId, Long monto) {
+        return Mono.fromCallable(() -> montoRecibido(monto)).then(contexto()).flatMap(ctx -> mesAbierto(ctx, mesEnCurso())
+                .then(ingresos.porIdEnHogar(ingresoId, ctx.hogar().id()))
                 .filter(IngresoFijo::activo)
                 .switchIfEmpty(Mono.error(FinanzasUseCase::ingresoNoEncontrado))
-                .flatMap(ingreso -> reglas.dePersona(ingreso.usuarioId())
-                        // Genera diezmo si el dueno tiene la regla activa al recibir, como marcarRecibido.
-                        .map(ReglaDiezmo::activa)
-                        .defaultIfEmpty(false)
-                        .flatMap(aplica -> movimientos.registrarRecibido(new Movimiento(UUID.randomUUID(),
-                                ctx.hogar().id(), Movimiento.Tipo.INGRESO_FIJO, mesEnCurso(), ingreso.neto(), clock.hoy(),
-                                ingreso.usuarioId(), ctx.usuario(), ingreso.cuentaId(), ingreso.id(), ingreso.bruto(),
-                                aplica, List.of())))));
-    }
-
-    @Override
-    public Flux<ObligacionDiezmo> pendientes() {
-        return contexto().flatMapMany(ctx -> pendientesDe(ctx.hogar().id()));
-    }
-
-    @Override
-    public Mono<Movimiento> entregar(List<UUID> obligaciones, UUID cuentaId) {
-        Set<UUID> pedidas = obligaciones == null ? Set.of() : Set.copyOf(obligaciones);
-        return contexto().flatMap(ctx -> mesAbierto(ctx, mesEnCurso())
-                .then(cuentaDelHogar(cuentaId, ctx.hogar().id()))
-                .then(transaccion.enTransaccion(pendientesDe(ctx.hogar().id())
-                        .filter(o -> pedidas.contains(o.id()))
-                        .collectList()
-                        .flatMap(cubre -> cubre.isEmpty() ? Mono.error(FinanzasUseCase::sinDiezmo)
-                                : movimientos.registrarEntrega(new Movimiento(UUID.randomUUID(), ctx.hogar().id(),
-                                        Movimiento.Tipo.DIEZMO_ENTREGADO, mesEnCurso(),
-                                        cubre.stream().mapToLong(ObligacionDiezmo::monto).sum(), clock.hoy(), ctx.usuario(),
-                                        ctx.usuario(), cuentaId, null, null, false,
-                                        cubre.stream().map(ObligacionDiezmo::id).toList()))))));
+                .flatMap(ingreso -> movimientos.registrarRecibido(new Movimiento(UUID.randomUUID(),
+                        ctx.hogar().id(), Movimiento.Tipo.INGRESO_FIJO, mesEnCurso(), monto == null ? ingreso.neto() : monto,
+                        clock.hoy(), ingreso.usuarioId(), ctx.usuario(), ingreso.cuentaId(), ingreso.id(), ingreso.bruto(),
+                        false, List.of()))));
     }
 
     /**
-     * {@code diezmosPendientes} del dominio: cada ingreso recibido del mes que genero diezmo y no se entrego, con la
-     * regla actual de su dueno (sin regla, no aparece).
+     * "Recibi" una linea de ingreso de la opcion principal del plan del mes en curso (design D8): con el monto de la linea
+     * o el que llego, y el ingreso fijo, su bruto y su cuenta si la linea esta enlazada a uno.
      */
-    private Flux<ObligacionDiezmo> pendientesDe(UUID hogarId) {
-        return movimientos.delMes(hogarId, mesEnCurso()).collectList().flatMapMany(movs -> {
-            Set<UUID> entregadas = movs.stream()
-                    .filter(m -> m.tipo() == Movimiento.Tipo.DIEZMO_ENTREGADO)
-                    .flatMap(m -> m.diezmoDe().stream())
-                    .collect(Collectors.toSet());
-            List<Movimiento> candidatos = movs.stream()
-                    .filter(m -> (m.tipo() == Movimiento.Tipo.INGRESO_FIJO || m.tipo() == Movimiento.Tipo.APORTE)
-                            && m.aplicaDiezmo() && !entregadas.contains(m.id()))
-                    .toList();
-            if (candidatos.isEmpty()) {
-                return Flux.empty();
-            }
-            Set<UUID> duenos = candidatos.stream().map(Movimiento::usuarioId).collect(Collectors.toSet());
-            return Mono.zip(
-                            reglas.dePersonas(duenos).collectMap(ReglaDiezmo::usuarioId),
-                            ingresos.delHogar(hogarId).collectMap(IngresoFijo::id, Function.identity()))
-                    .flatMapMany(t -> Flux.fromIterable(candidatos)
-                            .mapNotNull(m -> obligacion(m, t.getT1(), t.getT2())));
-        });
-    }
-
-    private static ObligacionDiezmo obligacion(Movimiento m, Map<UUID, ReglaDiezmo> reglasPorDueno,
-                                               Map<UUID, IngresoFijo> ingresosPorId) {
-        ReglaDiezmo regla = reglasPorDueno.get(m.usuarioId());
-        if (regla == null) {
-            return null;
-        }
-        if (m.tipo() == Movimiento.Tipo.APORTE) {
-            // Un aporte con diezmo: el porcentaje sobre el aporte, sin base (diezmosPendientes del dominio).
-            return new ObligacionDiezmo(m.id(), CalculoDiezmo.sobre(regla.porcentaje(), m.monto()),
-                    CalculoDiezmo.detalleAporte(regla.porcentaje(), m.fecha()), m.usuarioId(), m.fecha());
-        }
-        IngresoFijo ingreso = ingresosPorId.get(m.ingresoFijoId());
-        long bruto = m.bruto() == null ? m.monto() : m.bruto();
-        return new ObligacionDiezmo(m.id(), CalculoDiezmo.monto(regla.porcentaje(), bruto, m.monto(), regla.base()),
-                CalculoDiezmo.detalle(regla.porcentaje(), ingreso == null ? "ingreso" : ingreso.nombre(), m.fecha()),
-                m.usuarioId(), m.fecha());
-    }
-
     @Override
-    public Mono<Void> definirDiezmoEnHoy(String modo) {
-        return Mono.fromCallable(() -> {
-            try {
-                return DiezmoEnHoy.valueOf(modo);
-            } catch (IllegalArgumentException | NullPointerException ex) {
-                throw DomainException.datosInvalidos("Diezmo en Hoy es SEPARADO o AGRUPADO");
-            }
-        }).flatMap(valor -> contexto().flatMap(ctx -> hogares.definirDiezmoEnHoy(ctx.hogar().id(), valor)));
+    public Mono<Movimiento> recibirLinea(UUID planId, UUID escenarioId, UUID lineaId, Long monto) {
+        YearMonth mes = mesEnCurso();
+        return Mono.fromCallable(() -> montoRecibido(monto)).then(contexto()).flatMap(ctx -> planes.deMes(ctx.hogar().id(), mes)
+                .filter(plan -> plan.id().equals(planId) && plan.principal() != null && plan.principal().id().equals(escenarioId))
+                .switchIfEmpty(Mono.error(FinanzasUseCase::ingresoNoEncontrado))
+                .flatMap(plan -> plan.estado() == PlanMes.Estado.CERRADO ? Mono.error(PlanUseCase.mesCerrado())
+                        : mesAbierto(ctx, mes).then(PlanUseCase.lineaDe(plan.principal(), lineaId)))
+                .flatMap(linea -> movimientos.lineaRecibida(linea.id(), linea.ingresoFijoId(), mes)
+                        .flatMap(recibida -> recibida ? Mono.<Movimiento>error(yaRecibido(linea.nombre()))
+                                : (linea.ingresoFijoId() == null ? Mono.<IngresoFijo>empty()
+                                : ingresos.porIdEnHogar(linea.ingresoFijoId(), ctx.hogar().id()))
+                                .map(java.util.Optional::of)
+                                .defaultIfEmpty(java.util.Optional.empty())
+                                .flatMap(fijo -> movimientos.registrarRecibido(new Movimiento(UUID.randomUUID(), ctx.hogar().id(),
+                                        Movimiento.Tipo.INGRESO_FIJO, mes, monto == null ? linea.monto() : monto, clock.hoy(),
+                                        linea.usuarioId() == null ? ctx.usuario() : linea.usuarioId(), ctx.usuario(),
+                                        fijo.map(IngresoFijo::cuentaId).orElse(null), fijo.map(IngresoFijo::id).orElse(null),
+                                        fijo.map(IngresoFijo::bruto).orElse(null), false, List.of()).conLinea(linea.id()))))));
+    }
+
+    private static Long montoRecibido(Long monto) {
+        if (monto != null && monto <= 0) {
+            throw DomainException.datosInvalidos("El monto recibido debe ser mayor que cero");
+        }
+        return monto;
+    }
+
+    private static DomainException yaRecibido(String nombre) {
+        return DomainException.conflicto("YA_RECIBIDO", nombre + " ya se marcó como recibido este mes");
     }
 
     // --- Cuentas ----------------------------------------------------------------------------------------------------
@@ -441,9 +438,5 @@ public class FinanzasUseCase implements IFinanzasServicePort {
 
     static DomainException ingresoNoEncontrado() {
         return DomainException.noEncontrado("INGRESO_NO_ENCONTRADO", "Ese ingreso no existe");
-    }
-
-    static DomainException sinDiezmo() {
-        return DomainException.conflicto("SIN_DIEZMO", "No hay diezmo pendiente");
     }
 }

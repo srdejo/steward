@@ -92,10 +92,18 @@ class HogarFinanzasContratoTest extends ContratoBase {
         put(daniel, "/api/regla-diezmo", regla(true, 10, "BRUTO", false)).expectStatus().isOk();
         post(daniel, "/api/cuentas", cuenta("Efectivo", "CONJUNTA", 200_000)).expectStatus().isCreated();
         String id = valorDe(post(daniel, "/api/ingresos-fijos", salario(7_000_000, 6_288_000)), "id");
-        post(daniel, "/api/ingresos-fijos/{id}/recibido", Map.of(), id).expectStatus().isCreated();
-        List<?> pendientes = get(daniel, "/api/diezmo/pendientes").expectBody(List.class).returnResult().getResponseBody();
-        post(daniel, "/api/diezmo/entregas", Map.of("obligaciones", List.of(((Map<?, ?>) pendientes.getFirst()).get("id"))))
+        // El mes con su linea de ingreso recibida y su diezmo pagado (diezmo-como-gasto).
+        java.time.YearMonth mes = java.time.YearMonth.now(java.time.ZoneId.of("America/Bogota"));
+        Map<?, ?> plan = post(daniel, "/api/planes", Map.of("anio", mes.getYear(), "mes", mes.getMonthValue(), "modo", "CERO"))
+                .expectStatus().isCreated().expectBody(Map.class).returnResult().getResponseBody();
+        Map<?, ?> esc = (Map<?, ?>) ((List<?>) plan.get("escenarios")).getFirst();
+        Map<?, ?> linea = (Map<?, ?>) ((List<?>) esc.get("ingresos")).getFirst();
+        Map<?, ?> diezmo = (Map<?, ?>) ((List<?>) esc.get("items")).getFirst();
+        post(daniel, "/api/planes/{p}/escenarios/{e}/ingresos/{l}/recibido", Map.of(), plan.get("id"), esc.get("id"), linea.get("id"))
                 .expectStatus().isCreated();
+        post(daniel, "/api/pagos", Map.of("itemId", diezmo.get("id"), "monto", 700_000, "usuarioId", linea.get("usuarioId"),
+                "origen", Map.of("tipo", "NINGUNO"))).expectStatus().isCreated();
+        assertEquals(id, ((Map<?, ?>) ((List<?>) esc.get("items")).getFirst()).get("ingresoFijoId"));
 
         delete(daniel, "/api/hogar/miembros/yo").expectStatus().isNoContent();
 
@@ -104,6 +112,8 @@ class HogarFinanzasContratoTest extends ContratoBase {
         assertEquals(0, contar("cuenta"));
         assertEquals(0, contar("movimiento"));
         assertEquals(0, contar("diezmo_cubierto"));
+        assertEquals(0, contar("ingreso_plan"));
+        assertEquals(0, contar("item_plan"));
         assertEquals(1, contar("regla_diezmo"));
     }
 

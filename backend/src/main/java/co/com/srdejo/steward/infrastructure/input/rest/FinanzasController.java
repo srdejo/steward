@@ -3,16 +3,14 @@ package co.com.srdejo.steward.infrastructure.input.rest;
 import co.com.srdejo.steward.application.dto.FinanzasDtos.AporteRequest;
 import co.com.srdejo.steward.application.dto.FinanzasDtos.CuentaRequest;
 import co.com.srdejo.steward.application.dto.FinanzasDtos.CuentaResponse;
-import co.com.srdejo.steward.application.dto.FinanzasDtos.DiezmoEnHoyRequest;
-import co.com.srdejo.steward.application.dto.FinanzasDtos.EntregaRequest;
 import co.com.srdejo.steward.application.dto.FinanzasDtos.FinanzasResponse;
 import co.com.srdejo.steward.application.dto.FinanzasDtos.GastoRequest;
 import co.com.srdejo.steward.application.dto.FinanzasDtos.IngresoRequest;
 import co.com.srdejo.steward.application.dto.FinanzasDtos.IngresoResponse;
 import co.com.srdejo.steward.application.dto.FinanzasDtos.MovimientoResponse;
-import co.com.srdejo.steward.application.dto.FinanzasDtos.ObligacionResponse;
 import co.com.srdejo.steward.application.dto.FinanzasDtos.OrigenDto;
 import co.com.srdejo.steward.application.dto.FinanzasDtos.PagoRequest;
+import co.com.srdejo.steward.application.dto.FinanzasDtos.RecibirRequest;
 import co.com.srdejo.steward.application.dto.FinanzasDtos.ReglaRequest;
 import co.com.srdejo.steward.application.dto.FinanzasDtos.ReglaResponse;
 import co.com.srdejo.steward.domain.api.IFinanzasServicePort;
@@ -27,7 +25,6 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.time.YearMonth;
@@ -75,27 +72,19 @@ public class FinanzasController {
         return finanzas.quitarIngreso(id);
     }
 
+    /** "Recibi" un ingreso fijo en un mes sin plan; el cuerpo, con el monto que llego, es opcional. */
     @PostMapping("/api/ingresos-fijos/{id}/recibido")
     @ResponseStatus(HttpStatus.CREATED)
-    public Mono<MovimientoResponse> recibir(@PathVariable UUID id) {
-        return finanzas.recibir(id).map(MovimientoResponse::de);
+    public Mono<MovimientoResponse> recibir(@PathVariable UUID id, @RequestBody(required = false) RecibirRequest r) {
+        return finanzas.recibir(id, r == null ? null : r.monto()).map(MovimientoResponse::de);
     }
 
-    @GetMapping("/api/diezmo/pendientes")
-    public Flux<ObligacionResponse> pendientes() {
-        return finanzas.pendientes().map(ObligacionResponse::de);
-    }
-
-    @PostMapping("/api/diezmo/entregas")
+    /** "Recibi" una linea de ingreso de la opcion principal del mes en curso (design D8 de diezmo-como-gasto). */
+    @PostMapping("/api/planes/{id}/escenarios/{escenarioId}/ingresos/{ingresoId}/recibido")
     @ResponseStatus(HttpStatus.CREATED)
-    public Mono<MovimientoResponse> entregar(@RequestBody EntregaRequest r) {
-        return finanzas.entregar(r.obligaciones(), r.cuentaId()).map(MovimientoResponse::de);
-    }
-
-    @PutMapping("/api/hogar/diezmo-en-hoy")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public Mono<Void> definirDiezmoEnHoy(@RequestBody DiezmoEnHoyRequest r) {
-        return finanzas.definirDiezmoEnHoy(r.modo());
+    public Mono<MovimientoResponse> recibirLinea(@PathVariable UUID id, @PathVariable UUID escenarioId, @PathVariable UUID ingresoId,
+                                                 @RequestBody(required = false) RecibirRequest r) {
+        return finanzas.recibirLinea(id, escenarioId, ingresoId, r == null ? null : r.monto()).map(MovimientoResponse::de);
     }
 
     @PostMapping("/api/pagos")

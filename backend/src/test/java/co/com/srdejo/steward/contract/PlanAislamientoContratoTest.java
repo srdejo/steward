@@ -50,7 +50,7 @@ class PlanAislamientoContratoTest extends ContratoBase {
         get(daniel, "/api/finanzas").expectBody()
                 .jsonPath("$.planes[0].escenarios[0].items.length()").isEqualTo(1)
                 .jsonPath("$.planes[0].escenarioActivoId").doesNotExist()
-                .jsonPath("$.categorias[0].nombre").isEqualTo("Gastos fijos");
+                .jsonPath("$.categorias[1].nombre").isEqualTo("Gastos fijos");
         get(otro, "/api/finanzas").expectBody().jsonPath("$.planes.length()").isEqualTo(0);
     }
 

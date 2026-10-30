@@ -117,7 +117,7 @@ public class CuentasUseCase implements ICuentasServicePort {
                         .then(movimientos.registrar(new Movimiento(UUID.randomUUID(), ctx.hogar().id(),
                                 Movimiento.Tipo.TRANSFERENCIA, registro.mesEnCurso(), m, registro.hoy(), ctx.usuario(),
                                 ctx.usuario(), desde, null, null, false, List.of(), null, "", Movimiento.Origen.CUENTA,
-                                hacia, null, 0)))));
+                                hacia, null, null, 0)))));
     }
 
     // --- Creditos ---------------------------------------------------------------------------------------------------
@@ -193,7 +193,7 @@ public class CuentasUseCase implements ICuentasServicePort {
                                         .then(movimientos.registrar(new Movimiento(UUID.randomUUID(), ctx.hogar().id(),
                                                 Movimiento.Tipo.ABONO_CREDITO, registro.mesEnCurso(), m, registro.hoy(),
                                                 usuarioId, ctx.usuario(), o.cuentaId(), null, null, false, List.of(), null,
-                                                "", o.origen(), null, c.id(), 0))))))));
+                                                "", o.origen(), null, c.id(), null, 0))))))));
     }
 
     private Mono<Credito> creditoDelHogar(UUID creditoId, Contexto ctx) {

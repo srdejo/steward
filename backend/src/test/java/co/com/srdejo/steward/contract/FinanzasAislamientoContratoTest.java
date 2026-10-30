@@ -45,16 +45,25 @@ class FinanzasAislamientoContratoTest extends ContratoBase {
 
     @Test
     void entregarDiezmoAjeno() {
-        post(daniel, "/api/ingresos-fijos/{id}/recibido", Map.of(), salarioDaniel).expectStatus().isCreated();
-        List<?> pendientes = get(daniel, "/api/diezmo/pendientes").expectBody(List.class).returnResult().getResponseBody();
-        String obligacion = (String) ((Map<?, ?>) pendientes.getFirst()).get("id");
-
-        get(otro, "/api/diezmo/pendientes").expectBody().jsonPath("$.length()").isEqualTo(0);
-        Map<String, Object> cuerpo = new HashMap<>();
-        cuerpo.put("obligaciones", List.of(obligacion));
-        post(otro, "/api/diezmo/entregas", cuerpo).expectStatus().isEqualTo(409)
-                .expectBody().jsonPath("$.codigo").isEqualTo("SIN_DIEZMO");
-        get(daniel, "/api/diezmo/pendientes").expectBody().jsonPath("$[0].id").isEqualTo(obligacion);
+        // El diezmo es un item del plan: otro hogar no lo puede marcar pagado (diezmo-como-gasto).
+        java.time.YearMonth mes = java.time.YearMonth.now(java.time.ZoneId.of("America/Bogota"));
+        Map<?, ?> plan = post(daniel, "/api/planes", Map.of("anio", mes.getYear(), "mes", mes.getMonthValue(), "modo", "CERO"))
+                .expectStatus().isCreated().expectBody(Map.class).returnResult().getResponseBody();
+        Map<?, ?> esc = (Map<?, ?>) ((List<?>) plan.get("escenarios")).getFirst();
+        String diezmo = (String) ((Map<?, ?>) ((List<?>) esc.get("items")).getFirst()).get("id");
+        String linea = (String) ((Map<?, ?>) ((List<?>) esc.get("ingresos")).getFirst()).get("id");
+        Map<String, Object> pago = new HashMap<>();
+        pago.put("itemId", diezmo);
+        pago.put("monto", 700_000);
+        pago.put("usuarioId", null);
+        pago.put("origen", Map.of("tipo", "NINGUNO"));
+        post(otro, "/api/pagos", pago).expectStatus().isNotFound().expectBody().jsonPath("$.codigo").isEqualTo("ITEM_NO_ENCONTRADO");
+        post(otro, "/api/planes/{p}/escenarios/{e}/ingresos/{l}/recibido", Map.of(), plan.get("id"), esc.get("id"), linea)
+                .expectStatus().isNotFound().expectBody().jsonPath("$.codigo").isEqualTo("INGRESO_NO_ENCONTRADO");
+        post(otro, "/api/planes/{p}/escenarios/{e}/ingresos", Map.of("nombre", "Intruso", "monto", 1), plan.get("id"), esc.get("id"))
+                .expectStatus().isNotFound();
+        get(daniel, "/api/finanzas").expectBody().jsonPath("$.movimientos").isEmpty()
+                .jsonPath("$.planes[0].escenarios[0].ingresos.length()").isEqualTo(1);
     }
 
     @Test
@@ -73,14 +82,15 @@ class FinanzasAislamientoContratoTest extends ContratoBase {
     void sinSesionTodoDa401() {
         String id = salarioDaniel;
         client.get().uri("/api/finanzas").exchange().expectStatus().isUnauthorized();
-        client.get().uri("/api/diezmo/pendientes").exchange().expectStatus().isUnauthorized();
         client.put().uri("/api/regla-diezmo").bodyValue(regla(true, 10, "BRUTO", false)).exchange().expectStatus().isUnauthorized();
         client.post().uri("/api/ingresos-fijos").bodyValue(salario(1, 1)).exchange().expectStatus().isUnauthorized();
         client.put().uri("/api/ingresos-fijos/{id}", id).bodyValue(salario(1, 1)).exchange().expectStatus().isUnauthorized();
         client.delete().uri("/api/ingresos-fijos/{id}", id).exchange().expectStatus().isUnauthorized();
         client.post().uri("/api/ingresos-fijos/{id}/recibido", id).exchange().expectStatus().isUnauthorized();
-        client.post().uri("/api/diezmo/entregas").bodyValue(Map.of()).exchange().expectStatus().isUnauthorized();
-        client.put().uri("/api/hogar/diezmo-en-hoy").bodyValue(Map.of("modo", "AGRUPADO")).exchange().expectStatus().isUnauthorized();
+        String p = java.util.UUID.randomUUID().toString();
+        client.post().uri("/api/planes/{p}/escenarios/{e}/ingresos", p, p).bodyValue(Map.of("nombre", "x", "monto", 1)).exchange()
+                .expectStatus().isUnauthorized();
+        client.post().uri("/api/planes/{p}/escenarios/{e}/ingresos/{l}/recibido", p, p, p).exchange().expectStatus().isUnauthorized();
         client.post().uri("/api/cuentas").bodyValue(cuenta("Nu", "YO", 1)).exchange().expectStatus().isUnauthorized();
     }
 }

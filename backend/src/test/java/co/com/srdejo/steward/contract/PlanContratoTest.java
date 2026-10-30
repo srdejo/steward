@@ -32,8 +32,8 @@ class PlanContratoTest extends ContratoBase {
     @Test
     void hogarNuevoConLasCategoriasDelSistema() {
         get(daniel, "/api/finanzas").expectBody()
-                .jsonPath("$.categorias[*].nombre").isEqualTo(List.of("Gastos fijos", "Tarjetas y cuotas", "Variables", "Créditos"))
-                .jsonPath("$.categorias[*].tipo").isEqualTo(List.of("FIJO", "TARJETA", "VARIABLE", "CREDITO"))
+                .jsonPath("$.categorias[*].nombre").isEqualTo(List.of("Diezmo", "Gastos fijos", "Tarjetas y cuotas", "Variables", "Créditos"))
+                .jsonPath("$.categorias[*].tipo").isEqualTo(List.of("DIEZMO", "FIJO", "TARJETA", "VARIABLE", "CREDITO"))
                 .jsonPath("$.categorias[0].sistema").isEqualTo(true);
     }
 
@@ -41,9 +41,9 @@ class PlanContratoTest extends ContratoBase {
     void nuevaCategoriaYRenombrar() {
         String id = valorDe(post(daniel, "/api/categorias", Map.of("nombre", "Educación")).expectStatus().isCreated(), "id");
         get(esposa, "/api/finanzas").expectBody()
-                .jsonPath("$.categorias[4].nombre").isEqualTo("Educación")
-                .jsonPath("$.categorias[4].orden").isEqualTo(5)
-                .jsonPath("$.categorias[4].sistema").isEqualTo(false);
+                .jsonPath("$.categorias[5].nombre").isEqualTo("Educación")
+                .jsonPath("$.categorias[5].orden").isEqualTo(5)
+                .jsonPath("$.categorias[5].sistema").isEqualTo(false);
         client.patch().uri("/api/categorias/{id}", id).header("Authorization", "Bearer " + esposa)
                 .contentType(org.springframework.http.MediaType.APPLICATION_JSON).bodyValue(Map.of("nombre", "Colegio"))
                 .exchange().expectStatus().isOk().expectBody().jsonPath("$.nombre").isEqualTo("Colegio");
@@ -56,7 +56,12 @@ class PlanContratoTest extends ContratoBase {
     void diezmoNoEsCategoria() {
         post(daniel, "/api/categorias", Map.of("nombre", "diezmo")).expectStatus().isBadRequest()
                 .expectBody().jsonPath("$.codigo").isEqualTo("RESERVADA");
-        get(daniel, "/api/finanzas").expectBody().jsonPath("$.categorias.length()").isEqualTo(4);
+        // La categoria del sistema Diezmo no se renombra (diezmo-como-gasto).
+        client.patch().uri("/api/categorias/{id}", categoria(daniel, "Diezmo")).header("Authorization", "Bearer " + esposa)
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON).bodyValue(Map.of("nombre", "Ofrendas"))
+                .exchange().expectStatus().isBadRequest().expectBody().jsonPath("$.codigo").isEqualTo("RESERVADA");
+        get(daniel, "/api/finanzas").expectBody().jsonPath("$.categorias.length()").isEqualTo(5)
+                .jsonPath("$.categorias[0].nombre").isEqualTo("Diezmo");
     }
 
     // --- Crear el plan de un mes ---

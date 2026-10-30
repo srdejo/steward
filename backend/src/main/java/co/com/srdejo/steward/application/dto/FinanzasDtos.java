@@ -13,7 +13,6 @@ import co.com.srdejo.steward.domain.model.Cuenta;
 import co.com.srdejo.steward.domain.model.Finanzas;
 import co.com.srdejo.steward.domain.model.IngresoFijo;
 import co.com.srdejo.steward.domain.model.Movimiento;
-import co.com.srdejo.steward.domain.model.ObligacionDiezmo;
 import co.com.srdejo.steward.domain.model.ReglaDiezmo;
 import jakarta.validation.constraints.NotNull;
 
@@ -40,10 +39,8 @@ public final class FinanzasDtos {
         }
     }
 
-    public record EntregaRequest(List<UUID> obligaciones, UUID cuentaId) {
-    }
-
-    public record DiezmoEnHoyRequest(String modo) {
+    /** "Recibi": {@code monto} null es el de la linea o el neto del ingreso fijo. */
+    public record RecibirRequest(Long monto) {
     }
 
     /** {@code titular}: {@code YO} o {@code CONJUNTA}. */
@@ -155,23 +152,17 @@ public final class FinanzasDtos {
     public record MovimientoResponse(UUID id, String tipo, MesResponse ref, long monto, LocalDate fecha, UUID usuarioId,
                                      UUID creadoPor, UUID cuentaId, UUID ingresoFijoId, Long bruto, boolean aplicaDiezmo,
                                      List<UUID> diezmoDe, UUID itemId, String nota, String origen, UUID cuentaDestinoId,
-                                     UUID creditoId, long seq) {
+                                     UUID creditoId, UUID ingresoPlanId, long seq) {
 
         public static MovimientoResponse de(Movimiento m) {
             return new MovimientoResponse(m.id(), m.tipo().name(), MesResponse.de(m.ref()), m.monto(), m.fecha(),
                     m.usuarioId(), m.creadoPor(), m.cuentaId(), m.ingresoFijoId(), m.bruto(), m.aplicaDiezmo(),
-                    m.diezmoDe(), m.itemId(), m.nota(), m.origen().name(), m.cuentaDestinoId(), m.creditoId(), m.seq());
+                    m.diezmoDe(), m.itemId(), m.nota(), m.origen().name(), m.cuentaDestinoId(), m.creditoId(),
+                    m.ingresoPlanId(), m.seq());
         }
     }
 
-    public record ObligacionResponse(UUID id, long monto, String detalle, UUID usuarioId, LocalDate fecha) {
-
-        public static ObligacionResponse de(ObligacionDiezmo o) {
-            return new ObligacionResponse(o.id(), o.monto(), o.detalle(), o.usuarioId(), o.fecha());
-        }
-    }
-
-    public record FinanzasResponse(MesResponse mes, String diezmoEnHoy, List<CategoriaResponse> categorias,
+    public record FinanzasResponse(MesResponse mes, List<CategoriaResponse> categorias,
                                    List<IngresoResponse> ingresosFijos, List<ReglaResponse> reglas,
                                    List<CuentaResponse> cuentas, List<PlanResponse> planes,
                                    List<MovimientoResponse> movimientos, List<CreditoResponse> creditos,
@@ -180,7 +171,7 @@ public final class FinanzasDtos {
 
         /** Los planes ya traen su estado efectivo (lo calcula el caso de uso). */
         public static FinanzasResponse de(Finanzas f, LocalDate hoy) {
-            return new FinanzasResponse(MesResponse.de(f.mes()), f.diezmoEnHoy().name(),
+            return new FinanzasResponse(MesResponse.de(f.mes()),
                     f.categorias().stream().map(CategoriaResponse::de).toList(),
                     f.ingresosFijos().stream().map(IngresoResponse::de).toList(),
                     f.reglas().stream().map(ReglaResponse::de).toList(),

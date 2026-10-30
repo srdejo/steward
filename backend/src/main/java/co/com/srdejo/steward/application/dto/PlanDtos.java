@@ -3,11 +3,13 @@ package co.com.srdejo.steward.application.dto;
 import co.com.srdejo.steward.application.dto.FinanzasDtos.MesResponse;
 import co.com.srdejo.steward.domain.api.ICierreServicePort.DatosCierre;
 import co.com.srdejo.steward.domain.api.IPlanServicePort.DatosItem;
+import co.com.srdejo.steward.domain.api.IPlanServicePort.DatosLinea;
 import co.com.srdejo.steward.domain.model.CierreMes;
 import co.com.srdejo.steward.domain.model.PlanAnual;
 import co.com.srdejo.steward.domain.model.Categoria;
 import co.com.srdejo.steward.domain.model.PlanMes;
 import co.com.srdejo.steward.domain.model.PlanMes.Escenario;
+import co.com.srdejo.steward.domain.model.PlanMes.IngresoPlan;
 import co.com.srdejo.steward.domain.model.PlanMes.ItemPlan;
 
 import java.time.LocalDate;
@@ -133,21 +135,38 @@ public final class PlanDtos {
         }
     }
 
+    /** {@code ingresoFijoId} y {@code aporteId}: el ingreso o el aporte que origina un item de diezmo. */
     public record ItemResponse(UUID id, UUID categoriaId, String nombre, long monto, Integer diaVence, String tipo,
-                               CuotaDto cuota, UUID creditoId) {
+                               CuotaDto cuota, UUID creditoId, UUID ingresoFijoId, UUID aporteId) {
 
         public static ItemResponse de(ItemPlan i) {
             return new ItemResponse(i.id(), i.categoriaId(), i.nombre(), i.monto(), i.diaVence(), i.tipo().name(),
-                    i.cuotaActual() == null ? null : new CuotaDto(i.cuotaActual(), i.cuotaTotal()), i.creditoId());
+                    i.cuotaActual() == null ? null : new CuotaDto(i.cuotaActual(), i.cuotaTotal()), i.creditoId(),
+                    i.ingresoFijoId(), i.aporteId());
+        }
+    }
+
+    /** "+ Ingreso" o editar una linea de ingreso de la opcion (design D8 de diezmo-como-gasto). */
+    public record LineaRequest(String nombre, long monto, UUID usuarioId) {
+
+        public DatosLinea datos() {
+            return new DatosLinea(nombre, monto, usuarioId);
+        }
+    }
+
+    public record LineaResponse(UUID id, String nombre, long monto, UUID usuarioId, String tipo, UUID ingresoFijoId) {
+
+        public static LineaResponse de(IngresoPlan l) {
+            return new LineaResponse(l.id(), l.nombre(), l.monto(), l.usuarioId(), l.tipo().name(), l.ingresoFijoId());
         }
     }
 
     public record EscenarioResponse(UUID id, String letra, UUID creadoPor, String nota, boolean archivado,
-                                    List<ItemResponse> items) {
+                                    List<LineaResponse> ingresos, List<ItemResponse> items) {
 
         public static EscenarioResponse de(Escenario e) {
             return new EscenarioResponse(e.id(), e.letra(), e.creadoPor(), e.nota(), e.archivado(),
-                    e.items().stream().map(ItemResponse::de).toList());
+                    e.ingresos().stream().map(LineaResponse::de).toList(), e.items().stream().map(ItemResponse::de).toList());
         }
     }
 

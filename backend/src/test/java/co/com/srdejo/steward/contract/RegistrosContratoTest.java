@@ -12,7 +12,6 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import static co.com.srdejo.steward.contract.FinanzasContratoTest.regla;
-import static co.com.srdejo.steward.contract.FinanzasContratoTest.salario;
 import static co.com.srdejo.steward.contract.PlanContratoTest.MES;
 import static co.com.srdejo.steward.contract.PlanContratoTest.escenario;
 import static co.com.srdejo.steward.contract.PlanContratoTest.gasto;
@@ -20,8 +19,8 @@ import static co.com.srdejo.steward.contract.PlanContratoTest.pago;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
- * Spec steward-finanzas: "Marcar un pago", "Registrar un gasto", "Registrar un aporte", las obligaciones de los aportes
- * y "Finanzas del hogar en una lectura", con el plan del mes en curso del backend.
+ * Spec steward-finanzas: "Marcar un pago", "Registrar un gasto", "Registrar un aporte" (con su item de diezmo) y "Finanzas
+ * del hogar en una lectura", con el plan del mes en curso del backend.
  */
 class RegistrosContratoTest extends ContratoBase {
 
@@ -121,20 +120,15 @@ class RegistrosContratoTest extends ContratoBase {
     }
 
     @Test
-    void aporteConDiezmoYAgrupado() {
+    void aporteConDiezmoEnElPlan() {
         put(daniel, "/api/regla-diezmo", regla(true, 10, "BRUTO", true)).expectStatus().isOk();
-        post(daniel, "/api/aportes", aporte(idDaniel, 2_000_000, MES, true)).expectStatus().isCreated();
-        get(esposa, "/api/diezmo/pendientes").expectBody()
-                .jsonPath("$.length()").isEqualTo(1)
-                .jsonPath("$[0].monto").isEqualTo(200_000)
-                .jsonPath("$[0].detalle").isEqualTo("10% del aporte · " + Formato.fechaCorta(hoy()));
-
-        String salarioId = valorDe(post(daniel, "/api/ingresos-fijos", salario(7_000_000, 6_288_000)), "id");
-        post(daniel, "/api/ingresos-fijos/{id}/recibido", Map.of(), salarioId).expectStatus().isCreated();
-        List<?> pendientes = get(daniel, "/api/diezmo/pendientes").expectBody(List.class).returnResult().getResponseBody();
-        List<String> ids = pendientes.stream().map(o -> (String) ((Map<?, ?>) o).get("id")).toList();
-        post(daniel, "/api/diezmo/entregas", Map.of("obligaciones", ids)).expectStatus().isCreated()
-                .expectBody().jsonPath("$.monto").isEqualTo(900_000);
+        String aporte = valorDe(post(daniel, "/api/aportes", aporte(idDaniel, 2_000_000, MES, true)).expectStatus().isCreated(), "id");
+        // Sin "Aplicar diezmo", el aporte no gana item.
+        post(esposa, "/api/aportes", aporte(idEsposa, 500_000, MES, false)).expectStatus().isCreated();
+        get(esposa, "/api/finanzas").expectBody()
+                .jsonPath("$.planes[0].escenarios[0].items[?(@.tipo == 'DIEZMO')].nombre").isEqualTo(List.of("Diezmo · aporte " + Formato.fechaCorta(hoy())))
+                .jsonPath("$.planes[0].escenarios[0].items[?(@.tipo == 'DIEZMO')].monto").isEqualTo(List.of(200_000))
+                .jsonPath("$.planes[0].escenarios[0].items[?(@.tipo == 'DIEZMO')].aporteId").isEqualTo(List.of(aporte));
     }
 
     // --- Finanzas del hogar en una lectura ---

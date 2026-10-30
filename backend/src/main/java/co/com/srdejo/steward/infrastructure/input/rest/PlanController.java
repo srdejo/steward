@@ -5,6 +5,8 @@ import co.com.srdejo.steward.application.dto.PlanDtos.CrearPlanRequest;
 import co.com.srdejo.steward.application.dto.PlanDtos.DuplicarRequest;
 import co.com.srdejo.steward.application.dto.PlanDtos.ItemRequest;
 import co.com.srdejo.steward.application.dto.PlanDtos.ItemResponse;
+import co.com.srdejo.steward.application.dto.PlanDtos.LineaRequest;
+import co.com.srdejo.steward.application.dto.PlanDtos.LineaResponse;
 import co.com.srdejo.steward.application.dto.PlanDtos.NombreRequest;
 import co.com.srdejo.steward.application.dto.PlanDtos.PlanResponse;
 import co.com.srdejo.steward.application.dto.PlanDtos.UsarRequest;
@@ -88,5 +90,23 @@ public class PlanController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public Mono<Void> quitarItem(@PathVariable UUID id, @PathVariable UUID escenarioId, @PathVariable UUID itemId) {
         return plan.quitarItem(id, escenarioId, itemId);
+    }
+
+    @PostMapping("/api/planes/{id}/escenarios/{escenarioId}/ingresos")
+    @ResponseStatus(HttpStatus.CREATED)
+    public Mono<LineaResponse> agregarIngreso(@PathVariable UUID id, @PathVariable UUID escenarioId, @RequestBody LineaRequest r) {
+        return plan.agregarIngreso(id, escenarioId, r.datos()).map(LineaResponse::de);
+    }
+
+    @PutMapping("/api/planes/{id}/escenarios/{escenarioId}/ingresos/{ingresoId}")
+    public Mono<LineaResponse> editarIngreso(@PathVariable UUID id, @PathVariable UUID escenarioId, @PathVariable UUID ingresoId,
+                                             @RequestBody LineaRequest r) {
+        return plan.editarIngreso(id, escenarioId, ingresoId, r.datos()).map(LineaResponse::de);
+    }
+
+    @DeleteMapping("/api/planes/{id}/escenarios/{escenarioId}/ingresos/{ingresoId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public Mono<Void> quitarIngreso(@PathVariable UUID id, @PathVariable UUID escenarioId, @PathVariable UUID ingresoId) {
+        return plan.quitarIngreso(id, escenarioId, ingresoId);
     }
 }

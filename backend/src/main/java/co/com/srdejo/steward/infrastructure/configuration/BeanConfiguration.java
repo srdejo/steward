@@ -212,9 +212,11 @@ public class BeanConfiguration {
     @Bean
     IAnualServicePort anualServicePort(IHogarPersistencePort hogares, ICuentaPersistencePort cuentas, IAnualPersistencePort anuales,
                                        ICategoriaPersistencePort categorias, IPlanPersistencePort planes,
-                                       ICierrePersistencePort cierres, ICurrentUserPort usuarioActual,
-                                       ITransaccionPort transaccion, IClockPort clock) {
-        return new AnualUseCase(hogares, cuentas, anuales, categorias, planes, cierres, usuarioActual, transaccion, clock);
+                                       ICierrePersistencePort cierres, IIngresoFijoPersistencePort ingresos,
+                                       IReglaDiezmoPersistencePort reglas, IMovimientoPersistencePort movimientos,
+                                       ICurrentUserPort usuarioActual, ITransaccionPort transaccion, IClockPort clock) {
+        return new AnualUseCase(hogares, cuentas, anuales, categorias, planes, cierres, ingresos, reglas, movimientos,
+                usuarioActual, transaccion, clock);
     }
 
     @Bean
@@ -237,8 +239,11 @@ public class BeanConfiguration {
     IPlanServicePort planServicePort(IHogarPersistencePort hogares, ICategoriaPersistencePort categorias,
                                      IPlanPersistencePort planes, IMovimientoPersistencePort movimientos,
                                      ICreditoPersistencePort creditos, ICierrePersistencePort cierres,
+                                     IIngresoFijoPersistencePort ingresos, IReglaDiezmoPersistencePort reglas,
+                                     IAnualPersistencePort anuales,
                                      ICurrentUserPort usuarioActual, ITransaccionPort transaccion, IClockPort clock) {
-        return new PlanUseCase(hogares, categorias, planes, movimientos, creditos, cierres, usuarioActual, transaccion,
+        return new PlanUseCase(hogares, categorias, planes, movimientos, creditos, cierres, ingresos, reglas, anuales,
+                usuarioActual, transaccion,
                 clock);
     }
 

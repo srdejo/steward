@@ -4,19 +4,16 @@ import co.com.srdejo.steward.domain.model.Cuenta;
 import co.com.srdejo.steward.domain.model.Finanzas;
 import co.com.srdejo.steward.domain.model.IngresoFijo;
 import co.com.srdejo.steward.domain.model.Movimiento;
-import co.com.srdejo.steward.domain.model.ObligacionDiezmo;
 import co.com.srdejo.steward.domain.model.ReglaDiezmo;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
 import java.time.YearMonth;
-import java.util.List;
 import java.util.UUID;
 
 /**
- * Finanzas del hogar de la sesion (spec steward-finanzas): regla de diezmo, ingresos fijos, recibir y entregar el diezmo,
- * "Diezmo en Hoy" y cuentas basicas. Todo se resuelve desde el usuario de la sesion.
+ * Finanzas del hogar de la sesion (spec steward-finanzas): regla de diezmo, ingresos fijos, recibir, los registros de Hoy y
+ * cuentas basicas. Todo se resuelve desde el usuario de la sesion.
  */
 public interface IFinanzasServicePort {
 
@@ -33,15 +30,11 @@ public interface IFinanzasServicePort {
     /** Lo desactiva: lo ya recibido lo sigue nombrando. */
     Mono<Void> quitarIngreso(UUID id);
 
-    /** "Recibi" en el mes en curso. */
-    Mono<Movimiento> recibir(UUID ingresoId);
+    /** "Recibi" un ingreso fijo en el mes en curso (un mes sin plan); {@code monto} null es su neto. */
+    Mono<Movimiento> recibir(UUID ingresoId, Long monto);
 
-    Flux<ObligacionDiezmo> pendientes();
-
-    /** "Entregado": cubre las obligaciones pendientes de esa lista; los demas ids se ignoran. */
-    Mono<Movimiento> entregar(List<UUID> obligaciones, UUID cuentaId);
-
-    Mono<Void> definirDiezmoEnHoy(String modo);
+    /** "Recibi" una linea de ingreso de la opcion principal del mes en curso; {@code monto} null es el de la linea. */
+    Mono<Movimiento> recibirLinea(UUID planId, UUID escenarioId, UUID lineaId, Long monto);
 
     /** {@code conjunta} falso: a nombre de quien la crea. */
     Mono<Cuenta> crearCuenta(String nombre, boolean conjunta, long saldo);

@@ -81,7 +81,6 @@ El hogar siempre es el del usuario de la sesión: no va en la URL. Un usuario pe
 | `PATCH /api/hogar` | `{"nombre"}` → el hogar renombrado |
 | `POST /api/hogar/onboarding-completo` | 204; desde ahí `hogarConfigurado` es verdadero para todos los miembros |
 | `DELETE /api/hogar/miembros/yo` | 204; sus ingresos fijos se desactivan y sus cuentas propias se quitan (la regla de diezmo es suya y se conserva). Si era el último miembro, se borran el hogar y todo lo suyo |
-| `PUT /api/hogar/diezmo-en-hoy` | `{"modo": "SEPARADO" \| "AGRUPADO"}` → 204 |
 
 `miembros` = `[{usuario, unidoEn, esActual}]`; `invitaciones` = las pendientes y vigentes, `[{id, email, estado, enviadaEn, expiraEn}]`.
 
@@ -103,18 +102,17 @@ Con `diezmoAportes: true`, quien se une queda con su regla de diezmo: 10 % del b
 
 ### Finanzas (ingresos, diezmo, cuentas y créditos)
 
-Todo es del hogar de la sesión. Montos en pesos enteros. El mes es siempre **el mes en curso del backend** (`STEWARD_ZONE`, America/Bogota). Las cifras del diezmo son las del dominio compartido (`packages/domain`): porcentaje de la regla **actual** del dueño sobre el bruto o el neto, al peso más cercano.
+Todo es del hogar de la sesión. Montos en pesos enteros. El mes es siempre **el mes en curso del backend** (`STEWARD_ZONE`, America/Bogota). El diezmo es un gasto del plan: cada ingreso con regla tiene su ítem de tipo `DIEZMO` en la categoría del sistema "Diezmo", con el monto que sugiere la regla de su dueño (porcentaje sobre el bruto o el neto, al peso más cercano, como el dominio compartido `packages/domain`), y se marca con "Marcar pago" como cualquier ítem (cambio `diezmo-como-gasto`).
 
 | Método y ruta | Qué hace |
 |---|---|
-| `GET /api/finanzas` | `{mes: {anio, mes}, diezmoEnHoy, categorias, ingresosFijos, reglas, cuentas, planes, movimientos, creditos, cierres}`: lo que la PWA superpone a sus datos de prueba. `ingresosFijos` son los activos de todos los miembros. 404 `SIN_HOGAR` |
+| `GET /api/finanzas` | `{mes: {anio, mes}, categorias, ingresosFijos, reglas, cuentas, planes, movimientos, creditos, cierres, anuales, proyecciones}`: lo que la PWA superpone a sus datos de prueba. `ingresosFijos` son los activos de todos los miembros. 404 `SIN_HOGAR` |
 | `PUT /api/regla-diezmo` | la regla propia: `{"activa", "porcentaje" (0 < p ≤ 100, hasta 2 decimales), "base": "BRUTO" \| "NETO", "aplicaAportes"}` |
 | `POST /api/ingresos-fijos` | `{"nombre", "bruto", "neto", "diaPago", "cuentaId"?}` → 201; bruto ≥ neto > 0, día de 1 a 31; 404 `CUENTA_NO_ENCONTRADA` si la cuenta no es del hogar |
 | `PUT /api/ingresos-fijos/{id}` | edita un ingreso propio y activo; 404 `INGRESO_NO_ENCONTRADO` si es de otra persona o de otro hogar |
 | `DELETE /api/ingresos-fijos/{id}` | 204; lo desactiva (lo ya recibido lo sigue nombrando) |
-| `POST /api/ingresos-fijos/{id}/recibido` | "Recibí" (cualquier miembro) → 201 con el movimiento del mes; genera diezmo si el dueño tiene la regla activa. 409 `YA_RECIBIDO` |
-| `GET /api/diezmo/pendientes` | `[{id, monto, detalle, usuarioId, fecha}]`, p. ej. `700000` y `10% de Salario Daniel · recibido 25 oct` |
-| `POST /api/diezmo/entregas` | `{"obligaciones": [ids], "cuentaId"?}` → 201 con un movimiento por la suma; los ids que no están pendientes se ignoran. 409 `SIN_DIEZMO` si no queda ninguno |
+| `POST /api/ingresos-fijos/{id}/recibido` | "Recibí" un ingreso fijo en un mes sin plan (cualquier miembro): cuerpo opcional `{"monto"}` (por defecto el neto) → 201 con el movimiento del mes. No genera obligación de diezmo. 409 `YA_RECIBIDO` |
+| `POST /api/planes/{id}/escenarios/{escenarioId}/ingresos/{ingresoId}/recibido` | "Recibí" una línea de ingreso de la opción principal del mes en curso: cuerpo opcional `{"monto"}` (por defecto el de la línea) → 201 con el movimiento, con `ingresoPlanId` y, si la línea sale de un ingreso fijo, su `ingresoFijoId`, su bruto y su cuenta. 409 `YA_RECIBIDO` (por línea, y por ingreso fijo en el mes); 404 `INGRESO_NO_ENCONTRADO` si la línea no es de la opción principal del mes en curso |
 | `POST /api/cuentas` | `{"nombre", "titular": "YO" \| "CONJUNTA", "saldo"}` → 201; nace sin cuadrar, y su saldo estimado suma solo lo registrado después |
 | `POST /api/cuentas/cuadre` | "Cuadrar todas": `{"saldos": [{"cuentaId", "saldoBanco"}]}` → 200 con las cuentas cuadradas hoy. Por cada una, la diferencia contra el saldo estimado queda como ajuste `AJUSTE_CUADRE` "Gastos sin registrar" (negativa si entró dinero). Todas o ninguna: 404 `CUENTA_NO_ENCONTRADA` si una no es del hogar |
 | `POST /api/transferencias` | "Mover dinero": `{"desde", "hacia", "monto"}` → 201 con la `TRANSFERENCIA`. 400 `MISMA_CUENTA` |
@@ -124,9 +122,9 @@ Todo es del hogar de la sesión. Montos en pesos enteros. El mes es siempre **el
 | `POST /api/creditos/{id}/abonos` | `{"monto", "usuarioId", "origen"}` → 201 con el `ABONO_CREDITO`; baja el saldo. 400 `ABONO_MAYOR` si supera el saldo |
 | `POST /api/pagos` | "Marcar pago": `{"itemId", "monto", "usuarioId", "origen": {"tipo": "CUENTA" \| "EXTERNA" \| "NINGUNO", "cuentaId"?}}` → 201. El ítem tiene que estar en la opción principal del mes en curso (404 `ITEM_NO_ENCONTRADO`). Un variable se registra como `GASTO`. Un fijo ya pagado: 409 `YA_PAGADO` con "Ya lo pagó {nombre} el {dd mmm}". Pagar un ítem enlazado a un crédito baja su saldo en la parte de capital (la cuota menos el interés del mes) |
 | `POST /api/gastos` | `{"itemId"?, "monto", "nota" (≤ 120), "usuarioId", "origen"}` → 201; sin `itemId` es "No estaba planeado" |
-| `POST /api/aportes` | `{"usuarioId", "monto", "mes": {"anio", "mes"}, "cuentaId"?, "aplicaDiezmo"}` → 201; el mes es el en curso o el siguiente. Con diezmo, genera la obligación `10% del aporte · 26 oct` |
+| `POST /api/aportes` | `{"usuarioId", "monto", "mes": {"anio", "mes"}, "cuentaId"?, "aplicaDiezmo"}` → 201; el mes es el en curso o el siguiente. Con `aplicaDiezmo`, si ese mes tiene plan abierto su opción principal gana, en la misma transacción, el ítem "Diezmo · aporte 26 oct" (`aporteId`) con el porcentaje de la regla de quien aporta (10 % sin regla); si no tiene plan, lo gana al crearse |
 
-`GET /api/finanzas` trae `planes` y `movimientos` desde dos meses antes del mes en curso. Los planes vienen con sus opciones e ítems (con `creditoId` si son la cuota de un crédito) y su `estado` efectivo: un Borrador con opción elegida se lee Activo al llegar su mes.
+`GET /api/finanzas` trae `planes` y `movimientos` desde dos meses antes del mes en curso. Los planes vienen con sus opciones, cada una con sus líneas de ingreso (`ingresos`: `[{id, nombre, monto, usuarioId, tipo: FIJO | EXTRA | OTRO, ingresoFijoId}]`) e ítems (con `creditoId` si son la cuota de un crédito, e `ingresoFijoId` o `aporteId` si son de diezmo), y su `estado` efectivo: un Borrador con opción elegida se lee Activo al llegar su mes. Las entregas de diezmo registradas antes del diezmo como gasto (`DIEZMO_ENTREGADO`) siguen en `movimientos` como historia.
 
 **Saldo estimado.** Cada movimiento trae `seq`, su orden de registro, y cada cuenta `seqCuadre`, el del último movimiento incluido en su `saldoCuadre`. El saldo estimado es `saldoCuadre` más lo registrado con `seq` mayor. Por eso `movimientos` también trae lo de meses anteriores que todavía cuenta en el saldo de alguna cuenta. Los créditos traen sus últimos 6 pagos (cuotas y abonos), que salen de lo registrado (design D1, D2 y D4 de `backend-cuentas-creditos`).
 
@@ -136,15 +134,18 @@ En un mes Cerrado no se registra nada: 409 `MES_CERRADO`. **El backend no calcul
 
 | Método y ruta | Qué hace |
 |---|---|
-| `POST /api/categorias` | `{"nombre"}` (1 a 40) → 201, después de las del sistema. 400 `RESERVADA` si es "Diezmo"; 409 `DUPLICADA` si ya existe en el hogar |
-| `PATCH /api/categorias/{id}` | `{"nombre"}` → la categoría renombrada (también las del sistema) |
-| `POST /api/planes` | `{"anio", "mes", "modo": "COPIAR" \| "FIJOS" \| "CERO"}` → 201 con el plan en Borrador y su Opción A. COPIAR trae la opción principal del mes anterior con las cuotas avanzadas; FIJOS deja los variables en $0. En los tres modos, cada crédito con saldo trae su cuota, y la de un crédito en $0 no se copia. 409 `YA_EXISTE` |
+| `POST /api/categorias` | `{"nombre"}` (1 a 40) → 201, después de las del sistema (Diezmo, Gastos fijos, Tarjetas y cuotas, Variables, Créditos). 400 `RESERVADA` si es "Diezmo"; 409 `DUPLICADA` si ya existe en el hogar |
+| `PATCH /api/categorias/{id}` | `{"nombre"}` → la categoría renombrada (también las del sistema, salvo Diezmo: 400 `RESERVADA`) |
+| `POST /api/planes` | `{"anio", "mes", "modo": "COPIAR" \| "FIJOS" \| "CERO"}` → 201 con el plan en Borrador y su Opción A. COPIAR trae la opción principal del mes anterior con las cuotas avanzadas; FIJOS deja los variables en $0. En los tres modos, cada crédito con saldo trae su cuota, y la de un crédito en $0 no se copia. También en los tres, la opción nace con una línea de ingreso por ingreso fijo activo (su neto) y por evento de ingreso del anual de ese mes (con COPIAR y FIJOS, además, las líneas `OTRO` del mes anterior), y con un ítem de diezmo por ingreso fijo con regla activa, por evento de ingreso de un miembro con regla y por aporte del mes con diezmo. Los ítems de diezmo del mes anterior no se copian. 409 `YA_EXISTE` |
 | `POST /api/planes/{id}/usar` | `{"escenarioId"}` → el plan, con esa opción como la que se ejecuta y las demás archivadas. Cambiar a otra solo en Borrador y si la principal no tiene pagos; si no, 409 `MES_NO_BORRADOR`. Volver a elegir la que está en uso no cambia nada |
-| `POST /api/planes/{id}/escenarios` | "+ Duplicar": `{"desde": escenarioId, "nota"?}` → 201 con el plan. La siguiente letra libre, los mismos ítems sin avanzar cuotas. Solo en Borrador (409 `MES_NO_BORRADOR`); 409 `MUCHAS_OPCIONES` con 26 |
+| `POST /api/planes/{id}/escenarios` | "+ Duplicar": `{"desde": escenarioId, "nota"?}` → 201 con el plan. La siguiente letra libre, los mismos ítems sin avanzar cuotas y las mismas líneas de ingreso. Solo en Borrador (409 `MES_NO_BORRADOR`); 409 `MUCHAS_OPCIONES` con 26 |
 | `DELETE /api/planes/{id}/escenarios/{escenarioId}` | "Quitar opción" → 204; se borra con sus ítems. Solo en Borrador; 409 `ULTIMA_OPCION`, `OPCION_EN_USO` u `OPCION_CON_PAGOS` |
-| `POST /api/planes/{id}/escenarios/{escenarioId}/items` | `{"categoriaId", "nombre", "monto", "diaVence"?, "tipo": "FIJO" \| "VARIABLE" \| "CUOTA" \| "CREDITO", "cuota"?: {"actual", "total"}, "creditoId"?}` → 201. 404 `CATEGORIA_NO_ENCONTRADA` o `CREDITO_NO_ENCONTRADO` |
-| `PUT /api/planes/{id}/escenarios/{escenarioId}/items/{itemId}` | edita el ítem; sin `creditoId`, conserva el que tenía |
+| `POST /api/planes/{id}/escenarios/{escenarioId}/items` | `{"categoriaId", "nombre", "monto", "diaVence"?, "tipo": "FIJO" \| "VARIABLE" \| "CUOTA" \| "CREDITO" \| "DIEZMO", "cuota"?: {"actual", "total"}, "creditoId"?}` → 201. 404 `CATEGORIA_NO_ENCONTRADA` o `CREDITO_NO_ENCONTRADO` |
+| `PUT /api/planes/{id}/escenarios/{escenarioId}/items/{itemId}` | edita el ítem; sin `creditoId`, conserva el que tenía, y siempre conserva el ingreso o el aporte de un ítem de diezmo |
 | `DELETE /api/planes/{id}/escenarios/{escenarioId}/items/{itemId}` | 204; 409 `ITEM_CON_PAGOS` si ya tiene pagos o gastos |
+| `POST /api/planes/{id}/escenarios/{escenarioId}/ingresos` | "+ Ingreso": `{"nombre", "monto", "usuarioId"?}` → 201 con la línea, de tipo `OTRO`. 404 `MIEMBRO_NO_ENCONTRADO`; 409 `MES_CERRADO` |
+| `PUT /api/planes/{id}/escenarios/{escenarioId}/ingresos/{ingresoId}` | edita nombre, monto y persona de la línea; conserva su tipo y su ingreso fijo. No toca Ajustes ni las otras opciones |
+| `DELETE /api/planes/{id}/escenarios/{escenarioId}/ingresos/{ingresoId}` | 204; 409 `INGRESO_RECIBIDO` si ya se recibió en su mes |
 
 | `POST /api/cierres` | "Cerrar {mes}": `{"anio", "mes", "filas": [{"nombre", "plan"?, "real"}], "sinRegistrar", "sobrante", "aAhorro", "aSiguiente", "ultimoSeq"}` → 201. La foto la calcula la PWA con `vistaCierre`. El mes es el en curso o uno anterior (400 `DATOS_INVALIDOS`). 400 `REPARTO_INVALIDO` si el reparto no suma el sobrante; 409 `CIERRE_DESACTUALIZADO` si "Sin registrar" no es la suma de los ajustes del mes o hay un movimiento del mes con `seq` mayor que `ultimoSeq`; 409 `MES_CERRADO` si ya estaba cerrado |
 
@@ -153,10 +154,10 @@ En un mes Cerrado no se registra nada: 409 `MES_CERRADO`. **El backend no calcul
 | Método y ruta | Qué hace |
 |---|---|
 | `POST /api/anuales` | `{"anio"}` → 201 con el anual vacío (año en curso o futuro). 409 `YA_EXISTE` |
-| `PUT /api/anuales/{anio}/celdas` | `{"categoriaId", "mes", "monto"}` → 204; reemplaza la celda. 404 `ANUAL_NO_ENCONTRADO` o `CATEGORIA_NO_ENCONTRADA` |
+| `PUT /api/anuales/{anio}/celdas` | `{"categoriaId", "mes", "monto"}` → 204; reemplaza la celda. 404 `ANUAL_NO_ENCONTRADO` o `CATEGORIA_NO_ENCONTRADA`; 400 `DATOS_INVALIDOS` en la categoría Diezmo, que el anual calcula con las reglas |
 | `POST /api/anuales/{anio}/eventos` | `{"nombre", "mes", "monto", "tipo": "INGRESO" \| "GASTO", "usuarioId"?}` → 201 |
 | `PUT /api/anuales/{anio}/proyecciones` | `{"usuarioId", "mes", "monto"}` → 204; 0 la quita. 404 `MIEMBRO_NO_ENCONTRADO` |
-| `POST /api/anuales/{anio}/crear-meses` | "Crear meses desde este plan" → los meses creados (`[{anio, mes}]`). Los que tienen plan o están cerrados no cambian |
+| `POST /api/anuales/{anio}/crear-meses` | "Crear meses desde este plan" → los meses creados (`[{anio, mes}]`). Cada uno nace con sus líneas de ingreso y sus ítems de diezmo, como `POST /api/planes`; los de diezmo del plan base no se copian. Los que tienen plan o están cerrados no cambian |
 
 `GET /api/finanzas` trae `anuales` (solo las celdas tocadas; las demás valen 0) y `proyecciones` desde el año del primer mes que lee.
 

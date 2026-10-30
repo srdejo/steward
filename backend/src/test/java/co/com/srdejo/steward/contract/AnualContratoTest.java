@@ -130,6 +130,28 @@ class AnualContratoTest extends ContratoBase {
                 .jsonPath("$.categorias[?(@.nombre == 'Eventos del año')].orden").isEqualTo(List.of(90));
     }
 
+    @Test
+    void diezmoDeLaPrimaYCeldaDeDiezmo() {
+        put(daniel, "/api/regla-diezmo", FinanzasContratoTest.regla(true, 10, "BRUTO", false)).expectStatus().isOk();
+        post(daniel, "/api/ingresos-fijos", FinanzasContratoTest.salario(7_000_000, 6_288_000)).expectStatus().isCreated();
+        post(daniel, "/api/anuales", Map.of("anio", ANIO)).expectStatus().isCreated();
+        post(daniel, "/api/anuales/{anio}/eventos", evento("Prima", 6, 3_000_000, "INGRESO", ayudas.idDe(daniel)), ANIO).expectStatus().isCreated();
+        // La fila Diezmo se calcula con las reglas (diezmo-como-gasto).
+        celda(daniel, ayudas.categoria(daniel, "Diezmo"), 1, 1).expectStatus().isBadRequest()
+                .expectBody().jsonPath("$.codigo").isEqualTo("DATOS_INVALIDOS");
+
+        post(esposa, "/api/anuales/{anio}/crear-meses", Map.of(), ANIO).expectStatus().isOk();
+        Map<?, ?> f = get(daniel, "/api/finanzas").expectBody(Map.class).returnResult().getResponseBody();
+        assertEquals(List.of("Diezmo · Salario Daniel:700000", "Diezmo · Prima:300000"), nombres(f, 6));
+        assertEquals(List.of("Diezmo · Salario Daniel:700000"), nombres(f, 5));
+        Map<?, ?> junio = ((List<?>) f.get("planes")).stream().map(p -> (Map<?, ?>) p)
+                .filter(p -> ((Map<?, ?>) p.get("ref")).get("anio").equals(ANIO) && ((Map<?, ?>) p.get("ref")).get("mes").equals(6))
+                .findFirst().orElseThrow();
+        Map<?, ?> esc = (Map<?, ?>) ((List<?>) junio.get("escenarios")).getFirst();
+        assertEquals(List.of("Salario Daniel:6288000:FIJO", "Prima:3000000:EXTRA"), ((List<?>) esc.get("ingresos")).stream()
+                .map(l -> (Map<?, ?>) l).map(l -> l.get("nombre") + ":" + l.get("monto") + ":" + l.get("tipo")).toList());
+    }
+
     // --- Aislamiento ---
 
     @Test

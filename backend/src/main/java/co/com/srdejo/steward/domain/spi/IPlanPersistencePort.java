@@ -2,6 +2,7 @@ package co.com.srdejo.steward.domain.spi;
 
 import co.com.srdejo.steward.domain.model.PlanMes;
 import co.com.srdejo.steward.domain.model.PlanMes.Escenario;
+import co.com.srdejo.steward.domain.model.PlanMes.IngresoPlan;
 import co.com.srdejo.steward.domain.model.PlanMes.ItemPlan;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -9,7 +10,7 @@ import reactor.core.publisher.Mono;
 import java.time.YearMonth;
 import java.util.UUID;
 
-/** Planes de los meses con sus opciones e items. Toda busqueda lleva el hogar del usuario. */
+/** Planes de los meses con sus opciones, sus lineas de ingreso e items. Toda busqueda lleva el hogar del usuario. */
 public interface IPlanPersistencePort {
 
     /** Crea el plan con sus opciones e items. Si el mes ya tiene plan, falla con {@code YA_EXISTE} (indice unico). */
@@ -31,6 +32,13 @@ public interface IPlanPersistencePort {
     Mono<ItemPlan> actualizarItem(ItemPlan item);
 
     Mono<Void> quitarItem(UUID itemId);
+
+    /** Lineas de ingreso de una opcion (design D8 de diezmo-como-gasto). */
+    Mono<IngresoPlan> crearIngreso(IngresoPlan linea);
+
+    Mono<IngresoPlan> actualizarIngreso(IngresoPlan linea);
+
+    Mono<Void> quitarIngreso(UUID lineaId);
 
     Mono<Void> usar(UUID planId, UUID escenarioId);
 

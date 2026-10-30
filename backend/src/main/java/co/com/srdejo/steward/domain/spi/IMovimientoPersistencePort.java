@@ -12,17 +12,10 @@ import java.util.UUID;
 public interface IMovimientoPersistencePort {
 
     /**
-     * Registra un ingreso recibido. Si ese ingreso ya se recibio en el mes, falla con {@code YA_RECIBIDO}: lo garantiza
-     * el indice unico, aunque lleguen dos a la vez.
+     * Registra un ingreso recibido. Si ese ingreso fijo ya se recibio en el mes, o esa linea de ingreso ya se recibio, falla
+     * con {@code YA_RECIBIDO}: lo garantizan los indices unicos, aunque lleguen dos a la vez.
      */
     Mono<Movimiento> registrarRecibido(Movimiento recibido);
-
-    /**
-     * Registra una entrega de diezmo con las obligaciones que cubre ({@code diezmoDe}). Si alguna ya estaba cubierta,
-     * falla con {@code SIN_DIEZMO} sin registrar nada (la PK de {@code diezmo_cubierto}). Corre en la transaccion del caso
-     * de uso.
-     */
-    Mono<Movimiento> registrarEntrega(Movimiento entrega);
 
     /**
      * Registra un pago, un gasto o un aporte. Un segundo PAGO del mismo item en el mes falla con {@code YA_PAGADO}
@@ -39,7 +32,7 @@ public interface IMovimientoPersistencePort {
     /** Los ultimos movimientos de cada credito del hogar (cuotas y abonos), del mas reciente al mas antiguo. */
     Flux<Movimiento> ultimosDeCreditos(UUID hogarId, int porCredito);
 
-    /** Los movimientos del mes, con {@code diezmoDe} lleno en las entregas, en orden de registro. */
+    /** Los movimientos del mes, con {@code diezmoDe} lleno en las entregas de antes (historia), en orden de registro. */
     Flux<Movimiento> delMes(UUID hogarId, YearMonth mes);
 
     /**
@@ -59,6 +52,9 @@ public interface IMovimientoPersistencePort {
 
     /** Si el item tiene pagos o gastos (cualquier mes). */
     Mono<Boolean> hayDeItem(UUID itemId);
+
+    /** Si la linea de ingreso ya se recibio en ese mes: por la linea, o por su ingreso fijo (lo recibido antes de las lineas). */
+    Mono<Boolean> lineaRecibida(UUID lineaId, UUID ingresoFijoId, YearMonth mes);
 
     record Saldo(long saldo, long ultimoSeq) {
     }

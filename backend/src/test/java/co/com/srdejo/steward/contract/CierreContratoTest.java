@@ -132,8 +132,6 @@ class CierreContratoTest extends ContratoBase {
 
         post(daniel, "/api/ingresos-fijos/{id}/recibido", Map.of(), salario).expectStatus().isEqualTo(409)
                 .expectBody().jsonPath("$.codigo").isEqualTo("MES_CERRADO");
-        post(daniel, "/api/diezmo/entregas", Map.of("obligaciones", List.of())).expectStatus().isEqualTo(409)
-                .expectBody().jsonPath("$.codigo").isEqualTo("MES_CERRADO");
         post(daniel, "/api/pagos", pago(luz, 50_000, idDaniel, "NINGUNO")).expectStatus().isEqualTo(409);
         post(daniel, "/api/gastos", gasto(null, 1_000, "x", idDaniel)).expectStatus().isEqualTo(409);
         post(daniel, "/api/aportes", aporte(MES)).expectStatus().isEqualTo(409);

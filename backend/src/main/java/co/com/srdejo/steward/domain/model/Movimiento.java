@@ -11,20 +11,21 @@ import java.util.UUID;
  * @param cuentaId      la cuenta del hogar de la que salio o a la que llego el dinero, con {@code origen} CUENTA.
  * @param ingresoFijoId INGRESO_FIJO: cual ingreso se recibio.
  * @param bruto         INGRESO_FIJO: el bruto del ingreso al recibirlo (base del diezmo).
- * @param aplicaDiezmo  INGRESO_FIJO y APORTE: si genera diezmo.
- * @param diezmoDe      DIEZMO_ENTREGADO: los movimientos cuyas obligaciones cubre.
+ * @param aplicaDiezmo  APORTE: si gana su item de diezmo (en un INGRESO_FIJO de antes del diezmo como gasto, historia).
+ * @param diezmoDe      DIEZMO_ENTREGADO (historia, ya no se crea): los movimientos cuyas obligaciones cubria.
  * @param itemId        PAGO y GASTO: el item del plan (null = "No estaba planeado").
  * @param nota          GASTO: la nota.
  * @param origen        EXTERNA = "Su cuenta", fuera de la app: un pago o gasto asi es un aporte implicito.
  * @param cuentaDestinoId TRANSFERENCIA: la cuenta a la que llega (la de origen va en {@code cuentaId}).
  * @param creditoId     PAGO de un item enlazado a un credito, y ABONO_CREDITO.
+ * @param ingresoPlanId INGRESO_FIJO: la linea de ingreso de la opcion que se recibio (design D8 de diezmo-como-gasto).
  * @param seq           orden de registro, que asigna la base (0 antes de guardarlo): el saldo estimado suma lo
  *                      registrado despues del ultimo cuadre (design D1 de backend-cuentas-creditos).
  */
 public record Movimiento(UUID id, UUID hogarId, Tipo tipo, YearMonth ref, long monto, LocalDate fecha, UUID usuarioId,
                          UUID creadoPor, UUID cuentaId, UUID ingresoFijoId, Long bruto, boolean aplicaDiezmo,
                          List<UUID> diezmoDe, UUID itemId, String nota, Origen origen, UUID cuentaDestinoId,
-                         UUID creditoId, long seq) {
+                         UUID creditoId, UUID ingresoPlanId, long seq) {
 
     public enum Tipo {
         INGRESO_FIJO,
@@ -57,17 +58,22 @@ public record Movimiento(UUID id, UUID hogarId, Tipo tipo, YearMonth ref, long m
                       UUID creadoPor, UUID cuentaId, UUID ingresoFijoId, Long bruto, boolean aplicaDiezmo,
                       List<UUID> diezmoDe, UUID itemId, String nota, Origen origen) {
         this(id, hogarId, tipo, ref, monto, fecha, usuarioId, creadoPor, cuentaId, ingresoFijoId, bruto, aplicaDiezmo,
-                diezmoDe, itemId, nota, origen, null, null, 0);
+                diezmoDe, itemId, nota, origen, null, null, null, 0);
     }
 
     public Movimiento conSeq(long nuevo) {
         return new Movimiento(id, hogarId, tipo, ref, monto, fecha, usuarioId, creadoPor, cuentaId, ingresoFijoId, bruto,
-                aplicaDiezmo, diezmoDe, itemId, nota, origen, cuentaDestinoId, creditoId, nuevo);
+                aplicaDiezmo, diezmoDe, itemId, nota, origen, cuentaDestinoId, creditoId, ingresoPlanId, nuevo);
     }
 
     public Movimiento conCredito(UUID credito) {
         return new Movimiento(id, hogarId, tipo, ref, monto, fecha, usuarioId, creadoPor, cuentaId, ingresoFijoId, bruto,
-                aplicaDiezmo, diezmoDe, itemId, nota, origen, cuentaDestinoId, credito, seq);
+                aplicaDiezmo, diezmoDe, itemId, nota, origen, cuentaDestinoId, credito, ingresoPlanId, seq);
+    }
+
+    public Movimiento conLinea(UUID linea) {
+        return new Movimiento(id, hogarId, tipo, ref, monto, fecha, usuarioId, creadoPor, cuentaId, ingresoFijoId, bruto,
+                aplicaDiezmo, diezmoDe, itemId, nota, origen, cuentaDestinoId, creditoId, linea, seq);
     }
 
     /** Los de ingresos y diezmo (Etapa 3): sin item ni nota, y el origen sale de la cuenta. */

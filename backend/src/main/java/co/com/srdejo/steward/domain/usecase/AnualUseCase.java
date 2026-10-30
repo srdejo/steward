@@ -9,6 +9,7 @@ import co.com.srdejo.steward.domain.model.PlanAnual.Evento;
 import co.com.srdejo.steward.domain.model.PlanAnual.Proyeccion;
 import co.com.srdejo.steward.domain.model.PlanMes;
 import co.com.srdejo.steward.domain.model.PlanMes.Escenario;
+import co.com.srdejo.steward.domain.model.PlanMes.IngresoPlan;
 import co.com.srdejo.steward.domain.model.PlanMes.ItemPlan;
 import co.com.srdejo.steward.domain.spi.IAnualPersistencePort;
 import co.com.srdejo.steward.domain.spi.ICategoriaPersistencePort;
@@ -17,7 +18,10 @@ import co.com.srdejo.steward.domain.spi.IClockPort;
 import co.com.srdejo.steward.domain.spi.ICuentaPersistencePort;
 import co.com.srdejo.steward.domain.spi.ICurrentUserPort;
 import co.com.srdejo.steward.domain.spi.IHogarPersistencePort;
+import co.com.srdejo.steward.domain.spi.IIngresoFijoPersistencePort;
+import co.com.srdejo.steward.domain.spi.IMovimientoPersistencePort;
 import co.com.srdejo.steward.domain.spi.IPlanPersistencePort;
+import co.com.srdejo.steward.domain.spi.IReglaDiezmoPersistencePort;
 import co.com.srdejo.steward.domain.spi.ITransaccionPort;
 import co.com.srdejo.steward.domain.usecase.Registro.Contexto;
 import reactor.core.publisher.Flux;
@@ -48,10 +52,13 @@ public class AnualUseCase implements IAnualServicePort {
     private final ICierrePersistencePort cierres;
     private final ITransaccionPort transaccion;
     private final Registro registro;
+    private final NacimientoMes nacimiento;
 
     public AnualUseCase(IHogarPersistencePort hogares, ICuentaPersistencePort cuentas, IAnualPersistencePort anuales,
                         ICategoriaPersistencePort categorias, IPlanPersistencePort planes, ICierrePersistencePort cierres,
-                        ICurrentUserPort usuarioActual, ITransaccionPort transaccion, IClockPort clock) {
+                        IIngresoFijoPersistencePort ingresos, IReglaDiezmoPersistencePort reglas,
+                        IMovimientoPersistencePort movimientos, ICurrentUserPort usuarioActual, ITransaccionPort transaccion,
+                        IClockPort clock) {
         this.hogares = hogares;
         this.anuales = anuales;
         this.categorias = categorias;
@@ -59,6 +66,7 @@ public class AnualUseCase implements IAnualServicePort {
         this.cierres = cierres;
         this.transaccion = transaccion;
         this.registro = new Registro(hogares, cuentas, usuarioActual, clock);
+        this.nacimiento = new NacimientoMes(ingresos, reglas, anuales, movimientos);
     }
 
     @Override
@@ -78,7 +86,10 @@ public class AnualUseCase implements IAnualServicePort {
         return registro.contexto().flatMap(ctx -> anualDe(ctx, anio)
                 .flatMap(a -> categorias.porIdEnHogar(categoriaId, ctx.hogar().id())
                         .switchIfEmpty(Mono.error(PlanUseCase::categoriaNoEncontrada))
-                        .then(anuales.ponerCelda(a.id(), categoriaId, mes, monto))));
+                        // La fila Diezmo del anual se calcula con las reglas (design D2 de diezmo-como-gasto).
+                        .flatMap(c -> c.tipo() == Categoria.Tipo.DIEZMO
+                                ? Mono.<Void>error(DomainException.datosInvalidos("El diezmo del año se calcula con las reglas"))
+                                : anuales.ponerCelda(a.id(), categoriaId, mes, monto))));
     }
 
     @Override
@@ -112,13 +123,16 @@ public class AnualUseCase implements IAnualServicePort {
     /**
      * crearMesesDesdeAnual del dominio (design D4): cada mes sin plan ni cierre nace en Borrador con su columna como
      * Opcion A, desde la opcion principal del ultimo plan anterior al año. Si la columna de una categoria es menor que sus
-     * items copiados, entra como un solo item por el monto de la columna (los items no son negativos).
+     * items copiados, entra como un solo item por el monto de la columna (los items no son negativos). Cada mes nace con
+     * sus lineas de ingreso y sus items de diezmo; los de diezmo del plan base no se copian (design D2 y D8 de
+     * diezmo-como-gasto).
      */
     @Override
     public Mono<List<YearMonth>> crearMeses(int anio) {
         return registro.contexto().flatMap(ctx -> anualDe(ctx, anio).flatMap(anual -> Mono.zip(
                         planes.ultimoAntesDe(ctx.hogar().id(), YearMonth.of(anio, 1))
-                                .map(p -> p.principal() == null ? List.<ItemPlan>of() : p.principal().items())
+                                .map(p -> p.principal() == null ? List.<ItemPlan>of() : p.principal().items().stream()
+                                        .filter(i -> i.tipo() != ItemPlan.Tipo.DIEZMO).toList())
                                 .defaultIfEmpty(List.of()),
                         categorias.delHogar(ctx.hogar().id()).collectList())
                 .flatMap(t -> transaccion.enTransaccion(categoriaEventos(ctx, anual, t.getT2())
@@ -141,8 +155,8 @@ public class AnualUseCase implements IAnualServicePort {
 
     private Mono<YearMonth> crearMes(Contexto ctx, PlanAnual anual, YearMonth ref, List<ItemPlan> plantilla, List<Categoria> cats,
                                      UUID eventosCat) {
-        return planes.deMes(ctx.hogar().id(), ref).hasElement()
-                .zipWith(cierres.estaCerrado(ctx.hogar().id(), ref))
+        return Mono.zip(planes.deMes(ctx.hogar().id(), ref).hasElement(), cierres.estaCerrado(ctx.hogar().id(), ref),
+                        nacimiento.fuentes(ctx.hogar().id(), ref))
                 .flatMap(t -> {
                     if (t.getT1() || t.getT2()) {
                         return Mono.<YearMonth>empty();
@@ -168,8 +182,7 @@ public class AnualUseCase implements IAnualServicePort {
                             }
                             continue;
                         }
-                        deCategoria.forEach(i -> items.add(new ItemPlan(UUID.randomUUID(), escId, i.categoriaId(), i.nombre(), i.monto(),
-                                i.diaVence(), i.tipo(), i.cuotaActual(), i.cuotaTotal(), items.size() + 1, i.creditoId())));
+                        deCategoria.forEach(i -> items.add(i.copia(UUID.randomUUID(), escId, i.monto(), i.cuotaActual(), items.size() + 1)));
                         if (monto > base) {
                             items.add(item(escId, categoriaId, deCategoria.isEmpty() ? nombreCategoria : "Ajuste del plan anual",
                                     monto - base, items.size()));
@@ -181,8 +194,10 @@ public class AnualUseCase implements IAnualServicePort {
                                     null, null, items.size() + 1));
                         }
                     }
+                    items.addAll(NacimientoMes.diezmos(escId, NacimientoMes.categoriaDiezmo(cats), t.getT3(), items));
+                    List<IngresoPlan> lineas = NacimientoMes.lineas(escId, t.getT3());
                     PlanMes plan = new PlanMes(planId, ctx.hogar().id(), ref, PlanMes.Estado.BORRADOR, null,
-                            List.of(new Escenario(escId, planId, "A", ctx.usuario(), "Del plan anual", false, items)));
+                            List.of(new Escenario(escId, planId, "A", ctx.usuario(), "Del plan anual", false, lineas, items)));
                     return planes.crear(plan).thenReturn(ref)
                             // Si otra persona lo creo a la vez, ese mes ya tiene plan.
                             .onErrorResume(DomainException.class, ex -> "YA_EXISTE".equals(ex.codigo()) ? Mono.empty() : Mono.error(ex));

@@ -7,8 +7,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Spec steward-finanzas: "Regla de diezmo propia", "Ingresos fijos propios", "Cuentas basicas", "Diezmo en Hoy" y
- * "Finanzas del hogar en una lectura".
+ * Spec steward-finanzas: "Regla de diezmo propia", "Ingresos fijos propios", "Cuentas basicas" y "Finanzas del hogar en
+ * una lectura".
  */
 class FinanzasContratoTest extends ContratoBase {
 
@@ -123,17 +123,6 @@ class FinanzasContratoTest extends ContratoBase {
                 .expectBody().jsonPath("$.codigo").isEqualTo("DATOS_INVALIDOS");
         post(daniel, "/api/cuentas", cuenta("Nu", "YO", -1)).expectStatus().isBadRequest();
         get(daniel, "/api/finanzas").expectBody().jsonPath("$.cuentas.length()").isEqualTo(0);
-    }
-
-    // --- Diezmo en Hoy ---
-
-    @Test
-    void pasarAAgrupado() {
-        get(esposa, "/api/finanzas").expectBody().jsonPath("$.diezmoEnHoy").isEqualTo("SEPARADO");
-        put(daniel, "/api/hogar/diezmo-en-hoy", Map.of("modo", "AGRUPADO")).expectStatus().isNoContent();
-        get(esposa, "/api/finanzas").expectBody().jsonPath("$.diezmoEnHoy").isEqualTo("AGRUPADO");
-        put(daniel, "/api/hogar/diezmo-en-hoy", Map.of("modo", "OTRO")).expectStatus().isBadRequest()
-                .expectBody().jsonPath("$.codigo").isEqualTo("DATOS_INVALIDOS");
     }
 
     // --- Finanzas del hogar en una lectura ---
