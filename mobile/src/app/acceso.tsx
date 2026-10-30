@@ -1,25 +1,36 @@
-import type { MetodoAcceso } from '@steward/domain';
+import { PuertosConectados, type ResultadoLogin } from '@steward/domain/conectado';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
-import { mensajeDeError } from '@/data/puertos';
+import { entrarConApple, entrarConGoogle } from '@/data/acceso-nativo';
+import { mensajeDeError, usePuertos } from '@/data/puertos';
 import { useSesion } from '@/data/sesion';
 import { Aviso, Boton, colors, fonts, Icono, Pantalla, Texto } from '@/ui';
 
-/** Acceso.dc.html: una sola pantalla para entrar o crear cuenta. En modo demo, cualquier opcion entra. */
+/** Una sola pantalla para entrar o crear cuenta: Google y Apple. Con el adaptador de prueba (solo pruebas), Google entra. */
 export default function Acceso() {
   const sesion = useSesion();
+  const puertos = usePuertos();
+  const conectados = puertos instanceof PuertosConectados ? puertos : null;
+  const [conApple, setConApple] = useState(false);
+  useEffect(() => {
+    void AppleAuthentication.isAvailableAsync().then(setConApple);
+  }, []);
   const [error, setError] = useState('');
   const [entrando, setEntrando] = useState(false);
 
-  async function entrar(metodo: MetodoAcceso) {
+  async function entrar(acceso: (p: PuertosConectados) => Promise<ResultadoLogin | null>) {
     setEntrando(true);
     setError('');
     try {
-      const s = await sesion.iniciar(metodo);
-      router.replace(s.hogarConfigurado ? '/hoy' : '/face-id');
+      const s = conectados ? (await acceso(conectados))?.sesion : await sesion.iniciar('GOOGLE');
+      // Cancelar el selector deja la pantalla igual, sin error.
+      if (!s) return;
+      if (conectados) sesion.establecer(s);
+      router.replace(s.hogarConfigurado ? '/hoy' : '/onboarding/1');
     } catch (e) {
       setError(mensajeDeError(e));
     } finally {
@@ -42,7 +53,7 @@ export default function Acceso() {
           tipo="secundario"
           titulo="Continuar con Google"
           deshabilitado={entrando}
-          onPress={() => entrar('GOOGLE')}
+          onPress={() => entrar(entrarConGoogle)}
           style={{ borderColor: '#D9D8D2' }}
           icono={
             <Svg width={20} height={20} viewBox="0 0 24 24">
@@ -53,8 +64,15 @@ export default function Acceso() {
             </Svg>
           }
         />
-        <Boton titulo="Entrar con Face ID" deshabilitado={entrando} onPress={() => entrar('FACE_ID')} icono={<Icono nombre="rostro" tamano={20} color="#FFFFFF" />} />
-        <Boton tipo="enlace" titulo="Continuar con correo" deshabilitado={entrando} onPress={() => entrar('CORREO')} />
+        {conApple && (
+          <AppleAuthentication.AppleAuthenticationButton
+            buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
+            buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+            cornerRadius={14}
+            style={{ height: 52 }}
+            onPress={() => entrar(entrarConApple)}
+          />
+        )}
         <Aviso texto={error} />
       </View>
 
@@ -62,7 +80,7 @@ export default function Acceso() {
         <Texto style={{ fontSize: 13, lineHeight: 19, color: colors.secundario, textAlign: 'center' }}>
           Si es tu primera vez, se crea tu cuenta. Si te invitaron, entra con el correo de la invitación.
         </Texto>
-        <Texto v="detalle" style={{ textAlign: 'center' }}>Al continuar aceptas los Términos y la Privacidad (próximamente).</Texto>
+        <Texto v="detalle" style={{ textAlign: 'center' }}>Al continuar aceptas los Términos y la Privacidad.</Texto>
       </View>
     </Pantalla>
   );

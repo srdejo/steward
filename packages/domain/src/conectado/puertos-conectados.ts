@@ -22,6 +22,7 @@ import { crearAdaptadorDemo, type StorageLike } from '../demo';
 import {
   usuarioDe,
   type Api,
+  type ConfigAcceso,
   type HogarApi,
   type InvitacionApi,
   type InvitacionEnviadaApi,
@@ -106,6 +107,11 @@ export class PuertosConectados implements Puertos {
   suscribir(listener: () => void): () => void {
     this.oyentes.add(listener);
     return () => this.oyentes.delete(listener);
+  }
+
+  /** Lo publico del acceso: el client web de Google. */
+  configAcceso(): Promise<ConfigAcceso> {
+    return this.d.api.config();
   }
 
   /** Login con el ID token de Google Identity Services. */

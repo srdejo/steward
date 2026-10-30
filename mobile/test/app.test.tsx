@@ -14,14 +14,12 @@ const escribir = async (etiqueta: string, valor: string) => fireEvent.changeText
 const enRuta = (ruta: string) => waitFor(() => expect(screen).toHavePathname(ruta));
 
 describe('acceso y onboarding', () => {
-  it('primer acceso → Face ID → cinco pasos → Hoy', async () => {
+  it('primer acceso → cinco pasos → Hoy', async () => {
     const p = puertosDePrueba();
     await p.demo!.probarDesdeCero();
     renderRouter('./src/app', { initialUrl: '/' });
 
     await tocar('Continuar con Google');
-    await enRuta('/face-id');
-    await tocar('Ahora no');
     await enRuta('/onboarding/1');
 
     await escribir('Nombre del hogar', 'Nuestra casa');
@@ -51,7 +49,7 @@ describe('acceso y onboarding', () => {
   it('con el hogar configurado, el acceso va directo a Hoy', async () => {
     puertosDePrueba();
     renderRouter('./src/app', { initialUrl: '/' });
-    await tocar('Continuar con correo');
+    await tocar('Continuar con Google');
     await enRuta('/hoy');
   });
 

@@ -83,7 +83,7 @@ La misma acción va en Ajustes de la PWA, con confirmación que pide escribir EL
 
 Se portan una a una desde `features/` de la PWA: mismos puertos, mismos textos y las mismas pruebas de escenario donde aplique. Se conservan las rutas de Expo Router y `ui/`. Nuevas: hojas de ingreso, de gasto, de registro y de registros; detalle de cuenta. `MesDeHoy` usa AsyncStorage.
 
-Acceso: solo Google y Apple, sin Face ID ni correo.
+Acceso: solo Google y Apple, sin Face ID ni correo. La pantalla de activar Face ID se quita, y tras entrar se va al onboarding o a Ejecución. El client web de Google sale de `/api/auth/config`.
 
 ### D7. Invitaciones
 
