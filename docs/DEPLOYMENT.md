@@ -6,7 +6,7 @@ Steward pasa de ser una app Expo de un solo usuario, con todo guardado en el tel
 |---|---|---|
 | `backend/` | API Spring Boot 4.1 reactiva (Java 25), lista para imagen nativa | local: JVM con `infra/local-deploy.ps1`; VPS: binario nativo con `infra/deploy.ps1` (reservado) |
 | `frontend/` | PWA Angular 22 | igual que el backend: web en el mismo dominio |
-| `mobile/` | App Expo (`release/1.0.x`: v1 de App Store; `main` y `develop`: diseño nuevo en TestFlight) | EAS, desde `mobile/` |
+| `mobile/` | App Expo (`release/1.0.x`: v1 de App Store; `main`: diseño nuevo en TestFlight) | EAS, desde `mobile/` |
 
 Si `backend/` (sin `gradlew.bat`) o `frontend/` (sin `package.json`) no existen, los deploys omiten esa capa con aviso y la web muestra la página "Próximamente" (`infra/vps/steward/placeholder/`).
 
@@ -179,7 +179,7 @@ Más adelante, como arranca en menos de 2 s, puede usar el apagado por inactivid
 cd mobile
 npm install
 npx expo start
-eas build --profile testflight --platform ios --auto-submit-with-profile testflight   # main y develop: solo TestFlight
+eas build --profile testflight --platform ios --auto-submit-with-profile testflight   # main: solo TestFlight
 eas build --platform ios --profile production && eas submit --platform ios           # release/1.0.x: la v1, desde la raíz (ahí la app no está en mobile/)
 ```
 
