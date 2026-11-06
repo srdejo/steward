@@ -120,7 +120,7 @@ Steward está construido como una aplicación móvil utilizando tecnologías mod
 
 El proyecto está organizado buscando mantener una estructura clara y facilitar su evolución a medida que se agregan nuevas funcionalidades.
 
-El repo está en capas y se trabaja trunk-based sobre `main`. En `main` está la versión en la nube (Presupuesto Hogar): backend, PWA en `steward.srdejo.com.co` y `mobile/`, distribuida solo por TestFlight (1.1.0, testers internos), sin publicarse en las tiendas. La v1 publicada en App Store (1.0.2) sale de la rama `release/1.0.x`. Despliegue en [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+El repo está en capas y se trabaja trunk-based sobre `main`. En `main` está la versión en la nube (Presupuesto Hogar): backend, PWA en `steward.srdejo.com.co` y `mobile/`, distribuida solo por TestFlight (2.0.0, testers internos), sin publicarse en las tiendas. La v1 publicada en App Store (1.0.2) sale de la rama `release/1.0.x`. Despliegue en [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 ```text
 steward/
