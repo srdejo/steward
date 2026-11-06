@@ -396,6 +396,10 @@ export function crearAdaptadorDemo(opciones: OpcionesDemo): Puertos {
       async agregar(datos) {
         await cambiar((s) => R.agregarCuenta(s, { ...datos, fecha: hoy() }));
       },
+      async eliminar(cuentaId) {
+        const usuarioId = await usuarioActual();
+        await cambiar((s) => R.quitarCuenta(s, { cuentaId, usuarioId }));
+      },
       async mover(datos) {
         const usuarioId = await usuarioActual();
         await cambiar((s) => R.moverDinero(s, { ...datos, fecha: hoy(), usuarioId }));

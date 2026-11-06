@@ -86,6 +86,14 @@ public class CuentaR2dbcAdapter implements ICuentaPersistencePort {
     }
 
     @Override
+    public Mono<Void> eliminar(UUID id, UUID hogarId) {
+        return db.sql("DELETE FROM cuenta WHERE id = :id AND hogar_id = :hogar")
+                .bind("id", id)
+                .bind("hogar", hogarId)
+                .then();
+    }
+
+    @Override
     public Mono<Void> quitarPropias(UUID hogarId, UUID usuarioId) {
         return db.sql("DELETE FROM cuenta WHERE hogar_id = :hogar AND titular_id = :usuario")
                 .bind("hogar", hogarId)

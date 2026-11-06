@@ -56,7 +56,8 @@ export interface HogarApi {
 
 export interface InvitacionEnviadaApi {
   invitacion: InvitacionApi;
-  enlace: string;
+  /** null al invitar dos veces seguidas: es la misma invitacion y el enlace solo esta en el correo que ya salio. */
+  enlace: string | null;
   correoEnviado: boolean;
 }
 
@@ -399,6 +400,10 @@ export class Api {
 
   crearCuenta(nombre: string, titular: 'YO' | 'CONJUNTA', saldo: number): Promise<CuentaApi> {
     return this.t.pedir<CuentaApi>('POST', '/api/cuentas', { nombre, titular, saldo });
+  }
+
+  quitarCuenta(id: string): Promise<void> {
+    return this.t.pedir<void>('DELETE', `/api/cuentas/${encodeURIComponent(id)}`);
   }
 
   // --- Plan del mes y registros de Hoy (spec steward-plan-mes y steward-finanzas) ---

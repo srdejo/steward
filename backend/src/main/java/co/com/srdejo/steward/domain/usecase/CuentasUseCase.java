@@ -120,6 +120,24 @@ public class CuentasUseCase implements ICuentasServicePort {
                                 hacia, null, null, null, 0)))));
     }
 
+    // --- Eliminar ---------------------------------------------------------------------------------------------------
+
+    @Override
+    public Mono<Void> eliminar(UUID cuentaId) {
+        if (cuentaId == null) {
+            return Mono.error(Registro::cuentaNoEncontrada);
+        }
+        return registro.contexto().flatMap(ctx -> cuentas.porIdEnHogar(cuentaId, ctx.hogar().id())
+                .switchIfEmpty(Mono.error(Registro::cuentaNoEncontrada))
+                .flatMap(cuenta -> {
+                    if (cuenta.titularId() != null && !cuenta.titularId().equals(ctx.usuario())) {
+                        return Mono.error(new DomainException(DomainException.Tipo.CONFLICTO, "SOLO_TUYAS",
+                                "Solo puedes eliminar tus cuentas o las conjuntas"));
+                    }
+                    return cuentas.eliminar(cuenta.id(), ctx.hogar().id());
+                }));
+    }
+
     // --- Creditos ---------------------------------------------------------------------------------------------------
 
     @Override

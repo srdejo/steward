@@ -439,6 +439,7 @@ export class PuertosConectados implements Puertos {
         await this.d.api.crearCuenta(datos.nombre, datos.titularId === null ? 'CONJUNTA' : 'YO', datos.saldo);
         await this.recargarFinanzas();
       },
+      eliminar: (cuentaId) => escribir(api.quitarCuenta(cuentaId)),
       mover: (datos) => {
         if (datos.desde === datos.hacia) return Promise.reject(new ReglaError('MISMA_CUENTA', 'Elige dos cuentas distintas'));
         return escribir(api.transferir(datos));
@@ -550,7 +551,8 @@ function invitacionConectada(r: InvitacionEnviadaApi): InvitacionConectada {
 }
 
 /** El backend arma el enlace con su origen publico; la PWA usa la ruta sobre su propio origen. */
-function rutaDe(enlace: string): string {
+function rutaDe(enlace: string | null): string {
+  if (!enlace) return '';
   return enlace.replace(/^https?:\/\/[^/]+/, '') || enlace;
 }
 

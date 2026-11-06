@@ -21,6 +21,12 @@ public interface ICuentasServicePort {
     /** "Mover dinero" entre dos cuentas del hogar. */
     Mono<Movimiento> transferir(UUID desde, UUID hacia, long monto);
 
+    /**
+     * "Eliminar cuenta", con cualquier saldo: el total del hogar baja en ese saldo y lo registrado queda en el historial,
+     * sin cuenta. Solo las propias o las conjuntas.
+     */
+    Mono<Void> eliminar(UUID cuentaId);
+
     /** "+ Agregar credito": su cuota entra al plan del mes en curso si tiene plan y no esta cerrado. */
     Mono<Credito> crearCredito(DatosCredito datos);
 

@@ -35,7 +35,9 @@ public class InvitacionR2dbcAdapter implements IInvitacionPersistencePort {
                 .bind("enviadaEn", utc(inv.enviadaEn()))
                 .bind("expiraEn", utc(inv.expiraEn()))
                 .then()
-                .thenReturn(inv);
+                .thenReturn(inv)
+                // Dos "Invitar" a la vez: el indice deja una sola pendiente y la otra peticion la toma como repetida.
+                .onErrorResume(ex -> Sql.violo(ex, "invitacion_pendiente_uq"), ex -> Mono.empty());
     }
 
     @Override

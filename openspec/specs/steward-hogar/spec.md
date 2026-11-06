@@ -39,6 +39,7 @@ Un miembro SHALL poder invitar a un correo válido.
 - Si el envío falla, la invitación MUST quedar creada igual, y la respuesta SHALL indicarlo con `correoEnviado` en falso para que se pueda copiar el enlace.
 - Invitar a un correo que ya es miembro MUST responder 409 con `codigo` `YA_ES_MIEMBRO`.
 - Invitar de nuevo a un correo con una invitación pendiente MUST reenviar esa misma invitación, sin crear otra.
+- Invitar es idempotente ante un doble envío: si la pendiente salió hace menos de 2 minutos, MUST responder esa misma invitación (200, `enlace` null) sin generar un enlace nuevo ni enviar otro correo, y el enlace del primer correo sigue sirviendo. Dos peticiones a la vez dejan una sola invitación y un solo correo. La PWA y la app MUST deshabilitar "Invitar" mientras la petición está en camino.
 
 #### Scenario: Invitación pendiente
 - **WHEN** Daniel invita a `esposa@ejemplo.com`

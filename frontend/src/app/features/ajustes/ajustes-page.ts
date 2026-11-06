@@ -224,7 +224,7 @@ const CONFIRMACIONES = {
       @if (error()) {
         <p role="alert" class="text-sm text-negativo">{{ error() }}</p>
       }
-      <button type="button" class="boton-grande" [class.bg-negativo]="peligro" [disabled]="!listo" (click)="confirmar()">{{ boton }}</button>
+      <button type="button" class="boton-grande" [class.bg-negativo]="peligro" [disabled]="!listo || ocupado()" (click)="confirmar()">{{ boton }}</button>
     </ng-template>
   `,
 })
@@ -271,6 +271,8 @@ export class AjustesPage {
   protected readonly aplicaAportes = signal(true);
   protected readonly error = signal('');
   protected readonly mensaje = signal('');
+  /** Mientras la peticion va en camino el boton no responde: un doble toque no invita ni guarda dos veces. */
+  protected readonly ocupado = signal(false);
 
   protected fecha(f: string): string {
     return formatFechaCorta(f);
@@ -312,8 +314,9 @@ export class AjustesPage {
 
   protected async confirmar(): Promise<void> {
     const d = this.dialogo();
-    if (!d) return;
+    if (!d || this.ocupado()) return;
     this.error.set('');
+    this.ocupado.set(true);
     try {
       switch (d.tipo) {
         case 'invitar':
@@ -347,6 +350,8 @@ export class AjustesPage {
       this.cerrar();
     } catch (e) {
       this.error.set(mensajeDeError(e));
+    } finally {
+      this.ocupado.set(false);
     }
   }
 

@@ -42,6 +42,22 @@ describe('Cuentas (steward-cuentas)', () => {
     expect(a.raiz().querySelector('[data-testid="saldo-cuenta"]')!.textContent!.replace(/\s+/g, ' ').trim()).toBe('≈ $4.000.000');
   });
 
+  it('eliminar una cuenta propia con saldo; la de otro miembro no lo ofrece', async () => {
+    const p = await conSesion();
+    const a = await app('/cuentas');
+    await a.tocar(/^Ahorros Esposa/);
+    expect(a.texto()).not.toContain('Eliminar cuenta');
+
+    await a.ir('/cuentas');
+    await a.tocar(/^Nu/);
+    await a.tocar('Eliminar cuenta');
+    expect(a.texto()).toContain('El total del hogar baja en $3.360.000');
+    await a.tocar('Eliminar cuenta', '[role="dialog"] button');
+    expect(a.url()).toBe('/cuentas');
+    expect((await p.cuentas.cuentas()).cuentas.map((c) => c.cuenta.nombre)).not.toContain('Nu');
+    expect(a.raiz().querySelector('[data-testid="saldo-hogar"]')!.textContent!.replace(/\s+/g, ' ').trim()).toBe('≈ $5.770.000');
+  });
+
   it('agregar una cuenta y mover dinero', async () => {
     const p = await conSesion();
     const a = await app('/cuentas');

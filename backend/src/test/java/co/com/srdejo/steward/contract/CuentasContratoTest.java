@@ -159,6 +159,42 @@ class CuentasContratoTest extends ContratoBase {
                 .jsonPath("$.cuentas[?(@.nombre == 'Davivienda')].seqCuadre").isEqualTo(List.of(0));
     }
 
+    // --- Eliminar cuenta ---
+
+    @Test
+    void eliminarLaPropiaConSaldoConservaLoRegistrado() {
+        pagarDesde(luz, 50_000, davivienda).expectStatus().isCreated();
+        delete(daniel, "/api/cuentas/{id}", davivienda).expectStatus().isNoContent();
+        get(daniel, "/api/finanzas").expectBody()
+                .jsonPath("$.cuentas[?(@.id == '" + davivienda + "')]").isEmpty()
+                .jsonPath("$.cuentas.length()").isEqualTo(1)
+                .jsonPath("$.movimientos[?(@.tipo == 'PAGO')].monto").isEqualTo(List.of(50_000))
+                .jsonPath("$.movimientos[?(@.tipo == 'PAGO')].cuentaId").isEqualTo(java.util.Collections.singletonList(null));
+    }
+
+    @Test
+    void laConjuntaLaEliminaCualquierMiembro() {
+        delete(esposa, "/api/cuentas/{id}", efectivo).expectStatus().isNoContent();
+        get(daniel, "/api/finanzas").expectBody().jsonPath("$.cuentas[?(@.id == '" + efectivo + "')]").isEmpty();
+    }
+
+    @Test
+    void laDeOtroMiembroNo() {
+        delete(esposa, "/api/cuentas/{id}", davivienda).expectStatus().isEqualTo(409)
+                .expectBody().jsonPath("$.codigo").isEqualTo("SOLO_TUYAS");
+        get(daniel, "/api/finanzas").expectBody().jsonPath("$.cuentas.length()").isEqualTo(2);
+    }
+
+    @Test
+    void deOtroHogarOInexistenteDa404() {
+        String otro = entrar("otro@ejemplo.com", "Otro");
+        crearHogar(otro, "Otra casa").expectStatus().isCreated();
+        delete(otro, "/api/cuentas/{id}", efectivo).expectStatus().isNotFound()
+                .expectBody().jsonPath("$.codigo").isEqualTo("CUENTA_NO_ENCONTRADA");
+        delete(daniel, "/api/cuentas/{id}", java.util.UUID.randomUUID()).expectStatus().isNotFound();
+        get(daniel, "/api/finanzas").expectBody().jsonPath("$.cuentas.length()").isEqualTo(2);
+    }
+
     private org.springframework.test.web.reactive.server.WebTestClient.ResponseSpec cuadrar(String sesion, Map<String, Long> saldos) {
         return post(sesion, "/api/cuentas/cuadre", Map.of("saldos", saldos.entrySet().stream()
                 .map(e -> Map.of("cuentaId", e.getKey(), "saldoBanco", e.getValue())).toList()));

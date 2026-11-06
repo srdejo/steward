@@ -15,6 +15,7 @@ import co.com.srdejo.steward.domain.api.ICuentasServicePort;
 import co.com.srdejo.steward.domain.api.IPlanServicePort;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -44,6 +45,12 @@ public class CuentasController {
     @PostMapping("/api/cuentas/cuadre")
     public Flux<CuentaResponse> cuadrar(@RequestBody CuadreRequest r) {
         return cuentas.cuadrar(r.datos()).flatMapMany(Flux::fromIterable).map(CuentaResponse::de);
+    }
+
+    @DeleteMapping("/api/cuentas/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public Mono<Void> eliminar(@PathVariable UUID id) {
+        return cuentas.eliminar(id);
     }
 
     @PostMapping("/api/transferencias")

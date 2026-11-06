@@ -58,6 +58,27 @@ class InvitacionContratoTest extends ContratoBase {
     }
 
     @Test
+    void dobleEnvioNoRotaNiReenvia() {
+        String viejo = tokenDe(invitar(daniel, "esposa@ejemplo.com"));
+        // Doble toque en "Invitar": la misma invitacion, sin enlace nuevo ni otro correo.
+        invitarA(daniel, "esposa@ejemplo.com").expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.enlace").doesNotExist()
+                .jsonPath("$.invitacion.estado").isEqualTo("PENDIENTE");
+        consultar(viejo).expectStatus().isOk();
+    }
+
+    @Test
+    void pasadaLaVentanaInvitarDeNuevoReenvia() throws Exception {
+        String viejo = tokenDe(invitar(daniel, "esposa@ejemplo.com"));
+        sql("UPDATE invitacion SET enviada_en = now() - interval '5 minutes'");
+        String nuevo = tokenDe((String) invitarA(daniel, "esposa@ejemplo.com").expectStatus().isOk()
+                .expectBody(Map.class).returnResult().getResponseBody().get("enlace"));
+        consultar(viejo).expectStatus().isNotFound();
+        consultar(nuevo).expectStatus().isOk();
+    }
+
+    @Test
     void yaEsMiembroDa409() {
         unirA(daniel, "esposa@ejemplo.com", "Esposa");
         invitarA(daniel, "esposa@ejemplo.com").expectStatus().isEqualTo(409)

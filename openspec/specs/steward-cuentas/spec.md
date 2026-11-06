@@ -86,3 +86,16 @@ Tocar un pago, gasto, ingreso recibido o aporte de la lista SHALL abrir su hoja 
 #### Scenario: De dónde sale el saldo
 - **WHEN** Davivienda se cuadró en $4.000.000 el 1 oct y después se pagó Arriendo por $1.500.000 desde ella
 - **THEN** su detalle muestra "Cuadre 1 oct $4.000.000", "Arriendo −$1.500.000" y "≈ $2.500.000"
+
+### Requirement: Eliminar una cuenta
+El detalle de una cuenta SHALL ofrecer "Eliminar cuenta" solo si es de quien está en la sesión o es conjunta. Se puede eliminar con cualquier saldo: el total del hogar baja en ese saldo. Antes de eliminar, una hoja MUST decir cuánto baja el total y que no se puede deshacer.
+- Lo registrado con la cuenta MUST quedar en el historial, sin cuenta; los ingresos fijos que llegaban a ella quedan sin cuenta.
+- En modo conectado va a `DELETE /api/cuentas/{id}` (204). Eliminar la cuenta de otro miembro MUST responder 409 con `codigo` `SOLO_TUYAS`; una cuenta inexistente o de otro hogar, 404 con `CUENTA_NO_ENCONTRADA`.
+
+#### Scenario: Eliminar una cuenta con saldo
+- **WHEN** Daniel elimina Nu, a su nombre, con ≈ $3.360.000
+- **THEN** Nu ya no aparece, el total del hogar baja $3.360.000 y los pagos hechos desde Nu siguen en el historial, sin cuenta
+
+#### Scenario: Cuenta de otro miembro
+- **WHEN** Daniel abre Ahorros Esposa
+- **THEN** no ve "Eliminar cuenta", y si lo intentara contra el backend recibiría 409 `SOLO_TUYAS`
