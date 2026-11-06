@@ -106,7 +106,7 @@ export default function Cuentas() {
               <Segmentado chips etiqueta="Titular" opciones={[...m.miembros.map((x) => ({ valor: x.usuario.id, etiqueta: x.usuario.nombre })), { valor: CONJUNTA, etiqueta: 'Conjunta' }]} valor={titular} onCambio={setTitular} />
               <MontoInput etiqueta="Saldo aproximado" valor={monto} onCambio={setMonto} />
               <Aviso texto={accion.error} />
-              <Boton titulo="Agregar cuenta" deshabilitado={!nombre.trim() || monto === null}
+              <Boton titulo="Agregar cuenta" deshabilitado={!nombre.trim() || monto === null || accion.ocupado}
                 onPress={() => accion.ejecutar((p) => p.cuentas.agregar({ nombre, titularId: titular === CONJUNTA ? null : titular, saldo: monto! })).then((ok) => ok && cerrar())} />
             </>
           ) : hoja === 'credito' ? (
@@ -130,7 +130,7 @@ export default function Cuentas() {
               <Segmentado chips etiqueta="Hacia" opciones={opcionesCuenta} valor={hacia} onCambio={setHacia} />
               <MontoInput etiqueta="¿Cuánto?" grande valor={monto} onCambio={setMonto} />
               <Aviso texto={accion.error} />
-              <Boton titulo="Mover" deshabilitado={!desde || !hacia || !monto}
+              <Boton titulo="Mover" deshabilitado={!desde || !hacia || !monto || accion.ocupado}
                 onPress={() => accion.ejecutar((p) => p.cuentas.mover({ desde: desde!, hacia: hacia!, monto: monto! })).then((ok) => ok && cerrar())} />
             </>
           )}
