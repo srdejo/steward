@@ -6,7 +6,7 @@ import { Modal, Text, View } from 'react-native';
 import { FiltroTitular } from '@/components/filtro-titular';
 import { useMiembros } from '@/data/miembros';
 import { useAccion, useConsulta } from '@/data/puertos';
-import { Aviso, Boton, Campo, colors, Fila, fonts, Monto, MontoInput, Pantalla, Segmentado, Texto } from '@/ui';
+import { Aviso, Boton, Campo, colors, Fila, fonts, Monto, MontoInput, Pantalla, Segmentado, Texto, CuerpoModal } from '@/ui';
 
 const CONJUNTA = '__conjunta__';
 
@@ -95,7 +95,7 @@ export default function Cuentas() {
       )}
 
       <Modal visible={hoja !== null} animationType="slide" presentationStyle="formSheet" onRequestClose={cerrar}>
-        <View style={{ flex: 1, backgroundColor: colors.superficie, padding: 20, gap: 20 }}>
+        <CuerpoModal>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
             <Texto accessibilityRole="header" style={{ fontFamily: fonts.bold, fontSize: 22 }}>{hoja === 'agregar' ? 'Nueva cuenta' : hoja === 'credito' ? 'Nuevo crédito' : 'Mover dinero'}</Texto>
             <Boton tipo="enlace" titulo="Cancelar" onPress={cerrar} />
@@ -134,7 +134,7 @@ export default function Cuentas() {
                 onPress={() => accion.ejecutar((p) => p.cuentas.mover({ desde: desde!, hacia: hacia!, monto: monto! })).then((ok) => ok && cerrar())} />
             </>
           )}
-        </View>
+        </CuerpoModal>
       </Modal>
     </Pantalla>
   );

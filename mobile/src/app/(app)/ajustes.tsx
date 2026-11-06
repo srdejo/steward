@@ -8,7 +8,7 @@ import { codigoParaEliminar, URL_PRIVACIDAD } from '@/data/acceso-nativo';
 import { useMiembros } from '@/data/miembros';
 import { useAccion, useConsulta, usePuertos } from '@/data/puertos';
 import { useSesion } from '@/data/sesion';
-import { Avatar, Aviso, Boton, Campo, colors, Encabezado, fonts, Interruptor, Monto, MontoInput, Pantalla, SEGURIDAD_DISPONIBLE, Segmentado, Texto } from '@/ui';
+import { Avatar, Aviso, Boton, Campo, colors, Encabezado, fonts, Interruptor, Monto, MontoInput, Pantalla, SEGURIDAD_DISPONIBLE, Segmentado, Texto, CuerpoModal } from '@/ui';
 
 type Dialogo =
   | { tipo: 'invitar' }
@@ -207,7 +207,7 @@ export default function Ajustes() {
       </View>
 
       <Modal visible={dialogo !== null} animationType="slide" presentationStyle="formSheet" onRequestClose={() => setDialogo(null)}>
-        <View style={{ flex: 1, backgroundColor: colors.superficie, padding: 20, gap: 20 }}>
+        <CuerpoModal>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
             <Texto accessibilityRole="header" style={{ fontFamily: fonts.bold, fontSize: 22, flexShrink: 1 }}>{tituloDialogo}</Texto>
             <Boton tipo="enlace" titulo="Cancelar" onPress={() => setDialogo(null)} />
@@ -256,7 +256,7 @@ export default function Ajustes() {
           <Aviso texto={accion.error} />
           <Boton tipo={(dialogo?.tipo === 'confirmar' && dialogo.accion === 'salir') || dialogo?.tipo === 'empezar' || dialogo?.tipo === 'eliminar' ? 'peligro' : 'primario'} titulo={botonDialogo} onPress={confirmar}
             deshabilitado={accion.ocupado || ((dialogo?.tipo === 'invitar' || dialogo?.tipo === 'categoria') && !texto.trim()) || (dialogo?.tipo === 'ingreso' && (!texto.trim() || !neto)) || (dialogo?.tipo === 'empezar' && texto.trim() !== 'EMPEZAR') || (dialogo?.tipo === 'eliminar' && texto.trim() !== 'ELIMINAR')} />
-        </View>
+        </CuerpoModal>
       </Modal>
     </Pantalla>
   );

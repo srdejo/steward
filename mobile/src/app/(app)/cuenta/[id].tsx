@@ -5,7 +5,7 @@ import { Modal, Pressable, Text, View } from 'react-native';
 
 import { useAccion, useConsulta } from '@/data/puertos';
 import { useSesion } from '@/data/sesion';
-import { Aviso, Boton, colors, Encabezado, Fila, fonts, Monto, Pantalla, Texto } from '@/ui';
+import { Aviso, Boton, colors, Encabezado, Fila, fonts, Monto, Pantalla, Texto, CuerpoModal } from '@/ui';
 
 /** De donde sale el saldo de una cuenta: su ultimo cuadre y lo registrado despues (spec steward-cuentas). */
 export default function Cuenta() {
@@ -53,7 +53,7 @@ export default function Cuenta() {
       )}
 
       <Modal visible={confirmando} animationType="slide" presentationStyle="formSheet" onRequestClose={() => setConfirmando(false)}>
-        <View style={{ flex: 1, backgroundColor: colors.superficie, padding: 20, gap: 20 }}>
+        <CuerpoModal>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
             <Texto accessibilityRole="header" style={{ fontFamily: fonts.bold, fontSize: 22, flexShrink: 1 }}>{`Eliminar ${c.cuenta.nombre}`}</Texto>
             <Boton tipo="enlace" titulo="Cancelar" onPress={() => setConfirmando(false)} />
@@ -63,7 +63,7 @@ export default function Cuenta() {
           </Texto>
           <Aviso texto={accion.error} />
           <Boton tipo="peligro" titulo="Eliminar cuenta" onPress={eliminar} deshabilitado={accion.ocupado} />
-        </View>
+        </CuerpoModal>
       </Modal>
     </Pantalla>
   );
