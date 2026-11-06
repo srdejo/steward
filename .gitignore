@@ -26,6 +26,9 @@ Thumbs.db
 
 # Claude
 .claude/settings.local.json
+# Comandos y skills de OpenSpec (los genera `openspec init`/`update`)
+.claude/commands/
+.claude/skills/
 
 # Dumps de la base de datos (datos de usuarios)
 backups/
