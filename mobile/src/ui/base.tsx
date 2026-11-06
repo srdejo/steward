@@ -1,6 +1,6 @@
 import { formatCop, MONTO_OCULTO, parseMonto, type Pesos } from '@steward/domain';
-import { useEffect, useState, type ReactNode } from 'react';
-import { Pressable, Text, TextInput, View, type StyleProp, type TextProps, type TextStyle, type ViewStyle } from 'react-native';
+import { useEffect, useId, useState, type ReactNode } from 'react';
+import { InputAccessoryView, Keyboard, Platform, Pressable, Text, TextInput, View, type StyleProp, type TextProps, type TextStyle, type ViewStyle } from 'react-native';
 
 import { useSesion } from '@/data/sesion';
 import { colors, fonts, radius, TOCABLE } from './tokens';
@@ -52,6 +52,7 @@ export function MontoInput({ etiqueta, valor, onCambio, grande, ayuda, placehold
     if (parseMonto(texto).valor !== valor) setTexto(valor === null ? '' : formatCop(valor));
     // Solo cuando cambia el valor desde fuera (prellenado con el plan).
   }, [valor]);
+  const teclado = useCerrarTeclado(true);
   return (
     <View style={{ gap: 8 }}>
       <Texto v="rotulo">{etiqueta}</Texto>
@@ -59,6 +60,7 @@ export function MontoInput({ etiqueta, valor, onCambio, grande, ayuda, placehold
         testID={testID}
         accessibilityLabel={etiqueta}
         keyboardType="number-pad"
+        inputAccessoryViewID={teclado.id}
         value={texto}
         placeholder={placeholder}
         placeholderTextColor={colors.secundario}
@@ -72,12 +74,14 @@ export function MontoInput({ etiqueta, valor, onCambio, grande, ayuda, placehold
           paddingHorizontal: 16, fontFamily: fonts.monoSemibold, fontSize: grande ? 28 : 16, color: colors.texto,
         }}
       />
+      {teclado.barra}
       {ayuda ? <Texto v="detalle">{ayuda}</Texto> : null}
     </View>
   );
 }
 
 export function Campo({ etiqueta, valor, onCambio, placeholder, teclado, testID }: { etiqueta: string; valor: string; onCambio: (t: string) => void; placeholder?: string; teclado?: 'default' | 'email-address' | 'number-pad' | 'decimal-pad'; testID?: string }) {
+  const cerrar = useCerrarTeclado(teclado === 'number-pad' || teclado === 'decimal-pad');
   return (
     <View style={{ gap: 8 }}>
       <Texto v="rotulo">{etiqueta}</Texto>
@@ -89,9 +93,11 @@ export function Campo({ etiqueta, valor, onCambio, placeholder, teclado, testID 
         placeholder={placeholder}
         placeholderTextColor={colors.secundario}
         keyboardType={teclado ?? 'default'}
+        inputAccessoryViewID={cerrar.id}
         autoCapitalize={teclado === 'email-address' ? 'none' : 'sentences'}
         style={{ height: 52, borderRadius: radius.tarjeta, borderWidth: 1, borderColor: colors.bordeCampo, backgroundColor: colors.superficie, paddingHorizontal: 14, fontFamily: fonts.medium, fontSize: 16, color: colors.texto }}
       />
+      {cerrar.barra}
     </View>
   );
 }
@@ -182,4 +188,25 @@ export function Aviso({ texto }: { texto: string }) {
       {texto}
     </Texto>
   );
+}
+
+/**
+ * Barra "Listo" encima del teclado numerico de iOS, que no trae tecla para cerrarse.
+ * Devuelve el id para `inputAccessoryViewID` y la vista; en Android no hace nada.
+ */
+function useCerrarTeclado(activo: boolean): { id: string | undefined; barra: ReactNode } {
+  const id = `teclado-${useId().replace(/:/g, '')}`;
+  if (Platform.OS !== 'ios' || !activo) return { id: undefined, barra: null };
+  return {
+    id,
+    barra: (
+      <InputAccessoryView nativeID={id}>
+        <View style={{ flexDirection: 'row', justifyContent: 'flex-end', backgroundColor: colors.hueco, borderTopWidth: 1, borderTopColor: colors.borde, paddingHorizontal: 8 }}>
+          <Pressable accessibilityRole="button" onPress={() => Keyboard.dismiss()} style={{ minHeight: TOCABLE, justifyContent: 'center', paddingHorizontal: 12 }}>
+            <Text style={{ fontFamily: fonts.semibold, fontSize: 16, color: colors.acento }}>Listo</Text>
+          </Pressable>
+        </View>
+      </InputAccessoryView>
+    ),
+  };
 }

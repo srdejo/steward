@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Modal, View } from 'react-native';
 
 import { useAccion, useConsulta, usePuertos } from '@/data/puertos';
-import { Aviso, Boton, colors, Encabezado, fonts, Monto, MontoInput, Pantalla, Texto } from '@/ui';
+import { Aviso, Boton, colors, Encabezado, fonts, Monto, MontoInput, Pantalla, Texto, CuerpoModal } from '@/ui';
 
 /** Abono que muestra el simulador al abrir (el de la Opción C de los artboards). */
 const ABONO_INICIAL = 1_500_000;
@@ -84,7 +84,7 @@ export default function Credito() {
       </View>
 
       <Modal visible={hoja !== null} animationType="slide" presentationStyle="formSheet" onRequestClose={() => setHoja(null)}>
-        <View style={{ flex: 1, backgroundColor: colors.superficie, padding: 20, gap: 20 }}>
+        <CuerpoModal>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
             <Texto accessibilityRole="header" style={{ fontFamily: fonts.bold, fontSize: 22 }}>{hoja === 'saldo' ? 'Actualizar saldo' : 'Registrar abono'}</Texto>
             <Boton tipo="enlace" titulo="Cancelar" onPress={() => setHoja(null)} />
@@ -92,7 +92,7 @@ export default function Credito() {
           <MontoInput etiqueta={hoja === 'saldo' ? 'Saldo que dice el banco' : '¿Cuánto abonaste?'} grande valor={monto} onCambio={setMonto} />
           <Boton titulo="Guardar" deshabilitado={monto === null}
             onPress={() => accion.ejecutar((p) => (hoja === 'saldo' ? p.cuentas.actualizarSaldo(id, monto!) : p.cuentas.registrarAbono(id, monto!, { tipo: 'NINGUNO' }))).then((ok) => { if (ok) { setHoja(null); setMonto(null); } })} />
-        </View>
+        </CuerpoModal>
       </Modal>
     </Pantalla>
   );

@@ -7,6 +7,16 @@ import { usePuertos } from '@/data/puertos';
 import { Boton, Texto } from './base';
 import { colors, fonts } from './tokens';
 
+/**
+ * Scroll de pantallas y hojas con teclado: en iOS el contenido se corre para que el campo
+ * y los botones de abajo queden visibles, y arrastrar hacia abajo cierra el teclado.
+ */
+export const SCROLL_CON_TECLADO = {
+  keyboardShouldPersistTaps: 'handled',
+  keyboardDismissMode: 'interactive',
+  automaticallyAdjustKeyboardInsets: true,
+} as const;
+
 /** Pantalla con scroll, fondo y margenes de los artboards (padding 24/20). Con `demo` muestra el aviso de datos de prueba. */
 export function Pantalla({ children, demo = true, style, testID }: { children: ReactNode; demo?: boolean; style?: StyleProp<ViewStyle>; testID?: string }) {
   const insets = useSafeAreaInsets();
@@ -15,7 +25,7 @@ export function Pantalla({ children, demo = true, style, testID }: { children: R
   return (
     <View style={{ flex: 1, backgroundColor: colors.fondo, paddingTop: insets.top }} testID={testID}>
       {demo && conDemo ? <AvisoDemo /> : null}
-      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 32, gap: 20 }, style]}>
+      <ScrollView {...SCROLL_CON_TECLADO} contentContainerStyle={[{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 32, gap: 20 }, style]}>
         {children}
       </ScrollView>
     </View>
@@ -62,7 +72,7 @@ export function cerrarHoja(): void {
 /** Hoja de registro (formSheet): titulo, "Cancelar" y contenido, como Aporte/Pagar/Gasto.dc.html. */
 export function Hoja({ titulo, antetitulo, antetituloColor, subtitulo, children }: { titulo: string; antetitulo?: string; antetituloColor?: string; subtitulo?: ReactNode; children: ReactNode }) {
   return (
-    <ScrollView style={{ backgroundColor: colors.superficie }} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 32, gap: 22 }}>
+    <ScrollView style={{ backgroundColor: colors.superficie }} {...SCROLL_CON_TECLADO} contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 32, gap: 22 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
         <View style={{ flexShrink: 1, gap: 4 }}>
           {antetitulo ? <Texto v="rotulo" style={antetituloColor ? { color: antetituloColor } : undefined}>{antetitulo}</Texto> : null}
@@ -71,6 +81,15 @@ export function Hoja({ titulo, antetitulo, antetituloColor, subtitulo, children 
         </View>
         <Boton tipo="enlace" titulo="Cancelar" onPress={cerrarHoja} />
       </View>
+      {children}
+    </ScrollView>
+  );
+}
+
+/** Cuerpo de una hoja `Modal` (formSheet): con scroll, para que el teclado no tape los botones. */
+export function CuerpoModal({ children }: { children: ReactNode }) {
+  return (
+    <ScrollView style={{ flex: 1, backgroundColor: colors.superficie }} {...SCROLL_CON_TECLADO} contentContainerStyle={{ padding: 20, gap: 20 }}>
       {children}
     </ScrollView>
   );

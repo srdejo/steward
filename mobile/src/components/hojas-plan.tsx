@@ -5,13 +5,13 @@ import { Modal, ScrollView, View } from 'react-native';
 import { useMiembros } from '@/data/miembros';
 import { useAccion, useConsulta } from '@/data/puertos';
 import { useSesion } from '@/data/sesion';
-import { Aviso, Boton, Campo, colors, fonts, Interruptor, MontoInput, Segmentado, Texto } from '@/ui';
+import { Aviso, Boton, Campo, colors, fonts, Interruptor, MontoInput, SCROLL_CON_TECLADO, Segmentado, Texto } from '@/ui';
 
 /** Hoja encima de la pantalla: cerrar sin guardar no cambia nada (spec steward-planear). */
 export function HojaPlan({ titulo, antetitulo, onCerrar, children }: { titulo: string; antetitulo?: string; onCerrar: () => void; children: ReactNode }) {
   return (
     <Modal visible animationType="slide" presentationStyle="formSheet" onRequestClose={onCerrar}>
-      <ScrollView style={{ flex: 1, backgroundColor: colors.superficie }} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, gap: 20 }}>
+      <ScrollView style={{ flex: 1, backgroundColor: colors.superficie }} {...SCROLL_CON_TECLADO} contentContainerStyle={{ padding: 20, gap: 20 }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
           <View style={{ flexShrink: 1, gap: 4 }}>
             {antetitulo ? <Texto v="rotulo">{antetitulo}</Texto> : null}
