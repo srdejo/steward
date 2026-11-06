@@ -3,7 +3,7 @@ import { Router, RouterLink } from '@angular/router';
 import { previsualizarDiezmo, type BaseDiezmo, type Id, type Invitacion, type Pesos } from '@steward/domain';
 
 import { mensajeDeError } from '../../core/datos/consulta';
-import type { InvitacionConectada, MiInvitacion } from '../../core/datos/http/puertos-conectados';
+import type { InvitacionConectada, MiInvitacion } from '@steward/domain/conectado';
 import { PUERTOS, puertosConectados } from '../../core/datos/puertos';
 import { SesionActual } from '../../core/sesion/sesion';
 import { Avatar } from '../../shared/components/avatar';
@@ -194,7 +194,7 @@ const COLORES_CUENTA = ['#D93025', '#7C4DDB', '#8D8F88', '#2E6B45', '#E2551B', '
             <input id="correo-invitacion" type="email" autocomplete="email" placeholder="correo@ejemplo.com"
               class="h-[52px] min-w-0 grow rounded-[14px] border border-borde-campo bg-superficie px-3.5 text-[15px] font-medium focus:border-acento focus:outline-none"
               [value]="correo()" (input)="correo.set($any($event.target).value)" />
-            <button type="submit" class="boton h-[52px] rounded-[14px] bg-acento text-white">Invitar</button>
+            <button type="submit" class="boton h-[52px] rounded-[14px] bg-acento text-white" [disabled]="guardando()">Invitar</button>
           </div>
         </form>
         @for (inv of invitaciones(); track inv.id) {
@@ -398,6 +398,8 @@ export class OnboardingPage implements OnInit {
   }
 
   protected async invitar(): Promise<void> {
+    // Enter en el campo tambien envia el formulario: con una invitacion en camino no sale otra.
+    if (this.guardando()) return;
     await this.guardar(async () => {
       const inv = await this.puertos.hogar.invitar(this.correo());
       // Modo conectado: si contact no envio el correo, la invitacion igual quedo (spec "Correo no enviado").

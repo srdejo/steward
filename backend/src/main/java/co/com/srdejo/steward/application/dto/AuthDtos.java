@@ -26,6 +26,14 @@ public final class AuthDtos {
     public record GoogleLoginRequest(@NotBlank(message = "Falta el token de Google") String idToken) {
     }
 
+    /** {@code nombre}: Apple solo lo entrega la primera vez. */
+    public record AppleLoginRequest(@NotBlank(message = "Falta el token de Apple") String identityToken, String nombre) {
+    }
+
+    /** {@code appleAuthorizationCode}: de autenticarse otra vez con Apple, para revocar su acceso. */
+    public record EliminarCuentaRequest(String appleAuthorizationCode) {
+    }
+
     public record PerfilRequest(
             @NotBlank(message = "Escribe tu nombre")
             @Size(max = Usuario.NOMBRE_MAX, message = "Máximo 60 caracteres") String nombre) {

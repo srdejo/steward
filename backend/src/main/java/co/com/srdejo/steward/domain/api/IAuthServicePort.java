@@ -20,6 +20,12 @@ public interface IAuthServicePort {
     /** Sesion nueva con token. Crea el usuario la primera vez que entra un correo. */
     Mono<Sesion> loginConGoogle(String idToken);
 
+    /** Sesion con Sign in with Apple; {@code nombre} solo llega la primera vez. */
+    Mono<Sesion> loginConApple(String identityToken, String nombre);
+
+    /** "Eliminar mi cuenta". */
+    Mono<Void> eliminarCuenta(String appleAuthorizationCode);
+
     Mono<Sesion> sesionActual();
 
     Mono<Usuario> cambiarNombre(String nombre);

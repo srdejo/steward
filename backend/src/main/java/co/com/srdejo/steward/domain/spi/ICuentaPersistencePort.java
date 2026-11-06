@@ -25,6 +25,9 @@ public interface ICuentaPersistencePort {
 
     Flux<Cuenta> delHogar(UUID hogarId);
 
+    /** Borra la cuenta; sus movimientos e ingresos fijos quedan, sin cuenta (ON DELETE SET NULL). */
+    Mono<Void> eliminar(UUID id, UUID hogarId);
+
     /** Al salir del hogar: quita las cuentas propias de esa persona; las conjuntas siguen (design D7). */
     Mono<Void> quitarPropias(UUID hogarId, UUID usuarioId);
 }

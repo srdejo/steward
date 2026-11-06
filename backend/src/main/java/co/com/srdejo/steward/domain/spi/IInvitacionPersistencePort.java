@@ -10,6 +10,7 @@ import java.util.UUID;
 /** Invitaciones. Solo se guarda el hash del token (design D7); las busquedas por id llevan el hogar (D6). */
 public interface IInvitacionPersistencePort {
 
+    /** Vacio si ya hay una pendiente para ese correo (llego otra a la vez): no se crea una segunda. */
     Mono<Invitacion> crear(Invitacion invitacion, String tokenHash);
 
     Flux<Invitacion> pendientesVigentes(UUID hogarId, Instant ahora);

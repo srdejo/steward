@@ -17,7 +17,8 @@
     /* Dominio compartido con la app (design D1): se compila desde su codigo fuente. */
     "paths": {
       "@steward/domain": ["../packages/domain/src/index.ts"],
-      "@steward/domain/demo": ["../packages/domain/src/demo/index.ts"]
+      "@steward/domain/demo": ["../packages/domain/src/demo/index.ts"],
+      "@steward/domain/conectado": ["../packages/domain/src/conectado/index.ts"]
     }
   },
   "angularCompilerOptions": {

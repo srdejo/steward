@@ -6,7 +6,8 @@
       "@/*": ["./src/*"],
       "@/assets/*": ["./assets/*"],
       "@steward/domain": ["../packages/domain/src/index.ts"],
-      "@steward/domain/demo": ["../packages/domain/src/demo/index.ts"]
+      "@steward/domain/demo": ["../packages/domain/src/demo/index.ts"],
+      "@steward/domain/conectado": ["../packages/domain/src/conectado/index.ts"]
     },
     "types": ["jest"]
   },

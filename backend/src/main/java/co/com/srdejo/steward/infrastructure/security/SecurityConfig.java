@@ -43,6 +43,7 @@ public class SecurityConfig {
                         .pathMatchers(HttpMethod.GET, "/actuator/health").permitAll()
                         .pathMatchers(HttpMethod.GET, "/api/auth/config").permitAll()
                         .pathMatchers(HttpMethod.POST, "/api/auth/google").permitAll()
+                        .pathMatchers(HttpMethod.POST, "/api/auth/apple").permitAll()
                         // Acceso de desarrollo: si esta apagado, el endpoint responde 404 (design D5).
                         .pathMatchers(HttpMethod.POST, "/api/auth/dev").permitAll()
                         .pathMatchers(HttpMethod.GET, "/api/invitaciones/*").permitAll()

@@ -1,12 +1,17 @@
 import type { Puertos } from '@steward/domain';
 
-import { crearPuertosDemo } from './puertos';
+import { crearPuertosConectados } from './conectado';
 
 let actual: Puertos | null = null;
 
-/** Los puertos de la app (uno por proceso). Con backend, aqui se crea el adaptador HTTP en lugar del demo. */
-export function puertosDeLaApp(): Puertos {
-  actual ??= crearPuertosDemo();
+/** Los puertos ya creados, si los hay. */
+export function puertosListos(): Puertos | null {
+  return actual;
+}
+
+/** Los puertos de la app (uno por proceso), conectados al backend: esperan a leer la sesion del Keychain. */
+export async function prepararPuertos(): Promise<Puertos> {
+  actual ??= await crearPuertosConectados();
   return actual;
 }
 

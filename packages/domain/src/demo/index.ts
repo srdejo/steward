@@ -121,6 +121,15 @@ export function crearAdaptadorDemo(opciones: OpcionesDemo): Puertos {
     avisar();
   }
 
+  /** Sin hogar y sin sesion: "Probar desde cero" y, en modo demo, "Eliminar mi cuenta". */
+  async function quedarSinNada(): Promise<void> {
+    await cargar();
+    estado = crearHogarVacio();
+    await escribir(CLAVE_ESTADO, estado);
+    sesion.usuarioId = null;
+    await guardarSesion();
+  }
+
   async function guardarSesion(): Promise<void> {
     await escribir(CLAVE_SESION, sesion);
     avisar();
@@ -159,6 +168,7 @@ export function crearAdaptadorDemo(opciones: OpcionesDemo): Puertos {
         sesion.usuarioId = null;
         await guardarSesion();
       },
+      eliminarCuenta: quedarSinNada,
       async guardarPreferencias(cambios) {
         await cargar();
         sesion.preferencias = { ...sesion.preferencias, ...cambios };
@@ -386,6 +396,10 @@ export function crearAdaptadorDemo(opciones: OpcionesDemo): Puertos {
       async agregar(datos) {
         await cambiar((s) => R.agregarCuenta(s, { ...datos, fecha: hoy() }));
       },
+      async eliminar(cuentaId) {
+        const usuarioId = await usuarioActual();
+        await cambiar((s) => R.quitarCuenta(s, { cuentaId, usuarioId }));
+      },
       async mover(datos) {
         const usuarioId = await usuarioActual();
         await cambiar((s) => R.moverDinero(s, { ...datos, fecha: hoy(), usuarioId }));
@@ -448,13 +462,7 @@ export function crearAdaptadorDemo(opciones: OpcionesDemo): Puertos {
         await escribir(CLAVE_ESTADO, estado);
         avisar();
       },
-      async probarDesdeCero() {
-        await cargar();
-        estado = crearHogarVacio();
-        await escribir(CLAVE_ESTADO, estado);
-        sesion.usuarioId = null;
-        await guardarSesion();
-      },
+      probarDesdeCero: quedarSinNada,
     },
   };
   return puertos;

@@ -86,7 +86,7 @@ const CONJUNTA = '__conjunta__';
         @if (error()) {
           <p role="alert" class="text-sm text-negativo">{{ error() }}</p>
         }
-        <button type="button" class="boton-grande" [disabled]="!nombre().trim() || saldo() === null" (click)="agregar()">Agregar cuenta</button>
+        <button type="button" class="boton-grande" [disabled]="!nombre().trim() || saldo() === null || ocupado()" (click)="agregar()">Agregar cuenta</button>
       </app-hoja>
     }
 
@@ -117,7 +117,7 @@ const CONJUNTA = '__conjunta__';
         @if (error()) {
           <p role="alert" class="text-sm text-negativo">{{ error() }}</p>
         }
-        <button type="button" class="boton-grande" [disabled]="!creditoCompleto()" (click)="agregarCredito()">Agregar crédito</button>
+        <button type="button" class="boton-grande" [disabled]="!creditoCompleto() || ocupado()" (click)="agregarCredito()">Agregar crédito</button>
       </app-hoja>
     }
 
@@ -129,7 +129,7 @@ const CONJUNTA = '__conjunta__';
         @if (error()) {
           <p role="alert" class="text-sm text-negativo">{{ error() }}</p>
         }
-        <button type="button" class="boton-grande" [disabled]="!desde() || !hacia() || !saldo()" (click)="mover()">Mover</button>
+        <button type="button" class="boton-grande" [disabled]="!desde() || !hacia() || !saldo() || ocupado()" (click)="mover()">Mover</button>
       </app-hoja>
     }
   `,
@@ -151,6 +151,7 @@ export class CuentasPage {
   protected readonly desde = signal<Id | null>(null);
   protected readonly hacia = signal<Id | null>(null);
   protected readonly error = signal('');
+  protected readonly ocupado = signal(false);
   protected readonly entidad = signal('');
   protected readonly totalOriginal = signal<number | null>(null);
   protected readonly cuota = signal<number | null>(null);
@@ -213,13 +214,18 @@ export class CuentasPage {
     await this.ejecutar(() => this.puertos.cuentas.mover({ desde: this.desde()!, hacia: this.hacia()!, monto: this.saldo()! }));
   }
 
+  /** Mientras la peticion va en camino no sale otra: un doble toque no crea la cuenta dos veces. */
   private async ejecutar(accion: () => Promise<void>): Promise<void> {
+    if (this.ocupado()) return;
+    this.ocupado.set(true);
     this.error.set('');
     try {
       await accion();
       this.cerrarHoja();
     } catch (e) {
       this.error.set(mensajeDeError(e));
+    } finally {
+      this.ocupado.set(false);
     }
   }
 }

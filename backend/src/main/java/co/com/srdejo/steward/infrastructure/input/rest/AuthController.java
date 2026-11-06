@@ -1,6 +1,8 @@
 package co.com.srdejo.steward.infrastructure.input.rest;
 
+import co.com.srdejo.steward.application.dto.AuthDtos.AppleLoginRequest;
 import co.com.srdejo.steward.application.dto.AuthDtos.AuthConfigResponse;
+import co.com.srdejo.steward.application.dto.AuthDtos.EliminarCuentaRequest;
 import co.com.srdejo.steward.application.dto.AuthDtos.DevLoginRequest;
 import co.com.srdejo.steward.application.dto.AuthDtos.GoogleLoginRequest;
 import co.com.srdejo.steward.application.dto.AuthDtos.PerfilRequest;
@@ -8,9 +10,11 @@ import co.com.srdejo.steward.application.dto.AuthDtos.SesionResponse;
 import co.com.srdejo.steward.application.dto.AuthDtos.UsuarioResponse;
 import co.com.srdejo.steward.domain.api.IAuthServicePort;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Mono;
@@ -39,6 +43,17 @@ public class AuthController {
     @PostMapping("/api/auth/google")
     public Mono<SesionResponse> google(@Valid @RequestBody GoogleLoginRequest request) {
         return auth.loginConGoogle(request.idToken()).map(SesionResponse::de);
+    }
+
+    @PostMapping("/api/auth/apple")
+    public Mono<SesionResponse> apple(@Valid @RequestBody AppleLoginRequest request) {
+        return auth.loginConApple(request.identityToken(), request.nombre()).map(SesionResponse::de);
+    }
+
+    @PostMapping("/api/cuenta/eliminar")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public Mono<Void> eliminarCuenta(@RequestBody(required = false) EliminarCuentaRequest request) {
+        return auth.eliminarCuenta(request == null ? null : request.appleAuthorizationCode());
     }
 
     @GetMapping("/api/sesion")

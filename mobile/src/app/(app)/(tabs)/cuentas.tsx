@@ -18,12 +18,21 @@ export default function Cuentas() {
   const todas = useConsulta(['cuentas', 'TODAS'], (p) => p.cuentas.cuentas());
   const creditos = useConsulta(['creditos'], (p) => p.cuentas.creditos());
   const accion = useAccion();
-  const [hoja, setHoja] = useState<'agregar' | 'mover' | null>(null);
+  const [hoja, setHoja] = useState<'agregar' | 'mover' | 'credito' | null>(null);
   const [nombre, setNombre] = useState('');
   const [titular, setTitular] = useState<string | null>(CONJUNTA);
   const [monto, setMonto] = useState<number | null>(null);
   const [desde, setDesde] = useState<Id | null>(null);
   const [hacia, setHacia] = useState<Id | null>(null);
+  const [entidad, setEntidad] = useState('');
+  const [totalOriginal, setTotalOriginal] = useState<number | null>(null);
+  const [cuota, setCuota] = useState<number | null>(null);
+  const [tasaTexto, setTasaTexto] = useState('');
+  const [diaTexto, setDiaTexto] = useState('');
+  const tasaEM = Number(tasaTexto.trim().replace(',', '.') || '0');
+  const dia = Number(diaTexto.trim());
+  // El total original es opcional: si falta, es el saldo.
+  const creditoCompleto = !!nombre.trim() && monto !== null && !!cuota && Number.isInteger(dia) && dia >= 1 && Number.isFinite(tasaEM);
 
   const cerrar = () => {
     setHoja(null);
@@ -31,6 +40,11 @@ export default function Cuentas() {
     setMonto(null);
     setDesde(null);
     setHacia(null);
+    setEntidad('');
+    setTotalOriginal(null);
+    setCuota(null);
+    setTasaTexto('');
+    setDiaTexto('');
     accion.limpiar();
   };
   const opcionesCuenta = (todas.data?.cuentas ?? []).map((c) => ({ valor: c.cuenta.id, etiqueta: c.cuenta.nombre }));
@@ -56,7 +70,7 @@ export default function Cuentas() {
             <FiltroTitular valor={filtro} onCambio={setFiltro} />
             {d.cuentas.length === 0 && <Texto v="pequeno">No hay cuentas{filtro === 'TODAS' ? '' : ' con ese titular'}.</Texto>}
             {d.cuentas.map((c, i) => (
-              <Fila key={c.cuenta.id} testID={`cuenta-${c.cuenta.nombre}`} titulo={c.cuenta.nombre} detalle={`${c.titular} · ${c.estadoCuadre}`} tonoDetalle={c.aviso ? colors.aviso : undefined} ultima={i === d.cuentas.length - 1}>
+              <Fila key={c.cuenta.id} onPress={() => router.push(`/cuenta/${c.cuenta.id}`)} testID={`cuenta-${c.cuenta.nombre}`} titulo={c.cuenta.nombre} detalle={`${c.titular} · ${c.estadoCuadre}`} tonoDetalle={c.aviso ? colors.aviso : undefined} ultima={i === d.cuentas.length - 1}>
                 <Text style={{ fontFamily: fonts.mono, fontSize: 14, color: c.estimado ? colors.secundario : colors.texto }}>{c.estimado ? '≈ ' : ''}<Monto valor={c.saldo} style={{ color: c.estimado ? colors.secundario : colors.texto }} /></Text>
               </Fila>
             ))}
@@ -64,7 +78,10 @@ export default function Cuentas() {
           <View style={{ gap: 4 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
               <Texto v="subtitulo" accessibilityRole="header">Créditos</Texto>
-              <Texto v="detalle">Debes {formatCop(sumar((creditos.data ?? []).map((c) => c.credito.saldo)))}</Texto>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <Texto v="detalle">Debes {formatCop(sumar((creditos.data ?? []).map((c) => c.credito.saldo)))}</Texto>
+                <Boton tipo="texto" titulo="+ Crédito" onPress={() => setHoja('credito')} />
+              </View>
             </View>
             {(creditos.data ?? []).map((c) => (
               <Fila key={c.credito.id} titulo={c.credito.nombre} ultima detalle={`Cuota ${formatCop(c.credito.cuota)} · ${formatTasa(c.credito.tasaEM)}${c.cuotasRestantes !== null ? ` · faltan ${c.cuotasRestantes}` : ''}`} onPress={() => router.push(`/credito/${c.credito.id}`)}>
@@ -80,7 +97,7 @@ export default function Cuentas() {
       <Modal visible={hoja !== null} animationType="slide" presentationStyle="formSheet" onRequestClose={cerrar}>
         <View style={{ flex: 1, backgroundColor: colors.superficie, padding: 20, gap: 20 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Texto accessibilityRole="header" style={{ fontFamily: fonts.bold, fontSize: 22 }}>{hoja === 'agregar' ? 'Nueva cuenta' : 'Mover dinero'}</Texto>
+            <Texto accessibilityRole="header" style={{ fontFamily: fonts.bold, fontSize: 22 }}>{hoja === 'agregar' ? 'Nueva cuenta' : hoja === 'credito' ? 'Nuevo crédito' : 'Mover dinero'}</Texto>
             <Boton tipo="enlace" titulo="Cancelar" onPress={cerrar} />
           </View>
           {hoja === 'agregar' ? (
@@ -89,8 +106,23 @@ export default function Cuentas() {
               <Segmentado chips etiqueta="Titular" opciones={[...m.miembros.map((x) => ({ valor: x.usuario.id, etiqueta: x.usuario.nombre })), { valor: CONJUNTA, etiqueta: 'Conjunta' }]} valor={titular} onCambio={setTitular} />
               <MontoInput etiqueta="Saldo aproximado" valor={monto} onCambio={setMonto} />
               <Aviso texto={accion.error} />
-              <Boton titulo="Agregar cuenta" deshabilitado={!nombre.trim() || monto === null}
+              <Boton titulo="Agregar cuenta" deshabilitado={!nombre.trim() || monto === null || accion.ocupado}
                 onPress={() => accion.ejecutar((p) => p.cuentas.agregar({ nombre, titularId: titular === CONJUNTA ? null : titular, saldo: monto! })).then((ok) => ok && cerrar())} />
+            </>
+          ) : hoja === 'credito' ? (
+            <>
+              <Campo etiqueta="Nombre" valor={nombre} onCambio={setNombre} placeholder="Ej: Libre inversión" />
+              <Campo etiqueta="Entidad" valor={entidad} onCambio={setEntidad} placeholder="Ej: Bancolombia" />
+              <MontoInput etiqueta="Saldo" valor={monto} onCambio={setMonto} />
+              <MontoInput etiqueta="Total original" valor={totalOriginal} onCambio={setTotalOriginal} />
+              <MontoInput etiqueta="Cuota" valor={cuota} onCambio={setCuota} />
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                <View style={{ flex: 1 }}><Campo etiqueta="Tasa (% EM)" teclado="decimal-pad" valor={tasaTexto} onCambio={setTasaTexto} placeholder="1,6" /></View>
+                <View style={{ flex: 1 }}><Campo etiqueta="Día de pago" teclado="number-pad" valor={diaTexto} onCambio={setDiaTexto} placeholder="15" /></View>
+              </View>
+              <Aviso texto={accion.error} />
+              <Boton titulo="Agregar crédito" deshabilitado={!creditoCompleto || accion.ocupado}
+                onPress={() => accion.ejecutar((p) => p.cuentas.agregarCredito({ nombre, entidad, saldo: monto!, totalOriginal: totalOriginal ?? monto!, cuota: cuota!, tasaEM, diaPago: dia })).then((ok) => ok && cerrar())} />
             </>
           ) : (
             <>
@@ -98,7 +130,7 @@ export default function Cuentas() {
               <Segmentado chips etiqueta="Hacia" opciones={opcionesCuenta} valor={hacia} onCambio={setHacia} />
               <MontoInput etiqueta="¿Cuánto?" grande valor={monto} onCambio={setMonto} />
               <Aviso texto={accion.error} />
-              <Boton titulo="Mover" deshabilitado={!desde || !hacia || !monto}
+              <Boton titulo="Mover" deshabilitado={!desde || !hacia || !monto || accion.ocupado}
                 onPress={() => accion.ejecutar((p) => p.cuentas.mover({ desde: desde!, hacia: hacia!, monto: monto! })).then((ok) => ok && cerrar())} />
             </>
           )}

@@ -64,7 +64,8 @@ Errores: `{"codigo": "...", "mensaje": "..."}`; la validación agrega `campos`. 
 |---|---|---|
 | `GET /api/auth/config` | no | `{"googleClientId": "..." | null, "devLogin": true | false}` |
 | `POST /api/auth/dev` | no | **Solo local** (`STEWARD_DEV_LOGIN=true`, encendido en `dev` y `contract`): `{"email", "nombre"}` → la misma sesión que Google. Apagado (VPS): 404 |
-| `POST /api/auth/google` | no | `{"idToken"}` de Google Identity Services → `{token, usuario, tieneHogar, hogarConfigurado}`. La primera vez crea el usuario. 401 `GOOGLE_TOKEN_INVALIDO`; 503 `GOOGLE_NO_CONFIGURADO` |
+| `POST /api/auth/google` | no | `{"idToken"}` de Google, con audiencia el client web o el iOS → `{token, usuario, tieneHogar, hogarConfigurado}`. La primera vez crea el usuario. 401 `GOOGLE_TOKEN_INVALIDO`; 503 `GOOGLE_NO_CONFIGURADO` |
+| `POST /api/auth/apple` | no | `{"identityToken", "nombre"?}` de Sign in with Apple → igual que Google. Busca por el identificador de Apple y, la primera vez, por su correo verificado; si no, crea el usuario. 401 `APPLE_TOKEN_INVALIDO` |
 | `GET /api/sesion` | sí | `{usuario, tieneHogar, hogarConfigurado}` |
 | `PATCH /api/perfil` | sí | `{"nombre"}` (1 a 60) → usuario con su nueva inicial |
 
@@ -76,6 +77,7 @@ El hogar siempre es el del usuario de la sesión: no va en la URL. Un usuario pe
 
 | Método y ruta | Qué hace |
 |---|---|
+| `POST /api/cuenta/eliminar` | "Eliminar mi cuenta": cuerpo opcional `{"appleAuthorizationCode"}` → 204. Sale de su hogar (si era el último miembro, el hogar se borra), borra su regla, sus proyecciones y sus invitaciones pendientes, y borra el usuario; si quedan registros suyos en un hogar compartido, lo anonimiza como "Ex miembro". Con el código, revoca su acceso con Apple; un fallo de Apple no la impide. Su sesión deja de valer (401) |
 | `POST /api/hogar` | `{"nombre"}` (1 a 60) → 201 con el hogar; 409 `YA_TIENE_HOGAR` |
 | `GET /api/hogar` | `{id, nombre, configurado, miembros, invitaciones}`; 404 `SIN_HOGAR` |
 | `PATCH /api/hogar` | `{"nombre"}` → el hogar renombrado |

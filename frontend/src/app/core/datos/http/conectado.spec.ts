@@ -8,7 +8,7 @@ import type { CreditoApi, FinanzasApi, IngresoPlanApi, ItemPlanApi, MovimientoAp
 import { provideAppPrueba } from '../../../../testing/demo';
 import { app } from '../../../../testing/harness';
 import { PUERTOS, puertosConectados } from '../puertos';
-import type { InvitacionConectada } from './puertos-conectados';
+import type { InvitacionConectada } from '@steward/domain/conectado';
 
 const TOKEN = 'steward/sesion';
 const tick = () => new Promise<void>((r) => setTimeout(r));
@@ -385,6 +385,20 @@ describe('finanzas en el backend (steward-finanzas, design D5)', () => {
     await recibir;
     expect(r2.request.body).toEqual({ mes: NOV });
     await expect(p.movimientos.registrarGasto({ monto: 1, itemId: null, nota: '', usuarioId: USUARIO.id, origen: { tipo: 'NINGUNO' }, ref: { anio: 2026, mes: 12 } })).rejects.toMatchObject({ codigo: 'MES_NO_DISPONIBLE' });
+  });
+
+  it('eliminar la cuenta va al backend y borra la sesión; Apple entra con su token (app-movil-conectada)', async () => {
+    const eliminar = p.sesion.eliminarCuenta('code-1');
+    const r = await responder('POST', '/api/cuenta/eliminar', null, tick, 204);
+    await eliminar;
+    expect(r.request.body).toEqual({ appleAuthorizationCode: 'code-1' });
+    expect(localStorage.getItem(TOKEN)).toBeNull();
+
+    const entrar = puertosConectados(p)!.iniciarConApple('token-apple', 'Ana');
+    const r2 = await responder('POST', '/api/auth/apple', sesionApi({ token: 'jwt-apple' }), tick);
+    expect(r2.request.body).toEqual({ identityToken: 'token-apple', nombre: 'Ana' });
+    await entrar.catch(() => undefined);
+    expect(localStorage.getItem(TOKEN)).toBe('jwt-apple');
   });
 
   it('YA_RECIBIDO: llega el mensaje y el ingreso queda como recibido', async () => {

@@ -1,4 +1,4 @@
-import type { Id } from '@steward/domain';
+import { EX_MIEMBRO, type Id } from '@steward/domain';
 
 import { useConsulta } from './puertos';
 
@@ -12,6 +12,6 @@ export function useMiembros() {
     miembros,
     varianteDe: (id: Id | null) => buscar(id)?.variante ?? 'suave',
     inicialDe: (id: Id | null) => buscar(id)?.usuario.inicial ?? '?',
-    nombreDe: (id: Id | null) => buscar(id)?.usuario.nombre ?? '',
+    nombreDe: (id: Id | null) => (id ? buscar(id)?.usuario.nombre ?? EX_MIEMBRO : ''),
   };
 }

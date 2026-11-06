@@ -2,14 +2,19 @@ package co.com.srdejo.steward.domain.usecase;
 
 import co.com.srdejo.steward.domain.api.IAuthServicePort;
 import co.com.srdejo.steward.domain.exception.DomainException;
+import co.com.srdejo.steward.domain.model.IdentidadApple;
 import co.com.srdejo.steward.domain.model.IdentidadGoogle;
 import co.com.srdejo.steward.domain.model.Sesion;
 import co.com.srdejo.steward.domain.model.Usuario;
+import co.com.srdejo.steward.domain.spi.IAppleIdentityPort;
 import co.com.srdejo.steward.domain.spi.IClockPort;
+import co.com.srdejo.steward.domain.spi.ICuentaPersistencePort;
 import co.com.srdejo.steward.domain.spi.ICurrentUserPort;
 import co.com.srdejo.steward.domain.spi.IGoogleIdentityPort;
 import co.com.srdejo.steward.domain.spi.IHogarPersistencePort;
+import co.com.srdejo.steward.domain.spi.IIngresoFijoPersistencePort;
 import co.com.srdejo.steward.domain.spi.ITokenPort;
+import co.com.srdejo.steward.domain.spi.ITransaccionPort;
 import co.com.srdejo.steward.domain.spi.IUsuarioPersistencePort;
 import reactor.core.publisher.Mono;
 
@@ -19,6 +24,10 @@ import java.util.UUID;
 public class AuthUseCase implements IAuthServicePort {
 
     private final IGoogleIdentityPort google;
+    private final IAppleIdentityPort apple;
+    private final IIngresoFijoPersistencePort ingresos;
+    private final ICuentaPersistencePort cuentas;
+    private final ITransaccionPort transaccion;
     private final IUsuarioPersistencePort usuarios;
     private final IHogarPersistencePort hogares;
     private final ITokenPort tokens;
@@ -26,9 +35,14 @@ public class AuthUseCase implements IAuthServicePort {
     private final IClockPort clock;
     private final boolean devLogin;
 
-    public AuthUseCase(IGoogleIdentityPort google, IUsuarioPersistencePort usuarios, IHogarPersistencePort hogares,
-                       ITokenPort tokens, ICurrentUserPort usuarioActual, IClockPort clock, boolean devLogin) {
+    public AuthUseCase(IGoogleIdentityPort google, IAppleIdentityPort apple, IUsuarioPersistencePort usuarios, IHogarPersistencePort hogares,
+                       IIngresoFijoPersistencePort ingresos, ICuentaPersistencePort cuentas, ITokenPort tokens,
+                       ICurrentUserPort usuarioActual, ITransaccionPort transaccion, IClockPort clock, boolean devLogin) {
         this.google = google;
+        this.apple = apple;
+        this.ingresos = ingresos;
+        this.cuentas = cuentas;
+        this.transaccion = transaccion;
         this.usuarios = usuarios;
         this.hogares = hogares;
         this.tokens = tokens;
@@ -53,6 +67,39 @@ public class AuthUseCase implements IAuthServicePort {
                         "GOOGLE_TOKEN_INVALIDO", "No pudimos verificar tu cuenta de Google. Intenta de nuevo.")))
                 .flatMap(this::usuarioDe)
                 .flatMap(usuario -> sesionDe(usuario, tokens.emitir(usuario.id())));
+    }
+
+    /** Se busca por su identificador de Apple; si no existe, por su correo verificado (design D4 de app-movil-conectada). */
+    @Override
+    public Mono<Sesion> loginConApple(String identityToken, String nombre) {
+        return apple.verificar(identityToken)
+                .switchIfEmpty(Mono.error(() -> new DomainException(DomainException.Tipo.NO_AUTENTICADO,
+                        "APPLE_TOKEN_INVALIDO", "No pudimos verificar tu cuenta de Apple. Intenta de nuevo.")))
+                .flatMap(identidad -> usuarios.porAppleSub(identidad.sub())
+                        .switchIfEmpty(Mono.defer(() -> primeraVezConApple(identidad, nombre))))
+                .flatMap(usuario -> sesionDe(usuario, tokens.emitir(usuario.id())));
+    }
+
+    private Mono<Usuario> primeraVezConApple(IdentidadApple identidad, String nombre) {
+        // Sin correo verificado, uno reservado: la columna es obligatoria y el usuario se reconoce por su identificador.
+        String email = identidad.email() == null ? "apple-" + identidad.sub() + "@apple.invalid" : identidad.email();
+        return usuarioDe(new IdentidadGoogle(email, nombre)).flatMap(usuario -> usuarios.enlazarApple(usuario.id(), identidad.sub()));
+    }
+
+    /**
+     * Sale de su hogar, como "Salir del hogar", y la cuenta se borra o se anonimiza si quedan registros suyos en un hogar
+     * compartido (design D5 de app-movil-conectada). Revocar va despues y no puede impedirlo.
+     */
+    @Override
+    public Mono<Void> eliminarCuenta(String appleAuthorizationCode) {
+        return usuarioActual.usuarioId().flatMap(usuario -> transaccion.enTransaccion(hogares.hogarDe(usuario)
+                        .flatMap(hogar -> ingresos.desactivarDe(hogar.id(), usuario)
+                                .then(cuentas.quitarPropias(hogar.id(), usuario))
+                                .then(hogares.salir(hogar.id(), usuario))
+                                .thenReturn(true))
+                        .then(usuarios.eliminar(usuario))
+                        .thenReturn(true))
+                .then(apple.revocar(appleAuthorizationCode)));
     }
 
     @Override

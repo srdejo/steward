@@ -15,13 +15,14 @@ import type {
   SesionPort,
   Usuario,
   VistaHogar,
-} from '@steward/domain';
-import { ReglaError, claveMes, sumarMeses } from '@steward/domain';
-import { crearAdaptadorDemo, type StorageLike } from '@steward/domain/demo';
+} from '../index';
+import { ReglaError, claveMes, sumarMeses } from '../index';
+import { crearAdaptadorDemo, type StorageLike } from '../demo';
 
 import {
   usuarioDe,
   type Api,
+  type ConfigAcceso,
   type HogarApi,
   type InvitacionApi,
   type InvitacionEnviadaApi,
@@ -29,10 +30,10 @@ import {
   type InvitacionRecibidaApi,
   type OrigenRequest,
   type SesionApi,
+  type TokenSesion,
   type UsuarioApi,
 } from './api';
 import { categoria, ingresoFijo, regla, superponerFinanzas } from './superposicion';
-import type { TokenSesion } from './token-sesion';
 
 /** Lo que agrega el modo conectado a la invitacion: si el correo salio y el enlace para copiar (spec "Correo caido"). */
 export type InvitacionConectada = Invitacion & { correoEnviado: boolean; enlace: string };
@@ -108,9 +109,19 @@ export class PuertosConectados implements Puertos {
     return () => this.oyentes.delete(listener);
   }
 
+  /** Lo publico del acceso: el client web de Google. */
+  configAcceso(): Promise<ConfigAcceso> {
+    return this.d.api.config();
+  }
+
   /** Login con el ID token de Google Identity Services. */
   async iniciarConGoogle(credential: string): Promise<ResultadoLogin> {
     return this.conSesionNueva(await this.d.api.loginGoogle(credential));
+  }
+
+  /** Sign in with Apple desde la app: Apple solo entrega el nombre la primera vez. */
+  async iniciarConApple(identityToken: string, nombre?: string): Promise<ResultadoLogin> {
+    return this.conSesionNueva(await this.d.api.loginApple(identityToken, nombre));
   }
 
   /** Acceso de desarrollo (solo local): misma sesion que Google, por correo y nombre. */
@@ -196,6 +207,12 @@ export class PuertosConectados implements Puertos {
         throw new ReglaError('USAR_GOOGLE', 'Entra con Google');
       },
       cerrar: async () => {
+        this.d.tokens.borrar();
+        this.finanzas = null;
+        this.avisar();
+      },
+      eliminarCuenta: async (appleAuthorizationCode) => {
+        await this.d.api.eliminarCuenta(appleAuthorizationCode);
         this.d.tokens.borrar();
         this.finanzas = null;
         this.avisar();
@@ -422,6 +439,7 @@ export class PuertosConectados implements Puertos {
         await this.d.api.crearCuenta(datos.nombre, datos.titularId === null ? 'CONJUNTA' : 'YO', datos.saldo);
         await this.recargarFinanzas();
       },
+      eliminar: (cuentaId) => escribir(api.quitarCuenta(cuentaId)),
       mover: (datos) => {
         if (datos.desde === datos.hacia) return Promise.reject(new ReglaError('MISMA_CUENTA', 'Elige dos cuentas distintas'));
         return escribir(api.transferir(datos));
@@ -533,12 +551,9 @@ function invitacionConectada(r: InvitacionEnviadaApi): InvitacionConectada {
 }
 
 /** El backend arma el enlace con su origen publico; la PWA usa la ruta sobre su propio origen. */
-function rutaDe(enlace: string): string {
-  try {
-    return new URL(enlace).pathname;
-  } catch {
-    return enlace;
-  }
+function rutaDe(enlace: string | null): string {
+  if (!enlace) return '';
+  return enlace.replace(/^https?:\/\/[^/]+/, '') || enlace;
 }
 
 function recibida(token: string, r: InvitacionRecibidaApi): InvitacionRecibida {

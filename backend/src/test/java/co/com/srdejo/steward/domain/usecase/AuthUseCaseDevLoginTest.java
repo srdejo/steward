@@ -26,6 +26,21 @@ class AuthUseCaseDevLoginTest {
 
     private final IUsuarioPersistencePort usuarios = new IUsuarioPersistencePort() {
         @Override
+        public Mono<Usuario> porAppleSub(String sub) {
+            return Mono.empty();
+        }
+
+        @Override
+        public Mono<Usuario> enlazarApple(java.util.UUID id, String sub) {
+            return Mono.empty();
+        }
+
+        @Override
+        public Mono<Void> eliminar(java.util.UUID id) {
+            return Mono.empty();
+        }
+
+        @Override
         public Mono<Usuario> porId(java.util.UUID id) {
             return Mono.empty();
         }
@@ -77,7 +92,7 @@ class AuthUseCaseDevLoginTest {
             (p, m, a) -> m.getName().equals("estadoDe") ? Mono.just(EstadoHogar.SIN_HOGAR) : Flux.empty());
 
     private AuthUseCase conDevLogin(boolean encendido) {
-        return new AuthUseCase(google, usuarios, hogares, id -> "token-" + id, () -> Mono.empty(), reloj, encendido);
+        return new AuthUseCase(google, null, usuarios, hogares, null, null, id -> "token-" + id, () -> Mono.empty(), null, reloj, encendido);
     }
 
     @Test

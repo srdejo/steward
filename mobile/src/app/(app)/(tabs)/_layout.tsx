@@ -2,7 +2,7 @@ import { Tabs } from 'expo-router';
 
 import { colors, fonts, Icono } from '@/ui';
 
-/** Barra inferior Hoy · Planear · Cuentas (HANDOFF, seccion 4). Ajustes se abre desde los avatares de Hoy. */
+/** Barra inferior Ejecución · Plan · Cuentas (HANDOFF, seccion 4). Ajustes se abre desde los avatares de Hoy. */
 export default function TabsLayout() {
   return (
     <Tabs
@@ -14,8 +14,8 @@ export default function TabsLayout() {
         tabBarLabelStyle: { fontFamily: fonts.medium, fontSize: 12 },
       }}
     >
-      <Tabs.Screen name="hoy" options={{ title: 'Hoy', tabBarIcon: ({ color }) => <Icono nombre="hoy" color={color} /> }} />
-      <Tabs.Screen name="planear" options={{ title: 'Planear', tabBarIcon: ({ color }) => <Icono nombre="planear" color={color} /> }} />
+      <Tabs.Screen name="hoy" options={{ title: 'Ejecución', tabBarIcon: ({ color }) => <Icono nombre="hoy" color={color} /> }} />
+      <Tabs.Screen name="planear" options={{ title: 'Plan', tabBarIcon: ({ color }) => <Icono nombre="planear" color={color} /> }} />
       <Tabs.Screen name="cuentas" options={{ title: 'Cuentas', tabBarIcon: ({ color }) => <Icono nombre="cuentas" color={color} /> }} />
     </Tabs>
   );

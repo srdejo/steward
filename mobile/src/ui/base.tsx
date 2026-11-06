@@ -22,11 +22,14 @@ export function Texto({ v = 'cuerpo', style, ...props }: TextProps & { v?: Varia
   return <Text {...props} style={[VARIANTES[v], style]} />;
 }
 
+/** Face ID y "Ocultar montos" llegan con passkeys: hasta entonces no se ofrecen ni aplican (spec steward-ajustes). */
+export const SEGURIDAD_DISPONIBLE = false as boolean;
+
 /** Monto en COP con JetBrains Mono. Con "Ocultar montos" se ve `$••••` hasta tocarlo. */
 export function Monto({ valor, signo, style, siempreVisible, testID }: { valor: Pesos; signo?: boolean; style?: StyleProp<TextStyle>; siempreVisible?: boolean; testID?: string }) {
   const { preferencias } = useSesion();
   const [revelado, setRevelado] = useState(false);
-  const oculto = preferencias.ocultarMontos && !revelado && !siempreVisible;
+  const oculto = SEGURIDAD_DISPONIBLE && preferencias.ocultarMontos && !revelado && !siempreVisible;
   const estilo = [{ fontFamily: fonts.mono, fontSize: 14, color: colors.texto }, style];
   if (oculto) {
     return (
@@ -74,7 +77,7 @@ export function MontoInput({ etiqueta, valor, onCambio, grande, ayuda, placehold
   );
 }
 
-export function Campo({ etiqueta, valor, onCambio, placeholder, teclado, testID }: { etiqueta: string; valor: string; onCambio: (t: string) => void; placeholder?: string; teclado?: 'default' | 'email-address' | 'number-pad'; testID?: string }) {
+export function Campo({ etiqueta, valor, onCambio, placeholder, teclado, testID }: { etiqueta: string; valor: string; onCambio: (t: string) => void; placeholder?: string; teclado?: 'default' | 'email-address' | 'number-pad' | 'decimal-pad'; testID?: string }) {
   return (
     <View style={{ gap: 8 }}>
       <Texto v="rotulo">{etiqueta}</Texto>

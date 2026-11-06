@@ -123,6 +123,28 @@ export function agregarCuenta(estado: EstadoHogar, datos: { nombre: string; titu
   return s;
 }
 
+/**
+ * "Eliminar cuenta", con cualquier saldo: el total del hogar baja en ese saldo. Lo registrado queda en el historial sin
+ * cuenta, igual que el backend (ON DELETE SET NULL). Solo las propias o las conjuntas.
+ */
+export function quitarCuenta(estado: EstadoHogar, datos: { cuentaId: Id; usuarioId: Id }): EstadoHogar {
+  const cuenta = estado.cuentas.find((c) => c.id === datos.cuentaId);
+  if (!cuenta) throw new ReglaError('NO_EXISTE', 'No existe la cuenta');
+  if (!puedeQuitarCuenta(cuenta, datos.usuarioId)) throw new ReglaError('SOLO_TUYAS', 'Solo puedes eliminar tus cuentas o las conjuntas');
+  const s = clonar(estado);
+  s.cuentas = s.cuentas.filter((c) => c.id !== cuenta.id);
+  for (const m of s.movimientos) {
+    if (m.origen.tipo === 'CUENTA' && m.origen.cuentaId === cuenta.id) m.origen = { tipo: 'NINGUNO' };
+    if (m.cuentaDestinoId === cuenta.id) m.cuentaDestinoId = null;
+  }
+  for (const f of s.ingresosFijos) if (f.cuentaId === cuenta.id) f.cuentaId = null;
+  return s;
+}
+
+export function puedeQuitarCuenta(cuenta: Cuenta, usuarioId: Id): boolean {
+  return cuenta.titularId === null || cuenta.titularId === usuarioId;
+}
+
 /** "Mover dinero": transferencia entre dos cuentas del hogar. */
 export function moverDinero(estado: EstadoHogar, datos: { desde: Id; hacia: Id; monto: Pesos; fecha: Fecha; usuarioId: Id }): EstadoHogar {
   if (datos.desde === datos.hacia) throw new ReglaError('MISMA_CUENTA', 'Elige dos cuentas distintas');

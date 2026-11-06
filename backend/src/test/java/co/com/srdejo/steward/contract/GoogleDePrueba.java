@@ -31,6 +31,8 @@ import java.util.List;
 public final class GoogleDePrueba {
 
     public static final String CLIENT_ID = "contract-client-id";
+    public static final String CLIENT_ID_IOS = "contract-ios-client-id";
+    public static final String APPLE_CLIENT_ID = "contract.apple.client";
 
     private static final NimbusJwtEncoder ENCODER;
     public static final RSAPublicKey LLAVE_PUBLICA;
@@ -55,6 +57,23 @@ public final class GoogleDePrueba {
     }
 
     private GoogleDePrueba() {
+    }
+
+    /** Token "de Apple": mismas llaves de prueba. */
+    public static String tokenApple(String sub, String email) {
+        return tokenApple(sub, email, APPLE_CLIENT_ID, "https://appleid.apple.com");
+    }
+
+    public static String tokenApple(String sub, String email, String audiencia, String emisor) {
+        Instant ahora = Instant.now();
+        JwtClaimsSet.Builder claims = JwtClaimsSet.builder().issuer(emisor).audience(List.of(audiencia)).subject(sub)
+                .issuedAt(ahora).expiresAt(ahora.plus(Duration.ofHours(1)));
+        if (email != null) {
+            // Apple lo manda como texto.
+            claims.claim("email", email).claim("email_verified", "true");
+        }
+        return ENCODER.encode(JwtEncoderParameters.from(JwsHeader.with(SignatureAlgorithm.RS256).keyId("prueba").build(),
+                claims.build())).getTokenValue();
     }
 
     public static String token(String email, String nombre) {

@@ -33,6 +33,8 @@ import java.util.UUID;
 public class InvitacionUseCase implements IInvitacionServicePort {
 
     static final Duration VIGENCIA = Duration.ofDays(7);
+    /** Invitar otra vez al mismo correo antes de esto es un doble envio: no rota el token ni manda otro correo. */
+    static final Duration VENTANA_REPETIDA = Duration.ofMinutes(2);
 
     private final IHogarPersistencePort hogares;
     private final IInvitacionPersistencePort invitaciones;
@@ -68,10 +70,22 @@ public class InvitacionUseCase implements IInvitacionServicePort {
         return contexto().flatMap(ctx -> hogares.tieneMiembroConEmail(ctx.hogar().id(), correoInvitado)
                 .flatMap(yaEsMiembro -> yaEsMiembro
                         ? Mono.error(DomainException.conflicto("YA_ES_MIEMBRO", "Esa persona ya es parte del hogar"))
-                        // Una sola pendiente por correo: invitar de nuevo reenvia la misma.
+                        // Una sola pendiente por correo: invitar de nuevo reenvia la misma, salvo que sea un doble
+                        // envio (idempotente: el enlace del primer correo sigue sirviendo).
                         : invitaciones.pendientePorEmail(ctx.hogar().id(), correoInvitado)
-                                .flatMap(existente -> rotar(ctx, existente, true))
+                                .flatMap(existente -> recienEnviada(existente) ? Mono.just(repetida(existente))
+                                        : rotar(ctx, existente, true))
                                 .switchIfEmpty(Mono.defer(() -> crearYEnviar(ctx, correoInvitado)))));
+    }
+
+    private boolean recienEnviada(Invitacion inv) {
+        Instant ahora = clock.ahora();
+        return inv.vigenteEn(ahora) && inv.enviadaEn().plus(VENTANA_REPETIDA).isAfter(ahora);
+    }
+
+    /** La misma invitacion, sin enlace: el token en claro solo esta en el correo que ya salio. */
+    private static InvitacionEnviada repetida(Invitacion inv) {
+        return new InvitacionEnviada(inv, null, true, false);
     }
 
     @Override
@@ -143,7 +157,10 @@ public class InvitacionUseCase implements IInvitacionServicePort {
         String token = tokens.nuevo();
         Invitacion nueva = new Invitacion(UUID.randomUUID(), ctx.hogar().id(), email, Invitacion.Estado.PENDIENTE,
                 ctx.usuario().id(), ahora, ahora.plus(VIGENCIA));
-        return invitaciones.crear(nueva, tokens.hash(token)).flatMap(inv -> enviar(ctx, inv, token, true));
+        return invitaciones.crear(nueva, tokens.hash(token)).flatMap(inv -> enviar(ctx, inv, token, true))
+                // Otra peticion la creo a la vez: es la misma invitacion, no se manda un segundo correo.
+                .switchIfEmpty(Mono.defer(() -> invitaciones.pendientePorEmail(ctx.hogar().id(), email)
+                        .map(InvitacionUseCase::repetida)));
     }
 
     /** Token nuevo y 7 dias desde ahora; con correo es "reenviar", sin correo es "copiar enlace". */

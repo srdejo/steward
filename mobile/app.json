@@ -12,7 +12,8 @@
       "supportsTablet": false,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
-      }
+      },
+      "usesAppleSignIn": true
     },
     "android": {
       "adaptiveIcon": {
@@ -43,7 +44,15 @@
         }
       ],
       "expo-font",
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-secure-store",
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.834287846339-se45jcp68fpdlb8hp8nvtr27ojljmg8q"
+        }
+      ],
+      "expo-apple-authentication"
     ],
     "experiments": {
       "typedRoutes": true,
@@ -53,7 +62,9 @@
       "router": {},
       "eas": {
         "projectId": "84459405-bc49-4c2d-a395-9763eef15f88"
-      }
+      },
+      "apiUrl": "https://steward.srdejo.com.co",
+      "googleIosClientId": "834287846339-se45jcp68fpdlb8hp8nvtr27ojljmg8q.apps.googleusercontent.com"
     }
   }
 }

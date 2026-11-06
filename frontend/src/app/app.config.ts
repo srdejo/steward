@@ -1,9 +1,10 @@
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
-import { ApplicationConfig, isDevMode, provideBrowserGlobalErrorListeners } from '@angular/core';
+import { ApplicationConfig, inject, isDevMode, provideAppInitializer, provideBrowserGlobalErrorListeners } from '@angular/core';
 import { provideRouter, withComponentInputBinding, withInMemoryScrolling } from '@angular/router';
 import { provideServiceWorker } from '@angular/service-worker';
 
 import { routes } from './app.routes';
+import { ActualizacionPwa } from './core/actualizacion';
 import { MODO_DATOS } from './config/modo';
 import { authInterceptor } from './core/datos/http/auth.interceptor';
 import { providePuertosConectados, providePuertosDemo } from './core/datos/puertos';
@@ -20,5 +21,6 @@ export const appConfig: ApplicationConfig = {
       enabled: !isDevMode(),
       registrationStrategy: 'registerWhenStable:30000',
     }),
+    provideAppInitializer(() => inject(ActualizacionPwa).iniciar()),
   ],
 };

@@ -21,7 +21,8 @@ type Dialogo =
   | { tipo: 'aportes' }
   | { tipo: 'categoria'; categoria: Categoria | null }
   | { tipo: 'confirmar'; accion: 'salir' | 'restablecer' | 'desde-cero' }
-  | { tipo: 'empezar' };
+  | { tipo: 'empezar' }
+  | { tipo: 'eliminar' };
 
 const CONFIRMACIONES = {
   salir: { titulo: 'Salir del hogar', texto: 'Dejarás de ver y registrar en este presupuesto. Los demás miembros lo conservan.', boton: 'Salir del hogar' },
@@ -133,6 +134,8 @@ const CONFIRMACIONES = {
     <div class="mt-auto flex flex-col gap-1">
       <button type="button" class="boton h-12 rounded-[14px] border border-[#D9D8D2] bg-superficie" (click)="cerrarSesion()">Cerrar sesión</button>
       <button type="button" class="flex min-h-11 items-center justify-center text-sm font-medium text-negativo" (click)="abrir({ tipo: 'empezar' })">Empezar de nuevo</button>
+      <button type="button" class="flex min-h-11 items-center justify-center text-sm font-medium text-negativo" (click)="abrir({ tipo: 'eliminar' })">Eliminar mi cuenta</button>
+      <a class="flex min-h-11 items-center justify-center text-sm text-secundario underline" href="https://srdejo.github.io/steward-privacy" target="_blank" rel="noopener">Política de privacidad</a>
       <button type="button" class="flex min-h-11 items-center justify-center text-sm font-medium text-negativo" (click)="abrir({ tipo: 'confirmar', accion: 'salir' })">Salir del hogar</button>
     </div>
 
@@ -188,6 +191,16 @@ const CONFIRMACIONES = {
             <ng-container [ngTemplateOutlet]="pie" [ngTemplateOutletContext]="{ boton: d.categoria ? 'Guardar' : 'Crear categoría', listo: !!texto().trim() }" />
           </app-hoja>
         }
+        @case ('eliminar') {
+          <app-hoja titulo="Eliminar mi cuenta" (cerrar)="cerrar()">
+            <p class="text-[15px] text-secundario">Se borran tu cuenta y tus datos personales, y no se puede deshacer. Si eres el único miembro, también se borra el hogar con todo lo suyo. Si compartes el hogar, lo que registraste se queda para los demás a nombre de "Ex miembro".</p>
+            <label class="flex flex-col gap-2">
+              <span class="rotulo">Escribe ELIMINAR para confirmar</span>
+              <input class="campo" autocomplete="off" [value]="texto()" (input)="texto.set($any($event.target).value)" />
+            </label>
+            <ng-container [ngTemplateOutlet]="pie" [ngTemplateOutletContext]="{ boton: 'Eliminar mi cuenta', listo: texto().trim() === 'ELIMINAR', peligro: true }" />
+          </app-hoja>
+        }
         @case ('empezar') {
           <app-hoja titulo="Empezar de nuevo" (cerrar)="cerrar()">
             <p class="text-[15px] text-secundario">Se borran todos los planes, los cierres, el plan anual y lo registrado. Se conservan los miembros, los ingresos, las reglas, las categorías, las cuentas con su saldo de hoy y los créditos.</p>
@@ -211,7 +224,7 @@ const CONFIRMACIONES = {
       @if (error()) {
         <p role="alert" class="text-sm text-negativo">{{ error() }}</p>
       }
-      <button type="button" class="boton-grande" [class.bg-negativo]="peligro" [disabled]="!listo" (click)="confirmar()">{{ boton }}</button>
+      <button type="button" class="boton-grande" [class.bg-negativo]="peligro" [disabled]="!listo || ocupado()" (click)="confirmar()">{{ boton }}</button>
     </ng-template>
   `,
 })
@@ -258,6 +271,8 @@ export class AjustesPage {
   protected readonly aplicaAportes = signal(true);
   protected readonly error = signal('');
   protected readonly mensaje = signal('');
+  /** Mientras la peticion va en camino el boton no responde: un doble toque no invita ni guarda dos veces. */
+  protected readonly ocupado = signal(false);
 
   protected fecha(f: string): string {
     return formatFechaCorta(f);
@@ -299,8 +314,9 @@ export class AjustesPage {
 
   protected async confirmar(): Promise<void> {
     const d = this.dialogo();
-    if (!d) return;
+    if (!d || this.ocupado()) return;
     this.error.set('');
+    this.ocupado.set(true);
     try {
       switch (d.tipo) {
         case 'invitar':
@@ -319,6 +335,12 @@ export class AjustesPage {
         case 'confirmar':
           await this.ejecutarConfirmacion(d.accion);
           return;
+        case 'eliminar':
+          await this.puertos.sesion.eliminarCuenta();
+          this.sesion.establecer(null);
+          this.cerrar();
+          await this.router.navigateByUrl('/acceso');
+          return;
         case 'empezar':
           await this.puertos.hogar.empezarDeNuevo();
           this.cerrar();
@@ -328,6 +350,8 @@ export class AjustesPage {
       this.cerrar();
     } catch (e) {
       this.error.set(mensajeDeError(e));
+    } finally {
+      this.ocupado.set(false);
     }
   }
 

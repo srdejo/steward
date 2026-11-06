@@ -34,7 +34,7 @@ class SesionTokenContratoTest extends ContratoBase {
 
     @Test
     void tokenValidoPasaLaSeguridad() {
-        String token = TokensDePrueba.sesion(UUID.randomUUID(), Instant.now());
+        String token = entrar("daniel@ejemplo.com", "Daniel");
         // Pasa la autenticacion: lo que responda la ruta ya no es un 401.
         client.get().uri(RUTA).header("Authorization", "Bearer " + token).exchange()
                 .expectStatus().value(status -> {
@@ -42,6 +42,11 @@ class SesionTokenContratoTest extends ContratoBase {
                         throw new AssertionError("Un token valido no deberia dar 401");
                     }
                 });
+    }
+
+    @Test
+    void tokenDeUnaCuentaQueNoExisteDa401() {
+        esperar401(TokensDePrueba.sesion(UUID.randomUUID(), Instant.now()));
     }
 
     private void esperar401(String token) {

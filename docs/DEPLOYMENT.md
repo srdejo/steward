@@ -21,6 +21,16 @@ Si `backend/` (sin `gradlew.bat`) o `frontend/` (sin `package.json`) no existen,
 
 Web y API van en un solo origen: así la sesión y, más adelante, las passkeys (RP ID `steward.srdejo.com.co`) funcionan sin CORS.
 
+## Apple y la app (2.0.0)
+
+Variables del backend en el `.env` del VPS, además de las de Google:
+
+| Variable | Qué es |
+|---|---|
+| `GOOGLE_IOS_CLIENT_ID` | Client iOS en el proyecto de beauty; sin ella, la app no entra con Google |
+| `APPLE_CLIENT_ID` | Bundle id; por defecto `com.danieljimenez.steward` |
+| `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY` | Para revocar al eliminar una cuenta. La llave es el .p8 de Sign in with Apple, con los saltos de línea como `\n`. Sin ellas, la cuenta se elimina igual y se registra un aviso |
+
 ## Google
 
 Steward **no tiene OAuth client propio: usa el de beauty**, el mismo client "Aplicación web" y la misma cuenta de Google.

@@ -19,4 +19,11 @@ public interface IUsuarioPersistencePort {
     Mono<Usuario> crearOObtener(Usuario usuario);
 
     Mono<Usuario> actualizarNombre(UUID id, String nombre);
+
+    Mono<Usuario> porAppleSub(String sub);
+
+    Mono<Usuario> enlazarApple(UUID id, String sub);
+
+    /** Borra sus datos propios y el usuario; si quedan registros suyos en un hogar compartido, lo anonimiza. */
+    Mono<Void> eliminar(UUID id);
 }

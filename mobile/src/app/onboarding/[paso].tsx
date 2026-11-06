@@ -1,8 +1,10 @@
+import { PuertosConectados, type MiInvitacion } from '@steward/domain/conectado';
 import { previsualizarDiezmo, type BaseDiezmo, type Id, type Invitacion, type Pesos } from '@steward/domain';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState, type ReactNode } from 'react';
-import { Pressable, Text, TextInput, View } from 'react-native';
+import { Pressable, Share, Text, TextInput, View } from 'react-native';
 
+import { API_URL } from '@/data/conectado';
 import { mensajeDeError, usePuertos } from '@/data/puertos';
 import { useSesion } from '@/data/sesion';
 import { Avatar, Aviso, Boton, Campo, colors, fonts, Monto, MontoInput, Pantalla, Texto } from '@/ui';
@@ -38,12 +40,16 @@ export default function Onboarding() {
   const [saldos, setSaldos] = useState<Record<string, Pesos | null>>({});
   const [correo, setCorreo] = useState('');
   const [invitaciones, setInvitaciones] = useState<Invitacion[]>([]);
+  const conectados = puertos instanceof PuertosConectados ? puertos : null;
+  /** Invitacion para el correo de la sesion, sin necesidad del enlace (design D7 de app-movil-conectada). */
+  const [paraMi, setParaMi] = useState<MiInvitacion | null>(null);
 
   useEffect(() => {
     (async () => {
       const [h, regla, fijos] = await Promise.all([puertos.hogar.obtener(), puertos.ingresos.regla(), puertos.ingresos.fijos()]);
       setHogar(h.hogar.nombre);
       setInvitaciones(h.invitaciones.filter((i) => i.estado === 'PENDIENTE'));
+      if (conectados && !h.hogar.id) setParaMi((await conectados.misInvitaciones().catch(() => []))[0] ?? null);
       if (regla) {
         setDiezmo(regla.activa);
         setPorcentaje(regla.porcentaje);
@@ -117,7 +123,25 @@ export default function Onboarding() {
       {n === 1 && (
         <>
           <Encabezado antes="BIENVENIDO" titulo="¿Cómo te llamas?" texto="Lo tomamos de tu cuenta de Google. Cámbialo si quieres." />
+          {paraMi && (
+            <View style={{ gap: 10, borderRadius: 14, padding: 16, backgroundColor: colors.acentoSuave }} testID="invitacion-para-mi">
+              <Texto style={{ fontFamily: fonts.semibold }}>{paraMi.invitadoPor.nombre} te invitó a {paraMi.hogar}</Texto>
+              <Boton
+                titulo="Unirme"
+                deshabilitado={guardando}
+                onPress={() =>
+                  guardar(async () => {
+                    sesion.establecer(await conectados!.aceptarMia(paraMi.id, nombre, false));
+                    router.replace('/hoy');
+                  })
+                }
+              />
+            </View>
+          )}
           <Campo etiqueta="Tu nombre" valor={nombre} onCambio={setNombre} />
+          {conectados && !paraMi && (
+            <Texto v="detalle" testID="correo-sesion">¿Te van a invitar a un hogar? Te invitan con este correo: {sesion.sesion?.usuario.email}</Texto>
+          )}
           <View style={{ gap: 8 }}>
             <Campo etiqueta="Nombre del hogar" valor={hogar} onCambio={setHogar} placeholder="Ej: Nuestra casa" />
             <Texto v="detalle">Es el presupuesto que vas a compartir. Puedes cambiarlo después.</Texto>
@@ -221,6 +245,10 @@ export default function Onboarding() {
               <Boton tipo="enlace" titulo="Reenviar" onPress={() => puertos.hogar.reenviar(inv.id)} />
             </View>
           ))}
+          {invitaciones.length > 0 && (
+            <Boton tipo="enlace" titulo="O compartir enlace de invitación"
+              onPress={() => guardar(async () => { await Share.share({ message: `${API_URL}${await puertos.hogar.enlaceInvitacion(invitaciones.at(-1)!.id)}` }); })} />
+          )}
           <View style={{ gap: 10, padding: 16, borderRadius: 14, backgroundColor: colors.nota }}>
             <Texto style={{ fontSize: 13, fontFamily: fonts.semibold }}>Los dos podrán</Texto>
             <Texto style={{ fontSize: 13, color: colors.textoSuave }}>Ver el mes y el año · marcar pagos · registrar aportes · crear y elegir opciones de presupuesto</Texto>

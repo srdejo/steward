@@ -9,7 +9,7 @@ import {
   cerrarMes, diferenciaCuadre, duplicarEscenario, guardarCategoria, guardarIngresoFijo, guardarIngresoPlan, guardarItem, guardarRegla, invitar, loQueTraeElMes, quitarIngresoPlan,
   marcarPago, marcarRecibido, planDe, planInicio, previsualizarDiezmo, previsualizarGasto, probarAbonoComoOpcion, registrarAporte,
   registrarGasto, repartoValido, resumenAnual, resumenMes, simularAbono, cuotasRestantes, porcentajePagado, usarEscenario,
-  vistaCierre, vistasOpciones, opciones,
+  vistaCierre, vistasOpciones, opciones, quitarCuenta,
 } from '.';
 
 const HOY = '2026-10-26';
@@ -402,6 +402,21 @@ describe('Cuentas (steward-cuentas)', () => {
   it('el saldo estimado sigue los movimientos despues del cuadre', () => {
     const s = marcarPago(semilla(), { itemId: 'm0-mastercard', ref: OCT, monto: 1_500_000, usuarioId: DANIEL, origen: { tipo: 'CUENTA', cuentaId: 'cta-davivienda' }, fecha: HOY, creadoPor: DANIEL });
     expect(cuentasDelHogar(s, HOY).cuentas.find((c) => c.cuenta.nombre === 'Davivienda')).toMatchObject({ saldo: 2_650_000, estimado: true });
+  });
+
+  it('eliminar una cuenta con saldo: sale del total y lo registrado queda sin cuenta', () => {
+    const pagado = marcarPago(semilla(), { itemId: 'm0-mastercard', ref: OCT, monto: 1_500_000, usuarioId: DANIEL, origen: { tipo: 'CUENTA', cuentaId: 'cta-davivienda' }, fecha: HOY, creadoPor: DANIEL });
+    const s = quitarCuenta(pagado, { cuentaId: 'cta-davivienda', usuarioId: DANIEL });
+    expect(s.cuentas.some((c) => c.id === 'cta-davivienda')).toBe(false);
+    expect(cuentasDelHogar(s, HOY).total).toBe(cuentasDelHogar(pagado, HOY).total - 2_650_000);
+    const pago = s.movimientos.find((m) => m.tipo === 'PAGO' && m.itemId === 'm0-mastercard')!;
+    expect(pago).toMatchObject({ monto: 1_500_000, origen: { tipo: 'NINGUNO' } });
+    expect(s.movimientos.some((m) => (m.origen.tipo === 'CUENTA' && m.origen.cuentaId === 'cta-davivienda') || m.cuentaDestinoId === 'cta-davivienda')).toBe(false);
+    expect(s.ingresosFijos.some((f) => f.cuentaId === 'cta-davivienda')).toBe(false);
+    // La conjunta la elimina cualquiera; la de otro miembro, no.
+    expect(quitarCuenta(semilla(), { cuentaId: 'cta-efectivo', usuarioId: ESPOSA }).cuentas.some((c) => c.id === 'cta-efectivo')).toBe(false);
+    expect(() => quitarCuenta(semilla(), { cuentaId: 'cta-davivienda', usuarioId: ESPOSA })).toThrow(ReglaError);
+    expect(() => quitarCuenta(semilla(), { cuentaId: 'no-existe', usuarioId: DANIEL })).toThrow(ReglaError);
   });
 
   it('credito: cuotas restantes y simulador de abono', () => {

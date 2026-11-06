@@ -31,6 +31,8 @@ export interface SesionPort {
   iniciar(metodo: MetodoAcceso): Promise<Sesion>;
   cerrar(): Promise<void>;
   guardarPreferencias(cambios: Partial<Preferencias>): Promise<Preferencias>;
+  /** "Eliminar mi cuenta": deja sin sesion. El codigo de Apple permite revocar su acceso. */
+  eliminarCuenta(appleAuthorizationCode?: string): Promise<void>;
 }
 
 export interface VistaMiembro {
@@ -150,6 +152,8 @@ export interface CuentasPort {
   /** Lo registrado despues del ultimo cuadre de la cuenta. */
   movimientos(cuentaId: Id): Promise<MovimientoCuenta[]>;
   agregar(datos: { nombre: string; titularId: Id | null; saldo: Pesos }): Promise<void>;
+  /** "Eliminar cuenta" (propia o conjunta), con cualquier saldo: lo registrado queda en el historial, sin cuenta. */
+  eliminar(cuentaId: Id): Promise<void>;
   mover(datos: { desde: Id; hacia: Id; monto: Pesos }): Promise<void>;
   diferencia(cuentaId: Id, saldoBanco: Pesos): Promise<Pesos>;
   cuadrar(saldos: { cuentaId: Id; saldoBanco: Pesos }[]): Promise<void>;

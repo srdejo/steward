@@ -23,8 +23,11 @@ public record StewardProperties(String zone, String publicUrl, String contactApi
     /**
      * {@code googleTestPublicKey}: solo el perfil contract. Si tiene valor, Google se valida con esa llave RSA local en
      * lugar del JWKS real. {@code devLogin}: acceso de desarrollo sin Google, solo local (apagado por defecto).
+     * {@code googleIosClientId}: el client de la app. {@code appleClientId}: su bundle id; el equipo, la llave y su .p8 solo
+     * hacen falta para revocar (design D3 a D5 de app-movil-conectada). {@code appleTestPublicKey}: solo el perfil contract.
      */
-    public record Security(String jwtSecret, Duration jwtTtl, String googleClientId, String googleTestPublicKey,
+    public record Security(String jwtSecret, Duration jwtTtl, String googleClientId, String googleIosClientId, String googleTestPublicKey,
+                           String appleClientId, String appleTeamId, String appleKeyId, String applePrivateKey, String appleTestPublicKey,
                            boolean devLogin) {
     }
 }

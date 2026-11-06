@@ -1,10 +1,13 @@
 import type { MetodoAcceso, Preferencias, Sesion } from '@steward/domain';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
-import { usePuertos } from './puertos';
+import { alExpirarSesion } from './conectado';
+import { mensajeDeError, usePuertos } from './puertos';
 
 interface EstadoSesion {
   cargando: boolean;
+  /** No se pudo leer la sesion (sin conexion): la raiz ofrece reintentar. */
+  errorCarga: string;
   sesion: Sesion | null;
   preferencias: Preferencias;
   iniciar(metodo: MetodoAcceso): Promise<Sesion>;
@@ -22,18 +25,26 @@ export function SesionProvider({ children }: { children: ReactNode }) {
   const puertos = usePuertos();
   const [cargando, setCargando] = useState(true);
   const [sesion, setSesion] = useState<Sesion | null>(null);
+  const [errorCarga, setErrorCarga] = useState('');
 
   const recargar = useCallback(async () => {
-    setSesion(await puertos.sesion.actual());
+    try {
+      setSesion(await puertos.sesion.actual());
+      setErrorCarga('');
+    } catch (e) {
+      setErrorCarga(mensajeDeError(e));
+    }
   }, [puertos]);
 
   useEffect(() => {
     recargar().finally(() => setCargando(false));
+    alExpirarSesion(() => setSesion(null));
   }, [recargar]);
 
   const valor = useMemo<EstadoSesion>(
     () => ({
       cargando,
+      errorCarga,
       sesion,
       preferencias: sesion?.preferencias ?? SIN_PREFERENCIAS,
       async iniciar(metodo) {
@@ -52,7 +63,7 @@ export function SesionProvider({ children }: { children: ReactNode }) {
         setSesion((s) => (s ? { ...s, preferencias } : s));
       },
     }),
-    [cargando, sesion, puertos, recargar],
+    [cargando, errorCarga, sesion, puertos, recargar],
   );
   return <SesionContexto.Provider value={valor}>{children}</SesionContexto.Provider>;
 }
