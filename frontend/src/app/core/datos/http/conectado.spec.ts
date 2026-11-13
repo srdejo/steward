@@ -598,6 +598,23 @@ describe('plan del mes y registros en el backend (steward-plan-mes, design D5)',
     expect(localStorage.getItem(CLAVE_ESTADO) ?? '').not.toContain('it-internet');
   });
 
+  it('Falta pagar y Desde salen de lo que trae el backend (hoy-falta-pagar-y-detalle-web)', async () => {
+    expect((await p.movimientos.resumenMes(OCT)).faltaPagar).toBe(440_000);
+    // El otro miembro pagó Internet desde su cuenta Nu. Al registrar un gasto se releen las finanzas y Hoy lo cuenta.
+    const gasto = registro({ id: 'mov-g', tipo: 'GASTO', monto: 20_000, itemId: 'it-mercado', seq: 3 });
+    finanzasPrueba.valor = finanzas({
+      planes: [PLAN_OCT],
+      cuentas: [{ id: 'cta-nu', nombre: 'Nu', titularId: 'u-otro', saldoCuadre: 300_000, fechaCuadre: '2026-10-20', cuadrada: true, seqCuadre: 0 }],
+      movimientos: [registro({ id: 'mov-p', tipo: 'PAGO', monto: 120_000, itemId: 'it-internet', usuarioId: 'u-otro', origen: 'CUENTA', cuentaId: 'cta-nu' }), gasto],
+    });
+    const gastar = p.movimientos.registrarGasto({ monto: 20_000, itemId: 'it-mercado', nota: '', usuarioId: USUARIO.id, origen: { tipo: 'NINGUNO' }, ref: OCT });
+    await responder('POST', '/api/gastos', gasto, tick, 201);
+    await gastar;
+    const r = await p.movimientos.resumenMes(OCT);
+    expect([r.faltaPagar, r.vencidos, r.pagos]).toEqual([300_000, 0, 2]);
+    expect(r.yaPagado.find((i) => i.item.id === 'it-internet')).toMatchObject({ desde: 'Nu', pagadoPor: 'u-otro' });
+  });
+
   it('YA_PAGADO: relee y propaga el mensaje con quién pagó', async () => {
     const pagar = p.movimientos.marcarPago({ itemId: 'it-internet', ref: OCT, monto: 120_000, usuarioId: USUARIO.id, origen: { tipo: 'NINGUNO' } })
       .catch((e: unknown) => e);

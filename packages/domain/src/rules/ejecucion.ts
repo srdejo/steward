@@ -1,6 +1,6 @@
 import type { EstadoHogar, Fecha, Id, ItemPlan, MesRef, Movimiento, Origen, Pesos } from '../model';
 import { formatCop, formatFechaCorta } from '../format';
-import { ReglaError, clonar, diasEntre, fechaEnMes, nuevoId, sumar } from './base';
+import { ReglaError, clonar, diasEntre, fechaEnMes, mesDe, mismoMes, nuevoId, sumar } from './base';
 import { asegurarAbierto, categoria, escenarioPrincipal, movimientosDe, nombreUsuario, planDe } from './consultas';
 import { devolverCapital } from './credito';
 import { ingresosDelMes, itemConPagos, seguirAporte, totalIngresos, type LineaIngreso } from './ingresos';
@@ -22,6 +22,23 @@ export interface ItemEjecucion {
   diferencia: Pesos | null;
   /** Inicial de quien pago (ultimo pago). */
   pagadoPor: Id | null;
+  /** Pendiente con dia de vencimiento ya pasado en el mes en curso. El diezmo y los variables nunca (spec steward-hoy). */
+  vencido: boolean;
+  /** Columna Vence de la vista web: texto y tono (alerta = vencido, aviso = vence en 7 dias o menos). */
+  vence: { texto: string; tono: TonoVence };
+  /** De donde salio el ultimo pago: nombre de la cuenta o "Su cuenta" si fue externo. */
+  desde: string | null;
+}
+
+export type TonoVence = 'alerta' | 'aviso' | 'normal';
+
+/** Avance de una categoria en el mes: lo pagado de sus items contra su plan. */
+export interface AvanceCategoria {
+  categoriaId: Id;
+  nombre: string;
+  color: string;
+  plan: Pesos;
+  real: Pesos;
 }
 
 export interface ResumenMes {
@@ -33,6 +50,14 @@ export interface ResumenMes {
   vsPlan: Pesos;
   libre: Pesos;
   porPagar: ItemEjecucion[];
+  /** Suma de lo pendiente de Por pagar. */
+  faltaPagar: Pesos;
+  /** Items de Por pagar vencidos. */
+  vencidos: number;
+  /** Pagos y gastos registrados en el mes (con item o no planeados). */
+  pagos: number;
+  /** Categorias con items en la opcion, en su orden. */
+  porCategoria: AvanceCategoria[];
   yaPagado: ItemEjecucion[];
   /** Gastos sin item del plan; incluye las entregas de diezmo registradas antes del diezmo como gasto (design D3). */
   noPlaneados: Movimiento[];
@@ -71,27 +96,73 @@ function categoriaVacia(item: ItemPlan): string {
   return item.tipo === 'CREDITO' ? 'Cuota del crédito' : 'Del plan';
 }
 
+/** Cuenta de donde salio un movimiento, para la columna Desde. */
+function cuentaDe(estado: EstadoHogar, m: Movimiento | null): string | null {
+  if (!m) return null;
+  if (m.origen.tipo === 'CUENTA') {
+    const id = m.origen.cuentaId;
+    return estado.cuentas.find((c) => c.id === id)?.nombre ?? null;
+  }
+  return m.origen.tipo === 'EXTERNA' ? 'Su cuenta' : null;
+}
+
+/** Vencido: fijo, cuota o credito sin pagar cuyo dia ya paso en el mes en curso. */
+function estaVencido(item: ItemPlan, pagado: boolean, ref: MesRef, hoy: Fecha): boolean {
+  if (pagado || item.diaVence === null || item.tipo === 'VARIABLE' || item.tipo === 'DIEZMO') return false;
+  return mismoMes(ref, mesDe(hoy)) && diasEntre(hoy, fechaEnMes(ref, item.diaVence)) < 0;
+}
+
+/** Columna Vence de la vista web (spec "Hoy detallado en escritorio"). */
+function venceDe(estado: EstadoHogar, item: ItemPlan, vencido: boolean, ref: MesRef, hoy: Fecha): { texto: string; tono: TonoVence } {
+  if (item.tipo === 'VARIABLE' || item.diaVence === null && item.tipo !== 'DIEZMO') return { texto: 'Durante el mes', tono: 'normal' };
+  if (item.tipo === 'DIEZMO') return { texto: detalleDiezmo(estado, item, ref), tono: 'normal' };
+  const dia = item.diaVence!;
+  if (vencido) return { texto: `Venció el ${dia}`, tono: 'alerta' };
+  const fecha = fechaEnMes(ref, dia);
+  const dias = diasEntre(hoy, fecha);
+  if (dias === 0) return { texto: 'Vence hoy', tono: 'aviso' };
+  if (dias > 0 && dias <= 7) return { texto: `${formatFechaCorta(fecha)} · en ${dias} ${dias === 1 ? 'día' : 'días'}`, tono: 'aviso' };
+  return { texto: formatFechaCorta(fecha), tono: 'normal' };
+}
+
 export function ejecucionItem(estado: EstadoHogar, item: ItemPlan, ref: MesRef, hoy: Fecha): ItemEjecucion {
   const pagos = movimientosDe(estado, ref).filter((m) => (m.tipo === 'PAGO' || m.tipo === 'GASTO') && m.itemId === item.id);
   const real = sumar(pagos.map((p) => p.monto));
   const ultimo = pagos.at(-1) ?? null;
   const categoriaNombre = categoria(estado, item.categoriaId).nombre;
+  const desde = cuentaDe(estado, ultimo);
   if (item.tipo === 'VARIABLE') {
     const pagado = item.monto > 0 && real >= item.monto;
     return {
       item, categoriaNombre, plan: item.monto, real, pagos, pagado, pendiente: Math.max(0, item.monto - real),
       detalle: pagado ? `Variable · ${real > item.monto ? `${formatCop(real - item.monto)} sobre el plan` : 'completo'}` : `Variable · llevas ${formatCop(real)} de ${formatCop(item.monto)}`,
       diferencia: pagado ? real - item.monto : null, pagadoPor: ultimo?.usuarioId ?? null,
+      vencido: false, vence: venceDe(estado, item, false, ref, hoy), desde,
     };
   }
   const pagado = pagos.length > 0;
+  const vencido = estaVencido(item, pagado, ref, hoy);
   let detalle = item.tipo === 'DIEZMO' ? detalleDiezmo(estado, item, ref) : detalleVencimiento(item, ref, hoy);
   if (pagado) {
     const dif = real - item.monto;
-    const desde = ultimo && ultimo.origen.tipo === 'CUENTA' ? estado.cuentas.find((c) => c.id === (ultimo.origen as { cuentaId: Id }).cuentaId)?.nombre : ultimo?.origen.tipo === 'EXTERNA' ? 'su cuenta' : null;
-    detalle = dif === 0 ? `igual al plan${desde ? ` · ${desde}` : ''}` : `plan ${formatCop(item.monto)} · ${formatCop(dif, { signo: true })}`;
+    const enDetalle = desde === 'Su cuenta' ? 'su cuenta' : desde;
+    detalle = dif === 0 ? `igual al plan${enDetalle ? ` · ${enDetalle}` : ''}` : `plan ${formatCop(item.monto)} · ${formatCop(dif, { signo: true })}`;
   }
-  return { item, categoriaNombre, plan: item.monto, real, pagos, pagado, pendiente: pagado ? 0 : item.monto, detalle, diferencia: pagado ? real - item.monto : null, pagadoPor: ultimo?.usuarioId ?? null };
+  return {
+    item, categoriaNombre, plan: item.monto, real, pagos, pagado, pendiente: pagado ? 0 : item.monto, detalle,
+    diferencia: pagado ? real - item.monto : null, pagadoPor: ultimo?.usuarioId ?? null,
+    vencido, vence: venceDe(estado, item, vencido, ref, hoy), desde,
+  };
+}
+
+/** Avance por categoria: solo las que tienen items en la opcion, en el orden de las categorias. */
+function avancePorCategoria(estado: EstadoHogar, items: ItemEjecucion[]): AvanceCategoria[] {
+  return [...estado.categorias]
+    .sort((a, b) => a.orden - b.orden)
+    .flatMap((c) => {
+      const deLa = items.filter((i) => i.item.categoriaId === c.id);
+      return deLa.length ? [{ categoriaId: c.id, nombre: c.nombre, color: c.color, plan: sumar(deLa.map((i) => i.plan)), real: sumar(deLa.map((i) => i.real)) }] : [];
+    });
 }
 
 /** Todo lo que muestra Hoy para un mes. Reglas en design D3 del cambio presupuesto-hogar-ui. */
@@ -115,6 +186,7 @@ export function resumenMes(estado: EstadoHogar, ref: MesRef, hoy: Fecha): Resume
   const total = totalIngresos(ingresos);
 
   const porVencer = (i: ItemEjecucion) => i.item.diaVence ?? 99;
+  const porPagar = items.filter((i) => !i.pagado).sort((a, b) => porVencer(a) - porVencer(b));
   return {
     ref,
     ingresos,
@@ -123,7 +195,11 @@ export function resumenMes(estado: EstadoHogar, ref: MesRef, hoy: Fecha): Resume
     pagado,
     vsPlan,
     libre: total - comprometido - ajustes,
-    porPagar: items.filter((i) => !i.pagado).sort((a, b) => porVencer(a) - porVencer(b)),
+    porPagar,
+    faltaPagar: sumar(porPagar.map((i) => i.pendiente)),
+    vencidos: porPagar.filter((i) => i.vencido).length,
+    pagos: sumar(items.map((i) => i.pagos.length)) + noPlaneados.length,
+    porCategoria: avancePorCategoria(estado, items),
     yaPagado: items.filter((i) => i.pagado).sort((a, b) => (b.pagos.at(-1)?.seq ?? 0) - (a.pagos.at(-1)?.seq ?? 0)),
     noPlaneados,
     ajustes,

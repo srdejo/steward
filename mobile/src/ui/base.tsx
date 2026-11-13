@@ -172,11 +172,12 @@ export function Avatar({ inicial, variante = 'fuerte', tamano = 32, nombre, styl
   );
 }
 
-export function Kpi({ etiqueta, valor, color }: { etiqueta: string; valor: Pesos; color?: string }) {
+/** Cifra pequeña con su rotulo. Con `enfasis` ("Falta pagar"), rotulo y cifra en negrita y el color solo en el rotulo (Main.dc.html). */
+export function Kpi({ etiqueta, valor, color, enfasis, testID }: { etiqueta: string; valor: Pesos; color?: string; enfasis?: boolean; testID?: string }) {
   return (
-    <View style={{ flex: 1, gap: 2 }}>
-      <Texto style={{ fontSize: 11, color: colors.secundario }}>{etiqueta}</Texto>
-      <Monto valor={valor} style={{ fontSize: 13, color: color ?? colors.texto }} />
+    <View style={{ flex: 1, gap: 2 }} testID={testID}>
+      <Texto style={{ fontSize: 11, color: enfasis ? (color ?? colors.secundario) : colors.secundario, fontFamily: enfasis ? fonts.semibold : fonts.regular }}>{etiqueta}</Texto>
+      <Monto valor={valor} style={{ fontSize: enfasis ? 14 : 13, color: enfasis ? colors.texto : (color ?? colors.texto), fontFamily: enfasis ? fonts.monoSemibold : fonts.mono }} />
     </View>
   );
 }

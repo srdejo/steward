@@ -19,5 +19,7 @@ describe('paridad con la app (steward-mobile-app)', () => {
     expect(a.raiz().querySelector('[data-testid="libre"]')!.textContent!.trim()).toBe('$3.436.000');
     expect(a.texto()).toMatch(/Pagado \$4\.113\.000/);
     expect(a.texto()).toMatch(/Vs\. plan −\$62\.000/);
+    expect(a.texto()).toMatch(/Falta pagar \$1\.215\.000/);
+    expect(a.raiz().querySelector('[data-testid="ver-mas"]')).toBeNull();
   });
 });
