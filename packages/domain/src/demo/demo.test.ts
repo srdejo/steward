@@ -9,6 +9,7 @@ describe('adaptador demo (steward-ui-shell: modo demo)', () => {
     const p = crearAdaptadorDemo({ storage: storageEnMemoria(), ahora });
     const r = await p.movimientos.resumenMes(OCT);
     expect([r.libre, r.plan, r.pagado, r.vsPlan]).toEqual([3_436_000, 5_390_000, 2_613_000, -62_000]);
+    expect([r.faltaPagar, r.vencidos]).toEqual([2_715_000, 1]);
   });
 
   it('un registro sobrevive a recargar desde el storage y avisa a los oyentes', async () => {

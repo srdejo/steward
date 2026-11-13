@@ -17,12 +17,39 @@ describe('Hoy (steward-hoy)', () => {
     expect(a.texto()).toContain('Ejecución · LUN 26');
     expect(a.texto()).toContain('Octubre 2026');
     expect(libre(a)).toBe('$3.436.000');
-    expect(a.texto()).toMatch(/Plan\s*\$5\.390\.000/);
+    expect(a.texto()).toMatch(/Falta pagar\s*\$2\.715\.000/);
+    expect(a.texto()).toMatch(/Por pagar\s*\$2\.715\.000/);
     expect(a.texto()).toMatch(/Pagado\s*\$2\.613\.000/);
     expect(a.texto()).toMatch(/Vs\. plan\s*−\$62\.000/);
     expect(a.texto()).toContain('Aportes Esposa 2 aportes · 1 pago directo');
     expect(a.texto()).toContain('Tarjeta Mastercard Vence en 4 días');
+    await a.tocar(/Ver 1 más/);
     expect(a.texto()).toContain('Mercado Variable · llevas $180.000 de $320.000');
+  });
+
+  it('Por pagar empieza con 3 y "Ver 1 más" despliega el resto', async () => {
+    await conSesion();
+    const a = await app('/hoy');
+    const porPagar = () => [...a.raiz().querySelectorAll('section[aria-labelledby="por-pagar"] app-fila')].map((f) => f.querySelector('span')!.textContent!.trim());
+    expect(porPagar()).toEqual(['Compra a cuotas', 'Diezmo · Salario Daniel', 'Tarjeta Mastercard']);
+    expect(a.raiz().querySelector('[data-testid="ver-mas"]')!.textContent!.replace(/\s+/g, ' ').trim()).toBe('Ver 1 más · 4 pendientes en total $140.000');
+    await a.tocar(/Ver 1 más/);
+    expect(porPagar()).toEqual(['Compra a cuotas', 'Diezmo · Salario Daniel', 'Tarjeta Mastercard', 'Mercado']);
+    expect(a.raiz().querySelector('[data-testid="ver-mas"]')).toBeNull();
+  });
+
+  it('Falta pagar en 0 no se pinta de alerta', async () => {
+    const p = puertos();
+    await p.demo!.probarDesdeCero();
+    await p.sesion.iniciar('GOOGLE');
+    await p.hogar.nombrar('Nuestra casa');
+    await p.hogar.completarOnboarding();
+    await p.plan.crearMes(OCT, 'CERO');
+    const a = await app('/hoy');
+    const kpi = a.raiz().querySelector('[data-testid="falta-pagar"]')!;
+    expect(kpi.textContent!.replace(/\s+/g, ' ')).toContain('Falta pagar $0');
+    expect(kpi.innerHTML).not.toContain('text-negativo');
+    expect(a.texto()).toContain('Nada pendiente');
   });
 
   it('muestra plan vs real en un pago', async () => {
@@ -215,6 +242,7 @@ describe('Hoy (steward-hoy)', () => {
     await a.escribir('¿Cuánto?', '40000');
     expect(a.raiz().querySelector('[data-testid="vista-previa-gasto"]')!.textContent!.replace(/\s+/g, ' ').trim()).toBe('Mercado: llevas $220.000 de $320.000 con este gasto.');
     await a.tocar('Guardar gasto');
+    await a.tocar(/Ver 1 más/);
     expect(a.texto()).toContain('Mercado Variable · llevas $220.000 de $320.000');
 
     await a.ir('/hoy/gasto');

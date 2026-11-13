@@ -19,6 +19,7 @@ export const routes: Routes = [
       { path: '', pathMatch: 'full', redirectTo: 'hoy' },
       {
         path: 'hoy',
+        data: { ancho: 'escritorio' },
         loadComponent: () => import('./features/hoy/hoy-page').then((m) => m.HoyPage),
         children: [
           { path: 'aporte', loadComponent: () => import('./features/hoy/aporte-hoja').then((m) => m.AporteHoja) },

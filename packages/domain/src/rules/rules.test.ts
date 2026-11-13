@@ -674,3 +674,51 @@ describe('Acceso y hogar (steward-acceso-onboarding, steward-ajustes)', () => {
     expect(crearHogarVacio().categorias.map((c) => c.nombre)).toEqual(['Diezmo', 'Gastos fijos', 'Tarjetas y cuotas', 'Variables', 'Créditos']);
   });
 });
+
+describe('Falta pagar y Hoy detallado (hoy-falta-pagar-y-detalle-web)', () => {
+  it('suma lo pendiente y cuenta los vencidos con la semilla', () => {
+    const r = resumenMes(semilla(), OCT, HOY);
+    expect(r.faltaPagar).toBe(2_715_000);
+    expect(r.vencidos).toBe(1);
+    expect(r.pagos).toBe(12);
+    const cuotas = r.porPagar.find((i) => i.item.nombre === 'Compra a cuotas')!;
+    expect(cuotas.vencido).toBe(true);
+    expect(cuotas.vence).toEqual({ texto: 'Venció el 20', tono: 'alerta' });
+    expect(r.porPagar.find((i) => i.item.nombre === 'Tarjeta Mastercard')?.vence).toEqual({ texto: '30 oct · en 4 días', tono: 'aviso' });
+  });
+
+  it('el diezmo y los variables no cuentan como vencidos', () => {
+    const r = resumenMes(semilla(), OCT, '2026-10-31');
+    const diezmo = r.porPagar.find((i) => i.item.tipo === 'DIEZMO')!;
+    const mercado = r.porPagar.find((i) => i.item.nombre === 'Mercado')!;
+    expect([diezmo.vencido, diezmo.vence.tono]).toEqual([false, 'normal']);
+    expect(mercado.vencido).toBe(false);
+    expect(mercado.vence.texto).toBe('Durante el mes');
+  });
+
+  it('en el mes siguiente nada está vencido', () => {
+    expect(resumenMes(semilla(), NOV, HOY).vencidos).toBe(0);
+  });
+
+  it('dice de qué cuenta salió cada pago', () => {
+    const r = resumenMes(semilla(), OCT, HOY);
+    expect(r.yaPagado.find((i) => i.item.nombre === 'Pensión')?.desde).toBe('Davivienda');
+    expect(r.yaPagado.find((i) => i.item.nombre === 'Recibo Luz')?.desde).toBe('Su cuenta');
+  });
+
+  it('pagar la Mastercard baja lo que falta', () => {
+    const s = marcarPago(semilla(), { itemId: 'm0-mastercard', ref: OCT, monto: 1_500_000, usuarioId: DANIEL, origen: { tipo: 'CUENTA', cuentaId: 'cta-nu' }, fecha: HOY, creadoPor: DANIEL });
+    const r = resumenMes(s, OCT, HOY);
+    expect(r.faltaPagar).toBe(1_215_000);
+    expect(r.pagos).toBe(13);
+  });
+
+  it('el avance por categoría cuadra con el plan y lo pagado', () => {
+    const r = resumenMes(semilla(), OCT, HOY);
+    expect(r.porCategoria.reduce((s, c) => s + c.plan, 0)).toBe(r.plan);
+    expect(r.porCategoria.reduce((s, c) => s + c.real, 0)).toBe(r.pagado);
+    const s = marcarPago(semilla(), { itemId: 'm0-mastercard', ref: OCT, monto: 9_000_000, usuarioId: DANIEL, origen: { tipo: 'NINGUNO' }, fecha: HOY, creadoPor: DANIEL });
+    const tarjetas = resumenMes(s, OCT, HOY).porCategoria.find((c) => c.categoriaId === resumenMes(s, OCT, HOY).yaPagado.find((i) => i.item.id === 'm0-mastercard')!.item.categoriaId)!;
+    expect(tarjetas.real).toBeGreaterThan(tarjetas.plan);
+  });
+});

@@ -76,10 +76,23 @@ describe('Hoy (steward-hoy)', () => {
     await conSesion();
     renderRouter('./src/app', { initialUrl: '/hoy' });
     await waitFor(() => expect(screen.getByTestId('libre')).toHaveTextContent('$3.436.000'));
-    expect(screen.getByText('$5.390.000')).toBeTruthy();
+    expect(screen.getByTestId('falta-pagar')).toHaveTextContent('Falta pagar$2.715.000');
+    expect(screen.getByTestId('por-pagar-total')).toHaveTextContent('$2.715.000');
     expect(screen.getByText('$2.613.000')).toBeTruthy();
     expect(screen.getByText('−$62.000')).toBeTruthy();
     expect(screen.getByText('2 aportes · 1 pago directo')).toBeTruthy();
+  });
+
+  it('Por pagar empieza con 3 y Ver 1 más despliega el resto', async () => {
+    await conSesion();
+    renderRouter('./src/app', { initialUrl: '/hoy' });
+    await waitFor(() => expect(screen.getByTestId('libre')).toHaveTextContent('$3.436.000'));
+    expect(screen.getByTestId('por-pagar-Tarjeta Mastercard')).toBeTruthy();
+    expect(screen.queryByTestId('por-pagar-Mercado')).toBeNull();
+    expect(screen.getByTestId('ver-mas')).toHaveTextContent('Ver 1 más · 4 pendientes en total$140.000');
+    fireEvent.press(screen.getByTestId('ver-mas'));
+    expect(await screen.findByTestId('por-pagar-Mercado')).toBeTruthy();
+    expect(screen.queryByTestId('ver-mas')).toBeNull();
   });
 
   it('pago directo desde "Su cuenta" cuenta como aporte de quien pagó', async () => {
@@ -110,6 +123,7 @@ describe('Hoy (steward-hoy)', () => {
     await escribir('¿Cuánto?', '40000');
     expect(await screen.findByTestId('vista-previa-gasto')).toHaveTextContent('Mercado: llevas $220.000 de $320.000 con este gasto.');
     await tocar('Guardar gasto');
+    fireEvent.press(await screen.findByTestId('ver-mas'));
     expect(await screen.findByText('Variable · llevas $220.000 de $320.000')).toBeTruthy();
   });
 });
@@ -322,6 +336,8 @@ describe('paridad con la PWA (steward-mobile-app)', () => {
     await waitFor(() => expect(screen.getByTestId('libre')).toHaveTextContent('$3.436.000'));
     expect(screen.getByText('$4.113.000')).toBeTruthy();
     expect(screen.getByText('−$62.000')).toBeTruthy();
+    expect(screen.getByTestId('falta-pagar')).toHaveTextContent('Falta pagar$1.215.000');
+    expect(screen.queryByTestId('ver-mas')).toBeNull();
   });
 });
 

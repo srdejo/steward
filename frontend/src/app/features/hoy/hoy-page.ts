@@ -1,6 +1,6 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, linkedSignal, signal } from '@angular/core';
 import { RouterLink, RouterOutlet } from '@angular/router';
-import { claveMes, formatDiaSemana, formatMesAnio, type ItemEjecucion, type LineaIngreso } from '@steward/domain';
+import { claveMes, formatDiaSemana, formatMesAnio, sumar, type ItemEjecucion, type ResumenMes } from '@steward/domain';
 
 import { consulta } from '../../core/datos/consulta';
 import { PUERTOS } from '../../core/datos/puertos';
@@ -12,7 +12,14 @@ import { Fila } from '../../shared/components/fila';
 import { Kpi } from '../../shared/components/kpi';
 import { Monto } from '../../shared/components/monto';
 import { Segmentado } from '../../shared/components/segmentado';
+import { HoyEscritorio } from './hoy-escritorio';
+import { IngresosHoy } from './ingresos-hoy';
 import { MesDeHoy } from './mes-de-hoy';
+
+/** Pendientes que se ven antes de "Ver N más" (spec steward-hoy). */
+const LISTA_CORTA = 3;
+/** Desde aqui el shell pasa a menu lateral (spec steward-ui-shell) y Hoy usa la vista detallada. */
+export const ESCRITORIO = '(min-width: 1024px)';
 
 /**
  * Main.dc.html: el mes en curso (spec steward-hoy). Las hojas de registro son rutas hijas. El diezmo son items del plan
@@ -20,10 +27,17 @@ import { MesDeHoy } from './mes-de-hoy';
  */
 @Component({
   selector: 'app-hoy-page',
-  imports: [RouterLink, RouterOutlet, AvataresHogar, Avatar, Encabezado, Fila, Kpi, Monto, Segmentado],
+  imports: [RouterLink, RouterOutlet, AvataresHogar, Avatar, Encabezado, Fila, HoyEscritorio, IngresosHoy, Kpi, Monto, Segmentado],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'flex flex-col gap-5 px-5 pt-6 pb-4' },
+  host: { '[class]': "escritorio() ? 'block px-10 pt-7 pb-10' : 'flex flex-col gap-5 px-5 pt-6 pb-4'" },
   template: `
+    @if (escritorio()) {
+      @if (resumen.value(); as r) {
+        <app-hoy-escritorio [resumen]="r" [rotulo]="rotulo" [titulo]="titulo()" [claveActual]="claveActual()" [opcionPorElegir]="opcionPorElegir()" />
+      } @else {
+        <p class="text-secundario">Cargando el mes…</p>
+      }
+    } @else {
     <app-encabezado [rotulo]="rotulo" [titulo]="titulo()">
       <app-avatares-hogar />
     </app-encabezado>
@@ -47,7 +61,7 @@ import { MesDeHoy } from './mes-de-hoy';
         <h2 id="te-queda-libre" class="rotulo">Te queda libre</h2>
         <app-monto class="text-[32px] font-semibold" [class.text-acento]="r.libre >= 0" [class.text-negativo]="r.libre < 0" [valor]="r.libre" data-testid="libre" />
         <div class="grid grid-cols-3 gap-2 border-t border-divisor pt-3">
-          <app-kpi etiqueta="Plan" [valor]="r.plan" />
+          <app-kpi etiqueta="Falta pagar" [valor]="r.faltaPagar" [enfasis]="true" [tono]="r.faltaPagar > 0 ? 'text-negativo' : ''" data-testid="falta-pagar" />
           <app-kpi etiqueta="Pagado" [valor]="r.pagado" />
           <app-kpi etiqueta="Vs. plan" [valor]="r.vsPlan" [tono]="r.vsPlan <= 0 ? 'text-positivo' : 'text-negativo'" />
         </div>
@@ -58,36 +72,21 @@ import { MesDeHoy } from './mes-de-hoy';
           <h2 id="ingresos" class="text-base font-semibold">Ingresos</h2>
           <a routerLink="aporte" class="boton-texto">+ Aporte</a>
         </div>
-        <div class="flex flex-col divide-y divide-divisor">
-          @for (l of r.ingresos; track l.clave) {
-            @if (l.movimientoId || l.tipo === 'APORTES') {
-              <!-- Lo recibido y los aportes se abren para corregirlos o borrarlos (design D6 de usabilidad-plan). -->
-              <a [routerLink]="l.movimientoId ? ['registro', l.movimientoId] : 'registros'" [queryParams]="l.movimientoId ? null : { aportes: l.usuarioId }" class="block hover:bg-superficie">
-                <app-fila [titulo]="l.nombre" [detalle]="l.detalle">
-                  <app-monto class="text-sm text-positivo" [valor]="l.monto" />
-                </app-fila>
-              </a>
-            } @else {
-              <app-fila [titulo]="l.nombre" [detalle]="l.detalle">
-                @if (porRecibir(l)) {
-                  <a [routerLink]="['recibir', l.clave]" class="boton-texto font-semibold">Recibí</a>
-                }
-                <app-monto class="text-sm" [class.text-positivo]="!porRecibir(l)" [class.text-secundario]="porRecibir(l)" [valor]="l.monto" />
-              </app-fila>
-            }
-          } @empty {
-            <p class="py-2.5 text-sm text-secundario">Aún no hay ingresos este mes.</p>
-          }
-        </div>
+        <app-ingresos-hoy [ingresos]="r.ingresos" />
       </section>
 
       <section class="flex flex-col gap-1.5" aria-labelledby="por-pagar">
         <div class="flex items-center justify-between">
-          <h2 id="por-pagar" class="text-base font-semibold">Por pagar</h2>
+          <h2 id="por-pagar" class="text-base font-semibold">
+            Por pagar
+            @if (r.faltaPagar > 0) {
+              <app-monto class="ml-1 text-sm font-semibold text-negativo" [valor]="r.faltaPagar" />
+            }
+          </h2>
           <a routerLink="gasto" class="boton-texto">+ Gasto</a>
         </div>
         <div class="flex flex-col divide-y divide-divisor">
-          @for (i of r.porPagar; track i.item.id) {
+          @for (i of visibles(r); track i.item.id) {
             <a [routerLink]="i.item.tipo === 'VARIABLE' ? 'gasto' : ['pagar', i.item.id]" [queryParams]="i.item.tipo === 'VARIABLE' ? { item: i.item.id } : null" class="block hover:bg-superficie">
               <app-fila [titulo]="i.item.nombre" [detalle]="i.detalle" [tonoDetalle]="urgente(i) ? 'text-negativo' : 'text-secundario'">
                 <app-monto class="text-sm" [valor]="i.pendiente" />
@@ -96,6 +95,12 @@ import { MesDeHoy } from './mes-de-hoy';
             </a>
           } @empty {
             <p class="py-2.5 text-sm text-secundario">Nada pendiente. Todo el plan del mes está pagado.</p>
+          }
+          @if (ocultos(r); as o) {
+            <button type="button" class="flex h-10 items-center justify-between text-left text-[13px] font-medium text-acento" (click)="verTodo.set(true)" data-testid="ver-mas">
+              <span>Ver {{ o.cantidad }} más · {{ r.porPagar.length }} pendientes en total</span>
+              <app-monto class="text-secundario" [valor]="o.monto" />
+            </button>
           }
         </div>
       </section>
@@ -135,6 +140,7 @@ import { MesDeHoy } from './mes-de-hoy';
     } @else {
       <p class="text-secundario">Cargando el mes…</p>
     }
+    }
 
     <router-outlet />
   `,
@@ -157,12 +163,32 @@ export class HoyPage {
     return m?.plan && !m.plan.escenarioActivoId && m.opciones.length > 1 ? m.opciones[0]!.escenario.letra : null;
   });
 
-  protected urgente(i: ItemEjecucion): boolean {
-    return /^Vence (en|hoy)|^Venció/.test(i.detalle);
+  /** Por pagar empieza corto (3 items) y se despliega con "Ver N más"; al cambiar de mes vuelve a corto. */
+  protected readonly verTodo = linkedSignal({ source: () => this.mesHoy.ref(), computation: () => false });
+
+  protected visibles(r: ResumenMes): ItemEjecucion[] {
+    return this.verTodo() ? r.porPagar : r.porPagar.slice(0, LISTA_CORTA);
   }
 
-  /** Una linea de la opcion (o, sin plan, un ingreso fijo) que todavia no llega: "Recibí" abre su monto. */
-  protected porRecibir(l: LineaIngreso): boolean {
-    return !l.recibido && Boolean(l.lineaId || l.ingresoFijoId);
+  protected ocultos(r: ResumenMes): { cantidad: number; monto: number } | null {
+    if (this.verTodo() || r.porPagar.length <= LISTA_CORTA) return null;
+    const resto = r.porPagar.slice(LISTA_CORTA);
+    return { cantidad: resto.length, monto: sumar(resto.map((i) => i.pendiente)) };
+  }
+
+  protected urgente(i: ItemEjecucion): boolean {
+    return i.vencido || i.vence.tono !== 'normal';
+  }
+
+  /** Desde 1024 px, Hoy detallado (spec "Hoy detallado en escritorio"); se monta una sola de las dos vistas (design D3). */
+  protected readonly escritorio = signal(false);
+
+  constructor() {
+    const mq = typeof matchMedia === 'function' ? matchMedia(ESCRITORIO) : null;
+    if (!mq) return;
+    this.escritorio.set(mq.matches);
+    const cambio = (e: MediaQueryListEvent) => this.escritorio.set(e.matches);
+    mq.addEventListener('change', cambio);
+    inject(DestroyRef).onDestroy(() => mq.removeEventListener('change', cambio));
   }
 }

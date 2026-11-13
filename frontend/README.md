@@ -2,6 +2,13 @@
 
 PWA de Presupuesto Hogar en Angular 22 (standalone, signals, zoneless), con Tailwind 4 y service worker. Una sola base responsive: por debajo de 1024 px se ve como app móvil, con barra inferior Hoy · Planear · Cuentas; desde 1024 px, con menú lateral.
 
+Desde 1024 px, Hoy usa la vista detallada de `HoyWeb.dc.html` (`features/hoy/hoy-escritorio.ts`), y por debajo, la de una columna de `Main.dc.html`. Esa vista tiene:
+- cuatro tarjetas;
+- las tablas Por pagar y Ya pagado, con categoría, vencimiento, quién pagó y desde qué cuenta;
+- una columna lateral con Ingresos, Por categoría y Cuentas.
+
+`HoyPage` monta solo una de las dos vistas, según `matchMedia('(min-width: 1024px)')`. Las hojas de registro son las mismas rutas hijas de `/hoy`. La ruta lleva `data.ancho = 'escritorio'`: así el shell no limita el ancho a 560 px desde 1024 px, tampoco con una hoja abierta.
+
 Tiene dos **modos de datos** (`src/app/config/modo.ts`):
 
 | Modo | Build | Qué viene del backend | Qué sigue con datos de prueba |

@@ -22,7 +22,8 @@ export const DESTINOS: Destino[] = [
 
 /**
  * Una sola app responsive: por debajo de 1024 px, barra inferior (artboards móviles); desde 1024 px, menú lateral.
- * Las pantallas móviles se centran a 560 px; Comparar y Anual (data.ancho = 'completo') usan todo el ancho.
+ * Las pantallas móviles se centran a 560 px; Comparar y Anual (data.ancho = 'completo') usan todo el ancho, y Hoy
+ * (data.ancho = 'escritorio') lo usa desde 1024 px. El dato se hereda a las rutas hijas (las hojas de Hoy).
  */
 @Component({
   selector: 'app-shell',
@@ -59,7 +60,7 @@ export const DESTINOS: Destino[] = [
             Datos de prueba · se guardan solo en este dispositivo
           </p>
         }
-        <div class="mx-auto w-full" [class.max-w-[560px]]="!anchoCompleto()">
+        <div class="mx-auto w-full" [class]="claseAncho()">
           <router-outlet />
         </div>
       </main>
@@ -96,11 +97,19 @@ export class Shell {
     ),
     { initialValue: this.datosHoja() },
   );
-  protected readonly anchoCompleto = computed(() => this.datosRuta()['ancho'] === 'completo');
+  protected readonly claseAncho = computed(() => {
+    const ancho = this.datosRuta()['ancho'];
+    return ancho === 'completo' ? '' : ancho === 'escritorio' ? 'max-w-[560px] lg:max-w-[1360px]' : 'max-w-[560px]';
+  });
 
+  /** Datos de la ruta activa, de la raiz a la hoja: una ruta hija (una hoja de Hoy) conserva el ancho de su pantalla. */
   private datosHoja(): Record<string, unknown> {
-    let r = this.ruta;
-    while (r.firstChild) r = r.firstChild;
-    return r.snapshot?.data ?? {};
+    let r: ActivatedRoute | null = this.ruta;
+    let datos: Record<string, unknown> = {};
+    while (r) {
+      datos = { ...datos, ...(r.snapshot?.data ?? {}) };
+      r = r.firstChild;
+    }
+    return datos;
   }
 }
