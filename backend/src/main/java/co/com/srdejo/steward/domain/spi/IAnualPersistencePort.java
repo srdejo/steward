@@ -6,6 +6,8 @@ import co.com.srdejo.steward.domain.model.PlanAnual.Proyeccion;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.time.YearMonth;
+import java.util.List;
 import java.util.UUID;
 
 /** Planes anuales y aportes proyectados del hogar (design D2 de backend-plan-anual). */
@@ -31,4 +33,19 @@ public interface IAnualPersistencePort {
     Flux<Proyeccion> proyeccionesDesde(UUID hogarId, int anio);
 
     Mono<Void> marcarCreado(UUID anualId);
+
+    /** Borra el anual con sus celdas y eventos (en cascada). */
+    Mono<Void> borrar(UUID anualId);
+
+    /** Replicar: reemplaza todas las celdas y guarda el mes base (design D1 de planear-anio-desde-un-mes). */
+    Mono<Void> replicar(UUID anualId, List<PlanAnual.Celda> celdas, YearMonth base);
+
+    /** Reemplaza los aportes proyectados del año del hogar. */
+    Mono<Void> reemplazarProyecciones(UUID hogarId, int anio, List<Proyeccion> proyecciones);
+
+    /** Corrige un evento del anual; false si no es de ese anual. */
+    Mono<Boolean> editarEvento(UUID anualId, Evento evento);
+
+    /** Quita un evento del anual; false si no es de ese anual. */
+    Mono<Boolean> quitarEvento(UUID anualId, UUID eventoId);
 }

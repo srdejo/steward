@@ -22,4 +22,21 @@ describe('paridad con la app (steward-mobile-app)', () => {
     expect(a.texto()).toMatch(/Falta pagar \$1\.215\.000/);
     expect(a.raiz().querySelector('[data-testid="ver-mas"]')).toBeNull();
   });
+
+  it('replicar octubre en 2028 y la revisión del carro en mayo (planear-anio-desde-un-mes)', async () => {
+    await conSesion();
+    const a = await app('/planear/anual/2028');
+    await a.tocar('Replicar en los 12 meses');
+    await a.tocar('+ Algo distinto en un mes');
+    await a.escribir('¿Qué es?', 'Revisión carro');
+    const mes = a.raiz().querySelector<HTMLSelectElement>('app-cambio-hoja select')!;
+    mes.value = '5';
+    mes.dispatchEvent(new Event('change'));
+    await a.escribir('¿Cuánto?', '400000');
+    await a.tocar('Guardar');
+    // Mismas cifras que mobile/test/app.test.tsx.
+    expect(a.raiz().querySelector('[data-testid="kpi-libre"]')!.textContent!.trim()).toBe('$40.376.000');
+    expect(a.texto()).toContain('Mayo Revisión carro −$400.000 $2.998.000');
+    expect(a.texto()).toContain('Enero a abril Igual al mes base · 4 meses $3.398.000');
+  });
 });

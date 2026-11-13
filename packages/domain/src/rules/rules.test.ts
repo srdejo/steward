@@ -9,7 +9,7 @@ import {
   cerrarMes, diferenciaCuadre, duplicarEscenario, guardarCategoria, guardarIngresoFijo, guardarIngresoPlan, guardarItem, guardarRegla, invitar, loQueTraeElMes, quitarIngresoPlan,
   marcarPago, marcarRecibido, planDe, planInicio, previsualizarDiezmo, previsualizarGasto, probarAbonoComoOpcion, registrarAporte,
   registrarGasto, repartoValido, resumenAnual, resumenMes, simularAbono, cuotasRestantes, porcentajePagado, usarEscenario,
-  vistaCierre, vistasOpciones, opciones, quitarCuenta,
+  vistaCierre, vistasOpciones, opciones, quitarCuenta, replicarMes, vistaBase, editarEvento, quitarEvento, nombreMeses, borrarAnual, conteoBorradoAnual,
 } from '.';
 
 const HOY = '2026-10-26';
@@ -321,7 +321,7 @@ describe('Planear (steward-planear)', () => {
 
   it('plan anual: KPI del diseño y eventos', () => {
     const r = resumenAnual(semilla(), 2027)!;
-    expect(r.kpis).toEqual({ libreAnio: 28_996_000, mesApretado: { mes: 1, libre: 598_000 }, diezmoAnio: 9_100_000 });
+    expect(r.kpis).toEqual({ libreAnio: 28_996_000, mesApretado: { mes: 1, libre: 598_000 }, diezmoAnio: 9_100_000, porCambios: 220_000 });
     expect(r.libre).toEqual([598, 2398, 1498, 1198, 2398, 5548, 2398, 898, 2398, 2398, 2398, 4868].map((v) => v * 1000));
     const s = agregarEvento(semilla(), { anio: 2027, evento: { nombre: 'SOAT moto', mes: 3, monto: 1_200_000, tipo: 'GASTO', usuarioId: null } });
     const r2 = resumenAnual(s, 2027)!;
@@ -720,5 +720,110 @@ describe('Falta pagar y Hoy detallado (hoy-falta-pagar-y-detalle-web)', () => {
     const s = marcarPago(semilla(), { itemId: 'm0-mastercard', ref: OCT, monto: 9_000_000, usuarioId: DANIEL, origen: { tipo: 'NINGUNO' }, fecha: HOY, creadoPor: DANIEL });
     const tarjetas = resumenMes(s, OCT, HOY).porCategoria.find((c) => c.categoriaId === resumenMes(s, OCT, HOY).yaPagado.find((i) => i.item.id === 'm0-mastercard')!.item.categoriaId)!;
     expect(tarjetas.real).toBeGreaterThan(tarjetas.plan);
+  });
+});
+
+describe('Planear el año desde un mes (planear-anio-desde-un-mes)', () => {
+  const OCTUBRE = { tipo: 'MES' as const, ref: OCT };
+  /** 2028: sin plan anual en la semilla. */
+  const replicado = () => replicarMes(semilla(), { anio: 2028, base: OCTUBRE, hoy: HOY });
+  const fila = (s: EstadoHogar, anio: number, categoriaId: string) => resumenAnual(s, anio)!.gastos.find((f) => f.categoriaId === categoriaId)!;
+
+  it('replicar octubre: cada mes con los totales de octubre y los aportes registrados', () => {
+    const vista = vistaBase(semilla(), { anio: 2028, base: OCTUBRE });
+    const s = replicado();
+    const r = resumenAnual(s, 2028)!;
+    expect(r.base).toEqual(OCT);
+    expect(r.estado).toBe('BORRADOR');
+    for (const f of vista.filas) expect(fila(s, 2028, f.categoriaId).valores).toEqual(Array(12).fill(f.monto));
+    expect(vista.aportes).toEqual([{ usuarioId: ESPOSA, nombre: 'Aportes Esposa', monto: 2_500_000 }]);
+    expect(r.ingresos.find((f) => f.usuarioId === ESPOSA)!.valores).toEqual(Array(12).fill(2_500_000));
+    expect(r.libre).toEqual(Array(12).fill(vista.libreMes));
+    expect(r.kpis.libreAnio).toBe(vista.libreAnio);
+    expect(r.kpis.porCambios).toBe(0);
+    expect(r.meses).toEqual([{ desde: 1, hasta: 12, libre: vista.libreMes, cambios: [] }]);
+  });
+
+  it('solo fijos deja los variables en cero; desde cero, todo en cero', () => {
+    const fijos = vistaBase(semilla(), { anio: 2028, base: { tipo: 'FIJOS' } });
+    expect(fijos.filas.find((f) => f.categoriaId === 'cat-variables')!.monto).toBe(0);
+    expect(fijos.filas.find((f) => f.categoriaId === 'cat-fijos')!.monto).toBeGreaterThan(0);
+    const cero = replicarMes(semilla(), { anio: 2028, base: { tipo: 'CERO' }, hoy: HOY });
+    expect(resumenAnual(cero, 2028)!.gastos.every((f) => f.valores.every((v) => v === 0))).toBe(true);
+    expect(resumenAnual(cero, 2028)!.base).toBeNull();
+  });
+
+  it('replicar otra vez conserva los eventos; un mes sin plan da error', () => {
+    const s = replicarMes(semilla(), { anio: 2027, base: OCTUBRE, hoy: HOY });
+    expect(resumenAnual(s, 2027)!.cambios.map((c) => c.evento.nombre)).toContain('SOAT');
+    expect(fila(s, 2027, 'cat-variables').valores[11]).toBe(fila(s, 2027, 'cat-variables').valores[0]);
+    expect(() => replicarMes(semilla(), { anio: 2028, base: { tipo: 'MES', ref: { anio: 2026, mes: 12 } }, hoy: HOY })).toThrow(expect.objectContaining({ codigo: 'NO_EXISTE' }));
+    expect(() => replicarMes(semilla(), { anio: 2025, base: OCTUBRE, hoy: HOY })).toThrow(ReglaError);
+  });
+
+  it('un gasto en su categoría suma a su fila y se resalta', () => {
+    const s = agregarEvento(replicado(), { anio: 2028, evento: { nombre: 'Navidad', mes: 12, monto: 680_000, tipo: 'GASTO', usuarioId: null, categoriaId: 'cat-variables' } });
+    const r = resumenAnual(s, 2028)!;
+    const variables = fila(s, 2028, 'cat-variables');
+    expect(variables.valores[11]! - variables.valores[0]!).toBe(680_000);
+    expect(variables.cambia[11]).toBe(true);
+    expect(variables.cambia[0]).toBe(false);
+    expect(r.eventos).toBeNull();
+    expect(r.cambios[0]).toMatchObject({ donde: 'Variables', texto: 'Navidad −$680.000' });
+    expect(r.kpis.porCambios).toBe(-680_000);
+    expect(r.meses.at(-1)).toMatchObject({ desde: 12, cambios: ['Navidad −$680.000'] });
+    expect(nombreMeses(r.meses[0]!)).toBe('Enero a noviembre');
+  });
+
+  it('un ingreso de julio en adelante suma de julio a diciembre, con su diezmo', () => {
+    const antes = resumenAnual(replicado(), 2028)!;
+    const s = agregarEvento(replicado(), { anio: 2028, evento: { nombre: 'Aumento', mes: 7, monto: 300_000, tipo: 'INGRESO', usuarioId: DANIEL, enAdelante: true } });
+    const r = resumenAnual(s, 2028)!;
+    const diezmo = r.cambios[0]!.diezmo;
+    expect(diezmo).toBeGreaterThan(0);
+    expect(r.libre.slice(0, 6)).toEqual(antes.libre.slice(0, 6));
+    expect(r.libre.slice(6).map((v, i) => v - antes.libre[6 + i]!)).toEqual(Array(6).fill(300_000 - diezmo));
+    expect(r.meses.map((m) => [m.desde, m.hasta])).toEqual([[1, 6], [7, 7], [8, 8], [9, 9], [10, 10], [11, 11], [12, 12]]);
+  });
+
+  it('categoría en un ingreso o Diezmo no se aceptan; corregir y quitar un evento', () => {
+    const s = replicado();
+    expect(() => agregarEvento(s, { anio: 2028, evento: { nombre: 'X', mes: 1, monto: 1, tipo: 'INGRESO', usuarioId: null, categoriaId: 'cat-variables' } })).toThrow(expect.objectContaining({ codigo: 'DATOS_INVALIDOS' }));
+    const diezmo = s.categorias.find((c) => c.tipo === 'DIEZMO')!.id;
+    expect(() => agregarEvento(s, { anio: 2028, evento: { nombre: 'X', mes: 1, monto: 1, tipo: 'GASTO', usuarioId: null, categoriaId: diezmo } })).toThrow(expect.objectContaining({ codigo: 'DATOS_INVALIDOS' }));
+    const conSoat = agregarEvento(s, { anio: 2028, evento: { nombre: 'SOAT', mes: 3, monto: 900_000, tipo: 'GASTO', usuarioId: null } });
+    const id = resumenAnual(conSoat, 2028)!.cambios[0]!.evento.id;
+    const corregido = editarEvento(conSoat, { anio: 2028, eventoId: id, evento: { nombre: 'SOAT', mes: 4, monto: 950_000, tipo: 'GASTO', usuarioId: null } });
+    expect(resumenAnual(corregido, 2028)!.eventos!.valores.slice(2, 4)).toEqual([0, 950_000]);
+    const sinSoat = quitarEvento(corregido, { anio: 2028, eventoId: id });
+    expect(resumenAnual(sinSoat, 2028)!.libre).toEqual(resumenAnual(s, 2028)!.libre);
+    expect(() => quitarEvento(sinSoat, { anio: 2028, eventoId: id })).toThrow(expect.objectContaining({ codigo: 'NO_EXISTE' }));
+  });
+
+  it('borrar el plan del año: sin anual ni proyecciones del año, y los meses creados no cambian', () => {
+    let s = crearMesesDesdeAnual(semilla(), { anio: 2027, creadoPor: DANIEL });
+    expect(conteoBorradoAnual(s, 2027)).toEqual({ cambios: 6, proyecciones: true });
+    const febrero = planDe(s, { anio: 2027, mes: 2 });
+    s = borrarAnual(s, { anio: 2027 });
+    expect(resumenAnual(s, 2027)).toBeNull();
+    expect(s.proyecciones.some((p) => p.ref.anio === 2027)).toBe(false);
+    expect(planDe(s, { anio: 2027, mes: 2 })).toEqual(febrero);
+    expect(() => borrarAnual(s, { anio: 2027 })).toThrow(expect.objectContaining({ codigo: 'NO_EXISTE' }));
+    // Sin anual, se puede planear el año otra vez.
+    expect(resumenAnual(replicarMes(s, { anio: 2027, base: OCTUBRE, hoy: HOY }), 2027)!.estado).toBe('BORRADOR');
+  });
+
+  it('crear los meses: los items de octubre, Navidad en Variables y el aumento en adelante', () => {
+    let s = agregarEvento(replicado(), { anio: 2028, evento: { nombre: 'Navidad', mes: 12, monto: 680_000, tipo: 'GASTO', usuarioId: null, categoriaId: 'cat-variables' } });
+    s = agregarEvento(s, { anio: 2028, evento: { nombre: 'Aumento', mes: 7, monto: 300_000, tipo: 'INGRESO', usuarioId: DANIEL, enAdelante: true } });
+    s = crearMesesDesdeAnual(s, { anio: 2028, creadoPor: DANIEL });
+    const octubre = opciones(planDe(s, OCT)!)[0]!.items.filter((i) => i.tipo !== 'DIEZMO').map((i) => i.nombre);
+    const febrero = opciones(planDe(s, { anio: 2028, mes: 2 })!)[0]!;
+    expect(febrero.items.filter((i) => i.tipo !== 'DIEZMO').map((i) => i.nombre)).toEqual(octubre);
+    const diciembre = opciones(planDe(s, { anio: 2028, mes: 12 })!)[0]!;
+    expect(diciembre.items.find((i) => i.nombre === 'Navidad')).toMatchObject({ categoriaId: 'cat-variables', monto: 680_000, tipo: 'VARIABLE' });
+    expect(diciembre.ingresos.map((i) => i.nombre)).toContain('Aumento');
+    expect(febrero.ingresos.map((i) => i.nombre)).not.toContain('Aumento');
+    expect(diciembre.items.some((i) => i.tipo === 'DIEZMO' && i.nombre === 'Diezmo · Aumento')).toBe(true);
   });
 });

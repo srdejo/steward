@@ -1,7 +1,9 @@
 import { TestBed } from '@angular/core/testing';
 
+import { formatCop } from '@steward/domain';
+
 import { NOV, OCT, conSesion, provideAppPrueba } from '../../../testing/demo';
-import { app } from '../../../testing/harness';
+import { app, textoLegible } from '../../../testing/harness';
 
 describe('Planear (steward-planear)', () => {
   beforeEach(() => {
@@ -56,18 +58,6 @@ describe('Planear (steward-planear)', () => {
     await a.tocar('Quitar opción');
     await a.tocar('Quitar opción B');
     expect(a.texto()).not.toContain('Quitar opción');
-  });
-
-  it('crear el plan anual 2028 vacío y editar una celda (backend-plan-anual)', async () => {
-    const p = await conSesion();
-    const a = await app('/planear/anual/2028');
-    await a.tocar('Crear plan anual 2028');
-    expect(a.texto()).toContain('Plan anual 2028');
-    await a.tocar(/.*/, '[aria-label="Gastos fijos · Marzo"]');
-    await a.escribir('Monto del mes', '800000');
-    await a.tocar('Guardar');
-    expect((await p.plan.anual(2028))!.gastos[0]!.valores[2]).toBe(800_000);
-    expect(a.raiz().querySelector('[aria-label="Aportes Daniel · Enero"]')).not.toBeNull();
   });
 
   it('octubre (Activo) no ofrece + Duplicar', async () => {
@@ -263,25 +253,6 @@ describe('Planear (steward-planear)', () => {
     expect(a.texto()).toContain('Gastos fijos 795.000 795.000 795.000');
   });
 
-  it('plan anual: KPI, evento del año y crear meses', async () => {
-    const p = await conSesion();
-    const a = await app('/planear/anual/2027');
-    expect(a.raiz().querySelector('[data-testid="kpi-libre"]')!.textContent!.trim()).toBe('$28.996.000');
-    expect(a.texto()).toContain('Mes más apretado Enero · $598.000');
-    expect(a.texto()).toContain('Diezmo del año (calculado) $9.100.000');
-    await a.tocar('+ Evento del año');
-    await a.escribir('Evento', 'SOAT moto');
-    const mes = a.raiz().querySelector('select')!;
-    mes.value = '3';
-    mes.dispatchEvent(new Event('change'));
-    await a.escribir('Monto', '1200000');
-    await a.tocar('Agregar evento');
-    expect(a.raiz().querySelector('[data-testid="kpi-libre"]')!.textContent!.trim()).toBe('$27.796.000');
-    await a.tocar('Crear meses desde este plan');
-    expect(a.texto()).toContain('Los 12 meses de 2027 quedaron en borrador');
-    expect((await p.plan.mes({ anio: 2027, mes: 1 })).estado).toBe('BORRADOR');
-  });
-
   it('cerrar octubre reparte el sobrante y lo pasa a noviembre', async () => {
     const p = await conSesion();
     const pagar = (itemId: string, monto: number) => p.movimientos.marcarPago({ itemId, ref: OCT, monto, usuarioId: 'u-daniel', origen: { tipo: 'CUENTA', cuentaId: 'cta-davivienda' } });
@@ -313,5 +284,158 @@ describe('Planear (steward-planear)', () => {
     await a.ir('/planear/2026-10/cierre');
     expect(a.texto()).toContain('El mes está cerrado: queda en solo lectura.');
     expect(a.texto()).not.toContain('Cerrar octubre');
+  });
+
+  // --- Planear el año desde un mes (planear-anio-desde-un-mes) ---
+
+  it('planear inicio sin plan del año siguiente ofrece Planear 2027', async () => {
+    const p = await conSesion();
+    await p.hogar.empezarDeNuevo();
+    const a = await app('/planear');
+    expect(a.texto()).toContain('Año 2027 · Sin plan');
+    expect(a.porTexto('Planear 2027 ›').getAttribute('href')).toBe('/planear/anual/2027');
+  });
+
+  it('el año sin plan lleva al paso del mes base y replicar octubre llena los 12 meses', async () => {
+    const p = await conSesion();
+    const a = await app('/planear/anual/2028');
+    expect(a.texto()).toContain('¿De qué mes parte 2028?');
+    expect(a.texto()).toContain('Octubre 2026 · Activo');
+    expect(a.texto()).toContain('Desde cero');
+    const base = await p.plan.vistaBase(2028, { tipo: 'MES', ref: OCT });
+    expect(a.raiz().querySelector('[data-testid="libre-mes-base"]')!.textContent!.trim()).toBe(formatCop(base.libreMes));
+    await a.tocar('Replicar en los 12 meses');
+    expect(a.url()).toBe('/planear/anual/2028');
+    expect(a.texto()).toContain('Plan 2028: lo que cambia');
+    expect(a.texto()).toContain('Los 12 meses son copia de octubre 2026');
+    // A 390 px: la lista de meses, sin tabla.
+    expect(a.raiz().querySelector('[data-testid="tabla-anual"]')).toBeNull();
+    expect(a.texto()).toContain(`Enero a diciembre Igual al mes base · 12 meses ${formatCop(base.libreMes)}`);
+  });
+
+  it('replicar sobre un año con montos pide confirmar y conserva lo que cambia', async () => {
+    const p = await conSesion();
+    const a = await app('/planear/anual/2027?paso=base');
+    await a.tocar('Replicar en los 12 meses');
+    expect(a.texto()).toContain('Se reemplazan los montos de los 12 meses; lo que cambia se conserva.');
+    await a.tocar('Sí, reemplazar');
+    const r = (await p.plan.anual(2027))!;
+    expect(r.base).toEqual(OCT);
+    expect(r.cambios.map((c) => c.evento.nombre)).toContain('SOAT');
+  });
+
+  it('algo distinto en un mes: Navidad en Variables, en cuánto queda el mes, y quitarla', async () => {
+    const p = await conSesion();
+    await p.plan.replicarMes(2028, { tipo: 'MES', ref: OCT });
+    const antes = (await p.plan.anual(2028))!.libre[11]!;
+    const a = await app('/planear/anual/2028');
+    await a.tocar('+ Algo distinto en un mes');
+    await a.escribir('¿Qué es?', 'Navidad');
+    const mes = a.raiz().querySelector<HTMLSelectElement>('app-cambio-hoja select')!;
+    mes.value = '12';
+    mes.dispatchEvent(new Event('change'));
+    await a.escribir('¿Cuánto?', '680000');
+    await a.tocar('Variables', 'app-cambio-hoja button');
+    await new Promise((r) => setTimeout(r, 0));
+    await a.estable();
+    expect(a.raiz().querySelector('[data-testid="queda"]')!.textContent).toContain(formatCop(antes - 680_000));
+    await a.tocar('Guardar');
+    const r = (await p.plan.anual(2028))!;
+    expect(r.cambios[0]).toMatchObject({ donde: 'Variables', texto: 'Navidad −$680.000' });
+    expect(a.texto()).toContain('Diciembre Navidad −$680.000');
+    expect(a.texto()).toContain('Lo que cambia · 1');
+
+    await a.tocar(/Navidad/, '[data-testid="lo-que-cambia"] button');
+    await a.tocar('Quitar');
+    expect(a.texto()).toContain('¿Quitar Navidad del plan 2028?');
+    await a.tocar('Sí, quitar');
+    expect((await p.plan.anual(2028))!.cambios).toEqual([]);
+  });
+
+  it('un ingreso de julio en adelante cambia julio a diciembre', async () => {
+    const p = await conSesion();
+    await p.plan.replicarMes(2028, { tipo: 'MES', ref: OCT });
+    const a = await app('/planear/anual/2028');
+    await a.tocar(/Enero a diciembre/, '[data-testid="lista-meses"] button');
+    await a.tocar('Ingreso', 'app-cambio-hoja button');
+    await a.escribir('¿Qué es?', 'Aumento');
+    const mes = a.raiz().querySelector<HTMLSelectElement>('app-cambio-hoja select')!;
+    mes.value = '7';
+    mes.dispatchEvent(new Event('change'));
+    await a.escribir('¿Cuánto?', '300000');
+    await a.tocar('De julio en adelante', 'app-cambio-hoja label');
+    await a.tocar('Guardar');
+    const r = (await p.plan.anual(2028))!;
+    expect(r.cambios[0]!.evento).toMatchObject({ nombre: 'Aumento', tipo: 'INGRESO', mes: 7, enAdelante: true });
+    expect(r.libre[5]).toBe(r.libre[0]);
+    expect(r.libre[6]).toBeGreaterThan(r.libre[0]!);
+  });
+
+  it('a 390 px el año es una lista de meses: enero con su cambio y su libre en rojo', async () => {
+    await conSesion();
+    const a = await app('/planear/anual/2027');
+    expect(a.raiz().querySelector('[data-testid="tabla-anual"]')).toBeNull();
+    const enero = [...a.raiz().querySelectorAll('[data-testid="lista-meses"] button')][0]!;
+    expect(textoLegible(enero)).toBe('Enero Matrícula −$1.800.000 $598.000');
+    expect(enero.querySelector('app-monto')!.classList).toContain('text-negativo');
+  });
+
+  it('borrar el plan del año dice qué se borra y vuelve a Planear con el año sin plan', async () => {
+    const p = await conSesion();
+    await p.plan.crearMesesDesdeAnual(2027);
+    const febrero = (await p.plan.mes({ anio: 2027, mes: 2 })).plan;
+    const a = await app('/planear/anual/2027');
+    await a.tocar('Borrar plan de 2027');
+    expect(a.texto()).toContain('Se borran los montos, 6 cambios y los aportes proyectados de 2027. Los meses ya creados no cambian.');
+    await a.tocar('Sí, borrar plan de 2027');
+    expect(a.url()).toBe('/planear');
+    expect(a.texto()).toContain('Año 2027 · Sin plan');
+    expect(await p.plan.anual(2027)).toBeNull();
+    expect((await p.plan.mes({ anio: 2027, mes: 2 })).plan).toEqual(febrero);
+  });
+
+  it('crear los 12 meses deja cada mes en borrador', async () => {
+    const p = await conSesion();
+    const a = await app('/planear/anual/2027');
+    await a.tocar('Crear los 12 meses');
+    expect(a.texto()).toContain('Los 12 meses de 2027 quedaron en borrador');
+    expect((await p.plan.mes({ anio: 2027, mes: 1 })).estado).toBe('BORRADOR');
+  });
+
+  describe('en escritorio', () => {
+    const original = window.matchMedia;
+    beforeEach(() => {
+      window.matchMedia = ((consulta: string) => {
+        const min = Number(/min-width:\s*(\d+)px/.exec(consulta)?.[1] ?? 0);
+        return { matches: 1280 >= min, media: consulta, addEventListener: () => {}, removeEventListener: () => {} };
+      }) as unknown as typeof window.matchMedia;
+    });
+    afterEach(() => {
+      window.matchMedia = original;
+    });
+
+    it('Planear muestra los meses en tarjetas', async () => {
+      await conSesion();
+      const a = await app('/planear');
+      expect(a.raiz().querySelector('[data-testid="cuadricula-proximos"]')!.children).toHaveLength(3);
+      expect(a.texto()).toContain('Octubre 2026 en curso');
+      expect(a.texto()).toContain('Noviembre 2026 Borrador Borrador · 3 opciones');
+    });
+
+    it('la tabla del año resalta las celdas que cambian y edita una celda', async () => {
+      const p = await conSesion();
+      const a = await app('/planear/anual/2027');
+      expect(a.raiz().querySelector('[data-testid="kpi-libre"]')!.textContent!.trim()).toBe('$28.996.000');
+      expect(a.raiz().querySelector('[data-testid="por-cambios"]')!.textContent).toContain('+$220.000 por lo que cambia');
+      expect(a.raiz().querySelector('[data-testid="lista-meses"]')).toBeNull();
+      const eventos = [...a.raiz().querySelectorAll('[data-testid="tabla-anual"] tr')].find((tr) => tr.textContent!.includes('Eventos del año'))!;
+      const celdas = [...eventos.querySelectorAll('td')];
+      expect(celdas[2]!.hasAttribute('data-cambia')).toBe(true);
+      expect(celdas[1]!.hasAttribute('data-cambia')).toBe(false);
+      await a.tocar(/.*/, '[aria-label="Gastos fijos · Marzo"]');
+      await a.escribir('Monto del mes', '800000');
+      await a.tocar('Guardar');
+      expect((await p.plan.anual(2027))!.gastos[0]!.valores[2]).toBe(800_000);
+    });
   });
 });

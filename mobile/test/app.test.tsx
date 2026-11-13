@@ -319,6 +319,45 @@ describe('Ejecución y Plan (app-movil-conectada)', () => {
   });
 });
 
+describe('planear el año desde un mes (planear-anio-desde-un-mes)', () => {
+  it('sin plan del año: replicar octubre, agregar un cambio y verlo en la lista de meses', async () => {
+    const p = await conSesion();
+    await p.hogar.empezarDeNuevo();
+    await p.plan.crearMes({ anio: 2026, mes: 10 }, 'CERO');
+    renderRouter('./src/app', { initialUrl: '/planear' });
+    await tocar('Planear 2027 ›');
+    await enRuta('/anual/2027');
+    expect(await screen.findByText(/^Octubre 2026 · /)).toBeTruthy();
+    await tocar('Replicar en los 12 meses');
+    expect(await screen.findByText('2027: lo que cambia')).toBeTruthy();
+    expect(await screen.findByText('Enero a diciembre')).toBeTruthy();
+    await tocar('+ Algo distinto');
+    await escribir('¿Qué es?', 'SOAT');
+    await escribir('¿Cuánto?', '900000');
+    await tocar('Mar');
+    await tocar('Guardar');
+    expect(await screen.findByText('SOAT −$900.000')).toBeTruthy();
+    expect(screen.getByText('Lo que cambia · 1')).toBeTruthy();
+    expect((await p.plan.anual(2027))!.cambios[0]!.evento).toMatchObject({ nombre: 'SOAT', mes: 3, monto: 900_000 });
+  });
+});
+
+describe('borrar el plan del año (planear-anio-desde-un-mes)', () => {
+  it('dice qué se borra, vuelve a Planear con el año sin plan y los meses creados no cambian', async () => {
+    const p = await conSesion();
+    await p.plan.crearMesesDesdeAnual(2027);
+    const febrero = (await p.plan.mes({ anio: 2027, mes: 2 })).plan;
+    renderRouter('./src/app', { initialUrl: '/anual/2027' });
+    await tocar('Borrar plan de 2027');
+    expect(await screen.findByText('Se borran los montos, 6 cambios y los aportes proyectados de 2027. Los meses ya creados no cambian.')).toBeTruthy();
+    await tocar('Sí, borrar plan de 2027');
+    await enRuta('/planear');
+    expect(await screen.findByText('Año 2027 · Sin plan')).toBeTruthy();
+    expect(await p.plan.anual(2027)).toBeNull();
+    expect((await p.plan.mes({ anio: 2027, mes: 2 })).plan).toEqual(febrero);
+  });
+});
+
 describe('paridad con la PWA (steward-mobile-app)', () => {
   it('pagar la Mastercard desde Davivienda y un aporte para noviembre dan las mismas cifras que la PWA', async () => {
     await conSesion();
@@ -338,6 +377,22 @@ describe('paridad con la PWA (steward-mobile-app)', () => {
     expect(screen.getByText('−$62.000')).toBeTruthy();
     expect(screen.getByTestId('falta-pagar')).toHaveTextContent('Falta pagar$1.215.000');
     expect(screen.queryByTestId('ver-mas')).toBeNull();
+  });
+
+  it('replicar octubre en 2028 y la revisión del carro en mayo dan las mismas cifras que la PWA', async () => {
+    await conSesion();
+    renderRouter('./src/app', { initialUrl: '/anual/2028' });
+    expect(await screen.findByText('Octubre 2026 · Activo')).toBeTruthy();
+    await tocar('Replicar en los 12 meses');
+    await tocar('+ Algo distinto');
+    await escribir('¿Qué es?', 'Revisión carro');
+    await escribir('¿Cuánto?', '400000');
+    await tocar('May');
+    await tocar('Guardar');
+    // Mismas cifras que frontend/src/app/features/hoy/paridad.spec.ts.
+    await waitFor(() => expect(screen.getByTestId('kpi-libre')).toHaveTextContent('$40.376.000'));
+    expect(screen.getByTestId('mes-5')).toHaveTextContent('MayoRevisión carro −$400.000$2.998.000');
+    expect(screen.getByTestId('mes-1')).toHaveTextContent('Enero a abrilIgual al mes base · 4 meses$3.398.000');
   });
 });
 

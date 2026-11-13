@@ -1,5 +1,6 @@
 import type {
   CierrePort,
+  DatosEvento,
   CuentasPort,
   Fecha,
   HogarPort,
@@ -22,6 +23,7 @@ import { crearAdaptadorDemo, type StorageLike } from '../demo';
 import {
   usuarioDe,
   type Api,
+  type AnualApi,
   type ConfigAcceso,
   type HogarApi,
   type InvitacionApi,
@@ -388,7 +390,14 @@ export class PuertosConectados implements Puertos {
       comparar: (ref) => demo().comparar(ref),
       anual: (anio) => demo().anual(anio),
       // El plan anual en el backend (design D6 de backend-plan-anual); la cuadricula la calcula el dominio.
-      agregarEvento: (anio, evento) => escribir(api.agregarEvento(anio, { ...evento, usuarioId: evento.usuarioId ?? null })),
+      agregarEvento: (anio, evento) => escribir(api.agregarEvento(anio, eventoApi(evento))),
+      editarEvento: (anio, eventoId, evento) => escribir(api.editarEvento(anio, eventoId, eventoApi(evento))),
+      quitarEvento: (anio, eventoId) => escribir(api.quitarEvento(anio, eventoId)),
+      borrarAnual: (anio) => escribir(api.borrarAnual(anio)),
+      conteoBorradoAnual: (anio) => demo().conteoBorradoAnual(anio),
+      vistaBase: (anio, base) => demo().vistaBase(anio, base),
+      previsualizarEvento: (anio, eventoId, evento) => demo().previsualizarEvento(anio, eventoId, evento),
+      replicarMes: (anio, base) => escribir(api.replicar(anio, base.tipo === 'MES' ? { tipo: 'MES', anio: base.ref.anio, mes: base.ref.mes } : base)),
       editarMontoAnual: (anio, categoriaId, mes, monto) => escribir(api.ponerCelda(anio, categoriaId, mes, monto)),
       crearAnual: (anio) => escribir(api.crearAnual(anio)),
       editarProyeccion: (usuarioId, ref, monto) => escribir(api.ponerProyeccion(ref.anio, usuarioId, ref.mes, monto)),
@@ -558,4 +567,9 @@ function rutaDe(enlace: string | null): string {
 
 function recibida(token: string, r: InvitacionRecibidaApi): InvitacionRecibida {
   return { token, hogar: r.hogar, invitadoPor: usuarioDe(r.invitadoPor), miembros: r.miembros.map(usuarioDe), email: r.email };
+}
+
+/** Un evento del anual como lo pide el backend: sin categoria ni "en adelante", los valores por defecto. */
+function eventoApi(e: DatosEvento): Omit<AnualApi['eventos'][number], 'id'> {
+  return { nombre: e.nombre, mes: e.mes, monto: e.monto, tipo: e.tipo, usuarioId: e.usuarioId ?? null, categoriaId: e.categoriaId ?? null, enAdelante: e.enAdelante ?? false };
 }

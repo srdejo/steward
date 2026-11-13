@@ -1,7 +1,7 @@
 import type { Escenario, EstadoHogar, Fecha, Id, IngresoFijo, IngresoPlan, ItemPlan, MesRef, Movimiento, Pesos } from '../model';
 import { formatFechaCorta, nombreMes } from '../format';
 import { ReglaError, clonar, compararMes, mesDe, nuevoId, sumar, sumarMeses } from './base';
-import { anualDe, asegurarAbierto, cierreDe, esAporteImplicito, escenarioPrincipal, movimientosDe, nombreUsuario, planDe, reglaDe } from './consultas';
+import { anualDe, asegurarAbierto, cierreDe, esAporteImplicito, escenarioPrincipal, eventosDelMes, movimientosDe, nombreUsuario, planDe, reglaDe } from './consultas';
 
 /** Linea de ingresos de un mes, tanto en Hoy como en Planear. */
 export interface LineaIngreso {
@@ -93,8 +93,8 @@ function fijosDeAjustes(estado: EstadoHogar, ref: MesRef, ejecucion: boolean): L
       const detalle = !ejecucion ? 'Fijo' : recibido ? `Fijo · recibido ${formatFechaCorta(recibido.fecha)}` : `Fijo · llega el día ${f.diaPago}`;
       return base({ clave: `fijo-${f.id}`, tipo: 'FIJO', nombre: f.nombre, detalle, monto: recibido ? recibido.monto : f.neto, usuarioId: f.usuarioId, ingresoFijoId: f.id, recibido: Boolean(recibido), movimientoId: recibido?.id ?? null });
     });
-  const extras = (anualDe(estado, ref.anio)?.eventos ?? [])
-    .filter((e) => e.tipo === 'INGRESO' && e.mes === ref.mes)
+  const extras = eventosDelMes(anualDe(estado, ref.anio), ref.mes)
+    .filter((e) => e.tipo === 'INGRESO')
     .map((e) => base({ clave: `extra-${e.id}`, tipo: 'EXTRA', nombre: e.nombre, detalle: 'Ingreso del año', monto: e.monto, usuarioId: e.usuarioId }));
   return [...fijos, ...extras];
 }
@@ -150,8 +150,8 @@ export function ingresosNuevos(s: EstadoHogar, ref: MesRef): IngresoPlan[] {
   const fijos: IngresoPlan[] = s.ingresosFijos
     .filter((f) => f.activo)
     .map((f) => ({ id: nuevoId(s, 'ingp'), nombre: f.nombre, monto: f.neto, usuarioId: f.usuarioId, tipo: 'FIJO', ingresoFijoId: f.id, bruto: f.bruto }));
-  const extras: IngresoPlan[] = (anualDe(s, ref.anio)?.eventos ?? [])
-    .filter((e) => e.tipo === 'INGRESO' && e.mes === ref.mes)
+  const extras: IngresoPlan[] = eventosDelMes(anualDe(s, ref.anio), ref.mes)
+    .filter((e) => e.tipo === 'INGRESO')
     .map((e) => ({ id: nuevoId(s, 'ingp'), nombre: e.nombre, monto: e.monto, usuarioId: e.usuarioId, tipo: 'EXTRA', ingresoFijoId: null, bruto: e.monto }));
   return [...fijos, ...extras];
 }

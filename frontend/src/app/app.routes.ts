@@ -30,7 +30,7 @@ export const routes: Routes = [
           { path: 'registros', loadComponent: () => import('./features/hoy/registros-hoja').then((m) => m.RegistrosHoja) },
         ],
       },
-      { path: 'planear', loadComponent: () => import('./features/planear/planear-inicio-page').then((m) => m.PlanearInicioPage) },
+      { path: 'planear', data: { ancho: 'escritorio' }, loadComponent: () => import('./features/planear/planear-inicio-page').then((m) => m.PlanearInicioPage) },
       { path: 'planear/anual/:anio', data: { ancho: 'completo' }, loadComponent: () => import('./features/planear/anual-page').then((m) => m.AnualPage) },
       { path: 'planear/:mes', loadComponent: () => import('./features/planear/mes-page').then((m) => m.MesPage) },
       { path: 'planear/:mes/comparar', data: { ancho: 'completo' }, loadComponent: () => import('./features/planear/comparar-page').then((m) => m.CompararPage) },

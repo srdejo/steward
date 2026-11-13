@@ -256,7 +256,14 @@ export interface EventoAnual {
   tipo: TipoEvento;
   /** Ingreso extra (prima) que hereda la regla de diezmo de esta persona. */
   usuarioId: Id | null;
+  /** Gasto en una categoria del hogar; null = "Eventos del año" (design D3 de planear-anio-desde-un-mes). */
+  categoriaId: Id | null;
+  /** "De ese mes en adelante": se repite del mes del evento a diciembre. */
+  enAdelante: boolean;
 }
+
+/** Base para replicar en el plan anual: un mes con plan, solo los fijos del ultimo plan, o desde cero. */
+export type BaseAnual = { tipo: 'MES'; ref: MesRef } | { tipo: 'FIJOS' } | { tipo: 'CERO' };
 
 /** Fila de gasto del plan anual: una categoria con su monto por mes (12 valores). */
 export interface FilaAnual {
@@ -269,6 +276,8 @@ export interface PlanAnual {
   estado: 'BORRADOR' | 'CREADO';
   filas: FilaAnual[];
   eventos: EventoAnual[];
+  /** El mes que se replico; los items de los meses creados salen de el. null: se lleno a mano. */
+  base: MesRef | null;
 }
 
 /** Estado completo del hogar en el adaptador de prueba (lo que se serializa). */

@@ -175,14 +175,14 @@ export function crearSemilla(hoy: Fecha): EstadoHogar {
     ],
     anuales: [
       {
-        anio: M.anio, estado: 'CREADO', filas: [],
+        anio: M.anio, estado: 'CREADO', filas: [], base: null,
         eventos: [
-          { id: 'ev-prima-jun', nombre: 'Prima', mes: 6, monto: 3_500_000, tipo: 'INGRESO', usuarioId: DANIEL },
-          { id: 'ev-prima-dic', nombre: 'Prima', mes: 12, monto: 3_500_000, tipo: 'INGRESO', usuarioId: DANIEL },
+          { id: 'ev-prima-jun', nombre: 'Prima', mes: 6, monto: 3_500_000, tipo: 'INGRESO', usuarioId: DANIEL, categoriaId: null, enAdelante: false },
+          { id: 'ev-prima-dic', nombre: 'Prima', mes: 12, monto: 3_500_000, tipo: 'INGRESO', usuarioId: DANIEL, categoriaId: null, enAdelante: false },
         ],
       },
       {
-        anio: anioSig, estado: 'BORRADOR',
+        anio: anioSig, estado: 'BORRADOR', base: null,
         filas: [
           { categoriaId: 'cat-fijos', montos: doce(795_000) },
           { categoriaId: 'cat-tarjetas', montos: doce(2_675_000) },
@@ -190,12 +190,12 @@ export function crearSemilla(hoy: Fecha): EstadoHogar {
           { categoriaId: 'cat-creditos', montos: doce(500_000) },
         ],
         eventos: [
-          { id: 'ev2-prima-jun', nombre: 'Prima', mes: 6, monto: 3_500_000, tipo: 'INGRESO', usuarioId: DANIEL },
-          { id: 'ev2-prima-dic', nombre: 'Prima', mes: 12, monto: 3_500_000, tipo: 'INGRESO', usuarioId: DANIEL },
-          { id: 'ev2-matricula', nombre: 'Matrícula', mes: 1, monto: 1_800_000, tipo: 'GASTO', usuarioId: null },
-          { id: 'ev2-soat', nombre: 'SOAT', mes: 3, monto: 900_000, tipo: 'GASTO', usuarioId: null },
-          { id: 'ev2-predial', nombre: 'Predial', mes: 4, monto: 1_200_000, tipo: 'GASTO', usuarioId: null },
-          { id: 'ev2-renta', nombre: 'Renta', mes: 8, monto: 1_500_000, tipo: 'GASTO', usuarioId: null },
+          { id: 'ev2-prima-jun', nombre: 'Prima', mes: 6, monto: 3_500_000, tipo: 'INGRESO', usuarioId: DANIEL, categoriaId: null, enAdelante: false },
+          { id: 'ev2-prima-dic', nombre: 'Prima', mes: 12, monto: 3_500_000, tipo: 'INGRESO', usuarioId: DANIEL, categoriaId: null, enAdelante: false },
+          { id: 'ev2-matricula', nombre: 'Matrícula', mes: 1, monto: 1_800_000, tipo: 'GASTO', usuarioId: null, categoriaId: null, enAdelante: false },
+          { id: 'ev2-soat', nombre: 'SOAT', mes: 3, monto: 900_000, tipo: 'GASTO', usuarioId: null, categoriaId: null, enAdelante: false },
+          { id: 'ev2-predial', nombre: 'Predial', mes: 4, monto: 1_200_000, tipo: 'GASTO', usuarioId: null, categoriaId: null, enAdelante: false },
+          { id: 'ev2-renta', nombre: 'Renta', mes: 8, monto: 1_500_000, tipo: 'GASTO', usuarioId: null, categoriaId: null, enAdelante: false },
         ],
       },
     ],

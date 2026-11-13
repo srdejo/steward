@@ -62,7 +62,7 @@ final class NacimientoMes {
                         ingresos.delHogar(hogarId).filter(IngresoFijo::activo).collectList(),
                         anuales.deAnio(hogarId, ref.getYear())
                                 .map(a -> a.eventos().stream()
-                                        .filter(e -> e.tipo() == PlanAnual.Evento.Tipo.INGRESO && e.mes() == ref.getMonthValue())
+                                        .filter(e -> e.tipo() == PlanAnual.Evento.Tipo.INGRESO && e.aplica(ref.getMonthValue()))
                                         .toList())
                                 .defaultIfEmpty(List.of()),
                         movimientos.delMes(hogarId, ref)

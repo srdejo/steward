@@ -228,7 +228,9 @@ export interface AnualApi {
   anio: number;
   estado: 'BORRADOR' | 'CREADO';
   celdas: { categoriaId: string; mes: number; monto: number }[];
-  eventos: { id: string; nombre: string; mes: number; monto: number; tipo: 'INGRESO' | 'GASTO'; usuarioId: string | null }[];
+  eventos: { id: string; nombre: string; mes: number; monto: number; tipo: 'INGRESO' | 'GASTO'; usuarioId: string | null; categoriaId?: string | null; enAdelante?: boolean }[];
+  /** El mes que se replico (design D1 de planear-anio-desde-un-mes). */
+  base?: { anio: number; mes: number } | null;
 }
 
 export interface ProyeccionApi {
@@ -470,6 +472,23 @@ export class Api {
 
   agregarEvento(anio: number, evento: Omit<AnualApi['eventos'][number], 'id'>): Promise<unknown> {
     return this.t.pedir('POST', `/api/anuales/${anio}/eventos`, evento);
+  }
+
+  editarEvento(anio: number, eventoId: string, evento: Omit<AnualApi['eventos'][number], 'id'>): Promise<unknown> {
+    return this.t.pedir('PUT', `/api/anuales/${anio}/eventos/${encodeURIComponent(eventoId)}`, evento);
+  }
+
+  borrarAnual(anio: number): Promise<void> {
+    return this.t.pedir<void>('DELETE', `/api/anuales/${anio}`);
+  }
+
+  quitarEvento(anio: number, eventoId: string): Promise<void> {
+    return this.t.pedir<void>('DELETE', `/api/anuales/${anio}/eventos/${encodeURIComponent(eventoId)}`);
+  }
+
+  /** "Replicar en los 12 meses": crea el anual si no existe. */
+  replicar(anio: number, base: { tipo: 'MES'; anio: number; mes: number } | { tipo: 'FIJOS' } | { tipo: 'CERO' }): Promise<AnualApi> {
+    return this.t.pedir<AnualApi>('POST', `/api/anuales/${anio}/replicar`, base);
   }
 
   ponerProyeccion(anio: number, usuarioId: string, mes: number, monto: number): Promise<void> {

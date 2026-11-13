@@ -162,10 +162,14 @@ En un mes Cerrado no se registra nada: 409 `MES_CERRADO`. **El backend no calcul
 | Método y ruta | Qué hace |
 |---|---|
 | `POST /api/anuales` | `{"anio"}` → 201 con el anual vacío (año en curso o futuro). 409 `YA_EXISTE` |
+| `DELETE /api/anuales/{anio}` | "Borrar plan de {año}" → 204: el anual con sus celdas, eventos y base, y los aportes proyectados del año. Los meses ya creados no cambian. 404 `ANUAL_NO_ENCONTRADO` |
 | `PUT /api/anuales/{anio}/celdas` | `{"categoriaId", "mes", "monto"}` → 204; reemplaza la celda. 404 `ANUAL_NO_ENCONTRADO` o `CATEGORIA_NO_ENCONTRADA`; 400 `DATOS_INVALIDOS` en la categoría Diezmo, que el anual calcula con las reglas |
-| `POST /api/anuales/{anio}/eventos` | `{"nombre", "mes", "monto", "tipo": "INGRESO" \| "GASTO", "usuarioId"?}` → 201 |
+| `POST /api/anuales/{anio}/replicar` | "Replicar en los 12 meses": `{"tipo": "MES", "anio", "mes"}`, `{"tipo": "FIJOS"}` o `{"tipo": "CERO"}` → 200 con el anual (lo crea si no existe). Reemplaza las celdas (por categoría, el total de la opción principal del mes base; con FIJOS, el último plan antes del año sin sus ítems variables) y los aportes proyectados del año (lo que cada miembro aportó en el mes base, o su proyección de ese mes); conserva los eventos y guarda `base`. 404 `PLAN_NO_ENCONTRADO`; 400 `DATOS_INVALIDOS` si el año pasó o sus meses ya se crearon |
+| `POST /api/anuales/{anio}/eventos` | `{"nombre", "mes", "monto", "tipo": "INGRESO" \| "GASTO", "usuarioId"?, "categoriaId"?, "enAdelante"?}` → 201. `categoriaId` solo en gastos y nunca Diezmo (sin ella, "Eventos del año"); `enAdelante` lo repite de su mes a diciembre. 400 `DATOS_INVALIDOS`; 404 `CATEGORIA_NO_ENCONTRADA` o `MIEMBRO_NO_ENCONTRADO` |
+| `PUT /api/anuales/{anio}/eventos/{id}` | Corrige un evento con los mismos datos que al agregarlo → 200. 404 `EVENTO_NO_ENCONTRADO` |
+| `DELETE /api/anuales/{anio}/eventos/{id}` | Quita un evento → 204. 404 `EVENTO_NO_ENCONTRADO` |
 | `PUT /api/anuales/{anio}/proyecciones` | `{"usuarioId", "mes", "monto"}` → 204; 0 la quita. 404 `MIEMBRO_NO_ENCONTRADO` |
-| `POST /api/anuales/{anio}/crear-meses` | "Crear meses desde este plan" → los meses creados (`[{anio, mes}]`). Cada uno nace con sus líneas de ingreso y sus ítems de diezmo, como `POST /api/planes`; los de diezmo del plan base no se copian. Los que tienen plan o están cerrados no cambian |
+| `POST /api/anuales/{anio}/crear-meses` | "Crear meses desde este plan" → los meses creados (`[{anio, mes}]`). Cada uno nace con sus líneas de ingreso y sus ítems de diezmo, como `POST /api/planes`; los ítems salen del mes base del anual (o, sin base, del último plan antes del año) y los de diezmo no se copian; cada gasto que toca el mes entra en su categoría. Los que tienen plan o están cerrados no cambian |
 
 `GET /api/finanzas` trae `anuales` (solo las celdas tocadas; las demás valen 0) y `proyecciones` desde el año del primer mes que lee.
 

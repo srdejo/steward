@@ -3,7 +3,7 @@ import { formatCop, nombreMes, nombreMesCapital } from '../format';
 import { libreAnualDelMes } from './anual';
 import { ReglaError, clonar, compararMes, mesDe, nuevoId, sumar, sumarMeses } from './base';
 import { cuotasDeCreditos } from './credito';
-import { anualDe, categoria, cierreDe, escenario, escenarioPrincipal, nombreUsuario, opciones, planDe, planPorId } from './consultas';
+import { anualDe, categoria, cierreDe, escenario, escenarioPrincipal, eventosDelMes, nombreUsuario, opciones, planDe, planPorId } from './consultas';
 import { diezmoDeLineaNueva, diezmoSugerido, diezmosDelMes, ingresosDelMes, ingresosNuevos, itemConPagos, recibeLinea, seguirLinea, totalIngresos, type LineaIngreso } from './ingresos';
 import { devolverCapital } from './credito';
 
@@ -401,8 +401,8 @@ export function planInicio(estado: EstadoHogar, hoy: Fecha, meses = 3, anteriore
 /** Lo que un mes sin plan "ya trae": ingresos extra del año, su diezmo y el sobrante del mes anterior. */
 export function loQueTraeElMes(estado: EstadoHogar, ref: MesRef): { nombre: string; detalle: string; monto: Pesos | null }[] {
   const lineas: { nombre: string; detalle: string; monto: Pesos | null }[] = [];
-  for (const e of anualDe(estado, ref.anio)?.eventos ?? []) {
-    if (e.tipo !== 'INGRESO' || e.mes !== ref.mes) continue;
+  for (const e of eventosDelMes(anualDe(estado, ref.anio), ref.mes)) {
+    if (e.tipo !== 'INGRESO') continue;
     lineas.push({ nombre: e.nombre, detalle: '', monto: e.monto });
     const regla = e.usuarioId ? estado.reglas.find((r) => r.usuarioId === e.usuarioId && r.activa) : null;
     if (regla) lineas.push({ nombre: `Diezmo de la ${e.nombre.toLowerCase()}`, detalle: '', monto: -Math.round((e.monto * regla.porcentaje) / 100) });
