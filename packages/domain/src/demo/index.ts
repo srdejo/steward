@@ -378,6 +378,27 @@ export function crearAdaptadorDemo(opciones: OpcionesDemo): Puertos {
         const creadoPor = await usuarioActual();
         await cambiar((s) => R.crearMesesDesdeAnual(s, { anio, creadoPor }));
       },
+      async editarEvento(anio, eventoId, evento) {
+        await cambiar((s) => R.editarEvento(s, { anio, eventoId, evento }));
+      },
+      async quitarEvento(anio, eventoId) {
+        await cambiar((s) => R.quitarEvento(s, { anio, eventoId }));
+      },
+      async vistaBase(anio, base) {
+        return R.vistaBase(await leerEstado(), { anio, base });
+      },
+      async previsualizarEvento(anio, eventoId, evento) {
+        return R.previsualizarEvento(await leerEstado(), { anio, eventoId, evento });
+      },
+      async borrarAnual(anio) {
+        await cambiar((s) => R.borrarAnual(s, { anio }));
+      },
+      async conteoBorradoAnual(anio) {
+        return R.conteoBorradoAnual(await leerEstado(), anio);
+      },
+      async replicarMes(anio, base) {
+        await cambiar((s) => R.replicarMes(s, { anio, base, hoy: hoy() }));
+      },
       async crearAnual(anio) {
         await cambiar((s) => R.crearAnual(s, { anio, hoy: hoy() }));
       },

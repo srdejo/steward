@@ -3,11 +3,11 @@
 // Todo es asincrono porque asi sera contra la red. Las vistas que devuelven son las de rules/.
 
 import type {
-  BaseDiezmo, Categoria, CierreMes, Credito, EventoAnual, Fecha, Hogar, Id, IngresoFijo, IngresoPlan, Invitacion,
+  BaseAnual, BaseDiezmo, Categoria, CierreMes, Credito, EventoAnual, Fecha, Hogar, Id, IngresoFijo, IngresoPlan, Invitacion,
   ItemPlan, MesRef, Origen, Pesos, PlanMes, ReglaDiezmo, TipoCategoria, Usuario,
 } from '../model';
 import type {
-  ConteoBorrado, DatosCredito, FiltroTitular, ModoNuevoMes, MovimientoCuenta, ResumenAnual, ResumenMes, ResumenMesPlan, VistaCierre, VistaCuenta, VistaOpcion, VistaRegistro,
+  ConteoBorrado, DatosCredito, DatosEvento, VistaBase, FiltroTitular, ModoNuevoMes, MovimientoCuenta, ResumenAnual, ResumenMes, ResumenMesPlan, VistaCierre, VistaCuenta, VistaOpcion, VistaRegistro,
 } from '../rules';
 import type { compararOpciones, loQueTraeElMes } from '../rules';
 
@@ -132,7 +132,20 @@ export interface PlanPort {
   borrarPlan(ref: MesRef): Promise<void>;
   comparar(ref: MesRef): Promise<ReturnType<typeof compararOpciones>>;
   anual(anio: number): Promise<ResumenAnual | null>;
-  agregarEvento(anio: number, evento: Omit<EventoAnual, 'id'>): Promise<void>;
+  agregarEvento(anio: number, evento: DatosEvento): Promise<void>;
+  /** Corregir un cambio de "Lo que cambia". */
+  editarEvento(anio: number, eventoId: Id, evento: DatosEvento): Promise<void>;
+  quitarEvento(anio: number, eventoId: Id): Promise<void>;
+  /** Lo que un mes base pondria en cada mes del año (paso 1). */
+  vistaBase(anio: number, base: BaseAnual): Promise<VistaBase>;
+  /** "Replicar en los 12 meses": crea el anual si no existe, reemplaza celdas y aportes, conserva los eventos. */
+  replicarMes(anio: number, base: BaseAnual): Promise<void>;
+  /** "Borrar plan de {año}": el anual y sus aportes proyectados; los meses no cambian. */
+  borrarAnual(anio: number): Promise<void>;
+  /** Lo que dice la confirmacion de borrar el anual. */
+  conteoBorradoAnual(anio: number): Promise<{ cambios: number; proyecciones: boolean }>;
+  /** Lo que dejaria libre cada mes con ese cambio ("{Mes} queda en"). */
+  previsualizarEvento(anio: number, eventoId: Id | null, evento: DatosEvento): Promise<Pesos[]>;
   editarMontoAnual(anio: number, categoriaId: Id, mes: number, monto: Pesos): Promise<void>;
   crearMesesDesdeAnual(anio: number): Promise<void>;
   /** "Crear plan anual {año}": vacio, para el año en curso o uno futuro. */

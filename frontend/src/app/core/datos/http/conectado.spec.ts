@@ -687,7 +687,19 @@ describe('plan del mes y registros en el backend (steward-plan-mes, design D5)',
     const evento = p.plan.agregarEvento(2027, { nombre: 'SOAT', mes: 3, monto: 1_200_000, tipo: 'GASTO', usuarioId: null });
     const r3 = await responder('POST', '/api/anuales/2027/eventos', {}, tick, 201);
     await evento;
-    expect(r3.request.body).toEqual({ nombre: 'SOAT', mes: 3, monto: 1_200_000, tipo: 'GASTO', usuarioId: null });
+    expect(r3.request.body).toEqual({ nombre: 'SOAT', mes: 3, monto: 1_200_000, tipo: 'GASTO', usuarioId: null, categoriaId: null, enAdelante: false });
+
+    // Corregir y quitar un cambio (planear-anio-desde-un-mes).
+    const corregir = p.plan.editarEvento(2027, 'ev-1', { nombre: 'SOAT', mes: 4, monto: 900_000, tipo: 'GASTO', usuarioId: null, categoriaId: 'cat-1', enAdelante: true });
+    const r5 = await responder('PUT', '/api/anuales/2027/eventos/ev-1', {}, tick);
+    await corregir;
+    expect(r5.request.body).toEqual({ nombre: 'SOAT', mes: 4, monto: 900_000, tipo: 'GASTO', usuarioId: null, categoriaId: 'cat-1', enAdelante: true });
+    const quitar = p.plan.quitarEvento(2027, 'ev-1');
+    await responder('DELETE', '/api/anuales/2027/eventos/ev-1', null, tick, 204);
+    await quitar;
+    const borrar = p.plan.borrarAnual(2027);
+    await responder('DELETE', '/api/anuales/2027', null, tick, 204);
+    await borrar;
 
     const proy = p.plan.editarProyeccion(USUARIO.id, { anio: 2027, mes: 1 }, 2_000_000);
     finanzasPrueba.valor = finanzas({ planes: [PLAN_OCT], anuales: [conCelda], proyecciones: [{ usuarioId: USUARIO.id, anio: 2027, mes: 1, monto: 2_000_000 }] });
@@ -926,38 +938,36 @@ describe('pantallas con el plan real (backend-plan-mes-hoy)', () => {
 
   });
 
-  it('recorrido de la Etapa 8: crear el anual, llenar una celda y el aporte proyectado (backend-plan-anual)', async () => {
+  it('recorrido de la Etapa 8: replicar el mes base, un cambio y crear los meses (planear-anio-desde-un-mes)', async () => {
     finanzasPrueba.valor = finanzas({ planes: [PLAN_OCT] });
     const a = await entrarA('/planear/anual/2027');
-    expect(a.texto()).toContain('No hay plan anual para 2027.');
-    a.porTexto('Crear plan anual 2027').click();
-    const vacio = { anio: 2027, estado: 'BORRADOR' as const, celdas: [], eventos: [] };
-    finanzasPrueba.valor = finanzas({ planes: [PLAN_OCT], anuales: [vacio] });
-    await responder('POST', '/api/anuales', vacio, a.estable, 201);
+    expect(a.texto()).toContain('¿De qué mes parte 2027?');
+    a.porTexto('Replicar en los 12 meses').click();
+    const celdas = Array.from({ length: 12 }, (_, i) => ({ categoriaId: 'cat-1', mes: i + 1, monto: 800_000 }));
+    const replicado = { anio: 2027, estado: 'BORRADOR' as const, celdas, eventos: [], base: { anio: 2026, mes: 10 } };
+    finanzasPrueba.valor = finanzas({ planes: [PLAN_OCT], anuales: [replicado] });
+    const r0 = await responder('POST', '/api/anuales/2027/replicar', replicado, a.estable);
+    expect(r0.request.body).toEqual({ tipo: 'MES', anio: 2026, mes: 10 });
     await atenderHogar(a);
-    expect(a.texto()).toContain('Plan anual 2027');
+    expect(a.texto()).toContain('Plan 2027: lo que cambia');
     expect(a.texto()).not.toContain('Datos de prueba');
 
-    await a.tocar(/.*/, '[aria-label="Gastos fijos · Enero"]');
-    await a.escribir('Monto del mes', '800000');
+    a.porTexto('+ Algo distinto en un mes').click();
+    await a.estable();
+    await a.escribir('¿Qué es?', 'SOAT');
+    const mes = a.raiz().querySelector<HTMLSelectElement>('app-cambio-hoja select')!;
+    mes.value = '3';
+    mes.dispatchEvent(new Event('change'));
+    await a.escribir('¿Cuánto?', '1200000');
     a.porTexto('Guardar').click();
-    finanzasPrueba.valor = finanzas({ planes: [PLAN_OCT], anuales: [{ ...vacio, celdas: [{ categoriaId: 'cat-1', mes: 1, monto: 800_000 }] }] });
-    const r1 = await responder('PUT', '/api/anuales/2027/celdas', null, a.estable, 204);
-    expect(r1.request.body).toEqual({ categoriaId: 'cat-1', mes: 1, monto: 800_000 });
+    const soat = { id: 'ev-soat', nombre: 'SOAT', mes: 3, monto: 1_200_000, tipo: 'GASTO' as const, usuarioId: null, categoriaId: null, enAdelante: false };
+    finanzasPrueba.valor = finanzas({ planes: [PLAN_OCT], anuales: [{ ...replicado, eventos: [soat] }] });
+    const r1 = await responder('POST', '/api/anuales/2027/eventos', soat, a.estable, 201);
+    expect(r1.request.body).toEqual({ nombre: 'SOAT', mes: 3, monto: 1_200_000, tipo: 'GASTO', usuarioId: null, categoriaId: null, enAdelante: false });
     await atenderHogar(a);
+    expect(a.texto()).toContain('Lo que cambia · 1');
 
-    await a.tocar(/.*/, '[aria-label="Aportes Ana María · Enero"]');
-    await a.escribir('Aporte que esperas', '2000000');
-    a.porTexto('Guardar').click();
-    finanzasPrueba.valor = finanzas({
-      planes: [PLAN_OCT], anuales: [{ ...vacio, celdas: [{ categoriaId: 'cat-1', mes: 1, monto: 800_000 }] }],
-      proyecciones: [{ usuarioId: USUARIO.id, anio: 2027, mes: 1, monto: 2_000_000 }],
-    });
-    const r2 = await responder('PUT', '/api/anuales/2027/proyecciones', null, a.estable, 204);
-    expect(r2.request.body).toEqual({ usuarioId: USUARIO.id, mes: 1, monto: 2_000_000 });
-    await atenderHogar(a);
-
-    a.porTexto('Crear meses desde este plan').click();
+    a.porTexto('Crear los 12 meses').click();
     await responder('POST', '/api/anuales/2027/crear-meses', [], a.estable);
     await atenderHogar(a);
   });

@@ -9,6 +9,12 @@ Desde 1024 px, Hoy usa la vista detallada de `HoyWeb.dc.html` (`features/hoy/hoy
 
 `HoyPage` monta solo una de las dos vistas, según `matchMedia('(min-width: 1024px)')`. Las hojas de registro son las mismas rutas hijas de `/hoy`. La ruta lleva `data.ancho = 'escritorio'`: así el shell no limita el ancho a 560 px desde 1024 px, tampoco con una hoja abierta.
 
+Planear también cambia desde 1024 px (`PlanInicioWeb.dc.html`): la tarjeta del año arriba y los meses como tarjetas en cuadrícula, con `data.ancho = 'escritorio'`.
+
+**Plan del año** (`features/planear/anual-page.ts`, spec `steward-planear` "Plan anual") se arma en dos pasos:
+1. **Mes base:** un mes con plan, "Solo fijos e ingresos" o "Desde cero". "Replicar en los 12 meses" llena el año con ese mes (o reemplaza sus montos, con confirmación; se llega con `?paso=base`).
+2. **Lo que cambia:** "Algo distinto en un mes" (`cambio-hoja.ts`) agrega un ingreso o gasto en su categoría, solo ese mes o de ese mes en adelante, y dice en cuánto queda el mes. Desde 1024 px se ve la tabla de 12 meses con las celdas que cambian resaltadas; con menos, la lista de meses (los seguidos sin cambios, agrupados). Abajo, la lista "Lo que cambia", donde cada cambio se corrige o se quita, y "Borrar plan de {año}", que dice qué se borra y deja el año sin plan (los meses ya creados no cambian).
+
 Tiene dos **modos de datos** (`src/app/config/modo.ts`):
 
 | Modo | Build | Qué viene del backend | Qué sigue con datos de prueba |
@@ -16,7 +22,7 @@ Tiene dos **modos de datos** (`src/app/config/modo.ts`):
 | **conectado** | `production` (lo que publica `local-deploy.ps1`) y `conectado` | sesión (Google), hogar, miembros, invitaciones, categorías (con la del sistema Diezmo), ingresos fijos, regla de diezmo, las cuentas con su cuadre y "Mover dinero", los créditos, el plan de cada mes con sus opciones (duplicar, quitar, probar un abono, Comparar y Usar, mientras el mes está en Borrador), las líneas de ingreso de cada opción (editar y "+ Ingreso"), los ítems de diezmo, y todo lo registrado ("Recibí" con el monto que llegó, pagos, gastos, aportes, ajustes de cuadre, transferencias y abonos; las entregas de diezmo de antes, como historia) los cierres de mes (un mes cerrado queda en solo lectura y su sobrante pasa al siguiente), y el plan anual con sus aportes proyectados | nada: sin aviso "Datos de prueba" ni "Restablecer" |
 | **demo** | `demo` y `development` (`npm start`) | nada | todo |
 
-**Al pasar a la Etapa 4, el plan de prueba desaparece en modo conectado.** Hoy y Planear muestran solo los planes reales. Un hogar que todavía no tiene el plan del mes en curso (por ejemplo, "Jimenez Navarro" en `steward.test`) ve en Hoy "Este mes no tiene plan" y lo crea desde Planear, con "Empezar desde cero" o "Solo fijos e ingresos". Desde la Etapa 8 tampoco hay plan anual de prueba: un año sin anual muestra "Crear plan anual {año}", que lo crea vacío.
+**Al pasar a la Etapa 4, el plan de prueba desaparece en modo conectado.** Hoy y Planear muestran solo los planes reales. Un hogar que todavía no tiene el plan del mes en curso (por ejemplo, "Jimenez Navarro" en `steward.test`) ve en Hoy "Este mes no tiene plan" y lo crea desde Planear, con "Empezar desde cero" o "Solo fijos e ingresos". Desde la Etapa 8 tampoco hay plan anual de prueba: un año sin anual abre el paso del mes base.
 
 **Al pasar a la Etapa 5, los créditos de prueba también desaparecen.** Cuentas muestra "Sin créditos." hasta que se agregan con "+ Agregar" en Créditos. La cuota de un crédito entra sola al plan del mes en curso (si ya tiene plan) y a los meses que se creen después.
 

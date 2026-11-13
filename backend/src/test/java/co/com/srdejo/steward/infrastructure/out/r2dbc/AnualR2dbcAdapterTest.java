@@ -74,6 +74,35 @@ class AnualR2dbcAdapterTest {
     }
 
     @Test
+    void replicarYEventosConCategoria() {
+        PlanAnual a = anuales.crear(new PlanAnual(UUID.randomUUID(), hogar, 2027, PlanAnual.Estado.BORRADOR, List.of(), List.of())).block();
+        anuales.ponerCelda(a.id(), fijos, 1, 1).block();
+        Evento viejo = new Evento(UUID.randomUUID(), "Prima", 6, 3_000_000, Evento.Tipo.INGRESO, daniel);
+        anuales.agregarEvento(a.id(), viejo).block();
+        Evento navidad = new Evento(UUID.randomUUID(), "Navidad", 12, 680_000, Evento.Tipo.GASTO, null, fijos, true);
+        anuales.agregarEvento(a.id(), navidad).block();
+        anuales.replicar(a.id(), List.of(new Celda(fijos, 2, 795_000)), java.time.YearMonth.of(2026, 10)).block();
+
+        PlanAnual leido = anuales.deAnio(hogar, 2027).block();
+        assertEquals(List.of(new Celda(fijos, 2, 795_000)), leido.celdas());
+        assertEquals(java.time.YearMonth.of(2026, 10), leido.base());
+        // Los eventos de antes leen sin categoria ni "en adelante".
+        assertEquals(List.of(viejo, navidad), leido.eventos());
+
+        Evento corregido = new Evento(navidad.id(), "Navidad", 11, 700_000, Evento.Tipo.GASTO, null, null, false);
+        assertEquals(true, anuales.editarEvento(a.id(), corregido).block());
+        assertEquals(corregido, anuales.deAnio(hogar, 2027).block().eventos().getLast());
+        assertEquals(true, anuales.quitarEvento(a.id(), navidad.id()).block());
+        assertEquals(false, anuales.quitarEvento(a.id(), navidad.id()).block());
+        anuales.replicar(a.id(), List.of(), null).block();
+        assertEquals(null, anuales.deAnio(hogar, 2027).block().base());
+
+        anuales.ponerProyeccion(hogar, new Proyeccion(daniel, 2027, 1, 1)).block();
+        anuales.reemplazarProyecciones(hogar, 2027, List.of(new Proyeccion(daniel, 2027, 3, 2_000_000))).block();
+        StepVerifier.create(anuales.proyeccionesDesde(hogar, 2027).map(Proyeccion::mes)).expectNext(3).verifyComplete();
+    }
+
+    @Test
     void proyeccionesQueSeReemplazanYSeQuitan() {
         anuales.ponerProyeccion(hogar, new Proyeccion(daniel, 2027, 1, 1_000_000)).block();
         anuales.ponerProyeccion(hogar, new Proyeccion(daniel, 2027, 1, 2_000_000)).block();

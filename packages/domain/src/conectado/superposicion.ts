@@ -77,7 +77,8 @@ export function anual(a: AnualApi): PlanAnual {
   }
   return {
     anio: a.anio, estado: a.estado, filas: [...filas].map(([categoriaId, montos]) => ({ categoriaId, montos })),
-    eventos: a.eventos.map((e) => ({ id: e.id, nombre: e.nombre, mes: e.mes, monto: e.monto, tipo: e.tipo, usuarioId: e.usuarioId ?? null })),
+    eventos: a.eventos.map((e) => ({ id: e.id, nombre: e.nombre, mes: e.mes, monto: e.monto, tipo: e.tipo, usuarioId: e.usuarioId ?? null, categoriaId: e.categoriaId ?? null, enAdelante: e.enAdelante ?? false })),
+    base: a.base ? { anio: a.base.anio, mes: a.base.mes } : null,
   };
 }
 

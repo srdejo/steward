@@ -59,7 +59,16 @@ public final class PlanDtos {
     public record CeldaRequest(UUID categoriaId, int mes, long monto) {
     }
 
-    public record EventoRequest(String nombre, int mes, long monto, String tipo, UUID usuarioId) {
+    /** {@code categoriaId} y {@code enAdelante} son opcionales (design D3 de planear-anio-desde-un-mes). */
+    public record EventoRequest(String nombre, int mes, long monto, String tipo, UUID usuarioId, UUID categoriaId, Boolean enAdelante) {
+
+        public boolean adelante() {
+            return Boolean.TRUE.equals(enAdelante);
+        }
+    }
+
+    /** "Replicar en los 12 meses": {@code tipo} MES (con {@code anio} y {@code mes}), FIJOS o CERO. */
+    public record ReplicarRequest(String tipo, Integer anio, Integer mes) {
     }
 
     public record ProyeccionRequest(UUID usuarioId, int mes, long monto) {
@@ -68,10 +77,11 @@ public final class PlanDtos {
     public record MesCreadoResponse(int anio, int mes) {
     }
 
-    public record EventoResponse(UUID id, String nombre, int mes, long monto, String tipo, UUID usuarioId) {
+    public record EventoResponse(UUID id, String nombre, int mes, long monto, String tipo, UUID usuarioId, UUID categoriaId,
+                                 boolean enAdelante) {
 
         public static EventoResponse de(PlanAnual.Evento e) {
-            return new EventoResponse(e.id(), e.nombre(), e.mes(), e.monto(), e.tipo().name(), e.usuarioId());
+            return new EventoResponse(e.id(), e.nombre(), e.mes(), e.monto(), e.tipo().name(), e.usuarioId(), e.categoriaId(), e.enAdelante());
         }
     }
 
@@ -79,12 +89,16 @@ public final class PlanDtos {
     }
 
     /** Solo las celdas tocadas; las demas valen cero (design D2 de backend-plan-anual). */
-    public record AnualResponse(int anio, String estado, List<CeldaResponse> celdas, List<EventoResponse> eventos) {
+    public record MesRefResponse(int anio, int mes) {
+    }
+
+    public record AnualResponse(int anio, String estado, List<CeldaResponse> celdas, List<EventoResponse> eventos, MesRefResponse base) {
 
         public static AnualResponse de(PlanAnual a) {
             return new AnualResponse(a.anio(), a.estado().name(),
                     a.celdas().stream().map(c -> new CeldaResponse(c.categoriaId(), c.mes(), c.monto())).toList(),
-                    a.eventos().stream().map(EventoResponse::de).toList());
+                    a.eventos().stream().map(EventoResponse::de).toList(),
+                    a.base() == null ? null : new MesRefResponse(a.base().getYear(), a.base().getMonthValue()));
         }
     }
 

@@ -1,8 +1,8 @@
-import { claveMes, formatCop, formatMesAnio, type ResumenMesPlan } from '@steward/domain';
+import { claveMes, formatCop, formatMesAnio, mesDe, type ResumenMesPlan } from '@steward/domain';
 import { router } from 'expo-router';
 import { Pressable, View } from 'react-native';
 
-import { useConsulta } from '@/data/puertos';
+import { useConsulta, usePuertos } from '@/data/puertos';
 import { colors, Fila, fonts, Monto, Pantalla, Texto } from '@/ui';
 
 /** Un mes que dejaria menos de este libre se marca en rojo, como "Enero $598.000" en el artboard. */
@@ -12,6 +12,7 @@ const APRETADO = 1_000_000;
 export default function Planear() {
   const inicio = useConsulta(['plan-inicio'], (p) => p.plan.inicio());
   const i = inicio.data;
+  const anioSiguiente = mesDe(usePuertos().hoy()).anio + 1;
 
   const destino = (m: ResumenMesPlan, reciente: boolean) => {
     const clave = claveMes(m.ref);
@@ -31,6 +32,17 @@ export default function Planear() {
             <Texto v="pequeno">Libre proyectado <Monto valor={i.anual.kpis.libreAnio} style={{ fontSize: 13 }} /></Texto>
           </View>
           <Texto style={{ fontSize: 13, fontFamily: fonts.semibold, color: colors.acento }}>Abrir ›</Texto>
+        </Pressable>
+      )}
+      {i && !i.anual && (
+        // Sin plan del año siguiente: se planea desde un mes (spec steward-planear, "Planear inicio").
+        <Pressable accessibilityRole="button" testID="planear-anio" onPress={() => router.push(`/anual/${anioSiguiente}`)}
+          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: 16, borderRadius: 16, backgroundColor: colors.superficie, borderWidth: 1, borderColor: colors.borde }}>
+          <View style={{ flexShrink: 1, gap: 4 }}>
+            <Texto v="rotulo">{`Año ${anioSiguiente} · Sin plan`}</Texto>
+            <Texto style={{ fontSize: 16, fontFamily: fonts.semibold }}>Parte de un mes y agrega lo que cambia</Texto>
+          </View>
+          <Texto style={{ fontSize: 13, fontFamily: fonts.semibold, color: colors.acento }}>{`Planear ${anioSiguiente} ›`}</Texto>
         </Pressable>
       )}
       {i && (

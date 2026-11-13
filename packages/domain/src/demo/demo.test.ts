@@ -5,6 +5,16 @@ const ahora = () => new Date(2026, 9, 26, 10, 0, 0);
 const OCT = { anio: 2026, mes: 10 };
 
 describe('adaptador demo (steward-ui-shell: modo demo)', () => {
+  it('replicar octubre y un cambio desde el puerto (planear-anio-desde-un-mes)', async () => {
+    const p = crearAdaptadorDemo({ storage: storageEnMemoria(), ahora });
+    await p.sesion.iniciar('GOOGLE');
+    const base = await p.plan.vistaBase(2028, { tipo: 'MES', ref: OCT });
+    await p.plan.replicarMes(2028, { tipo: 'MES', ref: OCT });
+    await p.plan.agregarEvento(2028, { nombre: 'Revisión carro', mes: 5, monto: 400_000, tipo: 'GASTO', usuarioId: null });
+    const r = (await p.plan.anual(2028))!;
+    expect(r.libre[1]).toBe(base.libreMes);
+    expect(r.libre[4]).toBe(base.libreMes - 400_000);
+  });
   it('la semilla da los totales de Hoy', async () => {
     const p = crearAdaptadorDemo({ storage: storageEnMemoria(), ahora });
     const r = await p.movimientos.resumenMes(OCT);

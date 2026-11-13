@@ -1,4 +1,4 @@
-import type { Categoria, CierreMes, Escenario, EstadoHogar, Id, MesRef, Movimiento, PlanAnual, PlanMes, ReglaDiezmo, Usuario } from '../model';
+import type { Categoria, CierreMes, Escenario, EstadoHogar, Id, MesRef, Movimiento, PlanAnual, PlanMes, ReglaDiezmo, Usuario, EventoAnual } from '../model';
 import { ReglaError, mismoMes } from './base';
 
 export function usuario(estado: EstadoHogar, id: Id): Usuario {
@@ -62,6 +62,11 @@ export function cierreDe(estado: EstadoHogar, ref: MesRef): CierreMes | null {
 
 export function anualDe(estado: EstadoHogar, anio: number): PlanAnual | null {
   return estado.anuales.find((a) => a.anio === anio) ?? null;
+}
+
+/** Los eventos que tocan un mes: los suyos y los de un mes anterior "en adelante" (design D3 de planear-anio-desde-un-mes). */
+export function eventosDelMes(anual: PlanAnual | null | undefined, mes: number): EventoAnual[] {
+  return (anual?.eventos ?? []).filter((e) => e.mes === mes || (e.enAdelante && e.mes < mes));
 }
 
 /** Un mes cerrado queda en solo lectura: nada se registra contra el. */
