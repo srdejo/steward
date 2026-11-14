@@ -3,7 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { formatCop } from '@steward/domain';
 
 import { NOV, OCT, conSesion, provideAppPrueba } from '../../../testing/demo';
-import { app, textoLegible } from '../../../testing/harness';
+import { anchoDeVentana, app, textoLegible } from '../../../testing/harness';
 
 describe('Planear (steward-planear)', () => {
   beforeEach(() => {
@@ -284,6 +284,32 @@ describe('Planear (steward-planear)', () => {
     await a.ir('/planear/2026-10/cierre');
     expect(a.texto()).toContain('El mes está cerrado: queda en solo lectura.');
     expect(a.texto()).not.toContain('Cerrar octubre');
+  });
+
+  it('cierre en escritorio: diferencia, uso del plan, para tener en cuenta y sin asignar (web-escritorio-completo)', async () => {
+    const original = window.matchMedia;
+    anchoDeVentana(1280);
+    try {
+      const p = await conSesion();
+      await p.movimientos.registrarGasto({ monto: 800_000, itemId: 'm0-mercado', nota: '', usuarioId: 'u-daniel', origen: { tipo: 'NINGUNO' }, ref: OCT });
+      await p.cuentas.cuadrar([{ cuentaId: 'cta-efectivo', saldoBanco: 150_000 }]);
+      const a = await app('/planear/2026-10/cierre');
+      expect(a.texto()).toContain('Octubre 2026 terminó con');
+      const variables = a.raiz().querySelector('[data-fila="Variables"] [data-testid="diferencia"]')!;
+      expect(variables.textContent!.trim()).toMatch(/^\+\$/);
+      expect(variables.className).toContain('text-negativo');
+      const avisos = textoLegible(a.raiz().querySelector('[data-testid="tener-en-cuenta"]')!);
+      expect(avisos).toContain('Para tener en cuenta en noviembre');
+      expect(avisos).toContain('$50.000 sin registrar');
+      expect(avisos).toMatch(/Variables \+\$/);
+      expect(textoLegible(a.raiz().querySelector('[data-fila="Sin registrar"]')!)).toContain('+$50.000');
+
+      await a.escribir('A ahorro', '1000');
+      expect(a.raiz().querySelector('[data-testid="sin-asignar"]')!.textContent!.trim()).not.toBe('$0');
+      expect(a.porTexto('Cerrar octubre').hasAttribute('disabled')).toBe(true);
+    } finally {
+      window.matchMedia = original;
+    }
   });
 
   // --- Planear el año desde un mes (planear-anio-desde-un-mes) ---

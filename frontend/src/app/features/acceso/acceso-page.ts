@@ -10,14 +10,45 @@ import { GOOGLE_IDENTITY_LOADER } from '../../core/sesion/google-identity';
 import { SesionActual } from '../../core/sesion/sesion';
 import { Icono } from '../../shared/components/icono';
 
-/** Acceso.dc.html: una sola pantalla para entrar o crear cuenta (spec steward-acceso-onboarding). */
+/**
+ * Acceso.dc.html: una sola pantalla para entrar o crear cuenta (spec steward-acceso-onboarding). Desde 1024 px,
+ * AccesoWeb.dc.html: el panel de la marca a la izquierda y "Entrar" a la derecha, con el mismo contenido (solo CSS:
+ * el boton de Google se dibuja una sola vez).
+ */
 @Component({
   selector: 'app-acceso-page',
   imports: [Icono],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'mx-auto flex min-h-dvh w-full max-w-[430px] flex-col gap-8 px-6 pt-16 pb-9' },
+  host: { class: 'block lg:flex lg:min-h-dvh lg:flex-wrap' },
   template: `
-    <div class="mt-10 flex flex-col gap-4">
+    <section class="hidden min-w-0 flex-[1_1_420px] flex-col justify-between gap-10 bg-acento px-16 py-14 text-white lg:flex" data-testid="panel-marca">
+      <div class="flex items-center gap-3">
+        <span class="flex h-10 w-10 items-center justify-center rounded-[11px] bg-white text-acento">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M4 11l8-6 8 6v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z" /><path d="M9 20v-5h6v5" />
+          </svg>
+        </span>
+        <span class="text-lg font-bold">Presupuesto Hogar</span>
+      </div>
+      <div class="flex max-w-[460px] flex-col gap-[18px]">
+        <p class="text-[40px] leading-[1.15] font-bold">Planeen el mes juntos y lleven lo que de verdad pasa.</p>
+        <ul class="flex flex-col gap-3 text-[15px] text-[#D7E3DA]">
+          <li class="flex gap-2.5"><app-icono nombre="check" [tamano]="18" class="text-white" />Varias opciones por mes y el año completo en una tabla.</li>
+          <li class="flex gap-2.5"><app-icono nombre="check" [tamano]="18" class="text-white" />Los dos marcan pagos; cada uno ve quién pagó qué.</li>
+          <li class="flex gap-2.5"><app-icono nombre="check" [tamano]="18" class="text-white" />El diezmo se calcula solo cuando entra el ingreso.</li>
+        </ul>
+      </div>
+      <span></span>
+    </section>
+
+    <div class="mx-auto flex min-h-dvh w-full max-w-[430px] flex-col gap-8 px-6 pt-16 pb-9 lg:min-h-0 lg:max-w-none lg:flex-[1_1_420px] lg:items-center lg:justify-center lg:px-8 lg:py-14">
+    <div class="contents lg:flex lg:w-full lg:max-w-[400px] lg:flex-col lg:gap-[22px]">
+    <div class="hidden flex-col gap-1.5 lg:flex">
+      <h2 class="text-[26px] font-bold">Entrar</h2>
+      <p class="text-sm leading-normal text-secundario">Si es tu primera vez, se crea tu cuenta. Si te invitaron, usa el correo de la invitación.</p>
+    </div>
+
+    <div class="mt-10 flex flex-col gap-4 lg:hidden">
       <span class="flex h-14 w-14 items-center justify-center rounded-panel bg-acento text-white">
         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
           <path d="M4 11l8-6 8 6v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z" /><path d="M9 20v-5h6v5" />
@@ -27,7 +58,7 @@ import { Icono } from '../../shared/components/icono';
       <p class="text-base leading-[1.45] text-secundario">Planeen el mes juntos y lleven lo que de verdad pasa.</p>
     </div>
 
-    <div class="mt-auto flex flex-col gap-2.5">
+    <div class="mt-auto flex flex-col gap-2.5 lg:mt-0">
       @if (conectado) {
         <!-- Modo conectado: el boton lo dibuja Google Identity Services (design D5). -->
         <div #google class="flex min-h-[52px] justify-center" data-testid="google"></div>
@@ -72,8 +103,10 @@ import { Icono } from '../../shared/components/icono';
     </div>
 
     <div class="flex flex-col gap-1.5 text-center">
-      <p class="text-[13px] leading-[1.45] text-secundario">Si es tu primera vez, se crea tu cuenta. Si te invitaron, entra con el correo de la invitación.</p>
+      <p class="text-[13px] leading-[1.45] text-secundario lg:hidden">Si es tu primera vez, se crea tu cuenta. Si te invitaron, entra con el correo de la invitación.</p>
       <p class="text-xs text-secundario">Al continuar aceptas la <a class="underline" href="https://srdejo.github.io/steward-privacy" target="_blank" rel="noopener">Política de privacidad</a>.</p>
+    </div>
+    </div>
     </div>
   `,
 })

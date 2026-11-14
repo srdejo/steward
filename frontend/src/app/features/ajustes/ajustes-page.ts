@@ -13,6 +13,7 @@ import { Interruptor } from '../../shared/components/interruptor';
 import { Monto } from '../../shared/components/monto';
 import { MontoInput } from '../../shared/components/monto-input';
 import { Segmentado, type Opcion } from '../../shared/components/segmentado';
+import { anchoEscritorio } from '../../shared/escritorio';
 
 type Dialogo =
   | { tipo: 'invitar' }
@@ -30,17 +31,129 @@ const CONFIRMACIONES = {
   'desde-cero': { titulo: 'Probar desde cero', texto: 'Se borra el hogar de prueba y se cierra la sesión para recorrer el acceso y el onboarding.', boton: 'Empezar desde cero' },
 } as const;
 
-/** Ajustes.dc.html: hogar y miembros, mis ingresos y diezmo, categorías, seguridad y privacidad (spec steward-ajustes). */
+/**
+ * Ajustes.dc.html: hogar y miembros, mis ingresos y diezmo, categorías, seguridad y privacidad (spec steward-ajustes).
+ * Desde 1024 px, AjustesWeb.dc.html: las secciones como tarjetas en cuadrícula (spec "Ajustes en escritorio").
+ */
 @Component({
   selector: 'app-ajustes-page',
   imports: [NgTemplateOutlet, RouterLink, Avatar, Hoja, Interruptor, Monto, MontoInput, Segmentado],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'flex flex-col gap-[22px] px-5 pt-6 pb-4' },
+  host: { '[class]': "escritorio() ? 'flex flex-col gap-[22px] px-9 pt-7 pb-10' : 'flex flex-col gap-[22px] px-5 pt-6 pb-4'" },
   template: `
+    @if (escritorio()) {
+      <h1 class="text-[28px] font-bold">Ajustes</h1>
+    } @else {
     <div class="grid grid-cols-[1fr_auto_1fr] items-center">
       <a routerLink="/hoy" class="boton-texto -my-2 self-start text-sm font-normal">‹ Ejecución</a>
       <h1 class="text-[17px] font-semibold">Ajustes</h1>
     </div>
+    }
+
+    @if (escritorio()) {
+      <!-- AjustesWeb.dc.html: las mismas secciones como tarjetas en cuadrícula (web-escritorio-completo). -->
+      <div class="grid items-start gap-5 [grid-template-columns:repeat(auto-fit,minmax(420px,1fr))]" data-testid="ajustes-cuadricula">
+        @if (hogar.value(); as h) {
+          <section class="tarjeta flex flex-col gap-3.5 p-5" aria-labelledby="ajustes-hogar">
+            <div class="flex flex-col gap-0.5">
+              <h2 id="ajustes-hogar" class="text-base font-semibold">Hogar · {{ h.hogar.nombre }}</h2>
+              <p class="text-[13px] text-secundario">Todos los miembros tienen los mismos permisos.</p>
+            </div>
+            <div class="flex flex-col">
+              @for (m of miembros.miembros(); track m.usuario.id) {
+                <div class="flex items-center gap-3 border-t border-divisor py-2.5" data-testid="miembro">
+                  <app-avatar [inicial]="m.usuario.inicial" [variante]="m.variante" />
+                  <span class="grow text-sm">{{ m.usuario.nombre }}@if (m.esActual) {<span class="ml-1 text-secundario">(tú)</span>}</span>
+                  @if (!m.esActual && m.unidoEn) {
+                    <span class="text-xs text-secundario">Se unió el {{ fecha(m.unidoEn) }}</span>
+                  }
+                </div>
+              }
+              @for (inv of pendientes(); track inv.id) {
+                <div class="flex items-center gap-3 border-t border-divisor py-2.5" data-testid="invitacion-pendiente">
+                  <app-avatar [inicial]="inv.email.charAt(0).toUpperCase()" variante="suave" />
+                  <span class="flex min-w-0 grow flex-col"><span class="truncate text-sm">{{ inv.email }}</span><span class="text-xs text-aviso">Invitación pendiente</span></span>
+                </div>
+              }
+            </div>
+            <form class="flex gap-2" (submit)="$event.preventDefault(); invitarDirecto()">
+              <input type="email" class="h-10 min-w-0 grow rounded-control border border-[#D9D8D2] bg-superficie px-3 text-sm" placeholder="Invitar por correo" aria-label="Invitar por correo"
+                [value]="correoInvitar()" (input)="correoInvitar.set($any($event.target).value)" />
+              <button type="submit" class="boton h-10 rounded-control bg-acento px-3.5 text-sm text-white" [disabled]="!correoInvitar().trim() || ocupado()">Invitar</button>
+            </form>
+            @if (errorInvitar()) {
+              <p role="alert" class="text-sm text-negativo">{{ errorInvitar() }}</p>
+            }
+          </section>
+        }
+
+        <section class="tarjeta flex flex-col gap-3.5 p-5" aria-labelledby="ajustes-ingresos">
+          <div class="flex flex-col gap-0.5">
+            <h2 id="ajustes-ingresos" class="text-base font-semibold">Mis ingresos y diezmo</h2>
+            <p class="text-[13px] text-secundario">Cada persona configura su propio diezmo.</p>
+          </div>
+          <div class="flex items-center justify-between gap-3 rounded-xl bg-diezmo-suave px-3 py-2.5">
+            <span class="text-[13px] font-medium text-diezmo" data-testid="regla-diezmo">{{ textoDiezmo() === 'sin diezmo' ? 'Sin diezmo' : 'Diezmo ' + textoDiezmo().replace('diezmo ', '') }}</span>
+            <button type="button" class="boton-texto font-semibold" (click)="abrir({ tipo: 'aportes' })">Cambiar</button>
+          </div>
+          <table class="w-full border-collapse text-sm" data-testid="tabla-ingresos">
+            <thead>
+              <tr class="text-left text-[11px] font-semibold tracking-[0.06em] text-secundario">
+                <th scope="col" class="py-2">INGRESO</th>
+                <th scope="col" class="w-[110px] py-2 text-right">BRUTO</th>
+                <th scope="col" class="w-[110px] py-2 text-right">ENTRA</th>
+                <th scope="col" class="w-[70px] py-2"><span class="sr-only">Acción</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (f of fijos.value() ?? []; track f.id) {
+                <tr class="border-t border-divisor" [attr.data-ingreso]="f.nombre">
+                  <th scope="row" class="py-2.5 text-left font-normal">{{ f.nombre }}<span class="block text-xs text-diezmo">Fijo · día {{ f.diaPago }}</span></th>
+                  <td class="monto py-2.5 text-right text-[13px]"><app-monto [valor]="f.bruto" /></td>
+                  <td class="monto py-2.5 text-right text-[13px]"><app-monto [valor]="f.neto" /></td>
+                  <td class="py-1 text-right"><button type="button" class="boton-texto font-semibold" [attr.aria-label]="'Editar ' + f.nombre" (click)="abrir({ tipo: 'ingreso', ingreso: f })">Editar</button></td>
+                </tr>
+              }
+              <tr class="border-t border-divisor">
+                <th scope="row" class="py-2.5 text-left font-normal">Aportes variables<span class="block text-xs text-secundario">Contratos, negocio · {{ textoDiezmoAportes() }}</span></th>
+                <td class="py-2.5 text-right text-[13px] text-[#9A9C95]">—</td>
+                <td class="py-2.5 text-right text-[13px] text-[#9A9C95]">—</td>
+                <td class="py-1 text-right"><button type="button" class="boton-texto font-semibold" aria-label="Editar aportes variables" (click)="abrir({ tipo: 'aportes' })">Editar</button></td>
+              </tr>
+            </tbody>
+          </table>
+          <button type="button" class="boton-texto self-start font-semibold" (click)="abrir({ tipo: 'ingreso', ingreso: null })">+ Agregar ingreso fijo</button>
+        </section>
+
+        <section class="tarjeta flex flex-col gap-3 p-5" aria-labelledby="ajustes-categorias">
+          <div class="flex items-center justify-between">
+            <h2 id="ajustes-categorias" class="text-base font-semibold">Categorías</h2>
+            <button type="button" class="boton-texto font-semibold" (click)="abrir({ tipo: 'categoria', categoria: null })">+ Nueva</button>
+          </div>
+          <div class="flex flex-col">
+            @for (c of categorias.value() ?? []; track c.id) {
+              <div class="flex items-center gap-3 border-t border-divisor py-2" data-testid="categoria">
+                <span class="h-3 w-3 shrink-0 rounded-[4px]" [style.background]="c.color" aria-hidden="true"></span>
+                <span class="grow text-sm font-medium">{{ c.nombre }}</span>
+                @if (c.tipo === 'DIEZMO') {
+                  <span class="text-xs text-secundario">Del sistema</span>
+                } @else {
+                  <button type="button" class="boton-texto font-normal text-secundario" [attr.aria-label]="'Editar ' + c.nombre" (click)="abrir({ tipo: 'categoria', categoria: c })">Editar</button>
+                }
+              </div>
+            }
+          </div>
+        </section>
+
+        @if (seguridadDisponible) {
+          <section class="tarjeta flex flex-col gap-1 p-5" aria-labelledby="ajustes-seguridad">
+            <h2 id="ajustes-seguridad" class="pb-2 text-base font-semibold">Seguridad y privacidad</h2>
+            <app-interruptor class="border-t border-divisor py-2.5" titulo="Face ID al abrir" detalle="Tras 5 min sin usar" [activo]="preferencias().faceIdAlAbrir" (activoChange)="preferir({ faceIdAlAbrir: $event })" />
+            <app-interruptor class="border-t border-divisor py-2.5" titulo="Ocultar montos" detalle="Muestra $•••• hasta tocar" [activo]="preferencias().ocultarMontos" (activoChange)="preferir({ ocultarMontos: $event })" />
+          </section>
+        }
+      </div>
+    } @else {
 
     @if (hogar.value(); as h) {
       <section class="flex flex-col gap-2" aria-labelledby="ajustes-hogar">
@@ -113,6 +226,8 @@ const CONFIRMACIONES = {
           <app-interruptor class="py-3" titulo="Ocultar montos" detalle="Muestra $•••• hasta tocar" [activo]="preferencias().ocultarMontos" (activoChange)="preferir({ ocultarMontos: $event })" />
         </div>
       </section>
+    }
+
     }
 
     @if (esDemo) {
@@ -234,6 +349,7 @@ export class AjustesPage {
   private readonly sesion = inject(SesionActual);
   protected readonly miembros = inject(MiembrosHogar);
   protected readonly esDemo = this.puertos.demo !== null;
+  protected readonly escritorio = anchoEscritorio();
   /** Modo conectado: el hogar es real, asi que no hay "Probar desde cero" (spec steward-ui-shell). */
   protected readonly conectado = puertosConectados(this.puertos) !== null;
   protected readonly confirmaciones = CONFIRMACIONES;
@@ -271,11 +387,32 @@ export class AjustesPage {
   protected readonly aplicaAportes = signal(true);
   protected readonly error = signal('');
   protected readonly mensaje = signal('');
+  /** "Invitar por correo" de la tarjeta Hogar en escritorio. */
+  protected readonly correoInvitar = signal('');
+  protected readonly errorInvitar = signal('');
   /** Mientras la peticion va en camino el boton no responde: un doble toque no invita ni guarda dos veces. */
   protected readonly ocupado = signal(false);
 
   protected fecha(f: string): string {
     return formatFechaCorta(f);
+  }
+
+  /** Invita desde la tarjeta Hogar, sin hoja (spec "Ajustes en escritorio"). */
+  protected async invitarDirecto(): Promise<void> {
+    const correo = this.correoInvitar().trim();
+    if (!correo || this.ocupado()) return;
+    this.ocupado.set(true);
+    this.errorInvitar.set('');
+    this.mensaje.set('');
+    try {
+      await this.puertos.hogar.invitar(correo);
+      this.correoInvitar.set('');
+      this.mensaje.set(`Invitación enviada a ${correo}.`);
+    } catch (e) {
+      this.errorInvitar.set(mensajeDeError(e));
+    } finally {
+      this.ocupado.set(false);
+    }
   }
 
   protected abrir(d: Dialogo): void {

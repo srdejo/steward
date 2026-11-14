@@ -59,6 +59,14 @@ export async function app(url: string, mientrasNavega?: (estable: () => Promise<
   };
 }
 
+/** Simula el ancho de la ventana para `matchMedia` (las vistas de escritorio desde 1024 px). */
+export function anchoDeVentana(px: number): void {
+  window.matchMedia = ((consulta: string) => {
+    const min = Number(/min-width:\s*(\d+)px/.exec(consulta)?.[1] ?? 0);
+    return { matches: px >= min, media: consulta, addEventListener: () => {}, removeEventListener: () => {} };
+  }) as unknown as typeof window.matchMedia;
+}
+
 export function textoLegible(raiz: Node): string {
   const partes: string[] = [];
   const recorrer = (n: Node) => {

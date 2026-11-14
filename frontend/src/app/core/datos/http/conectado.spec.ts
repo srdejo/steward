@@ -125,6 +125,8 @@ describe('pantallas en modo conectado (steward-acceso-onboarding, steward-ui-she
     expect(a.porTexto('Continuar con correo').hasAttribute('disabled')).toBe(true);
     expect(google.clientId).toBe('cid-de-beauty');
     expect(google.botones).toBe(1);
+    // Desde 1024 px, el panel de la marca a la izquierda; el boton de Google sigue siendo uno solo (Acceso en escritorio).
+    expect(a.raiz().querySelector('[data-testid="panel-marca"]')!.classList).toContain('lg:flex');
   });
 
   it('sin acceso de desarrollo no aparece "Entrar como…"', async () => {

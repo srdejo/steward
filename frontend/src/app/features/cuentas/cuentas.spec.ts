@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 
 import { NOV, OCT, conSesion, provideAppPrueba } from '../../../testing/demo';
-import { app, textoLegible } from '../../../testing/harness';
+import { anchoDeVentana, app, textoLegible } from '../../../testing/harness';
 
 describe('Cuentas (steward-cuentas)', () => {
   beforeEach(() => TestBed.configureTestingModule({ providers: provideAppPrueba() }));
@@ -153,5 +153,68 @@ describe('Cuentas (steward-cuentas)', () => {
     const oct = await p.plan.mes(OCT);
     const cuotas = oct.opciones.flatMap((o) => o.grupos.flatMap((g) => g.items)).filter((i) => i.nombre === 'Cuota moto');
     expect(cuotas.map((i) => i.monto)).toEqual([500_000]);
+  });
+
+  describe('en escritorio (web-escritorio-completo)', () => {
+    const original = window.matchMedia;
+    beforeEach(() => anchoDeVentana(1280));
+    afterEach(() => (window.matchMedia = original));
+
+    const fila = (a: Awaited<ReturnType<typeof app>>, nombre: string) => a.raiz().querySelector(`[data-testid="tabla-cuadre"] [data-cuenta="${nombre}"]`)!;
+
+    it('cuadra en la tabla sin salir de Cuentas', async () => {
+      const p = await conSesion();
+      const a = await app('/cuentas');
+      expect(a.raiz().querySelector('[data-testid="saldo-hogar"]')!.textContent!.replace(/\s+/g, ' ').trim()).toBe('≈ $9.130.000');
+      await a.escribir('[data-testid="tabla-cuadre"] [data-cuenta="Davivienda"] input', '3980000');
+      await a.escribir('[data-testid="tabla-cuadre"] [data-cuenta="Efectivo"] input', '150000');
+      expect(textoLegible(fila(a, 'Davivienda').querySelector('[data-testid="diferencia"]')!)).toBe('−$170.000');
+      expect(textoLegible(fila(a, 'Efectivo').querySelector('[data-testid="diferencia"]')!)).toBe('−$50.000');
+      expect(a.raiz().querySelector('[data-testid="sin-registrar"]')!.textContent!.trim()).toBe('$220.000');
+
+      await a.tocar('Guardar saldos');
+      expect(a.url()).toBe('/cuentas');
+      expect(textoLegible(fila(a, 'Davivienda'))).toContain('$3.980.000');
+      expect(textoLegible(fila(a, 'Davivienda'))).toContain('cuadrada hoy');
+      expect(textoLegible(fila(a, 'Efectivo'))).toContain('$150.000');
+      expect((await p.cierre.vista(OCT)).sinRegistrar).toBe(220_000);
+    });
+
+    it('movimientos recientes del hogar, con filtro por cuenta, y abrir uno para corregirlo', async () => {
+      const p = await conSesion();
+      const davivienda = (await p.cuentas.cuentas()).cuentas.find((c) => c.cuenta.nombre === 'Davivienda')!.cuenta.id;
+      const efectivo = (await p.cuentas.cuentas()).cuentas.find((c) => c.cuenta.nombre === 'Efectivo')!.cuenta.id;
+      await p.movimientos.registrarGasto({ monto: 1_500_000, itemId: null, nota: 'Arriendo', usuarioId: 'u-daniel', origen: { tipo: 'CUENTA', cuentaId: davivienda }, ref: OCT });
+      const a = await app('/cuentas');
+      const movimientos = () => [...a.raiz().querySelectorAll('[data-testid="movimiento"]')].map((m) => textoLegible(m));
+      const arriendo = movimientos().find((m) => m.includes('Arriendo'))!;
+      expect(arriendo).toContain('Davivienda');
+      expect(arriendo).toContain('−$1.500.000');
+
+      const select = a.raiz().querySelector<HTMLSelectElement>('[data-testid="movimientos-recientes"] select')!;
+      select.value = efectivo;
+      select.dispatchEvent(new Event('change'));
+      await a.estable();
+      expect(movimientos().some((m) => m.includes('Arriendo'))).toBe(false);
+
+      select.value = '';
+      select.dispatchEvent(new Event('change'));
+      await a.estable();
+      await a.tocar(/Arriendo/, '[data-testid="movimiento"]');
+      expect(a.url()).toMatch(new RegExp(`^/cuentas/cuenta/${davivienda}/registro/`));
+    });
+
+    it('las pestañas Tarjetas y Créditos muestran los créditos', async () => {
+      await conSesion();
+      const a = await app('/cuentas');
+      expect(a.raiz().querySelector('[data-testid="lista-creditos"]')).toBeNull();
+      await a.tocar('Tarjetas', '[role="tab"]');
+      expect(a.porTexto('Tarjetas', '[role="tab"]').getAttribute('aria-selected')).toBe('true');
+      expect(textoLegible(a.raiz().querySelector('[data-testid="lista-creditos"]')!)).toContain('Libre inversión');
+      await a.tocar('Cuentas', '[role="tab"]');
+      await a.tocar(/Ver créditos/, '[data-testid="resumen-creditos"]');
+      expect(a.porTexto('Créditos', '[role="tab"]').getAttribute('aria-selected')).toBe('true');
+      expect(a.porTexto('+ Crédito')).toBeTruthy();
+    });
   });
 });

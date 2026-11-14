@@ -1,11 +1,11 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { claveMes, formatCop, formatMesAnio, mesDe, type ResumenMesPlan } from '@steward/domain';
 
 import { consulta } from '../../core/datos/consulta';
 import { PUERTOS } from '../../core/datos/puertos';
 import { Monto } from '../../shared/components/monto';
-import { ESCRITORIO } from '../hoy/hoy-page';
+import { anchoEscritorio } from '../../shared/escritorio';
 
 /**
  * PlanInicio.dc.html y PlanInicioWeb.dc.html: el año, los próximos meses y este mes y los anteriores (spec steward-planear).
@@ -125,16 +125,8 @@ export class PlanearInicioPage {
   protected readonly enCurso = computed(() => formatMesAnio(mesDe(this.puertos.hoy())));
 
   /** Desde 1024 px, las tarjetas en cuadrícula (spec "Planear inicio"). */
-  protected readonly escritorio = signal(false);
+  protected readonly escritorio = anchoEscritorio();
 
-  constructor() {
-    const mq = typeof matchMedia === 'function' ? matchMedia(ESCRITORIO) : null;
-    if (!mq) return;
-    this.escritorio.set(mq.matches);
-    const cambio = (e: MediaQueryListEvent) => this.escritorio.set(e.matches);
-    mq.addEventListener('change', cambio);
-    inject(DestroyRef).onDestroy(() => mq.removeEventListener('change', cambio));
-  }
 
   protected clave(m: ResumenMesPlan): string {
     return claveMes(m.ref);

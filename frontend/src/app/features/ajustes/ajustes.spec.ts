@@ -5,7 +5,7 @@ import { storageEnMemoria } from '@steward/domain/demo';
 import { routes } from '../../app.routes';
 import { providePuertosDemo } from '../../core/datos/puertos';
 import { AHORA, NOV, OCT, conSesion, provideAppPrueba, puertos } from '../../../testing/demo';
-import { app, textoLegible } from '../../../testing/harness';
+import { anchoDeVentana, app, textoLegible } from '../../../testing/harness';
 
 describe('Ajustes (steward-ajustes)', () => {
   beforeEach(() => TestBed.configureTestingModule({ providers: provideAppPrueba() }));
@@ -152,5 +152,40 @@ describe('Persistencia del modo demo (steward-ui-shell)', () => {
     const a = await app('/hoy');
     expect(a.texto()).toContain('Farmacia No estaba planeado');
     expect((await puertos().plan.mes(NOV)).estado).toBe('BORRADOR');
+  });
+});
+
+describe('Ajustes en escritorio (web-escritorio-completo)', () => {
+  beforeEach(() => TestBed.configureTestingModule({ providers: provideAppPrueba() }));
+  const original = window.matchMedia;
+  beforeEach(() => anchoDeVentana(1280));
+  afterEach(() => (window.matchMedia = original));
+
+  it('las secciones van en tarjetas, sin "‹ Ejecución"', async () => {
+    await conSesion();
+    const a = await app('/ajustes');
+    expect(a.raiz().querySelector('[data-testid="ajustes-cuadricula"]')).not.toBeNull();
+    expect(a.texto()).not.toContain('‹ Ejecución');
+    expect(a.raiz().querySelector('h1')!.textContent!.trim()).toBe('Ajustes');
+    expect(textoLegible(a.raiz().querySelector('[data-ingreso="Salario Daniel"]')!)).toBe('Salario Daniel Fijo · día 25 $7.000.000 $6.288.000 Editar');
+    expect(a.texto()).toContain('Cerrar sesión');
+  });
+
+  it('invitar desde la tarjeta Hogar', async () => {
+    await conSesion();
+    const a = await app('/ajustes');
+    await a.escribir('Invitar por correo', 'ana@correo.com');
+    await a.tocar('Invitar', 'button[type="submit"]');
+    expect(textoLegible(a.raiz().querySelector('[data-testid="invitacion-pendiente"]')!)).toContain('ana@correo.com Invitación pendiente');
+    expect(a.campo('Invitar por correo').value).toBe('');
+    expect(a.texto()).toContain('Invitación enviada a ana@correo.com.');
+  });
+
+  it('"Editar" de Salario abre la misma hoja que en móvil', async () => {
+    await conSesion();
+    const a = await app('/ajustes');
+    await a.tocar('Editar', '[aria-label="Editar Salario Daniel"]');
+    expect(a.texto()).toContain('Editar Salario Daniel');
+    expect(a.campo('Nombre').value).toBe('Salario Daniel');
   });
 });

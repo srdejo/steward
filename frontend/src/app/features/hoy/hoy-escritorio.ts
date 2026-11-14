@@ -1,8 +1,9 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { formatCop, type AvanceCategoria, type ItemEjecucion, type Movimiento, type ResumenMes, type TonoVence } from '@steward/domain';
+import { claveMes, formatCop, mesDe, nombreMes, type AvanceCategoria, type ItemEjecucion, type Movimiento, type ResumenMes, type TonoVence } from '@steward/domain';
 
 import { consulta } from '../../core/datos/consulta';
+import { PUERTOS } from '../../core/datos/puertos';
 import { MiembrosHogar } from '../../core/layout/miembros';
 import { Avatar } from '../../shared/components/avatar';
 import { Monto } from '../../shared/components/monto';
@@ -31,6 +32,10 @@ const TONO_VENCE: Record<TonoVence, string> = { alerta: 'font-semibold text-nega
         <button type="button" class="h-9 w-9 rounded-[10px] border border-borde-campo bg-superficie font-semibold text-texto disabled:opacity-40" aria-label="Mes siguiente" [disabled]="!siguiente()" (click)="ir(siguiente())">›</button>
       </div>
       <div class="flex flex-wrap gap-2">
+        @if (cerrarMes(); as nombre) {
+          <!-- Spec "Cerrar el mes desde Hoy": solo el mes en curso y sin cerrar. -->
+          <a [routerLink]="['/planear', claveActual(), 'cierre']" class="flex h-10 items-center rounded-[10px] px-3.5 text-sm font-semibold text-acento hover:bg-acento-suave" data-testid="cerrar-mes">Cerrar {{ nombre }}</a>
+        }
         <a routerLink="aporte" class="flex h-10 items-center rounded-[10px] border border-control bg-superficie px-4 text-sm font-semibold text-texto">+ Aporte</a>
         <a routerLink="gasto" class="flex h-10 items-center rounded-[10px] bg-acento px-4 text-sm font-semibold text-white">+ Gasto</a>
       </div>
@@ -240,6 +245,13 @@ export class HoyEscritorio {
   readonly opcionPorElegir = input<string | null>(null);
 
   protected readonly cuentas = consulta(() => null, (p) => p.cuentas.cuentas());
+  private readonly enCurso = claveMes(mesDe(inject(PUERTOS).hoy()));
+  private readonly mes = consulta(() => this.resumen().ref, (p, ref) => p.plan.mes(ref));
+  /** Nombre del mes si se puede cerrar desde aqui: el mes en curso, sin cerrar; si no, null. */
+  protected readonly cerrarMes = computed(() => {
+    if (this.claveActual() !== this.enCurso || this.mes.value()?.plan?.estado === 'CERRADO') return null;
+    return nombreMes(this.resumen().ref.mes);
+  });
 
   private readonly indice = computed(() => this.mesHoy.opciones.findIndex((o) => o.valor === this.mesHoy.clave()));
   protected readonly anterior = computed(() => this.mesHoy.opciones[this.indice() - 1]?.valor ?? null);

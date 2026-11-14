@@ -28,13 +28,22 @@ describe('Shell y navegación (steward-ui-shell)', () => {
     expect(el.querySelector('[data-testid="aviso-demo"]')?.textContent).toContain('Datos de prueba');
   });
 
-  it('web: los mismos destinos en un menú lateral que solo se ve desde 1024 px', async () => {
+  it('web: los mismos destinos más Ajustes en un menú lateral que solo se ve desde 1024 px', async () => {
     await conSesion();
     const { el } = await abrir('/hoy');
     const menu = el.querySelector('[data-testid="menu-lateral"]')!;
     expect(menu.classList).toContain('hidden');
     expect(menu.classList).toContain('lg:flex');
-    expect([...menu.querySelectorAll('nav a')].map((a) => a.textContent!.trim())).toEqual(['Ejecución', 'Plan', 'Cuentas']);
+    expect([...menu.querySelectorAll('nav a')].map((a) => a.textContent!.trim())).toEqual(['Ejecución', 'Plan', 'Cuentas', 'Ajustes']);
+  });
+
+  it('web: Ajustes queda activo en el menú lateral', async () => {
+    await conSesion();
+    const { el } = await abrir('/ajustes');
+    const menu = el.querySelector('[data-testid="menu-lateral"]')!;
+    const ajustes = [...menu.querySelectorAll('nav a')].find((a) => a.textContent!.trim() === 'Ajustes')!;
+    expect(ajustes.getAttribute('aria-current')).toBe('page');
+    expect([...el.querySelectorAll('[data-testid="barra-inferior"] a')].map((a) => a.textContent!.trim())).toEqual(['Ejecución', 'Plan', 'Cuentas']);
   });
 
   it('los avatares del hogar abren Ajustes del hogar', async () => {
