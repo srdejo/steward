@@ -18,6 +18,18 @@ describe('Acceso y onboarding (steward-acceso-onboarding)', () => {
     expect(a.url()).toBe('/acceso/face-id');
   });
 
+  it('en escritorio, dos paneles: la marca a la izquierda y Entrar con las mismas opciones (web-escritorio-completo)', async () => {
+    const a = await desdeCero();
+    const panel = a.raiz().querySelector('[data-testid="panel-marca"]')!;
+    expect(panel.classList).toContain('hidden');
+    expect(panel.classList).toContain('lg:flex');
+    expect(panel.textContent).toContain('El diezmo se calcula solo cuando entra el ingreso.');
+    expect(a.texto()).toContain('Entrar');
+    expect(a.raiz().querySelectorAll('button')).toHaveLength(3);
+    await a.tocar('Continuar con Google');
+    expect(a.url()).toBe('/acceso/face-id');
+  });
+
   it('hogar ya configurado: Continuar con correo abre Hoy', async () => {
     const a = await app('/acceso');
     await a.tocar('Continuar con correo');

@@ -1,15 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 
 import { conSesion, provideAppPrueba } from '../../../testing/demo';
-import { app } from '../../../testing/harness';
-
-/** Simula el ancho de la ventana para el `matchMedia` de Hoy. */
-function anchoDeVentana(px: number) {
-  window.matchMedia = ((consulta: string) => {
-    const min = Number(/min-width:\s*(\d+)px/.exec(consulta)?.[1] ?? 0);
-    return { matches: px >= min, media: consulta, addEventListener: () => {}, removeEventListener: () => {} };
-  }) as unknown as typeof window.matchMedia;
-}
+import { anchoDeVentana, app } from '../../../testing/harness';
 
 const limpio = (el: Element | null) => (el?.textContent ?? '').replace(/\s+/g, ' ').trim();
 
@@ -108,6 +100,21 @@ describe('Hoy detallado en escritorio (steward-hoy)', () => {
     expect(a.texto()).toContain('Noviembre 2026');
     expect(flecha('Mes siguiente').disabled).toBe(true);
     expect(flecha('Mes anterior').disabled).toBe(false);
+  });
+
+  it('"Cerrar octubre" abre el cierre del mes en curso y no se ve en noviembre (web-escritorio-completo)', async () => {
+    anchoDeVentana(1280);
+    await conSesion();
+    const a = await app('/hoy');
+    const cerrar = () => a.raiz().querySelector<HTMLAnchorElement>('[data-testid="cerrar-mes"]');
+    expect(cerrar()!.textContent!.trim()).toBe('Cerrar octubre');
+    a.raiz().querySelector<HTMLButtonElement>('button[aria-label="Mes siguiente"]')!.click();
+    await a.estable();
+    expect(cerrar()).toBeNull();
+    a.raiz().querySelector<HTMLButtonElement>('button[aria-label="Mes anterior"]')!.click();
+    await a.estable();
+    await a.tocar('Cerrar octubre');
+    expect(a.url()).toBe('/planear/2026-10/cierre');
   });
 
   it('a 800 px sigue en una columna con la lista corta', async () => {

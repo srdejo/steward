@@ -1,11 +1,12 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import { formatFechaCorta, formatNumero, sumar, type FiltroTitular, type Id, type VistaCuenta } from '@steward/domain';
+import { formatFechaCorta, formatNumero, type FiltroTitular, type VistaCuenta } from '@steward/domain';
 
-import { consulta, mensajeDeError } from '../../core/datos/consulta';
+import { consulta } from '../../core/datos/consulta';
 import { PUERTOS } from '../../core/datos/puertos';
 import { Monto } from '../../shared/components/monto';
 import { MontoInput } from '../../shared/components/monto-input';
+import { EstadoCuadre } from './estado-cuadre';
 import { FiltroTitularComponent } from './filtro-titular';
 
 /**
@@ -39,7 +40,7 @@ import { FiltroTitularComponent } from './filtro-titular';
               <span class="text-xs text-secundario">{{ c.titular }} · app estima ≈ <app-monto [valor]="c.saldo" /></span>
             }
           </div>
-          @let d = diferencia(c);
+          @let d = cuadre.diferencia(c);
           @if (d !== null) {
             @if (d === 0) {
               <span class="text-[13px] font-semibold text-positivo">Cuadra</span>
@@ -47,26 +48,26 @@ import { FiltroTitularComponent } from './filtro-titular';
               <app-monto class="text-[13px]" [class.text-negativo]="d > 0" [class.text-positivo]="d < 0" [valor]="-d" [signo]="true" [siempreVisible]="true" />
             }
           } @else if (c.aviso) {
-            <button type="button" class="boton-texto font-normal text-secundario" (click)="poner(c.cuenta.id, null)">Omitir</button>
+            <button type="button" class="boton-texto font-normal text-secundario" (click)="cuadre.poner(c.cuenta.id, null)">Omitir</button>
           }
         </div>
         <app-monto-input
           [etiqueta]="esEfectivo(c) ? 'Hay en la billetera' : 'Banco dice'"
           [placeholder]="'≈ ' + cop(c.saldo)"
-          [valor]="saldos()[c.cuenta.id] ?? null"
-          (valorChange)="poner(c.cuenta.id, $event)"
+          [valor]="cuadre.saldos()[c.cuenta.id] ?? null"
+          (valorChange)="cuadre.poner(c.cuenta.id, $event)"
         />
       </section>
     }
 
     <div class="flex items-center justify-between px-0.5 py-1">
       <span class="text-sm text-[#3B3D39]">Gastos sin registrar</span>
-      <app-monto class="text-[15px] font-semibold" [valor]="sinRegistrar()" [siempreVisible]="true" data-testid="sin-registrar" />
+      <app-monto class="text-[15px] font-semibold" [valor]="cuadre.sinRegistrar()" [siempreVisible]="true" data-testid="sin-registrar" />
     </div>
-    @if (error()) {
-      <p role="alert" class="text-sm text-negativo">{{ error() }}</p>
+    @if (cuadre.error()) {
+      <p role="alert" class="text-sm text-negativo">{{ cuadre.error() }}</p>
     }
-    <button type="button" class="boton-grande" [disabled]="!hayValores() || guardando()" (click)="guardar()">Guardar saldos</button>
+    <button type="button" class="boton-grande" [disabled]="!cuadre.hayValores() || cuadre.guardando()" (click)="guardar()">Guardar saldos</button>
   `,
 })
 export class CuadrarPage {
@@ -78,23 +79,7 @@ export class CuadrarPage {
   private readonly todas = consulta(() => null, (p) => p.cuentas.cuentas());
   protected readonly total = computed(() => this.todas.value()?.cuentas.length ?? 0);
 
-  /** Lo escrito por cuenta (se conserva al cambiar el filtro). */
-  protected readonly saldos = signal<Record<Id, number | null>>({});
-  protected readonly guardando = signal(false);
-  protected readonly error = signal('');
-
-  protected readonly hayValores = computed(() => Object.values(this.saldos()).some((v) => v !== null));
-  /** Suma de las diferencias de las cuentas con valor: lo que salio sin registrar. */
-  protected readonly sinRegistrar = computed(() => {
-    const vistas = this.todas.value()?.cuentas ?? [];
-    return sumar(vistas.map((c) => this.diferencia(c) ?? 0));
-  });
-
-  /** Estimado − banco: positivo = salio dinero sin registrar. null si no se ha escrito. */
-  protected diferencia(c: VistaCuenta): number | null {
-    const banco = this.saldos()[c.cuenta.id];
-    return banco === undefined || banco === null ? null : c.saldo - banco;
-  }
+  protected readonly cuadre = new EstadoCuadre(this.puertos, computed(() => this.todas.value()?.cuentas));
 
   protected esEfectivo(c: VistaCuenta): boolean {
     return c.cuenta.nombre.toLowerCase() === 'efectivo';
@@ -108,23 +93,7 @@ export class CuadrarPage {
     return formatNumero(v);
   }
 
-  protected poner(cuentaId: Id, valor: number | null): void {
-    this.saldos.update((s) => ({ ...s, [cuentaId]: valor }));
-  }
-
   protected async guardar(): Promise<void> {
-    const saldos = Object.entries(this.saldos())
-      .filter((e): e is [Id, number] => e[1] !== null)
-      .map(([cuentaId, saldoBanco]) => ({ cuentaId, saldoBanco }));
-    this.guardando.set(true);
-    this.error.set('');
-    try {
-      await this.puertos.cuentas.cuadrar(saldos);
-      await this.router.navigateByUrl('/cuentas');
-    } catch (e) {
-      this.error.set(mensajeDeError(e));
-    } finally {
-      this.guardando.set(false);
-    }
+    if (await this.cuadre.guardar()) await this.router.navigateByUrl('/cuentas');
   }
 }

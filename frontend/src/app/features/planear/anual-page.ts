@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import {
   claveMes, formatCop, formatMesAnio, formatMiles, mesDe, nombreMeses, nombreMesCapital,
@@ -10,7 +10,7 @@ import { PUERTOS } from '../../core/datos/puertos';
 import { Hoja } from '../../shared/components/hoja';
 import { Monto } from '../../shared/components/monto';
 import { MontoInput } from '../../shared/components/monto-input';
-import { ESCRITORIO } from '../hoy/hoy-page';
+import { anchoEscritorio } from '../../shared/escritorio';
 import { CambioHoja } from './cambio-hoja';
 
 const MESES = Array.from({ length: 12 }, (_, i) => i + 1);
@@ -304,16 +304,8 @@ export class AnualPage {
   protected readonly error = signal('');
 
   /** Desde 1024 px, la tabla de 12 meses; con menos, la lista de meses (design D5). */
-  protected readonly escritorio = signal(false);
+  protected readonly escritorio = anchoEscritorio();
 
-  constructor() {
-    const mq = typeof matchMedia === 'function' ? matchMedia(ESCRITORIO) : null;
-    if (!mq) return;
-    this.escritorio.set(mq.matches);
-    const cambio = (e: MediaQueryListEvent) => this.escritorio.set(e.matches);
-    mq.addEventListener('change', cambio);
-    inject(DestroyRef).onDestroy(() => mq.removeEventListener('change', cambio));
-  }
 
   protected readonly elegidaSetter = (clave: string) => this.elegidaUsuario.set(clave);
 

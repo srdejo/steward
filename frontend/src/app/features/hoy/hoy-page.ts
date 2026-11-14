@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, linkedSignal, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, linkedSignal } from '@angular/core';
 import { RouterLink, RouterOutlet } from '@angular/router';
 import { claveMes, formatDiaSemana, formatMesAnio, sumar, type ItemEjecucion, type ResumenMes } from '@steward/domain';
 
@@ -12,14 +12,13 @@ import { Fila } from '../../shared/components/fila';
 import { Kpi } from '../../shared/components/kpi';
 import { Monto } from '../../shared/components/monto';
 import { Segmentado } from '../../shared/components/segmentado';
+import { anchoEscritorio } from '../../shared/escritorio';
 import { HoyEscritorio } from './hoy-escritorio';
 import { IngresosHoy } from './ingresos-hoy';
 import { MesDeHoy } from './mes-de-hoy';
 
 /** Pendientes que se ven antes de "Ver N más" (spec steward-hoy). */
 const LISTA_CORTA = 3;
-/** Desde aqui el shell pasa a menu lateral (spec steward-ui-shell) y Hoy usa la vista detallada. */
-export const ESCRITORIO = '(min-width: 1024px)';
 
 /**
  * Main.dc.html: el mes en curso (spec steward-hoy). Las hojas de registro son rutas hijas. El diezmo son items del plan
@@ -181,14 +180,6 @@ export class HoyPage {
   }
 
   /** Desde 1024 px, Hoy detallado (spec "Hoy detallado en escritorio"); se monta una sola de las dos vistas (design D3). */
-  protected readonly escritorio = signal(false);
+  protected readonly escritorio = anchoEscritorio();
 
-  constructor() {
-    const mq = typeof matchMedia === 'function' ? matchMedia(ESCRITORIO) : null;
-    if (!mq) return;
-    this.escritorio.set(mq.matches);
-    const cambio = (e: MediaQueryListEvent) => this.escritorio.set(e.matches);
-    mq.addEventListener('change', cambio);
-    inject(DestroyRef).onDestroy(() => mq.removeEventListener('change', cambio));
-  }
 }

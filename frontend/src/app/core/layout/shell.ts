@@ -13,12 +13,15 @@ interface Destino {
   icono: NombreIcono;
 }
 
-/** Los tres destinos principales (HANDOFF, seccion 4). Ajustes se abre desde los avatares. */
+/** Los tres destinos principales (HANDOFF, seccion 4). En movil, Ajustes se abre desde los avatares. */
 export const DESTINOS: Destino[] = [
   { ruta: '/hoy', etiqueta: 'Ejecución', icono: 'hoy' },
   { ruta: '/planear', etiqueta: 'Plan', icono: 'planear' },
   { ruta: '/cuentas', etiqueta: 'Cuentas', icono: 'cuentas' },
 ];
+
+/** Desde 1024 px, Ajustes es el cuarto destino del menu lateral (spec "Navegacion principal", web-escritorio-completo). */
+export const DESTINOS_LATERAL: Destino[] = [...DESTINOS, { ruta: '/ajustes', etiqueta: 'Ajustes', icono: 'ajustes' }];
 
 /**
  * Una sola app responsive: por debajo de 1024 px, barra inferior (artboards móviles); desde 1024 px, menú lateral.
@@ -37,7 +40,7 @@ export const DESTINOS: Destino[] = [
       <aside class="hidden border-r border-borde bg-superficie lg:sticky lg:top-0 lg:flex lg:h-dvh lg:flex-col lg:gap-6 lg:px-4 lg:py-6" data-testid="menu-lateral">
         <span class="px-3 text-[15px] font-bold">Presupuesto Hogar</span>
         <nav aria-label="Navegación principal" class="flex flex-col gap-1">
-          @for (d of destinos; track d.ruta) {
+          @for (d of destinosLateral; track d.ruta) {
             <a
               [routerLink]="d.ruta"
               routerLinkActive="bg-acento-suave text-texto font-semibold"
@@ -88,6 +91,7 @@ export class Shell {
   private readonly router = inject(Router);
   private readonly ruta = inject(ActivatedRoute);
   protected readonly destinos = DESTINOS;
+  protected readonly destinosLateral = DESTINOS_LATERAL;
   protected readonly esDemo = inject(PUERTOS).demo !== null;
 
   private readonly datosRuta = toSignal(

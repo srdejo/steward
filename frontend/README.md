@@ -1,6 +1,13 @@
 # Presupuesto Hogar · PWA
 
-PWA de Presupuesto Hogar en Angular 22 (standalone, signals, zoneless), con Tailwind 4 y service worker. Una sola base responsive: por debajo de 1024 px se ve como app móvil, con barra inferior Hoy · Planear · Cuentas; desde 1024 px, con menú lateral.
+PWA de Presupuesto Hogar en Angular 22 (standalone, signals, zoneless), con Tailwind 4 y service worker. Una sola base responsive: por debajo de 1024 px se ve como app móvil, con barra inferior Ejecución · Plan · Cuentas; desde 1024 px, con menú lateral, que suma Ajustes como cuarto destino.
+
+Las páginas con vista de escritorio leen el ancho con `anchoEscritorio()` (`shared/escritorio.ts`); en las pruebas se simula con `anchoDeVentana(px)` de `testing/harness.ts`. Desde 1024 px:
+- **Cuentas** (`CuentasWeb.dc.html`): pestañas Cuentas · Tarjetas · Créditos, el cuadre en tabla en la misma página (la lógica está en `features/cuentas/estado-cuadre.ts`, compartida con `/cuentas/cuadrar`) y "Movimientos recientes" de todas las cuentas, armados con `movimientos(id)` de cada una.
+- **Cierre** (`CierreWeb.dc.html`): plan frente a lo real con diferencia y uso del plan, "Para tener en cuenta en {mes}" y el reparto al lado.
+- **Ajustes** (`AjustesWeb.dc.html`): las secciones como tarjetas en cuadrícula, con "Invitar por correo" en la tarjeta Hogar.
+- **Acceso** (`AccesoWeb.dc.html`): dos paneles, solo con CSS (el botón de Google se dibuja una vez).
+- **Hoy**: "Cerrar {mes}" para el mes en curso.
 
 Desde 1024 px, Hoy usa la vista detallada de `HoyWeb.dc.html` (`features/hoy/hoy-escritorio.ts`), y por debajo, la de una columna de `Main.dc.html`. Esa vista tiene:
 - cuatro tarjetas;
