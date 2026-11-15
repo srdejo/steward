@@ -2,6 +2,7 @@ package co.com.srdejo.steward.domain.usecase;
 
 import co.com.srdejo.steward.domain.api.ICuentasServicePort;
 import co.com.srdejo.steward.domain.exception.DomainException;
+import co.com.srdejo.steward.domain.model.Amortizacion;
 import co.com.srdejo.steward.domain.model.Categoria;
 import co.com.srdejo.steward.domain.model.Credito;
 import co.com.srdejo.steward.domain.model.Cuenta;
@@ -21,6 +22,8 @@ import co.com.srdejo.steward.domain.usecase.Registro.Contexto;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -142,9 +145,10 @@ public class CuentasUseCase implements ICuentasServicePort {
 
     @Override
     public Mono<Credito> crearCredito(DatosCredito datos) {
-        return Mono.fromCallable(() -> creditoValido(datos)).flatMap(d -> registro.contexto().flatMap(ctx -> {
+        return Mono.fromCallable(() -> creditoValido(datos, registro.hoy())).flatMap(d -> registro.contexto().flatMap(ctx -> {
             Credito credito = new Credito(UUID.randomUUID(), ctx.hogar().id(), d.nombre(), d.entidad(), d.saldo(),
-                    registro.hoy(), d.cuota(), d.tasaEm(), d.diaPago(), d.totalOriginal(), List.of());
+                    d.saldoActualizadoEn(), d.cuota(), d.tasaEm(), d.diaPago(), d.totalOriginal(), List.of(), d.metodo(),
+                    d.numeroCuotas(), d.cuotasPagadas(), d.valorFinanciado());
             return transaccion.enTransaccion(creditos.crear(credito)
                     .flatMap(c -> cuotaEnElMes(ctx, c).thenReturn(c)));
         }));
@@ -169,23 +173,75 @@ public class CuentasUseCase implements ICuentasServicePort {
                 .orElseThrow(() -> DomainException.datosInvalidos("El hogar no tiene categorías"));
     }
 
-    private static DatosCredito creditoValido(DatosCredito d) {
+    /** El credito valido, con el saldo y la cuota de su metodo (sin id ni hogar). */
+    private static Credito creditoValido(DatosCredito d, LocalDate hoy) {
         String nombre = d.nombre() == null ? "" : d.nombre().strip();
         String entidad = d.entidad() == null ? "" : d.entidad().strip();
         if (nombre.isEmpty() || nombre.length() > Credito.NOMBRE_MAX || entidad.length() > Credito.NOMBRE_MAX) {
             throw DomainException.datosInvalidos("El crédito necesita un nombre de hasta 40 caracteres");
         }
-        if (d.saldo() < 0 || d.cuota() <= 0 || d.totalOriginal() <= 0 || d.totalOriginal() < d.saldo()) {
-            throw DomainException.datosInvalidos("Revisa el saldo, el total original y la cuota");
-        }
-        if (d.tasaEm() == null || d.tasaEm().signum() < 0 || d.tasaEm().compareTo(Credito.TASA_MAX) > 0
-                || d.tasaEm().stripTrailingZeros().scale() > 2) {
-            throw DomainException.datosInvalidos("La tasa efectiva mensual va de 0 a 10 %, con hasta dos decimales");
-        }
         if (d.diaPago() < 1 || d.diaPago() > 31) {
             throw DomainException.datosInvalidos("El día de pago va de 1 a 31");
         }
-        return new DatosCredito(nombre, entidad, d.saldo(), d.totalOriginal(), d.cuota(), d.tasaEm(), d.diaPago());
+        boolean plan = "PLAN".equals(d.metodo());
+        if (!plan && (d.totalOriginal() <= 0 || d.totalOriginal() < d.saldo())) {
+            throw DomainException.datosInvalidos("Revisa el saldo, el total original y la cuota");
+        }
+        Credito base = new Credito(null, null, nombre, entidad, 0, hoy, 0, BigDecimal.ZERO, d.diaPago(), d.totalOriginal(), List.of());
+        return conMetodo(base, d.metodoYDatos(), hoy);
+    }
+
+    /**
+     * {@code camposMetodo} del dominio: valida los datos del metodo y devuelve el credito con ellos. En PLAN la cuota y el
+     * saldo salen de la tabla, y el total original es el valor financiado.
+     */
+    static Credito conMetodo(Credito c, DatosMetodo d, LocalDate hoy) {
+        Credito.Metodo metodo;
+        try {
+            metodo = Credito.Metodo.valueOf(d.metodo());
+        } catch (IllegalArgumentException | NullPointerException ex) {
+            throw DomainException.datosInvalidos("El método es TASA, PLAN o MANUAL");
+        }
+        BigDecimal tasa = d.tasaEm() == null ? BigDecimal.ZERO : d.tasaEm();
+        if (tasa.signum() < 0 || tasa.compareTo(Credito.TASA_MAX) > 0 || tasa.stripTrailingZeros().scale() > 2) {
+            throw DomainException.datosInvalidos("La tasa efectiva mensual va de 0 a 10 %, con hasta dos decimales");
+        }
+        if (metodo == Credito.Metodo.PLAN) {
+            int n = d.numeroCuotas() == null ? 0 : d.numeroCuotas();
+            long valor = d.valorFinanciado() == null ? 0 : d.valorFinanciado();
+            int pagadas = d.cuotasPagadas();
+            if (valor <= 0 || n < 1 || n > 600 || pagadas < 0 || pagadas >= n) {
+                throw DomainException.datosInvalidos("Revisa el valor, el número de cuotas y las cuotas pagadas");
+            }
+            long cuota = Amortizacion.cuotaFija(valor, n, tasa);
+            long saldo = Amortizacion.saldoPlan(valor, n, tasa, cuota, pagadas);
+            return new Credito(c.id(), c.hogarId(), c.nombre(), c.entidad(), saldo, saldo == c.saldo() ? c.saldoActualizadoEn() : hoy,
+                    cuota, tasa, c.diaPago(), Math.max(valor, saldo), c.pagos(), metodo, n, pagadas, valor);
+        }
+        if (d.saldo() < 0 || d.cuota() <= 0) {
+            throw DomainException.datosInvalidos("Revisa el saldo y la cuota");
+        }
+        return new Credito(c.id(), c.hogarId(), c.nombre(), c.entidad(), d.saldo(), d.saldo() == c.saldo() ? c.saldoActualizadoEn() : hoy,
+                d.cuota(), metodo == Credito.Metodo.MANUAL ? BigDecimal.ZERO : tasa, c.diaPago(), Math.max(c.totalOriginal(), d.saldo()),
+                c.pagos(), metodo, null, d.cuotasPagadas(), null);
+    }
+
+    @Override
+    public Mono<Credito> cambiarMetodo(UUID creditoId, DatosMetodo datos) {
+        return registro.contexto().flatMap(ctx -> creditoDelHogar(creditoId, ctx)
+                .flatMap(actual -> Mono.fromCallable(() -> conMetodo(actual, datos, registro.hoy())))
+                .flatMap(c -> transaccion.enTransaccion(creditos.cambiarMetodo(c)
+                        .flatMap(g -> cuotaEnBorradores(ctx, g).thenReturn(g)))));
+    }
+
+    /** La cuota nueva en los items "Cuota ..." de los meses en Borrador (cambiarMetodoCredito del dominio). */
+    private Mono<Void> cuotaEnBorradores(Contexto ctx, Credito c) {
+        return planes.desde(ctx.hogar().id(), registro.mesEnCurso())
+                .filter(p -> p.estado() == PlanMes.Estado.BORRADOR)
+                .flatMapIterable(p -> p.escenarios().stream().flatMap(e -> e.items().stream())
+                        .filter(i -> c.id().equals(i.creditoId()) && i.nombre().startsWith("Cuota ")).toList())
+                .concatMap(i -> planes.actualizarItem(i.conMonto(i.nombre(), c.cuota(), i.ajustadoAMano())))
+                .then();
     }
 
     @Override

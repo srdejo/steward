@@ -14,5 +14,5 @@ import java.util.List;
 public record Finanzas(YearMonth mes, List<Categoria> categorias, List<IngresoFijo> ingresosFijos,
                        List<ReglaDiezmo> reglas, List<Cuenta> cuentas, List<PlanMes> planes, List<Movimiento> movimientos,
                        List<Credito> creditos, List<CierreMes> cierres, List<PlanAnual> anuales,
-                       List<PlanAnual.Proyeccion> proyecciones) {
+                       List<PlanAnual.Proyeccion> proyecciones, List<Tarjeta> tarjetas) {
 }

@@ -21,6 +21,7 @@ import co.com.srdejo.steward.domain.spi.IIngresoFijoPersistencePort;
 import co.com.srdejo.steward.domain.spi.IMovimientoPersistencePort;
 import co.com.srdejo.steward.domain.spi.IPlanPersistencePort;
 import co.com.srdejo.steward.domain.spi.IReglaDiezmoPersistencePort;
+import co.com.srdejo.steward.domain.spi.ITarjetaPersistencePort;
 import co.com.srdejo.steward.domain.spi.ITransaccionPort;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -55,11 +56,14 @@ public class PlanUseCase implements IPlanServicePort {
     private final IClockPort clock;
     private final NacimientoMes nacimiento;
 
+    private final ITarjetaPersistencePort tarjetas;
+
     public PlanUseCase(IHogarPersistencePort hogares, ICategoriaPersistencePort categorias, IPlanPersistencePort planes,
                        IMovimientoPersistencePort movimientos, ICreditoPersistencePort creditos,
                        ICierrePersistencePort cierres, IIngresoFijoPersistencePort ingresos, IReglaDiezmoPersistencePort reglas,
                        IAnualPersistencePort anuales, ICurrentUserPort usuarioActual, ITransaccionPort transaccion,
-                       IClockPort clock) {
+                       IClockPort clock, ITarjetaPersistencePort tarjetas) {
+        this.tarjetas = tarjetas;
         this.hogares = hogares;
         this.categorias = categorias;
         this.planes = planes;
@@ -120,13 +124,16 @@ public class PlanUseCase implements IPlanServicePort {
                 .map(anterior -> new Base(base(anterior, m), otros(anterior, m)))
                 .defaultIfEmpty(new Base(List.of(), List.of()))
                 .zipWith(Mono.zip(creditos.delHogar(ctx.hogar().id()).collectMap(Credito::id),
-                        categorias.delHogar(ctx.hogar().id()).collectList(), nacimiento.fuentes(ctx.hogar().id(), ref)))
+                        categorias.delHogar(ctx.hogar().id()).collectList(), nacimiento.fuentes(ctx.hogar().id(), ref),
+                        tarjetas.delHogar(ctx.hogar().id()).collectList()))
                 .flatMap(t -> {
                     UUID planId = UUID.randomUUID();
                     UUID escenarioId = UUID.randomUUID();
-                    List<ItemPlan> items = new ArrayList<>(conCuotas(t.getT1().items().stream()
+                    // Cada tarjeta trae su linea con su monto, en los tres modos (design D1 de tarjetas-y-creditos).
+                    List<ItemPlan> items = new ArrayList<>(TarjetasUseCase.conTarjetas(conCuotas(t.getT1().items().stream()
                             .map(i -> i.copia(UUID.randomUUID(), escenarioId, i.monto(), i.cuotaActual(), i.orden()))
-                            .toList(), escenarioId, t.getT2().getT1(), t.getT2().getT2()));
+                            .toList(), escenarioId, t.getT2().getT1(), t.getT2().getT2()), escenarioId, t.getT2().getT4(),
+                            t.getT2().getT2()));
                     // Las lineas de Ajustes y del anual se calculan de nuevo; las agregadas a mano se copian (design D8), con
                     // su diezmo si lo tenian; cada diezmo nace enlazado a su linea (design D1 de usabilidad-plan).
                     UUID diezmo = NacimientoMes.categoriaDiezmo(t.getT2().getT2());
@@ -257,7 +264,8 @@ public class PlanUseCase implements IPlanServicePort {
                                                 d.nombre(), d.monto(), d.diaVence(), tipo(d.tipo()), d.cuotaActual(),
                                                 d.cuotaTotal(), actual.orden(),
                                                 d.creditoId() == null ? actual.creditoId() : d.creditoId(),
-                                                actual.ingresoFijoId(), actual.aporteId(), actual.ingresoPlanId(), ajustado)))))));
+                                                actual.ingresoFijoId(), actual.aporteId(), actual.ingresoPlanId(), ajustado,
+                                                actual.tarjetaId())))))));
     }
 
     /** Si el diezmo queda ajustado a mano: su monto cambio y no es el que sugiere su linea. */
@@ -377,7 +385,7 @@ public class PlanUseCase implements IPlanServicePort {
                         return Mono.<Void>error(planNoEncontrado());
                     }
                     Mono<Void> registros = movimientos.delMes(ctx.hogar().id(), ref).filter(m -> DEL_PLAN.contains(m.tipo()))
-                            .concatMap(m -> (m.creditoId() != null && m.capital() != null ? creditos.devolver(m.creditoId(), m.capital())
+                            .concatMap(m -> (m.creditoId() != null && m.capital() != null ? creditos.devolver(m.creditoId(), m.capital(), m.tipo() == Movimiento.Tipo.PAGO)
                                     : Mono.<Void>empty()).then(movimientos.borrar(m.id())))
                             .then();
                     Mono<Void> plan = t.getT1().map(p -> planes.borrar(p.id())).orElse(Mono.empty());

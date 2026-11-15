@@ -30,14 +30,34 @@ public interface ICuentasServicePort {
     /** "+ Agregar credito": su cuota entra al plan del mes en curso si tiene plan y no esta cerrado. */
     Mono<Credito> crearCredito(DatosCredito datos);
 
+    /** "Corregir con extracto": el saldo que dice el banco, con la fecha de hoy. */
     Mono<Credito> actualizarSaldo(UUID creditoId, long saldo);
+
+    /** "Cambiar" como baja el saldo (design D3 de tarjetas-y-creditos). */
+    Mono<Credito> cambiarMetodo(UUID creditoId, DatosMetodo datos);
 
     Mono<Movimiento> abonar(UUID creditoId, long monto, UUID usuarioId, String origen, UUID cuentaId);
 
     record SaldoBanco(UUID cuentaId, long saldoBanco) {
     }
 
+    /** {@code metodo} null es TASA; en PLAN, la cuota y el saldo salen de la tabla. */
     record DatosCredito(String nombre, String entidad, long saldo, long totalOriginal, long cuota, BigDecimal tasaEm,
-                        int diaPago) {
+                        int diaPago, String metodo, Integer numeroCuotas, int cuotasPagadas, Long valorFinanciado) {
+
+        /** Con la tasa, como antes de tarjetas-y-creditos. */
+        public DatosCredito(String nombre, String entidad, long saldo, long totalOriginal, long cuota, BigDecimal tasaEm,
+                            int diaPago) {
+            this(nombre, entidad, saldo, totalOriginal, cuota, tasaEm, diaPago, null, null, 0, null);
+        }
+
+        public DatosMetodo metodoYDatos() {
+            return new DatosMetodo(metodo == null ? "TASA" : metodo, saldo, cuota, tasaEm, numeroCuotas, cuotasPagadas, valorFinanciado);
+        }
+    }
+
+    /** TASA y MANUAL: saldo y cuota; PLAN: valor, numero de cuotas, tasa y cuotas pagadas. */
+    record DatosMetodo(String metodo, long saldo, long cuota, BigDecimal tasaEm, Integer numeroCuotas, int cuotasPagadas,
+                       Long valorFinanciado) {
     }
 }

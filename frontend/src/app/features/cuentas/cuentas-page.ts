@@ -1,6 +1,6 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
-import { formatCop, formatFechaCorta, formatTasa, sumar, type FiltroTitular, type Id, type MovimientoCuenta } from '@steward/domain';
+import { ChangeDetectionStrategy, Component, computed, inject, input, linkedSignal, signal } from '@angular/core';
+import { Router, RouterLink } from '@angular/router';
+import { formatFechaCorta, type FiltroTitular, type Id, type MovimientoCuenta } from '@steward/domain';
 
 import { consulta, mensajeDeError } from '../../core/datos/consulta';
 import { PUERTOS } from '../../core/datos/puertos';
@@ -12,8 +12,10 @@ import { Monto } from '../../shared/components/monto';
 import { MontoInput } from '../../shared/components/monto-input';
 import { Segmentado, type Opcion } from '../../shared/components/segmentado';
 import { anchoEscritorio } from '../../shared/escritorio';
+import { CreditosTab } from './creditos-tab';
 import { EstadoCuadre } from './estado-cuadre';
 import { FiltroTitularComponent } from './filtro-titular';
+import { TarjetasTab } from './tarjetas-tab';
 
 const CONJUNTA = '__conjunta__';
 /** Movimientos que se ven en "Movimientos recientes" (design D4 de web-escritorio-completo). */
@@ -27,17 +29,37 @@ interface MovimientoReciente extends MovimientoCuenta {
 }
 
 /**
- * Cuentas.dc.html: saldo del hogar estimado, cuentas con titular y cuadre, y los créditos (spec steward-cuentas).
- * Desde 1024 px, CuentasWeb.dc.html: pestañas, el cuadre en tabla y los movimientos recientes del hogar.
+ * Cuentas.dc.html: pestañas Cuentas, Tarjetas y Créditos (spec steward-cuentas, tarjetas-y-creditos); la pestaña va en
+ * `?pestana=`. Cuentas tiene el saldo del hogar estimado y las cuentas con titular y cuadre; desde 1024 px
+ * (CuentasWeb.dc.html), el cuadre en tabla, los movimientos recientes del hogar y los resumenes de tarjetas y creditos.
  */
 @Component({
   selector: 'app-cuentas-page',
-  imports: [RouterLink, Avatar, Fila, Hoja, Monto, MontoInput, Segmentado, FiltroTitularComponent],
+  imports: [RouterLink, Avatar, Fila, Hoja, Monto, MontoInput, Segmentado, FiltroTitularComponent, TarjetasTab, CreditosTab],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '[class]': "escritorio() ? 'flex flex-col gap-[22px] px-9 pt-7 pb-10' : 'flex flex-col gap-5 px-5 pt-6 pb-4'" },
   template: `
+    <div role="tablist" aria-label="Cuentas, tarjetas y créditos" class="flex gap-1 border-b border-borde">
+      @for (t of pestanas; track t.valor) {
+        <button type="button" role="tab" [attr.aria-selected]="pestana() === t.valor" class="flex min-h-11 items-center gap-2 px-3.5 text-sm"
+          [class]="pestana() === t.valor ? 'font-semibold text-texto shadow-[inset_0_-2px_0_var(--color-acento)]' : 'text-secundario'" (click)="elegirPestana(t.valor)">{{ t.etiqueta }}
+          @if (t.valor === 'tarjetas' && tarjetas.value()?.pagoPronto; as p) {
+            <span class="rounded-[10px] bg-[#FBEDE8] px-2 py-0.5 text-[11px] font-semibold text-[#8A2A15]" data-testid="pago-pronto">Pago {{ p.dias === 0 ? 'hoy' : 'en ' + p.dias + (p.dias === 1 ? ' día' : ' días') }}</span>
+          }
+        </button>
+      }
+    </div>
+
+    @switch (pestana()) {
+    @case ('tarjetas') {
+      <app-tarjetas-tab [escritorio]="escritorio()" />
+    }
+    @case ('creditos') {
+      <app-creditos-tab [escritorio]="escritorio()" />
+    }
+    @default {
     @if (escritorio()) {
-      <!-- CuentasWeb.dc.html: encabezado, pestañas, cuadre en tabla, movimientos recientes y créditos al lado (web-escritorio-completo). -->
+      <!-- CuentasWeb.dc.html: encabezado, cuadre en tabla, movimientos recientes y los resumenes al lado (web-escritorio-completo). -->
       <div class="flex flex-wrap items-end justify-between gap-4">
         <div class="flex flex-col gap-1">
           <h1 class="rotulo">Saldo del hogar · estimado</h1>
@@ -45,18 +67,10 @@ interface MovimientoReciente extends MovimientoCuenta {
         </div>
         <div class="flex flex-wrap gap-2">
           <button type="button" class="boton h-10 rounded-[10px] border border-control bg-superficie px-3.5 text-sm" (click)="hoja.set('mover')">Mover dinero</button>
-          <button type="button" class="boton h-10 rounded-[10px] border border-control bg-superficie px-3.5 text-sm" (click)="hoja.set(pestana() === 'cuentas' ? 'agregar' : 'credito')">{{ pestana() === 'cuentas' ? '+ Cuenta' : '+ Crédito' }}</button>
+          <button type="button" class="boton h-10 rounded-[10px] border border-control bg-superficie px-3.5 text-sm" (click)="hoja.set('agregar')">+ Cuenta</button>
         </div>
       </div>
 
-      <div role="tablist" aria-label="Cuentas, tarjetas y créditos" class="flex gap-1 border-b border-borde">
-        @for (t of pestanas; track t.valor) {
-          <button type="button" role="tab" [attr.aria-selected]="pestana() === t.valor" class="min-h-11 px-3.5 text-sm"
-            [class]="pestana() === t.valor ? 'font-semibold text-texto shadow-[inset_0_-2px_0_var(--color-acento)]' : 'text-secundario'" (click)="pestana.set(t.valor)">{{ t.etiqueta }}</button>
-        }
-      </div>
-
-      @if (pestana() === 'cuentas') {
         <div class="flex flex-wrap items-start gap-5">
           <div class="flex min-w-0 flex-[2_1_600px] flex-col gap-5">
             <section class="tarjeta overflow-hidden" aria-labelledby="titulo-cuadre" data-testid="tabla-cuadre">
@@ -148,34 +162,26 @@ interface MovimientoReciente extends MovimientoCuenta {
           </div>
 
           <aside class="flex min-w-0 flex-[1_1_300px] flex-col gap-3">
-            <button type="button" class="tarjeta flex flex-col gap-1.5 px-[18px] py-4 text-left hover:bg-fondo" (click)="pestana.set('creditos')" data-testid="resumen-creditos">
+            @if (tarjetas.value(); as t) {
+              <button type="button" class="tarjeta flex flex-col gap-1.5 px-[18px] py-4 text-left hover:bg-fondo" (click)="elegirPestana('tarjetas')" data-testid="resumen-tarjetas">
+                <span class="rotulo">Tarjetas</span>
+                <app-monto class="text-[22px] font-semibold" [valor]="t.porPagarCiclo" />
+                @if (proximoPago(); as p) {
+                  <span class="text-[13px] font-semibold" [class]="p.proximoPago.dias <= 3 ? 'text-negativo' : 'text-secundario'">Pago {{ p.linea.replace('Tarjeta ', '') }} el {{ fecha(p.proximoPago.fecha) }}{{ p.proximoPago.dias ? ', en ' + p.proximoPago.dias + (p.proximoPago.dias === 1 ? ' día' : ' días') : ', hoy' }}</span>
+                } @else {
+                  <span class="text-[13px] text-secundario">Sin tarjetas</span>
+                }
+                <span class="text-[13px] font-semibold text-acento">Ver tarjetas ›</span>
+              </button>
+            }
+            <button type="button" class="tarjeta flex flex-col gap-1.5 px-[18px] py-4 text-left hover:bg-fondo" (click)="elegirPestana('creditos')" data-testid="resumen-creditos">
               <span class="rotulo">Créditos</span>
-              <app-monto class="text-[22px] font-semibold" [valor]="deuda()" />
-              <span class="text-[13px] text-secundario">{{ (creditos.value() ?? []).length }} {{ (creditos.value() ?? []).length === 1 ? 'crédito' : 'créditos' }}</span>
+              <app-monto class="text-[22px] font-semibold" [valor]="creditos.value()?.deben ?? 0" />
+              <span class="text-[13px] text-secundario">{{ creditos.value()?.creditos?.length ?? 0 }} {{ creditos.value()?.creditos?.length === 1 ? 'crédito' : 'créditos' }} · bajan con cada cuota</span>
               <span class="text-[13px] font-semibold text-acento">Ver créditos ›</span>
             </button>
           </aside>
         </div>
-      } @else {
-        <section class="tarjeta flex max-w-[720px] flex-col gap-1 px-5 py-3" aria-labelledby="titulo-creditos" data-testid="lista-creditos">
-          <div class="flex items-center justify-between">
-            <h2 id="titulo-creditos" class="text-base font-semibold">Créditos</h2>
-            @if (deuda(); as total) {
-              <span class="text-xs text-secundario">Debes <app-monto [valor]="total" /></span>
-            }
-          </div>
-          @for (c of creditos.value() ?? []; track c.credito.id) {
-            <a [routerLink]="['/cuentas/credito', c.credito.id]" class="block hover:bg-fondo">
-              <app-fila [titulo]="c.credito.nombre" [detalle]="'Cuota ' + cop(c.credito.cuota) + ' · ' + tasa(c.credito.tasaEM) + (c.cuotasRestantes !== null ? ' · faltan ' + c.cuotasRestantes : '')">
-                <span class="text-sm"><app-monto [valor]="c.credito.saldo" /> ›</span>
-              </app-fila>
-            </a>
-          } @empty {
-            <p class="py-2.5 text-sm text-secundario">Sin créditos.</p>
-          }
-          <p class="pt-2 text-xs leading-[1.45] text-secundario">Las tarjetas de crédito y compras a cuotas viven en el plan como gastos del mes. Aquí solo van las deudas con saldo y tasa.</p>
-        </section>
-      }
     } @else {
     @if (datos.value(); as d) {
       <div class="flex flex-col gap-1.5">
@@ -207,28 +213,8 @@ interface MovimientoReciente extends MovimientoCuenta {
         </div>
       </section>
 
-      <section class="flex flex-col gap-1" aria-labelledby="titulo-creditos">
-        <div class="flex items-center justify-between">
-          <h2 id="titulo-creditos" class="text-base font-semibold">Créditos</h2>
-          <div class="flex items-center gap-3">
-            @if (deuda(); as total) {
-              <span class="text-xs text-secundario">Debes <app-monto [valor]="total" /></span>
-            }
-            <button type="button" class="boton-texto font-semibold" aria-label="Agregar crédito" (click)="hoja.set('credito')">+ Agregar</button>
-          </div>
-        </div>
-        @for (c of creditos.value() ?? []; track c.credito.id) {
-          <a [routerLink]="['/cuentas/credito', c.credito.id]" class="block hover:bg-superficie">
-            <app-fila [titulo]="c.credito.nombre" [detalle]="'Cuota ' + cop(c.credito.cuota) + ' · ' + tasa(c.credito.tasaEM) + (c.cuotasRestantes !== null ? ' · faltan ' + c.cuotasRestantes : '')">
-              <span class="text-sm"><app-monto [valor]="c.credito.saldo" /> ›</span>
-            </app-fila>
-          </a>
-        } @empty {
-          <p class="py-2.5 text-sm text-secundario">Sin créditos.</p>
-        }
-      </section>
-
-      <p class="text-xs leading-[1.45] text-secundario">Las tarjetas de crédito y compras a cuotas viven en el plan como gastos del mes. Aquí solo van las deudas con saldo y tasa.</p>
+    }
+    }
     }
     }
 
@@ -244,37 +230,6 @@ interface MovimientoReciente extends MovimientoCuenta {
           <p role="alert" class="text-sm text-negativo">{{ error() }}</p>
         }
         <button type="button" class="boton-grande" [disabled]="!nombre().trim() || saldo() === null || ocupado()" (click)="agregar()">Agregar cuenta</button>
-      </app-hoja>
-    }
-
-    @if (hoja() === 'credito') {
-      <!-- "+ Agregar" en Créditos: su cuota entra al plan del mes en curso (spec steward-cuentas, "Agregar crédito"). -->
-      <app-hoja titulo="Nuevo crédito" (cerrar)="cerrarHoja()">
-        <label class="flex flex-col gap-2">
-          <span class="rotulo">Nombre</span>
-          <input class="campo" placeholder="Ej: Libre inversión" [value]="nombre()" (input)="nombre.set($any($event.target).value)" />
-        </label>
-        <label class="flex flex-col gap-2">
-          <span class="rotulo">Entidad</span>
-          <input class="campo" placeholder="Ej: Bancolombia" [value]="entidad()" (input)="entidad.set($any($event.target).value)" />
-        </label>
-        <app-monto-input etiqueta="Saldo" [(valor)]="saldo" />
-        <app-monto-input etiqueta="Total original" [(valor)]="totalOriginal" />
-        <app-monto-input etiqueta="Cuota" [(valor)]="cuota" />
-        <div class="grid grid-cols-2 gap-3">
-          <label class="flex flex-col gap-2">
-            <span class="rotulo">Tasa (% EM)</span>
-            <input class="campo" inputmode="decimal" placeholder="1,6" [value]="tasaTexto()" (input)="tasaTexto.set($any($event.target).value)" />
-          </label>
-          <label class="flex flex-col gap-2">
-            <span class="rotulo">Día de pago</span>
-            <input class="campo" inputmode="numeric" placeholder="15" [value]="diaTexto()" (input)="diaTexto.set($any($event.target).value)" />
-          </label>
-        </div>
-        @if (error()) {
-          <p role="alert" class="text-sm text-negativo">{{ error() }}</p>
-        }
-        <button type="button" class="boton-grande" [disabled]="!creditoCompleto() || ocupado()" (click)="agregarCredito()">Agregar crédito</button>
       </app-hoja>
     }
 
@@ -301,13 +256,18 @@ export class CuentasPage {
   protected readonly todas = consulta(() => null, (p) => p.cuentas.cuentas());
   protected readonly cuadre = new EstadoCuadre(this.puertos, computed(() => this.todas.value()?.cuentas));
 
+  private readonly router = inject(Router);
   protected readonly pestanas: { valor: Pestana; etiqueta: string }[] = [
     { valor: 'cuentas', etiqueta: 'Cuentas' },
     { valor: 'tarjetas', etiqueta: 'Tarjetas' },
     { valor: 'creditos', etiqueta: 'Créditos' },
   ];
-  /** Tarjetas y Créditos muestran la lista de créditos hasta el cambio de tarjetas (spec "Cuentas, cuadre y créditos"). */
-  protected readonly pestana = signal<Pestana>('cuentas');
+  /** `?pestana=tarjetas|creditos` (los enlaces de otras pantallas abren la pestaña); sin el parametro, Cuentas. */
+  readonly pestanaRuta = input<string | undefined>(undefined, { alias: 'pestana' });
+  protected readonly pestana = linkedSignal<Pestana>(() => (['tarjetas', 'creditos'].includes(this.pestanaRuta() ?? '') ? (this.pestanaRuta() as Pestana) : 'cuentas'));
+  protected readonly tarjetas = consulta(() => null, (p) => p.tarjetas.vista());
+  /** La tarjeta que se paga mas pronto, para el resumen de escritorio. */
+  protected readonly proximoPago = computed(() => [...(this.tarjetas.value()?.tarjetas ?? [])].sort((a, b) => a.proximoPago.dias - b.proximoPago.dias)[0] ?? null);
 
   /** Cuenta elegida en "Movimientos recientes"; vacio = todas. */
   protected readonly cuentaMovs = signal<Id | ''>('');
@@ -338,10 +298,9 @@ export class CuentasPage {
     }
     return lista.sort((a, b) => b.movimiento.seq - a.movimiento.seq).slice(0, RECIENTES);
   });
-  protected readonly creditos = consulta(() => null, (p) => p.cuentas.creditos());
-  protected readonly deuda = computed(() => sumar((this.creditos.value() ?? []).map((c) => c.credito.saldo)));
+  protected readonly creditos = consulta(() => null, (p) => p.cuentas.resumenCreditos());
 
-  protected readonly hoja = signal<'agregar' | 'mover' | 'credito' | null>(null);
+  protected readonly hoja = signal<'agregar' | 'mover' | null>(null);
   protected readonly nombre = signal('');
   protected readonly titular = signal<string | null>(CONJUNTA);
   protected readonly saldo = signal<number | null>(null);
@@ -349,26 +308,17 @@ export class CuentasPage {
   protected readonly hacia = signal<Id | null>(null);
   protected readonly error = signal('');
   protected readonly ocupado = signal(false);
-  protected readonly entidad = signal('');
-  protected readonly totalOriginal = signal<number | null>(null);
-  protected readonly cuota = signal<number | null>(null);
-  protected readonly tasaTexto = signal('');
-  protected readonly diaTexto = signal('');
-  private readonly tasaEM = computed(() => {
-    const t = Number(this.tasaTexto().trim().replace(',', '.') || '0');
-    return Number.isFinite(t) ? t : NaN;
-  });
-  private readonly dia = computed(() => Number(this.diaTexto().trim()));
-  /** El total original es opcional: si falta, es el saldo. */
-  protected readonly creditoCompleto = computed(
-    () => !!this.nombre().trim() && this.saldo() !== null && !!this.cuota() && Number.isInteger(this.dia()) && this.dia() >= 1 && !Number.isNaN(this.tasaEM()),
-  );
 
   protected readonly titulares = computed<Opcion<string>[]>(() => [
     ...this.miembros.miembros().map((m) => ({ valor: m.usuario.id, etiqueta: m.usuario.nombre })),
     { valor: CONJUNTA, etiqueta: 'Conjunta' },
   ]);
   protected readonly opcionesCuenta = computed<Opcion<Id>[]>(() => (this.todas.value()?.cuentas ?? []).map((c) => ({ valor: c.cuenta.id, etiqueta: c.cuenta.nombre })));
+
+  protected elegirPestana(p: Pestana): void {
+    this.pestana.set(p);
+    void this.router.navigate([], { queryParams: { pestana: p === 'cuentas' ? null : p }, replaceUrl: true });
+  }
 
   protected fecha(f: string): string {
     return formatFechaCorta(f);
@@ -378,14 +328,6 @@ export class CuentasPage {
     return this.todas.value()?.cuentas.find((c) => c.cuenta.id === id)?.cuenta.nombre ?? '';
   }
 
-  protected cop(v: number): string {
-    return formatCop(v);
-  }
-
-  protected tasa(t: number): string {
-    return formatTasa(t);
-  }
-
   protected cerrarHoja(): void {
     this.hoja.set(null);
     this.nombre.set('');
@@ -393,26 +335,11 @@ export class CuentasPage {
     this.desde.set(null);
     this.hacia.set(null);
     this.error.set('');
-    this.entidad.set('');
-    this.totalOriginal.set(null);
-    this.cuota.set(null);
-    this.tasaTexto.set('');
-    this.diaTexto.set('');
   }
 
   protected async agregar(): Promise<void> {
     const titular = this.titular();
     await this.ejecutar(() => this.puertos.cuentas.agregar({ nombre: this.nombre(), titularId: titular === CONJUNTA ? null : titular, saldo: this.saldo()! }));
-  }
-
-  protected async agregarCredito(): Promise<void> {
-    const saldo = this.saldo()!;
-    await this.ejecutar(() =>
-      this.puertos.cuentas.agregarCredito({
-        nombre: this.nombre(), entidad: this.entidad(), saldo, totalOriginal: this.totalOriginal() ?? saldo, cuota: this.cuota()!,
-        tasaEM: this.tasaEM(), diaPago: this.dia(),
-      }),
-    );
   }
 
   protected async mover(): Promise<void> {

@@ -2,7 +2,7 @@ import type { EstadoHogar, Fecha, Id, ItemPlan, MesRef, Movimiento, Origen, Peso
 import { formatCop, formatFechaCorta } from '../format';
 import { ReglaError, clonar, diasEntre, fechaEnMes, mesDe, mismoMes, nuevoId, sumar } from './base';
 import { asegurarAbierto, categoria, escenarioPrincipal, movimientosDe, nombreUsuario, planDe } from './consultas';
-import { devolverCapital } from './credito';
+import { aplicarCuota, devolverCapital } from './credito';
 import { ingresosDelMes, itemConPagos, seguirAporte, totalIngresos, type LineaIngreso } from './ingresos';
 
 /** Como va un item del plan en el mes. */
@@ -82,8 +82,16 @@ function detalleDiezmo(estado: EstadoHogar, item: ItemPlan, ref: MesRef): string
   return fijo ? `Del ${fijo.nombre}${dia}` : 'Diezmo';
 }
 
-function detalleVencimiento(item: ItemPlan, ref: MesRef, hoy: Fecha): string {
+function detalleVencimiento(estado: EstadoHogar, item: ItemPlan, ref: MesRef, hoy: Fecha): string {
   if (item.cuota) return `Vence día ${item.diaVence ?? '—'} · cuota ${item.cuota.actual} de ${item.cuota.total}`;
+  // La linea de una tarjeta dice su corte y como se paga (spec "Pagar una tarjeta en Hoy").
+  const tarjeta = item.tarjetaId ? estado.tarjetas.find((t) => t.id === item.tarjetaId) : undefined;
+  if (tarjeta) return `Corte ${tarjeta.diaCorte} · ${tarjeta.pago.tipo === 'FIJO' ? 'pago fijo' : 'valor del extracto'}`;
+  // La cuota de un plan de pagos: "cuota 4 de 12" sale del credito.
+  const credito = item.creditoId ? estado.creditos.find((c) => c.id === item.creditoId) : undefined;
+  if (credito?.metodo === 'PLAN' && credito.numeroCuotas && item.tipo === 'CREDITO' && !item.nombre.startsWith('Abono')) {
+    return `Vence día ${item.diaVence ?? credito.diaPago} · cuota ${Math.min(credito.numeroCuotas, credito.cuotasPagadas + 1)} de ${credito.numeroCuotas}`;
+  }
   if (item.diaVence === null) return categoriaVacia(item);
   const dias = diasEntre(hoy, fechaEnMes(ref, item.diaVence));
   if (dias < 0) return `Venció el día ${item.diaVence}`;
@@ -142,7 +150,7 @@ export function ejecucionItem(estado: EstadoHogar, item: ItemPlan, ref: MesRef, 
   }
   const pagado = pagos.length > 0;
   const vencido = estaVencido(item, pagado, ref, hoy);
-  let detalle = item.tipo === 'DIEZMO' ? detalleDiezmo(estado, item, ref) : detalleVencimiento(item, ref, hoy);
+  let detalle = item.tipo === 'DIEZMO' ? detalleDiezmo(estado, item, ref) : detalleVencimiento(estado, item, ref, hoy);
   if (pagado) {
     const dif = real - item.monto;
     const enDetalle = desde === 'Su cuenta' ? 'su cuenta' : desde;
@@ -233,18 +241,15 @@ export function marcarPago(estado: EstadoHogar, datos: { itemId: Id; ref: MesRef
     usuarioId: datos.usuarioId, creadoPor: datos.creadoPor, origen: datos.origen, nota: '', itemId: item.id,
     ingresoFijoId: null, bruto: null, aplicaDiezmo: false, diezmoDe: [], ingresoPlanId: null, cuentaDestinoId: null, creditoId: item.creditoId, capital: null,
   });
-  // La cuota de un credito baja su saldo en la parte de capital.
+  // La cuota de un credito baja su saldo segun su metodo (design D3 de tarjetas-y-creditos). Lo que bajo se guarda para
+  // devolverlo si se borra el pago (design D3 de usabilidad-plan).
   if (item.creditoId) {
     const credito = s.creditos.find((c) => c.id === item.creditoId);
-    if (credito) {
-      const interes = Math.round((credito.saldo * credito.tasaEM) / 100);
-      const antes = credito.saldo;
-      credito.saldo = Math.max(0, credito.saldo - Math.max(0, datos.monto - interes));
-      credito.pagos.unshift({ fecha: datos.fecha, monto: datos.monto, tipo: 'CUOTA' });
-      // Lo que bajo el saldo, para devolverlo si se borra el pago (design D3 de usabilidad-plan).
-      s.movimientos.at(-1)!.capital = antes - credito.saldo;
-    }
+    if (credito) s.movimientos.at(-1)!.capital = aplicarCuota(credito, datos.monto, datos.fecha);
   }
+  // Una tarjeta que se paga completa sugiere lo pagado para el proximo mes (design D1 de tarjetas-y-creditos).
+  const tarjeta = item.tarjetaId ? s.tarjetas.find((t) => t.id === item.tarjetaId) : undefined;
+  if (tarjeta?.pago.tipo === 'COMPLETA') tarjeta.pago.estimado = datos.monto;
   return s;
 }
 

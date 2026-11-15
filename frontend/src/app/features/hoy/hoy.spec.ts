@@ -17,24 +17,25 @@ describe('Hoy (steward-hoy)', () => {
     expect(a.texto()).toContain('Ejecución · LUN 26');
     expect(a.texto()).toContain('Octubre 2026');
     expect(libre(a)).toBe('$3.436.000');
-    expect(a.texto()).toMatch(/Falta pagar\s*\$2\.715\.000/);
-    expect(a.texto()).toMatch(/Por pagar\s*\$2\.715\.000/);
-    expect(a.texto()).toMatch(/Pagado\s*\$2\.613\.000/);
+    expect(a.texto()).toMatch(/Falta pagar\s*\$2\.895\.000/);
+    expect(a.texto()).toMatch(/Por pagar\s*\$2\.895\.000/);
+    expect(a.texto()).toMatch(/Pagado\s*\$2\.433\.000/);
     expect(a.texto()).toMatch(/Vs\. plan\s*−\$62\.000/);
     expect(a.texto()).toContain('Aportes Esposa 2 aportes · 1 pago directo');
-    expect(a.texto()).toContain('Tarjeta Mastercard Vence en 4 días');
+    // La linea de una tarjeta dice su corte y como se paga (tarjetas-y-creditos).
+    expect(a.texto()).toContain('Tarjeta Nu · Mercado Corte 13 · valor del extracto');
     await a.tocar(/Ver 1 más/);
-    expect(a.texto()).toContain('Mercado Variable · llevas $180.000 de $320.000');
+    expect(a.texto()).toContain('Tarjeta Mastercard Corte 15 · pago fijo');
   });
 
   it('Por pagar empieza con 3 y "Ver 1 más" despliega el resto', async () => {
     await conSesion();
     const a = await app('/hoy');
     const porPagar = () => [...a.raiz().querySelectorAll('section[aria-labelledby="por-pagar"] app-fila')].map((f) => f.querySelector('span')!.textContent!.trim());
-    expect(porPagar()).toEqual(['Compra a cuotas', 'Diezmo · Salario Daniel', 'Tarjeta Mastercard']);
-    expect(a.raiz().querySelector('[data-testid="ver-mas"]')!.textContent!.replace(/\s+/g, ' ').trim()).toBe('Ver 1 más · 4 pendientes en total $140.000');
+    expect(porPagar()).toEqual(['Compra a cuotas', 'Diezmo · Salario Daniel', 'Tarjeta Nu · Mercado']);
+    expect(a.raiz().querySelector('[data-testid="ver-mas"]')!.textContent!.replace(/\s+/g, ' ').trim()).toBe('Ver 1 más · 4 pendientes en total $1.500.000');
     await a.tocar(/Ver 1 más/);
-    expect(porPagar()).toEqual(['Compra a cuotas', 'Diezmo · Salario Daniel', 'Tarjeta Mastercard', 'Mercado']);
+    expect(porPagar()).toEqual(['Compra a cuotas', 'Diezmo · Salario Daniel', 'Tarjeta Nu · Mercado', 'Tarjeta Mastercard']);
     expect(a.raiz().querySelector('[data-testid="ver-mas"]')).toBeNull();
   });
 
@@ -109,7 +110,7 @@ describe('Hoy (steward-hoy)', () => {
   it('pago directo desde "Su cuenta" cuenta como aporte de quien pagó', async () => {
     await conSesion();
     const a = await app('/hoy/pagar/m0-mastercard');
-    expect(a.texto()).toContain('Tarjetas y cuotas');
+    expect(a.texto()).toContain('Tarjetas');
     expect(a.texto()).toContain('vence 30 oct');
     expect(a.campo('Valor pagado').value).toBe('$1.500.000');
     await a.tocar('Esposa');
@@ -237,20 +238,20 @@ describe('Hoy (steward-hoy)', () => {
 
   it('gasto variable acumula y gasto no planeado resta del libre', async () => {
     await conSesion();
-    const a = await app('/hoy/gasto?item=m0-mercado');
-    expect(a.porTexto('Mercado').getAttribute('aria-checked')).toBe('true');
+    // Mercado es la tarjeta Nu (tarjetas-y-creditos): el variable que queda es Transporte, ya en su presupuesto.
+    const a = await app('/hoy/gasto?item=m0-transporte');
+    expect(a.porTexto('Transporte').getAttribute('aria-checked')).toBe('true');
     await a.escribir('¿Cuánto?', '40000');
-    expect(a.raiz().querySelector('[data-testid="vista-previa-gasto"]')!.textContent!.replace(/\s+/g, ' ').trim()).toBe('Mercado: llevas $220.000 de $320.000 con este gasto.');
+    expect(a.raiz().querySelector('[data-testid="vista-previa-gasto"]')!.textContent!.replace(/\s+/g, ' ').trim()).toBe('Transporte: llevas $290.000 de $250.000 con este gasto.');
     await a.tocar('Guardar gasto');
-    await a.tocar(/Ver 1 más/);
-    expect(a.texto()).toContain('Mercado Variable · llevas $220.000 de $320.000');
+    expect(a.texto()).toContain('Transporte plan $250.000 · +$40.000');
 
     await a.ir('/hoy/gasto');
     await a.escribir('¿Cuánto?', '85000');
     await a.tocar('No estaba planeado');
     await a.escribir('Nota · Opcional', 'Farmacia');
     await a.tocar('Guardar gasto');
-    expect(libre(a)).toBe('$3.351.000');
+    expect(libre(a)).toBe('$3.311.000');
     expect(a.texto()).toContain('Farmacia No estaba planeado');
   });
 });

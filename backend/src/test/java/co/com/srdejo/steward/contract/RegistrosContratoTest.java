@@ -43,7 +43,7 @@ class RegistrosContratoTest extends ContratoBase {
         idEsposa = ayudas.idDe(esposa);
         Map<?, ?> plan = ayudas.crearPlan(daniel, MES, "CERO");
         String esc = escenario(plan);
-        mastercard = ayudas.item(daniel, plan, esc, "Tarjeta Mastercard", 1_500_000, "FIJO", ayudas.categoria(daniel, "Tarjetas y cuotas"), null, null);
+        mastercard = ayudas.item(daniel, plan, esc, "Tarjeta Mastercard", 1_500_000, "FIJO", ayudas.categoria(daniel, "Créditos"), null, null);
         luz = ayudas.item(daniel, plan, esc, "Recibo Luz", 50_000, "FIJO", ayudas.categoria(daniel, "Gastos fijos"), null, null);
         mercado = ayudas.item(daniel, plan, esc, "Mercado", 320_000, "VARIABLE", ayudas.categoria(daniel, "Variables"), null, null);
     }

@@ -27,8 +27,8 @@ describe('Hoy detallado en escritorio (steward-hoy)', () => {
     expect(a.raiz().querySelector('app-segmentado')).toBeNull();
 
     expect(limpio(a.raiz().querySelector('[data-testid="tarjeta-libre"]'))).toBe('Te queda libre $3.436.000 de $8.826.000 que entran este mes');
-    expect(limpio(a.raiz().querySelector('[data-testid="tarjeta-falta"]'))).toBe('Falta pagar $2.715.000 4 pendientes · 1 vencido');
-    expect(limpio(a.raiz().querySelector('[data-testid="tarjeta-pagado"]'))).toBe('Pagado $2.613.000 12 pagos · 48% de lo planeado');
+    expect(limpio(a.raiz().querySelector('[data-testid="tarjeta-falta"]'))).toBe('Falta pagar $2.895.000 4 pendientes · 1 vencido');
+    expect(limpio(a.raiz().querySelector('[data-testid="tarjeta-pagado"]'))).toBe('Pagado $2.433.000 10 pagos · 45% de lo planeado');
     expect(limpio(a.raiz().querySelector('[data-testid="tarjeta-vs-plan"]'))).toBe('Vs. plan −$62.000 gastaste menos de lo planeado');
   });
 
@@ -37,15 +37,16 @@ describe('Hoy detallado en escritorio (steward-hoy)', () => {
     await conSesion();
     const a = await app('/hoy');
     const filas = [...a.raiz().querySelectorAll('[data-testid="tabla-por-pagar"] tbody tr')];
-    expect(filas.map((f) => f.getAttribute('data-item'))).toEqual(['Compra a cuotas', 'Diezmo · Salario Daniel', 'Tarjeta Mastercard', 'Mercado']);
+    expect(filas.map((f) => f.getAttribute('data-item'))).toEqual(['Compra a cuotas', 'Diezmo · Salario Daniel', 'Tarjeta Nu · Mercado', 'Tarjeta Mastercard']);
     const cuotas = filas[0]!.querySelector('[data-col="vence"]')!;
     expect(limpio(cuotas)).toBe('Venció el 20');
     expect(cuotas.className).toContain('text-negativo');
-    expect(limpio(filas[2]!.querySelector('[data-col="vence"]'))).toBe('30 oct · en 4 días');
-    expect(filas[2]!.querySelector('[data-col="vence"]')!.className).toContain('text-aviso');
+    expect(limpio(filas[3]!.querySelector('[data-col="vence"]'))).toBe('30 oct · en 4 días');
+    expect(filas[3]!.querySelector('[data-col="vence"]')!.className).toContain('text-aviso');
     expect(limpio(filas[1]!.querySelector('[data-col="vence"]'))).toBe('Del Salario Daniel · día 25');
-    expect(limpio(filas[3]!.querySelector('[data-col="vence"]'))).toBe('Durante el mes');
-    expect(limpio(filas[0])).toContain('Tarjetas y cuotas');
+    expect(limpio(filas[2]!.querySelector('[data-col="vence"]'))).toBe('28 oct · en 2 días');
+    expect(limpio(filas[2])).toContain('Corte 13 · valor del extracto');
+    expect(limpio(filas[0])).toContain('Créditos');
   });
 
   it('"Marcar pagado" abre la hoja y al guardar baja Falta pagar', async () => {
@@ -59,7 +60,7 @@ describe('Hoy detallado en escritorio (steward-hoy)', () => {
     await a.tocar('Davivienda');
     await a.tocar(/^Marcar pagado/, 'app-pagar-hoja button');
     expect(a.url()).toBe('/hoy');
-    expect(limpio(a.raiz().querySelector('[data-testid="tarjeta-falta"]'))).toContain('Falta pagar $1.215.000');
+    expect(limpio(a.raiz().querySelector('[data-testid="tarjeta-falta"]'))).toContain('Falta pagar $1.395.000');
     expect(a.raiz().querySelector('[data-testid="tabla-ya-pagado"] tr[data-item="Tarjeta Mastercard"]')).not.toBeNull();
   });
 

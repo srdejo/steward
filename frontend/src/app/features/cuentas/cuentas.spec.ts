@@ -14,8 +14,8 @@ describe('Cuentas (steward-cuentas)', () => {
     expect(a.raiz().querySelector('[data-testid="saldo-hogar"]')!.textContent!.replace(/\s+/g, ' ').trim()).toBe('≈ $9.130.000');
     expect(cuenta(a, 'Ahorros Esposa')).toBe('Ahorros Esposa Esposa · sin cuadrar desde 20 sep ≈ $1.420.000');
     expect(cuenta(a, 'Nu')).toBe('Nu Daniel · cuadrada hoy $3.360.000');
-    expect(a.texto()).toContain('Debes $14.250.000');
-    expect(a.texto()).toContain('Libre inversión Cuota $500.000 · 1,6% EM · faltan 38');
+    // Los créditos tienen su pestaña (tarjetas-y-creditos).
+    expect(a.texto()).not.toContain('Libre inversión');
 
     await a.tocar('Esposa', '[role="radio"]');
     expect([...a.raiz().querySelectorAll('[data-cuenta]')].map((e) => e.getAttribute('data-cuenta'))).toEqual(['Ahorros Esposa']);
@@ -136,18 +136,19 @@ describe('Cuentas (steward-cuentas)', () => {
 
   it('agregar un crédito: su cuota entra al plan del mes (Agregar crédito)', async () => {
     const p = await conSesion();
-    const a = await app('/cuentas');
-    await a.tocar('+ Agregar', '[aria-label="Agregar crédito"]');
+    const a = await app('/cuentas?pestana=creditos');
+    await a.tocar('+ Crédito');
     await a.escribir('Nombre', 'Moto');
     await a.escribir('Entidad', 'Bancolombia');
-    await a.escribir('Saldo', '14250000');
-    await a.escribir('Total original', '20000000');
-    await a.escribir('Tasa (% EM)', '1,6');
     await a.escribir('Día de pago', '15');
+    await a.escribir('Saldo hoy', '14250000');
+    await a.escribir('Total original', '20000000');
+    await a.escribir('Tasa (%)', '1,6');
     expect(a.porTexto<HTMLButtonElement>('Agregar crédito').disabled).toBe(true);
     await a.escribir('Cuota', '500000');
+    expect(a.raiz().querySelector('[data-testid="resumen-metodo"]')!.textContent).toContain('Con esto: 38 cuotas');
     await a.tocar('Agregar crédito');
-    expect(a.texto()).toContain('Moto Cuota $500.000 · 1,6% EM');
+    expect(textoLegible(a.raiz().querySelector('[data-credito="Moto"]')!)).toContain('Con la tasa · 1,6% EM');
     const credito = (await p.cuentas.creditos()).find((c) => c.credito.nombre === 'Moto')!;
     expect(credito.porcentajePagado).toBe(29);
     const oct = await p.plan.mes(OCT);
@@ -204,17 +205,33 @@ describe('Cuentas (steward-cuentas)', () => {
       expect(a.url()).toMatch(new RegExp(`^/cuentas/cuenta/${davivienda}/registro/`));
     });
 
-    it('las pestañas Tarjetas y Créditos muestran los créditos', async () => {
+    it('los resúmenes llevan a las pestañas Tarjetas y Créditos', async () => {
       await conSesion();
       const a = await app('/cuentas');
-      expect(a.raiz().querySelector('[data-testid="lista-creditos"]')).toBeNull();
-      await a.tocar('Tarjetas', '[role="tab"]');
-      expect(a.porTexto('Tarjetas', '[role="tab"]').getAttribute('aria-selected')).toBe('true');
-      expect(textoLegible(a.raiz().querySelector('[data-testid="lista-creditos"]')!)).toContain('Libre inversión');
-      await a.tocar('Cuentas', '[role="tab"]');
+      expect(textoLegible(a.raiz().querySelector('[data-testid="resumen-tarjetas"]')!)).toContain('Pago Nu · Mercado el 28 oct, en 2 días');
+      await a.tocar(/Ver tarjetas/, '[data-testid="resumen-tarjetas"]');
+      expect(a.url()).toBe('/cuentas?pestana=tarjetas');
+      expect(a.raiz().querySelectorAll('[data-testid="calendario"] li')).toHaveLength(35);
+      await a.tocar(/Pago en 2 días/, '[role="tab"]');
+      expect(a.porTexto('Cuentas', '[role="tab"]').getAttribute('aria-selected')).toBe('false');
+      await a.ir('/cuentas');
       await a.tocar(/Ver créditos/, '[data-testid="resumen-creditos"]');
       expect(a.porTexto('Créditos', '[role="tab"]').getAttribute('aria-selected')).toBe('true');
-      expect(a.porTexto('+ Crédito')).toBeTruthy();
+    });
+
+    it('créditos: indicadores, el elegido al lado y la proyección', async () => {
+      await conSesion();
+      const a = await app('/cuentas?pestana=creditos');
+      expect(a.raiz().querySelector('[data-testid="deben-creditos"]')!.textContent!.trim()).toBe('$17.625.000');
+      expect(a.raiz().querySelector('[data-testid="pagan-mes"]')!.textContent!.trim()).toBe('$875.000');
+      const elegido = textoLegible(a.raiz().querySelector('[data-testid="credito-elegido"]')!);
+      expect(elegido).toContain('Libre inversión');
+      expect(elegido).toContain('$272.000 a capital');
+      expect(elegido).toContain('$228.000 intereses');
+      await a.tocar('Compra a cuotas', '[data-testid="tabla-creditos"] button');
+      expect(textoLegible(a.raiz().querySelector('[data-testid="credito-elegido"]')!)).toContain('sin intereses');
+      const fila = [...a.raiz().querySelectorAll('[data-testid="tabla-proyeccion"] tbody tr')].find((r) => r.textContent!.includes('Compra a cuotas'))!;
+      expect(textoLegible(fila)).toBe('Compra a cuotas $3.000.000 $2.625.000 $2.250.000 $1.875.000 $1.500.000 $1.125.000');
     });
   });
 });

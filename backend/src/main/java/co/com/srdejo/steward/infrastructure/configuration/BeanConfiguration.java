@@ -8,6 +8,7 @@ import co.com.srdejo.steward.domain.api.IFinanzasServicePort;
 import co.com.srdejo.steward.domain.api.IHogarServicePort;
 import co.com.srdejo.steward.domain.api.IInvitacionServicePort;
 import co.com.srdejo.steward.domain.api.IPlanServicePort;
+import co.com.srdejo.steward.domain.api.ITarjetasServicePort;
 import co.com.srdejo.steward.domain.spi.IAnualPersistencePort;
 import co.com.srdejo.steward.domain.spi.ICategoriaPersistencePort;
 import co.com.srdejo.steward.domain.spi.ICierrePersistencePort;
@@ -25,6 +26,7 @@ import co.com.srdejo.steward.domain.spi.IMovimientoPersistencePort;
 import co.com.srdejo.steward.domain.spi.IPlanPersistencePort;
 import co.com.srdejo.steward.domain.spi.IReglaDiezmoPersistencePort;
 import co.com.srdejo.steward.domain.spi.ITokenGeneratorPort;
+import co.com.srdejo.steward.domain.spi.ITarjetaPersistencePort;
 import co.com.srdejo.steward.domain.spi.ITokenPort;
 import co.com.srdejo.steward.domain.spi.ITransaccionPort;
 import co.com.srdejo.steward.domain.spi.IUsuarioPersistencePort;
@@ -36,12 +38,14 @@ import co.com.srdejo.steward.domain.usecase.FinanzasUseCase;
 import co.com.srdejo.steward.domain.usecase.HogarUseCase;
 import co.com.srdejo.steward.domain.usecase.InvitacionUseCase;
 import co.com.srdejo.steward.domain.usecase.PlanUseCase;
+import co.com.srdejo.steward.domain.usecase.TarjetasUseCase;
 import co.com.srdejo.steward.infrastructure.out.mail.ContactMailAdapter;
 import co.com.srdejo.steward.infrastructure.out.mail.LoggingMailAdapter;
 import co.com.srdejo.steward.infrastructure.out.r2dbc.AnualR2dbcAdapter;
 import co.com.srdejo.steward.infrastructure.out.r2dbc.CategoriaR2dbcAdapter;
 import co.com.srdejo.steward.infrastructure.out.r2dbc.CierreR2dbcAdapter;
 import co.com.srdejo.steward.infrastructure.out.r2dbc.CreditoR2dbcAdapter;
+import co.com.srdejo.steward.infrastructure.out.r2dbc.TarjetaR2dbcAdapter;
 import co.com.srdejo.steward.infrastructure.out.r2dbc.CuentaR2dbcAdapter;
 import co.com.srdejo.steward.infrastructure.out.r2dbc.HogarR2dbcAdapter;
 import co.com.srdejo.steward.infrastructure.out.r2dbc.IngresoFijoR2dbcAdapter;
@@ -154,6 +158,11 @@ public class BeanConfiguration {
     }
 
     @Bean
+    ITarjetaPersistencePort tarjetaPersistencePort(DatabaseClient db) {
+        return new TarjetaR2dbcAdapter(db);
+    }
+
+    @Bean
     IAnualPersistencePort anualPersistencePort(DatabaseClient db) {
         return new AnualR2dbcAdapter(db);
     }
@@ -222,9 +231,9 @@ public class BeanConfiguration {
                                              IPlanPersistencePort planes, ICreditoPersistencePort creditos,
                                              ICierrePersistencePort cierres, IAnualPersistencePort anuales,
                                              IUsuarioPersistencePort usuarios, ICurrentUserPort usuarioActual,
-                                             ITransaccionPort transaccion, IClockPort clock) {
+                                             ITransaccionPort transaccion, IClockPort clock, ITarjetaPersistencePort tarjetas) {
         return new FinanzasUseCase(hogares, reglas, ingresos, cuentas, movimientos, categorias, planes, creditos, cierres,
-                anuales, usuarios, usuarioActual, transaccion, clock);
+                anuales, usuarios, usuarioActual, transaccion, clock, tarjetas);
     }
 
     @Bean
@@ -259,10 +268,19 @@ public class BeanConfiguration {
                                      ICreditoPersistencePort creditos, ICierrePersistencePort cierres,
                                      IIngresoFijoPersistencePort ingresos, IReglaDiezmoPersistencePort reglas,
                                      IAnualPersistencePort anuales,
-                                     ICurrentUserPort usuarioActual, ITransaccionPort transaccion, IClockPort clock) {
+                                     ICurrentUserPort usuarioActual, ITransaccionPort transaccion, IClockPort clock,
+                                     ITarjetaPersistencePort tarjetas) {
         return new PlanUseCase(hogares, categorias, planes, movimientos, creditos, cierres, ingresos, reglas, anuales,
                 usuarioActual, transaccion,
-                clock);
+                clock, tarjetas);
+    }
+
+    @Bean
+    ITarjetasServicePort tarjetasServicePort(IHogarPersistencePort hogares, ICuentaPersistencePort cuentas,
+                                             ITarjetaPersistencePort tarjetas, IPlanPersistencePort planes,
+                                             ICategoriaPersistencePort categorias, ICurrentUserPort usuarioActual,
+                                             ITransaccionPort transaccion, IClockPort clock) {
+        return new TarjetasUseCase(hogares, cuentas, tarjetas, planes, categorias, usuarioActual, transaccion, clock);
     }
 
     @Bean

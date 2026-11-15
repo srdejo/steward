@@ -28,10 +28,12 @@ describe('Hoy (steward-hoy)', () => {
     const r = resumenMes(semilla(), OCT, HOY);
     expect(r.libre).toBe(3_436_000);
     expect(r.plan).toBe(5_390_000);
-    expect(r.pagado).toBe(2_613_000);
+    expect(r.pagado).toBe(2_433_000);
     expect(r.vsPlan).toBe(-62_000);
-    expect(r.porPagar.map((i) => i.item.nombre)).toEqual(['Compra a cuotas', 'Diezmo · Salario Daniel', 'Tarjeta Mastercard', 'Mercado']);
-    expect(r.porPagar.find((i) => i.item.nombre === 'Tarjeta Mastercard')?.detalle).toBe('Vence en 4 días');
+    expect(r.porPagar.map((i) => i.item.nombre)).toEqual(['Compra a cuotas', 'Diezmo · Salario Daniel', 'Tarjeta Nu · Mercado', 'Tarjeta Mastercard']);
+    // La linea de una tarjeta dice su corte y como se paga (tarjetas-y-creditos).
+    expect(r.porPagar.find((i) => i.item.nombre === 'Tarjeta Mastercard')?.detalle).toBe('Corte 15 · pago fijo');
+    expect(r.porPagar.find((i) => i.item.nombre === 'Tarjeta Nu · Mercado')?.detalle).toBe('Corte 13 · valor del extracto');
     expect(r.porPagar.find((i) => i.item.nombre === 'Compra a cuotas')?.detalle).toBe('Vence día 20 · cuota 4 de 12');
   });
 
@@ -52,9 +54,10 @@ describe('Hoy (steward-hoy)', () => {
   });
 
   it('variable acumulado contra su presupuesto', () => {
-    const mercado = resumenMes(semilla(), OCT, HOY).porPagar.find((i) => i.item.nombre === 'Mercado')!;
-    expect(mercado.detalle).toBe('Variable · llevas $180.000 de $320.000');
-    expect(mercado.pendiente).toBe(140_000);
+    const s = registrarGasto(semilla(), { monto: 40_000, itemId: 'm1-transporte', nota: '', usuarioId: DANIEL, origen: { tipo: 'NINGUNO' }, ref: NOV, fecha: HOY, creadoPor: DANIEL });
+    const transporte = resumenMes(s, NOV, HOY).porPagar.find((i) => i.item.nombre === 'Transporte')!;
+    expect(transporte.detalle).toBe('Variable · llevas $40.000 de $250.000');
+    expect(transporte.pendiente).toBe(210_000);
   });
 
   it('recibir no crea obligacion: el diezmo sigue como item por pagar (diezmo-como-gasto)', () => {
@@ -105,7 +108,7 @@ describe('Hoy (steward-hoy)', () => {
     const entrega = { ...base.movimientos[0]!, id: 'viejo', seq: 999, tipo: 'DIEZMO_ENTREGADO' as const, monto: 300_000, origen: { tipo: 'NINGUNO' as const } };
     const s = { ...base, movimientos: [...base.movimientos, entrega] };
     const r = resumenMes(s, OCT, HOY);
-    expect(r.pagado).toBe(2_613_000 + 300_000);
+    expect(r.pagado).toBe(2_433_000 + 300_000);
     expect(r.libre).toBe(3_436_000 - 300_000);
     expect(vistaCierre(s, OCT).filas.find((f) => f.nombre === 'No estaba planeado')?.real).toBe(300_000);
   });
@@ -136,13 +139,14 @@ describe('Hoy (steward-hoy)', () => {
   });
 
   it('gasto variable acumula y gasto no planeado resta del libre', () => {
-    let s = registrarGasto(semilla(), { monto: 40_000, itemId: 'm0-mercado', nota: '', usuarioId: DANIEL, origen: { tipo: 'NINGUNO' }, ref: OCT, fecha: HOY, creadoPor: DANIEL });
-    expect(resumenMes(s, OCT, HOY).porPagar.find((i) => i.item.nombre === 'Mercado')?.detalle).toBe('Variable · llevas $220.000 de $320.000');
-    expect(previsualizarGasto(semilla(), OCT, 'm0-mercado', 64_000, HOY)).toEqual({ llevado: 244_000, presupuesto: 320_000 });
+    // Transporte ya llego a su presupuesto: lo de mas pasa del plan.
+    let s = registrarGasto(semilla(), { monto: 40_000, itemId: 'm0-transporte', nota: '', usuarioId: DANIEL, origen: { tipo: 'NINGUNO' }, ref: OCT, fecha: HOY, creadoPor: DANIEL });
+    expect(resumenMes(s, OCT, HOY).yaPagado.find((i) => i.item.nombre === 'Transporte')?.detalle).toBe('Variable · $40.000 sobre el plan');
+    expect(previsualizarGasto(semilla(), OCT, 'm0-transporte', 64_000, HOY)).toEqual({ llevado: 314_000, presupuesto: 250_000 });
     s = registrarGasto(s, { monto: 85_000, itemId: null, nota: 'Farmacia', usuarioId: DANIEL, origen: { tipo: 'NINGUNO' }, ref: OCT, fecha: HOY, creadoPor: DANIEL });
     const r = resumenMes(s, OCT, HOY);
-    expect(r.libre).toBe(3_436_000 - 85_000);
-    expect(r.pagado).toBe(2_613_000 + 40_000 + 85_000);
+    expect(r.libre).toBe(3_436_000 - 40_000 - 85_000);
+    expect(r.pagado).toBe(2_433_000 + 40_000 + 85_000);
   });
 
   it('aporte con diezmo: su item en la opcion en uso, y el libre sube lo que queda', () => {
@@ -180,12 +184,15 @@ describe('Planear (steward-planear)', () => {
     const dic = planDe(s, DIC)!;
     expect(dic.estado).toBe('BORRADOR');
     expect(opciones(dic).map((o) => o.letra)).toEqual(['A']);
-    expect(dic.escenarios[0]!.items.find((i) => i.nombre === 'Compra a cuotas')?.cuota).toEqual({ actual: 6, total: 12 });
+    // La compra a cuotas es un credito con plan de pagos (tarjetas-y-creditos): su item sigue enlazado.
+    expect(dic.escenarios[0]!.items.find((i) => i.nombre === 'Compra a cuotas')?.creditoId).toBe('cred-cuotas');
     const fijos = crearMes(semilla(), { ref: DIC, modo: 'FIJOS', creadoPor: DANIEL });
     expect(planDe(fijos, DIC)!.escenarios[0]!.items.filter((i) => i.tipo === 'VARIABLE').every((i) => i.monto === 0)).toBe(true);
-    // Desde cero trae, ademas de los diezmos, solo la cuota del credito con saldo (backend-cuentas-creditos D5).
-    expect(planDe(crearMes(semilla(), { ref: DIC, modo: 'CERO', creadoPor: DANIEL }), DIC)!.escenarios[0]!.items.filter((i) => i.tipo !== 'DIEZMO').map((i) => [i.nombre, i.creditoId])).toEqual([
-      ['Cuota libre inversión', 'cred-libre'],
+    // Desde cero trae, ademas de los diezmos, la cuota de cada credito con saldo (backend-cuentas-creditos D5) y la linea de
+    // cada tarjeta (tarjetas-y-creditos).
+    expect(planDe(crearMes(semilla(), { ref: DIC, modo: 'CERO', creadoPor: DANIEL }), DIC)!.escenarios[0]!.items.filter((i) => i.tipo !== 'DIEZMO').map((i) => [i.nombre, i.monto])).toEqual([
+      ['Cuota libre inversión', 500_000], ['Cuota compra a cuotas', 375_000],
+      ['Tarjeta Nu · Mercado', 320_000], ['Tarjeta Mastercard', 1_500_000], ['Tarjeta Visa · Gasolina', 800_000],
     ]);
   });
 
@@ -193,8 +200,8 @@ describe('Planear (steward-planear)', () => {
     const copiar = planDe(crearMes(semilla(), { ref: DIC, modo: 'COPIAR', creadoPor: DANIEL }), DIC)!.escenarios[0]!.items;
     expect(copiar.filter((i) => i.creditoId === 'cred-libre').map((i) => i.nombre)).toEqual(['Cuota libre inversión']);
     const pagado = actualizarSaldoCredito(semilla(), { creditoId: 'cred-libre', saldo: 0, fecha: HOY });
-    expect(planDe(crearMes(pagado, { ref: DIC, modo: 'COPIAR', creadoPor: DANIEL }), DIC)!.escenarios[0]!.items.some((i) => i.creditoId)).toBe(false);
-    expect(planDe(crearMes(pagado, { ref: DIC, modo: 'CERO', creadoPor: DANIEL }), DIC)!.escenarios[0]!.items.filter((i) => i.tipo !== 'DIEZMO')).toEqual([]);
+    expect(planDe(crearMes(pagado, { ref: DIC, modo: 'COPIAR', creadoPor: DANIEL }), DIC)!.escenarios[0]!.items.some((i) => i.creditoId === 'cred-libre')).toBe(false);
+    expect(planDe(crearMes(pagado, { ref: DIC, modo: 'CERO', creadoPor: DANIEL }), DIC)!.escenarios[0]!.items.some((i) => i.creditoId === 'cred-libre')).toBe(false);
   });
 
   it('opciones de noviembre: libre antes y despues del cierre de octubre, diezmo como categoria', () => {
@@ -261,11 +268,11 @@ describe('Planear (steward-planear)', () => {
     const c = compararOpciones(semilla(), NOV);
     expect(c.letras).toEqual(['A', 'B', 'C']);
     expect(c.filas.map((f) => [f.nombre, f.nota, f.valores])).toEqual([
-      ['Variables', 'B suma regalos de Navidad', [720_000, 1_320_000, 720_000]],
-      ['Créditos', 'C suma abono extra crédito', [500_000, 500_000, 2_000_000]],
+      ['Variables', 'B suma regalos de Navidad', [400_000, 1_000_000, 400_000]],
+      ['Créditos', 'C suma abono extra crédito', [875_000, 875_000, 2_375_000]],
       ['Ahorro', 'Solo en B', [null, 1_000_000, null]],
     ]);
-    expect(c.sinCambios).toMatchObject({ nota: 'Diezmo, Gastos fijos, Tarjetas y cuotas', valores: [4_170_000, 4_170_000, 4_170_000] });
+    expect(c.sinCambios).toMatchObject({ nota: 'Diezmo, Gastos fijos, Tarjetas', valores: [4_115_000, 4_115_000, 4_115_000] });
   });
 
   it('diezmo editable y otro salario en una opcion, sin tocar las demas ni Ajustes', () => {
@@ -335,7 +342,7 @@ describe('Planear (steward-planear)', () => {
     const s = crearAnual(semilla(), { anio: 2028, hoy: HOY });
     const r = resumenAnual(s, 2028)!;
     expect(r.gastos.map((g) => [g.nombre, g.valores.every((v) => v === 0)])).toEqual([
-      ['Gastos fijos', true], ['Tarjetas y cuotas', true], ['Variables', true], ['Créditos', true], ['Ahorro', true],
+      ['Gastos fijos', true], ['Variables', true], ['Tarjetas', true], ['Créditos', true], ['Ahorro', true],
     ]);
     expect(r.ingresos.filter((f) => f.tenue).map((f) => f.nombre)).toEqual(['Aportes Daniel', 'Aportes Esposa']);
     const fijos = editarMontoAnual(s, { anio: 2028, categoriaId: 'cat-fijos', mes: 1, monto: 800_000 });
@@ -469,7 +476,8 @@ describe('Cierre (steward-planear)', () => {
     };
     pagar('m0-mastercard', 1_500_000);
     pagar('m0-cuotas', 375_000);
-    s = registrarGasto(s, { monto: 140_000, itemId: 'm0-mercado', nota: '', usuarioId: DANIEL, origen: { tipo: 'NINGUNO' }, ref: OCT, fecha: '2026-10-30', creadoPor: DANIEL });
+    // Mercado es la tarjeta Nu: se paga con el valor del extracto (tarjetas-y-creditos).
+    pagar('m0-mercado', 320_000);
     s = registrarGasto(s, { monto: 112_000, itemId: null, nota: 'Farmacia', usuarioId: DANIEL, origen: { tipo: 'NINGUNO' }, ref: OCT, fecha: '2026-10-30', creadoPor: DANIEL });
     s = marcarPago(s, { itemId: 'm0-diezmo-salario', ref: OCT, monto: 700_000, usuarioId: DANIEL, origen: { tipo: 'NINGUNO' }, fecha: '2026-10-30', creadoPor: DANIEL });
     // Cuadrar en Efectivo y Nu (sin pagos de este escenario) da $220.000 sin registrar.
@@ -614,7 +622,7 @@ describe('Usabilidad del plan (usabilidad-plan)', () => {
   it('borrar el plan de un mes con pagos y de un mes cerrado', () => {
     const base = registrarAporte(semilla(), { usuarioId: ESPOSA, monto: 100_000, ref: OCT, cuentaId: null, aplicaDiezmo: false, fecha: HOY, creadoPor: ESPOSA });
     const conteo = conteoBorrado(base, OCT);
-    expect(conteo).toEqual({ pagos: 7, gastos: 5, ingresos: 1, cerrado: false });
+    expect(conteo).toEqual({ pagos: 7, gastos: 3, ingresos: 1, cerrado: false });
     const aportes = base.movimientos.filter((m) => m.tipo === 'APORTE' && m.ref.mes === 10).length;
     const saldoCredito = base.creditos[0]!.saldo;
     const s = borrarPlan(base, OCT);
@@ -671,16 +679,16 @@ describe('Acceso y hogar (steward-acceso-onboarding, steward-ajustes)', () => {
     expect(s.categorias.map((c) => c.nombre)).toContain('Educación');
     expect(() => guardarCategoria(semilla(), { nombre: 'diezmo' })).toThrow(expect.objectContaining({ codigo: 'RESERVADA' }));
     expect(() => guardarCategoria(semilla(), { id: 'cat-diezmo', nombre: 'Ofrendas' })).toThrow(expect.objectContaining({ codigo: 'RESERVADA' }));
-    expect(crearHogarVacio().categorias.map((c) => c.nombre)).toEqual(['Diezmo', 'Gastos fijos', 'Tarjetas y cuotas', 'Variables', 'Créditos']);
+    expect(crearHogarVacio().categorias.map((c) => c.nombre)).toEqual(['Diezmo', 'Gastos fijos', 'Variables', 'Tarjetas', 'Créditos']);
   });
 });
 
 describe('Falta pagar y Hoy detallado (hoy-falta-pagar-y-detalle-web)', () => {
   it('suma lo pendiente y cuenta los vencidos con la semilla', () => {
     const r = resumenMes(semilla(), OCT, HOY);
-    expect(r.faltaPagar).toBe(2_715_000);
+    expect(r.faltaPagar).toBe(2_895_000);
     expect(r.vencidos).toBe(1);
-    expect(r.pagos).toBe(12);
+    expect(r.pagos).toBe(10);
     const cuotas = r.porPagar.find((i) => i.item.nombre === 'Compra a cuotas')!;
     expect(cuotas.vencido).toBe(true);
     expect(cuotas.vence).toEqual({ texto: 'Venció el 20', tono: 'alerta' });
@@ -690,10 +698,11 @@ describe('Falta pagar y Hoy detallado (hoy-falta-pagar-y-detalle-web)', () => {
   it('el diezmo y los variables no cuentan como vencidos', () => {
     const r = resumenMes(semilla(), OCT, '2026-10-31');
     const diezmo = r.porPagar.find((i) => i.item.tipo === 'DIEZMO')!;
-    const mercado = r.porPagar.find((i) => i.item.nombre === 'Mercado')!;
     expect([diezmo.vencido, diezmo.vence.tono]).toEqual([false, 'normal']);
-    expect(mercado.vencido).toBe(false);
-    expect(mercado.vence.texto).toBe('Durante el mes');
+    const nov = resumenMes(semilla(), NOV, '2026-11-30');
+    const transporte = nov.porPagar.find((i) => i.item.nombre === 'Transporte')!;
+    expect(transporte.vencido).toBe(false);
+    expect(transporte.vence.texto).toBe('Durante el mes');
   });
 
   it('en el mes siguiente nada está vencido', () => {
@@ -709,8 +718,8 @@ describe('Falta pagar y Hoy detallado (hoy-falta-pagar-y-detalle-web)', () => {
   it('pagar la Mastercard baja lo que falta', () => {
     const s = marcarPago(semilla(), { itemId: 'm0-mastercard', ref: OCT, monto: 1_500_000, usuarioId: DANIEL, origen: { tipo: 'CUENTA', cuentaId: 'cta-nu' }, fecha: HOY, creadoPor: DANIEL });
     const r = resumenMes(s, OCT, HOY);
-    expect(r.faltaPagar).toBe(1_215_000);
-    expect(r.pagos).toBe(13);
+    expect(r.faltaPagar).toBe(1_395_000);
+    expect(r.pagos).toBe(11);
   });
 
   it('el avance por categoría cuadra con el plan y lo pagado', () => {
@@ -819,7 +828,7 @@ describe('Planear el año desde un mes (planear-anio-desde-un-mes)', () => {
     s = crearMesesDesdeAnual(s, { anio: 2028, creadoPor: DANIEL });
     const octubre = opciones(planDe(s, OCT)!)[0]!.items.filter((i) => i.tipo !== 'DIEZMO').map((i) => i.nombre);
     const febrero = opciones(planDe(s, { anio: 2028, mes: 2 })!)[0]!;
-    expect(febrero.items.filter((i) => i.tipo !== 'DIEZMO').map((i) => i.nombre)).toEqual(octubre);
+    expect(febrero.items.filter((i) => i.tipo !== 'DIEZMO').map((i) => i.nombre).sort()).toEqual([...octubre].sort());
     const diciembre = opciones(planDe(s, { anio: 2028, mes: 12 })!)[0]!;
     expect(diciembre.items.find((i) => i.nombre === 'Navidad')).toMatchObject({ categoriaId: 'cat-variables', monto: 680_000, tipo: 'VARIABLE' });
     expect(diciembre.ingresos.map((i) => i.nombre)).toContain('Aumento');

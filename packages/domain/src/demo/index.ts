@@ -433,11 +433,17 @@ export function crearAdaptadorDemo(opciones: OpcionesDemo): Puertos {
         await cambiar((s) => R.cuadrarCuentas(s, { saldos, fecha: hoy(), usuarioId }));
       },
       async creditos() {
-        return (await leerEstado()).creditos.map((c) => ({ credito: c, cuotasRestantes: R.cuotasRestantes(c), porcentajePagado: R.porcentajePagado(c) }));
+        return (await leerEstado()).creditos.map((c) => R.vistaCredito(c, hoy()));
       },
       async credito(id) {
         const c = (await leerEstado()).creditos.find((x) => x.id === id);
-        return c ? { credito: c, cuotasRestantes: R.cuotasRestantes(c), porcentajePagado: R.porcentajePagado(c) } : null;
+        return c ? R.vistaCredito(c, hoy()) : null;
+      },
+      async resumenCreditos() {
+        return R.resumenCreditos(await leerEstado(), hoy());
+      },
+      async cambiarMetodo(creditoId, datos) {
+        await cambiar((s) => R.cambiarMetodoCredito(s, { ...datos, creditoId, fecha: hoy() }));
       },
       async agregarCredito(datos) {
         await cambiar((s) => R.agregarCredito(s, { ...datos, fecha: hoy() }));
@@ -462,6 +468,24 @@ export function crearAdaptadorDemo(opciones: OpcionesDemo): Puertos {
           return r.estado;
         });
         return resultado!;
+      },
+    },
+
+    tarjetas: {
+      async vista() {
+        return R.vistaTarjetas(await leerEstado(), hoy());
+      },
+      async agregar(datos) {
+        await cambiar((s) => R.agregarTarjeta(s, { ...datos, fecha: hoy() }));
+      },
+      async editar(id, datos) {
+        await cambiar((s) => R.editarTarjeta(s, { ...datos, id }));
+      },
+      async quitar(id) {
+        await cambiar((s) => R.quitarTarjeta(s, id));
+      },
+      async enlazables() {
+        return R.itemsEnlazables(await leerEstado(), hoy());
       },
     },
 

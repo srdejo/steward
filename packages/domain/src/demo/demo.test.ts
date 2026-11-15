@@ -18,8 +18,8 @@ describe('adaptador demo (steward-ui-shell: modo demo)', () => {
   it('la semilla da los totales de Hoy', async () => {
     const p = crearAdaptadorDemo({ storage: storageEnMemoria(), ahora });
     const r = await p.movimientos.resumenMes(OCT);
-    expect([r.libre, r.plan, r.pagado, r.vsPlan]).toEqual([3_436_000, 5_390_000, 2_613_000, -62_000]);
-    expect([r.faltaPagar, r.vencidos]).toEqual([2_715_000, 1]);
+    expect([r.libre, r.plan, r.pagado, r.vsPlan]).toEqual([3_436_000, 5_390_000, 2_433_000, -62_000]);
+    expect([r.faltaPagar, r.vencidos]).toEqual([2_895_000, 1]);
   });
 
   it('un registro sobrevive a recargar desde el storage y avisa a los oyentes', async () => {
@@ -116,7 +116,7 @@ describe('adaptador demo (steward-ui-shell: modo demo)', () => {
     const p = crearAdaptadorDemo({ storage: storageEnMemoria(), ahora });
     await p.sesion.iniciar('GOOGLE');
     await expect(p.movimientos.marcarPago({ itemId: 'm0-luz', ref: OCT, monto: 38_000, usuarioId: 'u-daniel', origen: { tipo: 'NINGUNO' } })).rejects.toThrow('Ya lo pagó Esposa el 12 oct');
-    expect((await p.movimientos.resumenMes(OCT)).pagado).toBe(2_613_000);
+    expect((await p.movimientos.resumenMes(OCT)).pagado).toBe(2_433_000);
   });
 
   it('con titular, "tú" y la inicial salen de la persona real (modo conectado)', async () => {

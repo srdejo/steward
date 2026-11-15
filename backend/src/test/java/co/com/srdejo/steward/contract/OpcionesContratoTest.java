@@ -48,7 +48,7 @@ class OpcionesContratoTest extends ContratoBase {
     void duplicarLaOpcionA() {
         post(daniel, "/api/creditos", libreInversion()).expectStatus().isCreated();
         Map<?, ?> plan = ayudas.crearPlan(daniel, SIGUIENTE, "CERO");
-        ayudas.item(daniel, plan, escenario(plan), "Compra a cuotas", 375_000, "CUOTA", ayudas.categoria(daniel, "Tarjetas y cuotas"), 4, 12);
+        ayudas.item(daniel, plan, escenario(plan), "Compra a cuotas", 375_000, "CUOTA", ayudas.categoria(daniel, "Créditos"), 4, 12);
         duplicar(esposa, plan, escenario(plan)).expectStatus().isCreated().expectBody()
                 .jsonPath("$.escenarios.length()").isEqualTo(2)
                 .jsonPath("$.escenarios[1].letra").isEqualTo("B")

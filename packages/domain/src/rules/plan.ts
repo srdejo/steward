@@ -3,6 +3,7 @@ import { formatCop, nombreMes, nombreMesCapital } from '../format';
 import { libreAnualDelMes } from './anual';
 import { ReglaError, clonar, compararMes, mesDe, nuevoId, sumar, sumarMeses } from './base';
 import { cuotasDeCreditos } from './credito';
+import { lineasDeTarjetas } from './tarjetas';
 import { anualDe, categoria, cierreDe, escenario, escenarioPrincipal, eventosDelMes, nombreUsuario, opciones, planDe, planPorId } from './consultas';
 import { diezmoDeLineaNueva, diezmoSugerido, diezmosDelMes, ingresosDelMes, ingresosNuevos, itemConPagos, recibeLinea, seguirLinea, totalIngresos, type LineaIngreso } from './ingresos';
 import { devolverCapital } from './credito';
@@ -57,6 +58,8 @@ export function crearMes(estado: EstadoHogar, datos: { ref: MesRef; modo: ModoNu
   // Los creditos con saldo traen su cuota en los tres modos; la de un credito ya pagado no se copia.
   const pagados = new Set(s.creditos.filter((c) => c.saldo <= 0).map((c) => c.id));
   items = cuotasDeCreditos(s, items.filter((i) => !i.creditoId || !pagados.has(i.creditoId)));
+  // Cada tarjeta trae su linea con el monto de la tarjeta, tambien en los tres modos (design D1 de tarjetas-y-creditos).
+  items = lineasDeTarjetas(s, items);
   // Las lineas de Ajustes y del anual se calculan de nuevo; las agregadas a mano se copian (design D8), con su diezmo si lo tenian.
   const copiadas = datos.modo === 'CERO' ? [] : (principalAnterior?.ingresos ?? []).filter((l) => l.tipo === 'OTRO');
   const nuevas = ingresosNuevos(s, datos.ref);

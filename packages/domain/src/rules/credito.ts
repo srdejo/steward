@@ -1,6 +1,70 @@
-import type { Credito, EstadoHogar, Fecha, Id, ItemPlan, Movimiento, Origen, Pesos } from '../model';
-import { ReglaError, clonar, mesDe, nuevoId } from './base';
+import type { Credito, EstadoHogar, Fecha, Id, ItemPlan, MesRef, MetodoCredito, Movimiento, Origen, Pesos } from '../model';
+import { ReglaError, clonar, compararMes, fechaEnMes, mesDe, mismoMes, nuevoId, sumar, sumarMeses } from './base';
 import { escenarioPrincipal, planDe } from './consultas';
+
+// --- Calculos (design D3 de tarjetas-y-creditos) ---------------------------------------------------------------------
+
+/** Tasa efectiva mensual equivalente a una efectiva anual, en porcentaje con dos decimales (12 % EA = 0,95 % EM). */
+export function emDeEa(ea: number): number {
+  return Math.round((Math.pow(1 + ea / 100, 1 / 12) - 1) * 10_000) / 100;
+}
+
+/** Cuota fija (sistema frances) de `valor` en `n` cuotas a la tasa mensual `em` (porcentaje). */
+export function cuotaFija(valor: Pesos, n: number, em: number): Pesos {
+  if (n <= 0) return 0;
+  const r = em / 100;
+  if (r === 0) return Math.round(valor / n);
+  return Math.round((valor * r) / (1 - Math.pow(1 + r, -n)));
+}
+
+/** Una cuota de la tabla: su numero, lo que va a interes y a capital, y el saldo que queda. */
+export interface FilaTabla {
+  k: number;
+  interes: Pesos;
+  capital: Pesos;
+  saldo: Pesos;
+}
+
+/** Amortiza `saldo` con `cuota` a la tasa `em`, desde la cuota `desde`, hasta `meses` filas, `hasta` (numero de cuota) o saldo cero. */
+function amortizar(saldo: Pesos, cuota: Pesos, em: number, desde: number, meses: number, hasta: number | null): FilaTabla[] {
+  const filas: FilaTabla[] = [];
+  let s = saldo;
+  for (let k = desde; filas.length < meses && s > 0 && (hasta === null || k <= hasta); k++) {
+    const interes = Math.round((s * em) / 100);
+    const ultima = hasta !== null && k === hasta;
+    const capital = ultima ? s : Math.min(Math.max(0, cuota - interes), s);
+    if (capital <= 0) break;
+    s -= capital;
+    filas.push({ k, interes, capital, saldo: s });
+  }
+  return filas;
+}
+
+/** La tabla completa del plan de pagos, desde el valor financiado. */
+function tablaPlan(c: Pick<Credito, 'valorFinanciado' | 'numeroCuotas' | 'tasaEM' | 'cuota'>): FilaTabla[] {
+  const n = c.numeroCuotas ?? 0;
+  return amortizar(c.valorFinanciado ?? 0, c.cuota, c.tasaEM, 1, n, n);
+}
+
+/** Saldo del plan de pagos despues de `pagadas` cuotas. */
+export function saldoPlan(c: Pick<Credito, 'valorFinanciado' | 'numeroCuotas' | 'tasaEM' | 'cuota'>, pagadas: number): Pesos {
+  if (pagadas <= 0) return c.valorFinanciado ?? 0;
+  return tablaPlan(c)[pagadas - 1]?.saldo ?? 0;
+}
+
+/**
+ * Las proximas cuotas desde el saldo de hoy (design D3): con la tasa, amortizacion; con el plan de pagos, su tabla (o,
+ * si el saldo se corrigio con el extracto y no coincide, amortizacion desde ese saldo); a mano, ninguna.
+ */
+export function tablaCredito(c: Credito, meses: number): FilaTabla[] {
+  if (c.metodo === 'MANUAL') return [];
+  if (c.metodo === 'PLAN') {
+    const n = c.numeroCuotas ?? 0;
+    if (Math.abs(saldoPlan(c, c.cuotasPagadas) - c.saldo) <= 1) return tablaPlan(c).slice(c.cuotasPagadas, c.cuotasPagadas + meses);
+    return amortizar(c.saldo, c.cuota, c.tasaEM, c.cuotasPagadas + 1, meses, n);
+  }
+  return amortizar(c.saldo, c.cuota, c.tasaEM, c.cuotasPagadas + 1, meses, null);
+}
 
 /** Numero de cuotas (fraccionario) para pagar `saldo` con `cuota` a la tasa mensual. null = la cuota no alcanza ni el interes. */
 function cuotasExactas(saldo: Pesos, cuota: Pesos, tasaEM: number): number | null {
@@ -12,7 +76,8 @@ function cuotasExactas(saldo: Pesos, cuota: Pesos, tasaEM: number): number | nul
   return -Math.log(x) / Math.log(1 + r);
 }
 
-export function cuotasRestantes(credito: Pick<Credito, 'saldo' | 'cuota' | 'tasaEM'>): number | null {
+export function cuotasRestantes(credito: Pick<Credito, 'saldo' | 'cuota' | 'tasaEM'> & Partial<Pick<Credito, 'metodo' | 'numeroCuotas' | 'cuotasPagadas'>>): number | null {
+  if (credito.metodo === 'PLAN' && credito.numeroCuotas) return Math.max(0, credito.numeroCuotas - (credito.cuotasPagadas ?? 0));
   const n = cuotasExactas(credito.saldo, credito.cuota, credito.tasaEM);
   return n === null ? null : Math.round(n);
 }
@@ -36,12 +101,130 @@ export function simularAbono(credito: Pick<Credito, 'saldo' | 'cuota' | 'tasaEM'
   };
 }
 
+// --- Vistas ----------------------------------------------------------------------------------------------------------
+
+/** Si la cuota del mes de `hoy` ya se pago. */
+function cuotaPagadaEn(c: Credito, ref: MesRef): boolean {
+  return c.pagos.some((p) => p.tipo === 'CUOTA' && mismoMes(mesDe(p.fecha), ref));
+}
+
+/** A mano: el dia de pago del mes ya paso y el saldo no se actualizo desde entonces. */
+export function debeActualizar(c: Credito, hoy: Fecha): boolean {
+  if (c.metodo !== 'MANUAL') return false;
+  const pago = fechaEnMes(mesDe(hoy), c.diaPago);
+  return pago <= hoy && c.saldoActualizadoEn < pago;
+}
+
+/** Una cuota proyectada con su mes. */
+export interface CuotaProyectada extends FilaTabla {
+  ref: MesRef;
+}
+
+/** Las cuotas que vienen, cada una en su mes: la del mes en curso si todavia no se paga. */
+export function cuotasProyectadas(c: Credito, hoy: Fecha, meses: number): CuotaProyectada[] {
+  const M = mesDe(hoy);
+  const primera = cuotaPagadaEn(c, M) ? sumarMeses(M, 1) : M;
+  return tablaCredito(c, meses).map((f, i) => ({ ...f, ref: sumarMeses(primera, i) }));
+}
+
+/** Saldo al final de cada mes, desde el mes en curso (design D4). A mano, constante. */
+export function saldosFinDeMes(c: Credito, hoy: Fecha, meses: number): Pesos[] {
+  if (c.metodo === 'MANUAL') return Array.from({ length: meses }, () => c.saldo);
+  const M = mesDe(hoy);
+  const cuotas = cuotasProyectadas(c, hoy, meses + 1);
+  return Array.from({ length: meses }, (_, j) => {
+    const fin = sumarMeses(M, j);
+    const hasta = cuotas.filter((q) => compararMes(q.ref, fin) <= 0);
+    return hasta.length ? hasta.at(-1)!.saldo : c.saldo;
+  });
+}
+
+export interface VistaCredito {
+  credito: Credito;
+  cuotasRestantes: number | null;
+  porcentajePagado: number;
+  /** "Cuota 23 de 60": la proxima y el total, si se conocen. */
+  progreso: { actual: number; total: number } | null;
+  /** La proxima cuota con lo que va a interes y a capital; null a mano o pagado. */
+  proxima: CuotaProyectada | null;
+  /** Las 6 proximas cuotas. */
+  proximas: CuotaProyectada[];
+  /** Mes de la ultima cuota (≈); null a mano o si no alcanza a pagarse. */
+  termina: MesRef | null;
+  /** A mano: toca escribir el saldo del extracto. */
+  actualizar: boolean;
+  /** Intereses de enero a diciembre del año siguiente. */
+  interesesAnioSiguiente: Pesos;
+  /** Saldo al final del mes en curso y de los 5 siguientes. */
+  proyeccion: Pesos[];
+}
+
+/** Hasta donde se proyecta para saber cuando termina un credito (50 años). */
+const MAX_CUOTAS = 600;
+
+export function vistaCredito(c: Credito, hoy: Fecha): VistaCredito {
+  const M = mesDe(hoy);
+  const todas = c.metodo === 'MANUAL' ? [] : cuotasProyectadas(c, hoy, MAX_CUOTAS);
+  const restantes = cuotasRestantes(c);
+  const total = c.metodo === 'PLAN' ? c.numeroCuotas : restantes !== null && c.cuotasPagadas > 0 ? c.cuotasPagadas + restantes : null;
+  const ultima = todas.at(-1);
+  return {
+    credito: c,
+    cuotasRestantes: restantes,
+    porcentajePagado: porcentajePagado(c),
+    progreso: total && c.saldo > 0 ? { actual: Math.min(total, c.cuotasPagadas + 1), total } : null,
+    proxima: todas[0] ?? null,
+    proximas: todas.slice(0, 6),
+    termina: ultima && ultima.saldo === 0 ? ultima.ref : null,
+    actualizar: debeActualizar(c, hoy),
+    interesesAnioSiguiente: sumar(todas.filter((q) => q.ref.anio === M.anio + 1).map((q) => q.interes)),
+    proyeccion: saldosFinDeMes(c, hoy, 6),
+  };
+}
+
+/** La pestaña Creditos (spec "Proyeccion de creditos"). */
+export interface ResumenCreditos {
+  creditos: VistaCredito[];
+  /** Suma de los saldos. */
+  deben: Pesos;
+  /** Suma de las cuotas de los creditos con saldo. */
+  pagan: Pesos;
+  /** Suma proyectada a diciembre del año en curso, y cuanto baja desde hoy. */
+  deberanAlCerrar: Pesos;
+  bajaAlCerrar: Pesos;
+  interesesAnioSiguiente: Pesos;
+  /** Los 6 meses de la proyeccion, desde el mes en curso, y el total de cada uno. */
+  meses: MesRef[];
+  totales: Pesos[];
+}
+
+export function resumenCreditos(estado: EstadoHogar, hoy: Fecha): ResumenCreditos {
+  const M = mesDe(hoy);
+  const creditos = estado.creditos.map((c) => vistaCredito(c, hoy));
+  const deben = sumar(estado.creditos.map((c) => c.saldo));
+  const aDiciembre = 12 - M.mes + 1;
+  const deberanAlCerrar = sumar(estado.creditos.map((c) => saldosFinDeMes(c, hoy, aDiciembre).at(-1) ?? c.saldo));
+  return {
+    creditos,
+    deben,
+    pagan: sumar(estado.creditos.filter((c) => c.saldo > 0).map((c) => c.cuota)),
+    deberanAlCerrar,
+    bajaAlCerrar: deben - deberanAlCerrar,
+    interesesAnioSiguiente: sumar(creditos.map((v) => v.interesesAnioSiguiente)),
+    meses: Array.from({ length: 6 }, (_, j) => sumarMeses(M, j)),
+    totales: Array.from({ length: 6 }, (_, j) => sumar(creditos.map((v) => v.proyeccion[j] ?? 0))),
+  };
+}
+
+// --- Escrituras ------------------------------------------------------------------------------------------------------
+
 function creditoDe(s: EstadoHogar, id: Id): Credito {
   const c = s.creditos.find((x) => x.id === id);
   if (!c) throw new ReglaError('NO_EXISTE', 'No existe el crédito');
   return c;
 }
 
+/** "Corregir con extracto": el saldo que dice el banco, con la fecha de hoy; la proyeccion sigue desde ahi. */
 export function actualizarSaldoCredito(estado: EstadoHogar, datos: { creditoId: Id; saldo: Pesos; fecha: Fecha }): EstadoHogar {
   if (datos.saldo < 0) throw new ReglaError('MONTO_INVALIDO', 'El saldo no puede ser negativo');
   const s = clonar(estado);
@@ -49,6 +232,25 @@ export function actualizarSaldoCredito(estado: EstadoHogar, datos: { creditoId: 
   c.saldo = datos.saldo;
   c.saldoActualizadoEn = datos.fecha;
   return s;
+}
+
+/**
+ * Paga la cuota de un credito segun su metodo (design D3) y devuelve cuanto bajo el saldo (`capital`). Muta el borrador.
+ * Con la tasa: cuota − interes del mes. Con el plan de pagos: el saldo de la tabla para la cuota k. A mano: nada.
+ */
+export function aplicarCuota(c: Credito, monto: Pesos, fecha: Fecha): Pesos {
+  const antes = c.saldo;
+  if (c.metodo === 'PLAN') {
+    const fila = tablaCredito(c, 1)[0];
+    c.saldo = fila ? fila.saldo : Math.max(0, c.saldo - monto);
+    c.cuotasPagadas += 1;
+  } else if (c.metodo === 'TASA') {
+    const interes = Math.round((c.saldo * c.tasaEM) / 100);
+    c.saldo = Math.max(0, c.saldo - Math.max(0, monto - interes));
+    c.cuotasPagadas += 1;
+  }
+  c.pagos.unshift({ fecha, monto, tipo: 'CUOTA' });
+  return antes - c.saldo;
 }
 
 /** Abono a capital fuera de la cuota. */
@@ -71,7 +273,8 @@ export function registrarAbono(estado: EstadoHogar, datos: { creditoId: Id; mont
 
 /**
  * Al borrar un pago de cuota o un abono, el credito recupera lo que le habia bajado (`capital`, design D3 de usabilidad-plan).
- * Uno de antes, sin `capital`, no toca el saldo. Muta el borrador.
+ * Una cuota borrada tambien descuenta la cuota pagada (tarjetas-y-creditos). Uno de antes, sin `capital`, no toca el saldo.
+ * Muta el borrador.
  */
 export function devolverCapital(s: EstadoHogar, m: Movimiento): void {
   if (!m.creditoId || m.capital === null) return;
@@ -79,18 +282,67 @@ export function devolverCapital(s: EstadoHogar, m: Movimiento): void {
   if (!c) return;
   c.saldo += m.capital;
   const tipo = m.tipo === 'ABONO_CREDITO' ? 'ABONO' : 'CUOTA';
+  if (tipo === 'CUOTA' && c.metodo !== 'MANUAL' && c.cuotasPagadas > 0) c.cuotasPagadas -= 1;
   const i = c.pagos.findIndex((p) => p.fecha === m.fecha && p.monto === m.monto && p.tipo === tipo);
   if (i >= 0) c.pagos.splice(i, 1);
 }
 
-export interface DatosCredito {
+/** Datos de "¿Como baja el saldo?" (spec "Como baja el saldo de un credito"). */
+export interface DatosMetodo {
+  metodo: MetodoCredito;
+  /** TASA y MANUAL. */
+  saldo: Pesos;
+  /** TASA y MANUAL; en PLAN se calcula. */
+  cuota: Pesos;
+  /** EM en porcentaje (TASA y PLAN). */
+  tasaEM: number;
+  /** PLAN. */
+  numeroCuotas?: number | null;
+  cuotasPagadas?: number;
+  valorFinanciado?: Pesos | null;
+}
+
+export interface DatosCredito extends Omit<DatosMetodo, 'metodo'> {
+  /** Sin el campo, con la tasa (como antes de tarjetas-y-creditos). */
+  metodo?: MetodoCredito;
   nombre: string;
   entidad: string;
-  saldo: Pesos;
   totalOriginal: Pesos;
-  cuota: Pesos;
-  tasaEM: number;
   diaPago: number;
+}
+
+/** Valida los datos del metodo y devuelve los campos del credito (en PLAN, la cuota y el saldo salen de la tabla). */
+function camposMetodo(d: DatosMetodo): Pick<Credito, 'metodo' | 'saldo' | 'cuota' | 'tasaEM' | 'numeroCuotas' | 'cuotasPagadas' | 'valorFinanciado'> {
+  if (!(d.tasaEM >= 0 && d.tasaEM <= 10)) throw new ReglaError('MONTO_INVALIDO', 'La tasa efectiva mensual va de 0 a 10 %');
+  if (d.metodo === 'PLAN') {
+    const n = d.numeroCuotas ?? 0;
+    const pagadas = d.cuotasPagadas ?? 0;
+    const valor = d.valorFinanciado ?? 0;
+    if (!(valor > 0) || !Number.isInteger(n) || n < 1 || n > 600 || !Number.isInteger(pagadas) || pagadas < 0 || pagadas >= n) {
+      throw new ReglaError('MONTO_INVALIDO', 'Revisa el valor, el número de cuotas y las cuotas pagadas');
+    }
+    const base = { valorFinanciado: valor, numeroCuotas: n, tasaEM: d.tasaEM, cuota: cuotaFija(valor, n, d.tasaEM) };
+    return { metodo: 'PLAN', ...base, saldo: saldoPlan(base, pagadas), cuotasPagadas: pagadas };
+  }
+  if (!(d.saldo >= 0) || !(d.cuota > 0)) throw new ReglaError('MONTO_INVALIDO', 'Revisa el saldo y la cuota');
+  return {
+    metodo: d.metodo, saldo: d.saldo, cuota: d.cuota, tasaEM: d.metodo === 'MANUAL' ? 0 : d.tasaEM,
+    numeroCuotas: null, cuotasPagadas: d.cuotasPagadas ?? 0, valorFinanciado: null,
+  };
+}
+
+/** "Cambiar" en el detalle: otro metodo, o los datos del mismo. El item del plan sigue la cuota nueva en los meses en Borrador. */
+export function cambiarMetodoCredito(estado: EstadoHogar, datos: DatosMetodo & { creditoId: Id; fecha: Fecha }): EstadoHogar {
+  const s = clonar(estado);
+  const c = creditoDe(s, datos.creditoId);
+  const antes = c.saldo;
+  Object.assign(c, camposMetodo(datos));
+  if (c.saldo !== antes) c.saldoActualizadoEn = datos.fecha;
+  if (c.metodo === 'PLAN') c.totalOriginal = Math.max(c.valorFinanciado ?? 0, c.saldo);
+  for (const plan of s.planes.filter((p) => p.estado === 'BORRADOR')) {
+    for (const e of plan.escenarios) for (const i of e.items) if (i.creditoId === c.id && i.nombre.startsWith('Cuota ')) i.monto = c.cuota;
+  }
+  return s;
 }
 
 /** Item de la cuota de un credito, enlazado a el (spec steward-plan-mes, design D5 de backend-cuentas-creditos). */
@@ -109,20 +361,18 @@ export function cuotasDeCreditos(s: EstadoHogar, items: ItemPlan[]): ItemPlan[] 
   return [...items, ...s.creditos.filter((c) => c.saldo > 0 && !enlazados.has(c.id)).map((c) => itemCuota(s, c))];
 }
 
-/** "+ Agregar credito": su cuota entra a la Opcion A del mes en curso si tiene plan y no esta cerrado. */
+/** "+ Credito": su cuota entra a la opcion en uso del mes en curso si tiene plan y no esta cerrado. */
 export function agregarCredito(estado: EstadoHogar, datos: DatosCredito & { fecha: Fecha }): EstadoHogar {
   const nombre = datos.nombre.trim();
   const entidad = datos.entidad.trim();
   if (!nombre || nombre.length > 40 || entidad.length > 40) throw new ReglaError('NOMBRE_REQUERIDO', 'El crédito necesita un nombre de hasta 40 caracteres');
-  if (!(datos.saldo >= 0) || !(datos.cuota > 0) || !(datos.totalOriginal > 0) || datos.totalOriginal < datos.saldo) {
-    throw new ReglaError('MONTO_INVALIDO', 'Revisa el saldo, el total original y la cuota');
-  }
-  if (!(datos.tasaEM >= 0 && datos.tasaEM <= 10)) throw new ReglaError('MONTO_INVALIDO', 'La tasa efectiva mensual va de 0 a 10 %');
   if (!Number.isInteger(datos.diaPago) || datos.diaPago < 1 || datos.diaPago > 31) throw new ReglaError('DIA_INVALIDO', 'El día de pago va de 1 a 31');
+  const campos = camposMetodo({ ...datos, metodo: datos.metodo ?? 'TASA' });
+  const totalOriginal = campos.metodo === 'PLAN' ? campos.valorFinanciado! : datos.totalOriginal;
+  if (!(totalOriginal > 0) || totalOriginal < campos.saldo) throw new ReglaError('MONTO_INVALIDO', 'Revisa el saldo, el total original y la cuota');
   const s = clonar(estado);
   const credito: Credito = {
-    id: nuevoId(s, 'cred'), nombre, entidad, saldo: datos.saldo, saldoActualizadoEn: datos.fecha, cuota: datos.cuota,
-    tasaEM: datos.tasaEM, diaPago: datos.diaPago, totalOriginal: datos.totalOriginal, pagos: [],
+    id: nuevoId(s, 'cred'), nombre, entidad, saldoActualizadoEn: datos.fecha, diaPago: datos.diaPago, totalOriginal, pagos: [], ...campos,
   };
   s.creditos.push(credito);
   const plan = planDe(s, mesDe(datos.fecha));

@@ -76,9 +76,11 @@ describe('Hoy (steward-hoy)', () => {
     await conSesion();
     renderRouter('./src/app', { initialUrl: '/hoy' });
     await waitFor(() => expect(screen.getByTestId('libre')).toHaveTextContent('$3.436.000'));
-    expect(screen.getByTestId('falta-pagar')).toHaveTextContent('Falta pagar$2.715.000');
-    expect(screen.getByTestId('por-pagar-total')).toHaveTextContent('$2.715.000');
-    expect(screen.getByText('$2.613.000')).toBeTruthy();
+    expect(screen.getByTestId('falta-pagar')).toHaveTextContent('Falta pagar$2.895.000');
+    expect(screen.getByTestId('por-pagar-total')).toHaveTextContent('$2.895.000');
+    expect(screen.getByText('$2.433.000')).toBeTruthy();
+    // La linea de una tarjeta dice su corte y como se paga (tarjetas-y-creditos).
+    expect(screen.getByText('Corte 13 · valor del extracto')).toBeTruthy();
     expect(screen.getByText('−$62.000')).toBeTruthy();
     expect(screen.getByText('2 aportes · 1 pago directo')).toBeTruthy();
   });
@@ -87,17 +89,18 @@ describe('Hoy (steward-hoy)', () => {
     await conSesion();
     renderRouter('./src/app', { initialUrl: '/hoy' });
     await waitFor(() => expect(screen.getByTestId('libre')).toHaveTextContent('$3.436.000'));
-    expect(screen.getByTestId('por-pagar-Tarjeta Mastercard')).toBeTruthy();
-    expect(screen.queryByTestId('por-pagar-Mercado')).toBeNull();
-    expect(screen.getByTestId('ver-mas')).toHaveTextContent('Ver 1 más · 4 pendientes en total$140.000');
+    expect(screen.getByTestId('por-pagar-Tarjeta Nu · Mercado')).toBeTruthy();
+    expect(screen.queryByTestId('por-pagar-Tarjeta Mastercard')).toBeNull();
+    expect(screen.getByTestId('ver-mas')).toHaveTextContent('Ver 1 más · 4 pendientes en total$1.500.000');
     fireEvent.press(screen.getByTestId('ver-mas'));
-    expect(await screen.findByTestId('por-pagar-Mercado')).toBeTruthy();
+    expect(await screen.findByTestId('por-pagar-Tarjeta Mastercard')).toBeTruthy();
     expect(screen.queryByTestId('ver-mas')).toBeNull();
   });
 
   it('pago directo desde "Su cuenta" cuenta como aporte de quien pagó', async () => {
     await conSesion();
     renderRouter('./src/app', { initialUrl: '/hoy' });
+    fireEvent.press(await screen.findByTestId('ver-mas'));
     await tocar('Tarjeta Mastercard');
     await enRuta('/pagar/m0-mastercard');
     expect(await screen.findByLabelText('Valor pagado')).toHaveDisplayValue('$1.500.000');
@@ -119,12 +122,12 @@ describe('Hoy (steward-hoy)', () => {
 
   it('gasto variable acumula contra su presupuesto', async () => {
     await conSesion();
-    renderRouter('./src/app', { initialUrl: '/gasto?item=m0-mercado' });
+    // Mercado es la tarjeta Nu (tarjetas-y-creditos): el variable que queda es Transporte, ya en su presupuesto.
+    renderRouter('./src/app', { initialUrl: '/gasto?item=m0-transporte' });
     await escribir('¿Cuánto?', '40000');
-    expect(await screen.findByTestId('vista-previa-gasto')).toHaveTextContent('Mercado: llevas $220.000 de $320.000 con este gasto.');
+    expect(await screen.findByTestId('vista-previa-gasto')).toHaveTextContent('Transporte: llevas $290.000 de $250.000 con este gasto.');
     await tocar('Guardar gasto');
-    fireEvent.press(await screen.findByTestId('ver-mas'));
-    expect(await screen.findByText('Variable · llevas $220.000 de $320.000')).toBeTruthy();
+    await waitFor(() => expect(screen.getByTestId('pagado-Transporte')).toHaveTextContent(/\$290\.000/));
   });
 });
 
@@ -135,7 +138,8 @@ describe('Planear (steward-planear)', () => {
     const pagar = (itemId: string, monto: number) => p.movimientos.marcarPago({ itemId, ref: OCT, monto, usuarioId: 'u-daniel', origen: { tipo: 'CUENTA', cuentaId: 'cta-davivienda' } });
     await pagar('m0-mastercard', 1_500_000);
     await pagar('m0-cuotas', 375_000);
-    await p.movimientos.registrarGasto({ monto: 140_000, itemId: 'm0-mercado', nota: '', usuarioId: 'u-daniel', origen: { tipo: 'NINGUNO' }, ref: OCT });
+    // Mercado es la tarjeta Nu: se paga con el valor del extracto (tarjetas-y-creditos).
+    await pagar('m0-mercado', 320_000);
     await p.movimientos.registrarGasto({ monto: 112_000, itemId: null, nota: 'Farmacia', usuarioId: 'u-daniel', origen: { tipo: 'NINGUNO' }, ref: OCT });
     // El diezmo es un item del plan: se marca pagado como los demas (diezmo-como-gasto).
     await p.movimientos.marcarPago({ itemId: 'm0-diezmo-salario', ref: OCT, monto: 700_000, usuarioId: 'u-daniel', origen: { tipo: 'NINGUNO' } });
@@ -184,7 +188,10 @@ describe('Cuentas (steward-cuentas)', () => {
     await conSesion();
     renderRouter('./src/app', { initialUrl: '/credito/cred-libre' });
     await waitFor(() => expect(screen.getByTestId('simulacion')).toHaveTextContent('≈ 5 cuotas menos y ≈ $1.200.000 menos en intereses.'));
-    expect(screen.getByText('Faltan 38 cuotas')).toBeTruthy();
+    expect(screen.getAllByText('Faltan 38 cuotas').length).toBeGreaterThan(0);
+    expect(screen.getByTestId('metodo')).toHaveTextContent(/Baja solo con la tasa · 1,6% EM/);
+    expect(screen.getByText('Cuota 23 de 60')).toBeTruthy();
+    expect(screen.getAllByTestId('cuota-proxima')[0]).toHaveTextContent(/\$228\.000.*\$272\.000.*\$13\.978\.000/);
   });
 });
 
@@ -280,11 +287,11 @@ describe('Ejecución y Plan (app-movil-conectada)', () => {
     const p = await conSesion();
     renderRouter('./src/app', { initialUrl: '/mes/2026-10' });
     await tocar(/^Variables/);
-    await tocar('Mercado');
+    await tocar('Transporte');
     expect(screen.queryByText('+ Duplicar')).toBeNull();
     await escribir('Monto', '400000');
     await tocar('Guardar');
-    await waitFor(async () => expect((await p.plan.mes(OCT)).opciones[0]!.escenario.items.find((i) => i.nombre === 'Mercado')!.monto).toBe(400_000));
+    await waitFor(async () => expect((await p.plan.mes(OCT)).opciones[0]!.escenario.items.find((i) => i.nombre === 'Transporte')!.monto).toBe(400_000));
   });
 
   it('con saldo negativo dice faltarían', async () => {
@@ -362,6 +369,7 @@ describe('paridad con la PWA (steward-mobile-app)', () => {
   it('pagar la Mastercard desde Davivienda y un aporte para noviembre dan las mismas cifras que la PWA', async () => {
     await conSesion();
     renderRouter('./src/app', { initialUrl: '/hoy' });
+    fireEvent.press(await screen.findByTestId('ver-mas'));
     await tocar('Tarjeta Mastercard');
     await tocar('Davivienda');
     await tocar('Marcar pagado');
@@ -373,10 +381,41 @@ describe('paridad con la PWA (steward-mobile-app)', () => {
     await enRuta('/hoy');
     // Mismas cifras que frontend/src/app/features/hoy/paridad.spec.ts.
     await waitFor(() => expect(screen.getByTestId('libre')).toHaveTextContent('$3.436.000'));
-    expect(screen.getByText('$4.113.000')).toBeTruthy();
+    expect(screen.getByText('$3.933.000')).toBeTruthy();
     expect(screen.getByText('−$62.000')).toBeTruthy();
-    expect(screen.getByTestId('falta-pagar')).toHaveTextContent('Falta pagar$1.215.000');
+    expect(screen.getByTestId('falta-pagar')).toHaveTextContent('Falta pagar$1.395.000');
     expect(screen.queryByTestId('ver-mas')).toBeNull();
+  });
+
+  it('tarjetas y créditos dan las mismas cifras que la PWA (tarjetas-y-creditos)', async () => {
+    await conSesion();
+    renderRouter('./src/app', { initialUrl: '/cuentas' });
+    expect(await screen.findByTestId('pago-pronto')).toHaveTextContent('Pago en 2 días');
+    await tocar('Tarjetas');
+    // Mismas cifras que frontend/src/app/features/cuentas/tarjetas-creditos.spec.ts.
+    await waitFor(() => expect(screen.getByTestId('por-pagar-ciclo')).toHaveTextContent('$2.620.000'));
+    expect(screen.getAllByTestId('fecha-tarjeta')[0]).toHaveTextContent('28 octPagar Nu · MercadoEn 2 días · valor del extracto$320.000');
+    expect(screen.getByTestId('ayuda-Nu')).toHaveTextContent('Lo que compres hasta el 13 nov se paga el 28 nov. Desde el 14 nov, el 28 dic.');
+    await tocar('Créditos');
+    await waitFor(() => expect(screen.getByTestId('deben-creditos')).toHaveTextContent('$17.625.000'));
+    expect(screen.getByTestId('pagan-mes')).toHaveTextContent('$875.000');
+    expect(screen.getByTestId('credito-Compra a cuotas')).toHaveTextContent(/Cuota 4 de 12/);
+  });
+
+  it('agregar un plan de pagos sin intereses desde Créditos (tarjetas-y-creditos)', async () => {
+    await conSesion();
+    renderRouter('./src/app', { initialUrl: '/cuentas?pestana=creditos' });
+    await tocar('+ Agregar crédito');
+    await escribir('Nombre', 'Nevera');
+    await escribir('Día de pago', '20');
+    fireEvent.press(await screen.findByText('Con el plan de pagos'));
+    await escribir('Valor financiado', '4500000');
+    await escribir('Número de cuotas', '12');
+    await escribir('Cuotas pagadas', '3');
+    await escribir('Tasa efectiva anual (%)', '0');
+    expect(await screen.findByTestId('resumen-metodo')).toHaveTextContent(/Cuota de \$375\.000 · debes \$3\.375\.000 · cuota 4 de 12/);
+    await tocar('Agregar crédito');
+    await waitFor(() => expect(screen.getByTestId('credito-Nevera')).toHaveTextContent(/Cuota 4 de 12/));
   });
 
   it('replicar octubre en 2028 y la revisión del carro en mayo dan las mismas cifras que la PWA', async () => {

@@ -16,6 +16,7 @@ import co.com.srdejo.steward.domain.spi.IAnualPersistencePort;
 import co.com.srdejo.steward.domain.spi.ICierrePersistencePort;
 import co.com.srdejo.steward.domain.spi.IClockPort;
 import co.com.srdejo.steward.domain.spi.ICreditoPersistencePort;
+import co.com.srdejo.steward.domain.spi.ITarjetaPersistencePort;
 import co.com.srdejo.steward.domain.spi.IPlanPersistencePort;
 import co.com.srdejo.steward.domain.spi.IUsuarioPersistencePort;
 import co.com.srdejo.steward.domain.spi.ICuentaPersistencePort;
@@ -65,13 +66,15 @@ public class FinanzasUseCase implements IFinanzasServicePort {
     private final IClockPort clock;
     private final Registro registro;
     private final NacimientoMes nacimiento;
+    private final ITarjetaPersistencePort tarjetas;
 
     public FinanzasUseCase(IHogarPersistencePort hogares, IReglaDiezmoPersistencePort reglas,
                            IIngresoFijoPersistencePort ingresos, ICuentaPersistencePort cuentas,
                            IMovimientoPersistencePort movimientos, ICategoriaPersistencePort categorias,
                            IPlanPersistencePort planes, ICreditoPersistencePort creditos, ICierrePersistencePort cierres,
                            IAnualPersistencePort anuales, IUsuarioPersistencePort usuarios, ICurrentUserPort usuarioActual, ITransaccionPort transaccion,
-                           IClockPort clock) {
+                           IClockPort clock, ITarjetaPersistencePort tarjetas) {
+        this.tarjetas = tarjetas;
         this.hogares = hogares;
         this.reglas = reglas;
         this.ingresos = ingresos;
@@ -113,7 +116,8 @@ public class FinanzasUseCase implements IFinanzasServicePort {
                                 .collectList())
                 .zipWith(Mono.zip(creditosConPagos(ctx.hogar().id()), cierres.desde(ctx.hogar().id(), desde.minusMonths(1)).collectList(),
                         anuales.desde(ctx.hogar().id(), desde.getYear()).collectList(),
-                        anuales.proyeccionesDesde(ctx.hogar().id(), desde.getYear()).collectList()))
+                        anuales.proyeccionesDesde(ctx.hogar().id(), desde.getYear()).collectList(),
+                        tarjetas.delHogar(ctx.hogar().id()).collectList()))
                 .flatMap(tc -> {
                     var t = tc.getT1();
                     List<CierreMes> cierresLeidos = tc.getT2().getT2();
@@ -122,7 +126,7 @@ public class FinanzasUseCase implements IFinanzasServicePort {
                     t.getT3().forEach(m -> personas.add(m.usuarioId()));
                     return reglas.dePersonas(personas).collectList()
                             .map(r -> new Finanzas(mes, t.getT5(), t.getT1(), r, t.getT2(), t.getT6(), t.getT3(),
-                                    tc.getT2().getT1(), cierresLeidos, tc.getT2().getT3(), tc.getT2().getT4()));
+                                    tc.getT2().getT1(), cierresLeidos, tc.getT2().getT3(), tc.getT2().getT4(), tc.getT2().getT5()));
                 }));
     }
 
@@ -161,9 +165,13 @@ public class FinanzasUseCase implements IFinanzasServicePort {
                                     UUID credito = variable ? null : item.creditoId();
                                     // Guarda cuanto bajo el saldo, para devolverlo si se borra el pago (design D3 de
                                     // usabilidad-plan).
+                                    // Una tarjeta que se paga completa sugiere lo pagado para el proximo mes (design D1 de
+                                    // tarjetas-y-creditos).
+                                    UUID tarjeta = variable ? null : item.tarjetaId();
                                     Mono<Movimiento> registrar = (credito == null ? movimientos.registrar(pago)
                                             : transaccion.enTransaccion(creditos.pagarCuota(credito, m)
                                             .flatMap(capital -> movimientos.registrar(pago.conCredito(credito).conCapital(capital)))))
+                                            .flatMap(mov -> tarjeta == null ? Mono.just(mov) : tarjetas.pagada(tarjeta, m).thenReturn(mov))
                                             .onErrorResume(DomainException.class, ex -> "YA_PAGADO".equals(ex.codigo())
                                                     ? yaPagado(item.id(), mes) : Mono.error(ex));
                                     return variable ? registrar : movimientos.pagoDe(item.id(), mes)
@@ -411,7 +419,7 @@ public class FinanzasUseCase implements IFinanzasServicePort {
     @Override
     public Mono<Void> borrarRegistro(UUID id) {
         return contexto().flatMap(ctx -> registroDe(ctx, id).flatMap(m -> {
-            Mono<Void> credito = m.creditoId() != null && m.capital() != null ? creditos.devolver(m.creditoId(), m.capital()) : Mono.empty();
+            Mono<Void> credito = m.creditoId() != null && m.capital() != null ? creditos.devolver(m.creditoId(), m.capital(), m.tipo() == Movimiento.Tipo.PAGO) : Mono.empty();
             // El diezmo de un aporte se va con el si no tiene pagos; si los tiene, queda sin enlace (ON DELETE SET NULL).
             Mono<Void> diezmo = m.tipo() != Movimiento.Tipo.APORTE ? Mono.empty() : planes.deMes(ctx.hogar().id(), m.ref())
                     .flatMapMany(plan -> Flux.fromIterable(plan.escenarios().stream().flatMap(esc -> esc.items().stream())
