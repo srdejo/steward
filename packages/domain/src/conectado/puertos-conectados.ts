@@ -391,6 +391,8 @@ export class PuertosConectados implements Puertos {
       mes: (ref) => demo().mes(ref),
       loQueTrae: (ref) => demo().loQueTrae(ref),
       comparar: (ref) => demo().comparar(ref),
+      mesEscritorio: (ref, escenarioId) => demo().mesEscritorio(ref, escenarioId),
+      tablaOpciones: (ref) => demo().tablaOpciones(ref),
       anual: (anio) => demo().anual(anio),
       // El plan anual en el backend (design D6 de backend-plan-anual); la cuadricula la calcula el dominio.
       agregarEvento: (anio, evento) => escribir(api.agregarEvento(anio, eventoApi(evento))),

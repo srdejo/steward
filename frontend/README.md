@@ -18,6 +18,12 @@ Desde 1024 px, Hoy usa la vista detallada de `HoyWeb.dc.html` (`features/hoy/hoy
 
 Planear también cambia desde 1024 px (`PlanInicioWeb.dc.html`): la tarjeta del año arriba y los meses como tarjetas en cuadrícula, con `data.ancho = 'escritorio'`.
 
+**El plan de un mes en escritorio** (cambio `plan-mes-escritorio`). `/planear/:mes` lleva `data.ancho = 'completo'`; en móvil, `MesPage` se limita a 560 px en su propio host. Desde 1024 px monta una de dos vistas:
+- **Una opción** (`mes-una-opcion.ts`, `MesWeb.dc.html`), para un Borrador con una opción, un mes Activo o uno Cerrado. Tiene los indicadores Entra, Sale, Quedaría libre y Diezmo; la tabla del mes frente al anterior, con las etiquetas "Solo {mes}", "Proyectado" y "Último" y los montos editables en la celda; el calendario de pagos, con el día elegido; la plata en cuentas día a día, con su punto más bajo; y "Se libera". Los datos salen de `PlanPort.mesEscritorio` (`vistaMesEscritorio` del dominio).
+- **Varias opciones** (`mes-opciones.ts`, `Comparar.dc.html`): la tabla de opciones gasto por gasto (`PlanPort.tablaOpciones`). La opción "Editando" se edita en la celda, y escribir en una celda "—" agrega ese gasto. Tiene "Solo lo que cambia" y, al lado, la opción con sus cambios frente a la A, lo que el mes ya trae y los atajos: Ctrl + D duplica y N agrega un gasto en la categoría de la celda.
+
+"Crear otra opción" pasa a la vista de opciones, y "Usar" vuelve a la de una opción sin salir del mes. Las hojas de gasto e ingreso siguen en `MesPage`. Un mes sin plan muestra las formas de empezar y "ya trae" en dos columnas. En escritorio, `/planear/:mes/comparar` redirige al mes (guard `compararEnElMes`).
+
 **Plan del año** (`features/planear/anual-page.ts`, spec `steward-planear` "Plan anual") se arma en dos pasos:
 1. **Mes base:** un mes con plan, "Solo fijos e ingresos" o "Desde cero". "Replicar en los 12 meses" llena el año con ese mes (o reemplaza sus montos, con confirmación; se llega con `?paso=base`).
 2. **Lo que cambia:** "Algo distinto en un mes" (`cambio-hoja.ts`) agrega un ingreso o gasto en su categoría, solo ese mes o de ese mes en adelante, y dice en cuánto queda el mes. Desde 1024 px se ve la tabla de 12 meses con las celdas que cambian resaltadas; con menos, la lista de meses (los seguidos sin cambios, agrupados). Abajo, la lista "Lo que cambia", donde cada cambio se corrige o se quita, y "Borrar plan de {año}", que dice qué se borra y deja el año sin plan (los meses ya creados no cambian).

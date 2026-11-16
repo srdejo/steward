@@ -365,6 +365,12 @@ export function crearAdaptadorDemo(opciones: OpcionesDemo): Puertos {
       async comparar(ref) {
         return R.compararOpciones(await leerEstado(), ref);
       },
+      async mesEscritorio(ref, escenarioId) {
+        return R.vistaMesEscritorio(await leerEstado(), ref, hoy(), escenarioId);
+      },
+      async tablaOpciones(ref) {
+        return R.tablaOpciones(await leerEstado(), ref, hoy());
+      },
       async anual(anio) {
         return R.resumenAnual(await leerEstado(), anio);
       },

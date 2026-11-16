@@ -17,11 +17,12 @@ let siguienteId = 0;
       type="text"
       inputmode="numeric"
       autocomplete="off"
-      class="monto w-full rounded-xl border border-borde bg-fondo px-4 font-semibold text-texto focus:border-acento focus:outline-none"
+      class="monto w-full border font-semibold text-texto focus:border-acento focus:outline-none"
+      [class]="compacto() ? 'h-9 rounded-lg border-transparent bg-transparent px-2 text-right text-[13px] hover:border-borde-campo focus:bg-superficie' : 'rounded-xl border-borde bg-fondo px-4'"
       [class.h-16]="grande()"
       [class.text-[28px]]="grande()"
-      [class.h-12]="!grande()"
-      [class.text-base]="!grande()"
+      [class.h-12]="!grande() && !compacto()"
+      [class.text-base]="!grande() && !compacto()"
       [placeholder]="placeholder()"
       [value]="texto()"
       [attr.aria-describedby]="ayuda() ? id + '-ayuda' : null"
@@ -42,6 +43,8 @@ export class MontoInput {
   readonly etiquetaAccesible = input('');
   readonly ayuda = input('');
   readonly grande = input(false);
+  /** Celda de una tabla que se edita en su sitio (plan-mes-escritorio): bajo, alineado a la derecha y sin borde hasta pasar encima. */
+  readonly compacto = input(false);
   readonly placeholder = input('$0');
   /**
    * El monto al terminar de escribir (al salir del campo o con Enter). Para guardar en el backend: `valorChange` va por

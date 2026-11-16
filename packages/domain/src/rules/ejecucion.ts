@@ -72,7 +72,7 @@ export function esGastoSinItem(m: Movimiento): boolean {
 }
 
 /** El diezmo no es una factura: dice de donde viene, sin "Venció" (spec steward-hoy, "Diezmo sin vencimiento"). */
-function detalleDiezmo(estado: EstadoHogar, item: ItemPlan, ref: MesRef): string {
+export function detalleDiezmo(estado: EstadoHogar, item: ItemPlan, ref: MesRef): string {
   const dia = item.diaVence ? ` · día ${item.diaVence}` : '';
   const linea = item.ingresoPlanId ? planDe(estado, ref)?.escenarios.flatMap((e) => e.ingresos).find((l) => l.id === item.ingresoPlanId) : undefined;
   if (linea) return `Del ${linea.nombre}${dia}`;
@@ -82,7 +82,7 @@ function detalleDiezmo(estado: EstadoHogar, item: ItemPlan, ref: MesRef): string
   return fijo ? `Del ${fijo.nombre}${dia}` : 'Diezmo';
 }
 
-function detalleVencimiento(estado: EstadoHogar, item: ItemPlan, ref: MesRef, hoy: Fecha): string {
+export function detalleVencimiento(estado: EstadoHogar, item: ItemPlan, ref: MesRef, hoy: Fecha): string {
   if (item.cuota) return `Vence día ${item.diaVence ?? '—'} · cuota ${item.cuota.actual} de ${item.cuota.total}`;
   // La linea de una tarjeta dice su corte y como se paga (spec "Pagar una tarjeta en Hoy").
   const tarjeta = item.tarjetaId ? estado.tarjetas.find((t) => t.id === item.tarjetaId) : undefined;
