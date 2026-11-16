@@ -5,7 +5,7 @@
 - El backend identifica al usuario por correo (`usuario_email_uq`). Valida el token de Google contra un solo client id. Las invitaciones se aceptan solo si el correo de la sesión coincide con el invitado.
 - Varias tablas tienen `usuario_id` o `creado_por` con FK `NOT NULL` a `usuario`, y son historia compartida del hogar.
 - La v1 guarda en AsyncStorage con la clave `@steward/budget_v3`, y la app nueva comparte con ella el bundle id `com.danieljimenez.steward`.
-- App Store Connect ya tiene una ficha 2.0.0 vacía.
+- App Store Connect tiene una ficha 2.0.0 en preparación. Desde entonces la app subió a 2.1.0 y 2.2.x en TestFlight, así que la ficha tiene que cambiar al número de la versión que se envíe.
 
 Requisitos de Apple revisados el 2026-10-30:
 - **4.8:** quien usa Google para la cuenta principal debe ofrecer una opción equivalente que limite los datos a nombre y correo y permita ocultar el correo. Sign in with Apple cumple. La documentación de Expo lo confirma para apps con terceros.
@@ -95,7 +95,13 @@ Al primer ingreso, si existe `@steward/budget_v3` y no se ha mostrado el aviso, 
 
 ### D9. Distribución
 
-`app.json` en 2.0.0, un build con el perfil `production`. Primero TestFlight para los dos teléfonos, y el envío a revisión solo con confirmación de Daniel. Las correcciones de la v1 dejan de poder publicarse mientras la ficha 2.0.0 sea la editable.
+- **Versión:** la del `app.json` de `main` (hoy 2.2.1). La app siguió creciendo en TestFlight (2.0.0, 2.1.0, 2.2.0 y 2.2.1) mientras se completaba esta etapa, así que no vuelve a 2.0.0.
+- **Build:** perfil `testflight` de `eas.json`, que es distribución de tienda: el mismo build que se prueba en TestFlight sirve para la revisión. No hace falta otro con `production`.
+- **Revisión:**
+  - el envío es solo con confirmación de Daniel, y se manda el build ya probado;
+  - la ficha 2.0.0 en preparación se cambia al número de ese build;
+  - si después sale un build más nuevo, se prueba en TestFlight antes de cambiar el que va a revisión.
+- **v1:** sus correcciones dejan de poder publicarse mientras la ficha nueva sea la editable.
 
 ## Risks / Trade-offs
 
@@ -114,7 +120,7 @@ Al primer ingreso, si existe `@steward/budget_v3` y no se ha mostrado el aviso, 
 4. TestFlight en los dos teléfonos con los datos reales.
 5. Envío a revisión, con confirmación.
 
-**Rollback:** antes de publicar, la v1 sigue en la tienda. Una vez aprobada, la 2.0.0 no se puede despublicar sin afectar a quienes ya actualizaron: se corrige con otra versión.
+**Rollback:** antes de publicar, la v1 sigue en la tienda. Una vez aprobada, la app nueva no se puede despublicar sin afectar a quienes ya actualizaron: se corrige con otra versión.
 
 ## Open Questions
 

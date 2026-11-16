@@ -45,11 +45,15 @@ Al primer ingreso, si el dispositivo tiene datos de la v1, la app SHALL avisar u
 - **THEN** no ve el aviso
 
 ### Requirement: Distribución en TestFlight y App Store
-La app SHALL salir como 2.0.0 con el perfil `production`: primero por TestFlight y, con confirmación de Daniel, a revisión de App Store, en lugar de la v1. MUST NOT distribuirse por Google Play. La v1 SHALL seguir en `release/1.0.x` y su tag `v1.0.2`.
+La app SHALL salir con la versión del `app.json` de `main` (hoy 2.2.1), con el perfil `testflight` de `eas.json` (distribución de tienda y número de build remoto con autoincremento): primero por TestFlight y, con confirmación de Daniel, a revisión de App Store con un build ya probado en TestFlight, en lugar de la v1. La ficha de App Store Connect MUST llevar el mismo número de versión que ese build. MUST NOT distribuirse por Google Play. La v1 SHALL seguir en `release/1.0.x` y su tag `v1.0.2`.
 
 #### Scenario: Primero TestFlight
-- **WHEN** se genera el build 2.0.0
+- **WHEN** se genera el build de la versión actual
 - **THEN** llega a TestFlight y ninguna versión se envía a revisión sin la confirmación de Daniel
+
+#### Scenario: A revisión el build probado
+- **WHEN** Daniel confirma el envío a revisión
+- **THEN** se envía el build que ya probaron en TestFlight, con la ficha en su misma versión, y ninguno otro
 
 #### Scenario: La v1 sigue publicable
 - **WHEN** se revisa `release/1.0.x`, la rama que sale del tag `v1.0.2`
@@ -58,11 +62,19 @@ La app SHALL salir como 2.0.0 con el perfil `production`: primero por TestFlight
 ## MODIFIED Requirements
 
 ### Requirement: Paridad con la PWA
-La app SHALL implementar las mismas pantallas y flujos que la PWA en su layout móvil, con la misma navegación (barra inferior Ejecución · Plan · Cuentas) y los mismos requisitos de `steward-ui-shell`, `steward-acceso-onboarding`, `steward-hoy`, `steward-planear`, `steward-cuentas` y `steward-ajustes`. Comparar y Plan anual MUST desplazarse en horizontal. Los cálculos y los datos de prueba MUST salir del mismo paquete de dominio que usa la PWA, de modo que un mismo registro dé las mismas cifras en las dos.
+La app SHALL implementar las mismas pantallas y flujos que la PWA en su layout móvil, con la misma navegación (barra inferior Hoy · Planear · Cuentas) y los mismos requisitos de `steward-ui-shell`, `steward-acceso-onboarding`, `steward-hoy`, `steward-planear`, `steward-cuentas`, `steward-tarjetas` y `steward-ajustes`. Cuentas MUST tener las pestañas Cuentas · Tarjetas · Créditos, y "¿Cómo baja el saldo?" se elige en una hoja. Comparar MUST desplazarse en horizontal. El plan anual MUST mostrarse como la lista de los 12 meses de `steward-planear` ("Plan anual", vista con menos de 1024 px), sin tabla con desplazamiento horizontal. Los cálculos y los datos de prueba MUST salir del mismo paquete de dominio que usa la PWA, de modo que un mismo registro dé las mismas cifras en las dos.
 
 #### Scenario: Mismas cifras
 - **WHEN** en la app y en la PWA, desde los datos iniciales, se marca pagada la Tarjeta Mastercard por $1.500.000 desde Davivienda
 - **THEN** las dos muestran el mismo "Te queda libre", el mismo Pagado y el mismo Vs. plan
+
+#### Scenario: Mismo año en la app y la PWA
+- **WHEN** en la app y en la PWA, desde los datos iniciales, se replica octubre de 2026 en 2027 y se agrega "Revisión carro" de $400.000 solo en mayo
+- **THEN** las dos muestran el mismo libre del año, y mayo deja libre lo mismo en las dos: $400.000 menos que febrero
+
+#### Scenario: Mismas tarjetas y créditos
+- **WHEN** en la app y en la PWA, desde los datos iniciales, se abre Cuentas › Tarjetas y luego Créditos
+- **THEN** las dos muestran "Por pagar este ciclo $2.620.000", las mismas próximas fechas, "Deben en créditos $17.625.000" y "Pagan al mes $875.000"
 
 #### Scenario: Los mismos datos
 - **WHEN** Daniel registra un gasto en la PWA y abre la app con su cuenta
@@ -76,7 +88,7 @@ La app SHALL guardar los datos de prueba en el dispositivo con una clave de alma
 - **THEN** la v1 muestra sus datos intactos
 
 #### Scenario: Actualizar desde la v1
-- **WHEN** la 2.0.0 se instala sobre la v1 y se usa
+- **WHEN** la versión actual de la app se instala sobre la v1 y se usa
 - **THEN** `@steward/budget_v3` sigue igual que antes de actualizar
 
 ## REMOVED Requirements
