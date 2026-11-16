@@ -1,6 +1,7 @@
 package co.com.srdejo.steward.domain.usecase;
 
 import co.com.srdejo.steward.domain.api.IAnualServicePort;
+import co.com.srdejo.steward.domain.api.IPlanServicePort;
 import co.com.srdejo.steward.domain.exception.DomainException;
 import co.com.srdejo.steward.domain.model.Amortizacion;
 import co.com.srdejo.steward.domain.model.Categoria;
@@ -155,10 +156,12 @@ public class AnualUseCase implements IAnualServicePort {
             if (letra.isEmpty()) {
                 return Mono.error(DomainException.conflicto("MUCHAS_OPCIONES", "No caben más opciones en este año"));
             }
-            Opcion nueva = new Opcion(UUID.randomUUID(), letra.get(), ctx.usuario(), "", origen.celdas(),
+            UUID id = UUID.randomUUID();
+            Opcion nueva = new Opcion(id, letra.get(), ctx.usuario(), "", origen.celdas(),
                     origen.eventos().stream().map(e -> new Evento(UUID.randomUUID(), e.nombre(), e.mes(), e.monto(), e.tipo(),
                             e.usuarioId(), e.categoriaId(), e.enAdelante())).toList(),
-                    origen.base());
+                    origen.base(), origen.mesBase() == null ? null : new PlanAnual.MesBase(origen.mesBase().origen(), origen.mesBase().items().stream()
+                            .map(i -> i.copia(UUID.randomUUID(), id, i.monto(), i.cuotaActual(), i.orden())).toList()));
             return transaccion.enTransaccion(anuales.crearOpcion(a.id(), nueva));
         })));
     }
@@ -211,6 +214,162 @@ public class AnualUseCase implements IAnualServicePort {
                         ? Mono.<Void>error(DomainException.datosInvalidos("El diezmo del año se calcula con las reglas"))
                         : Mono.<Void>empty());
         return persona.then(categoria);
+    }
+
+    // --- Mes base editable (design D3 de anual-mes-base-editable) ----------------------------------------------------
+
+    /** Los gastos de la fuente, sin diezmo (FIJOS: sin variables), con ids nuevos y como items de la opcion. */
+    private Mono<PlanAnual.MesBase> copiaDe(UUID hogar, int anio, Fuente desde, UUID opcionId) {
+        String tipo = desde == null ? null : desde.tipo();
+        if (!"MES".equals(tipo) && !"FIJOS".equals(tipo) && !"CERO".equals(tipo) || "MES".equals(tipo) && desde.mes() == null) {
+            return Mono.error(DomainException.datosInvalidos("La base es un mes, FIJOS o CERO"));
+        }
+        Mono<Optional<PlanMes>> plan = switch (tipo) {
+            case "MES" -> planes.deMes(hogar, desde.mes()).map(Optional::of)
+                    .switchIfEmpty(Mono.error(() -> DomainException.noEncontrado("PLAN_NO_ENCONTRADO", "Ese mes no tiene plan")));
+            case "FIJOS" -> planes.ultimoAntesDe(hogar, YearMonth.of(anio, 1)).map(Optional::of).defaultIfEmpty(Optional.empty());
+            default -> Mono.just(Optional.empty());
+        };
+        return plan.map(p -> new PlanAnual.MesBase(p.map(PlanMes::ref).orElse(null), p.map(PlanMes::principal).map(Escenario::items).orElse(List.of())
+                .stream().filter(i -> i.tipo() != ItemPlan.Tipo.DIEZMO && !("FIJOS".equals(tipo) && i.tipo() == ItemPlan.Tipo.VARIABLE))
+                .map(i -> i.copia(UUID.randomUUID(), opcionId, i.monto(), i.cuotaActual(), i.orden())).toList()));
+    }
+
+    /** Las celdas desde un mes base: por categoria con gastos, el total de cada mes sin los creditos que ya terminaron. */
+    private static List<Celda> celdasDe(int anio, PlanAnual.MesBase mb, List<Categoria> cats, Creditos cr) {
+        List<Celda> celdas = new ArrayList<>();
+        for (Categoria c : cats) {
+            List<ItemPlan> deCategoria = mb.items().stream().filter(i -> i.categoriaId().equals(c.id())).toList();
+            if (c.tipo() == Categoria.Tipo.DIEZMO || c.nombre().equals(CATEGORIA_EVENTOS) || deCategoria.isEmpty()) {
+                continue;
+            }
+            for (int mes = 1; mes <= 12; mes++) {
+                YearMonth ref = YearMonth.of(anio, mes);
+                celdas.add(new Celda(c.id(), mes, deCategoria.stream().filter(i -> siguePagando(i, cr, mb.origen(), ref)).mapToLong(ItemPlan::monto).sum()));
+            }
+        }
+        return celdas;
+    }
+
+    /** El mes base de la opcion; si no tiene, uno nuevo desde su plantilla de hoy (se guarda). */
+    private Mono<PlanAnual.MesBase> asegurarMesBase(UUID hogar, int anio, Opcion op) {
+        if (op.mesBase() != null) {
+            return Mono.just(op.mesBase());
+        }
+        Mono<PlanMes> origen = op.base() != null ? planes.deMes(hogar, op.base()) : planes.ultimoAntesDe(hogar, YearMonth.of(anio, 1));
+        return origen.map(Optional::of).defaultIfEmpty(Optional.empty())
+                .map(p -> new PlanAnual.MesBase(p.map(PlanMes::ref).orElse(op.base()), p.map(PlanMes::principal).map(Escenario::items).orElse(List.of())
+                        .stream().filter(i -> i.tipo() != ItemPlan.Tipo.DIEZMO)
+                        .map(i -> i.copia(UUID.randomUUID(), op.id(), i.monto(), i.cuotaActual(), i.orden())).toList()))
+                .flatMap(mb -> anuales.ponerMesBase(op.id(), mb).thenReturn(mb));
+    }
+
+    @Override
+    public Mono<Opcion> nuevaOpcion(int anio, Fuente desde) {
+        if (anio < registro.mesEnCurso().getYear()) {
+            return Mono.error(DomainException.datosInvalidos("El plan anual es del año en curso o uno futuro"));
+        }
+        return registro.contexto().flatMap(ctx -> {
+            UUID hogar = ctx.hogar().id();
+            return anuales.deAnio(hogar, anio).map(Optional::of).defaultIfEmpty(Optional.empty()).flatMap(existente -> {
+                Optional<String> letra = existente.map(PlanAnual::siguienteLetra).orElse(Optional.of("A"));
+                if (letra.isEmpty()) {
+                    return Mono.error(DomainException.conflicto("MUCHAS_OPCIONES", "No caben más opciones en este año"));
+                }
+                PlanAnual anual = existente.orElseGet(() -> nuevo(ctx, anio));
+                UUID id = existente.isPresent() ? UUID.randomUUID() : anual.opciones().getFirst().id();
+                return Mono.zip(copiaDe(hogar, anio, desde, id), categorias.delHogar(hogar).collectList(), creditos(hogar))
+                        .flatMap(t -> {
+                            PlanAnual.MesBase mb = t.getT1();
+                            List<Celda> celdas = celdasDe(anio, mb, t.getT2(), t.getT3());
+                            Opcion nueva = new Opcion(id, letra.get(), ctx.usuario(), "", celdas, List.of(), mb.origen(), mb);
+                            // Un año sin plan nace con esta opcion como su A.
+                            Mono<Opcion> guardar = existente.isPresent() ? anuales.crearOpcion(anual.id(), nueva)
+                                    : anuales.crear(new PlanAnual(anual.id(), hogar, anio, PlanAnual.Estado.BORRADOR, List.of(nueva), null))
+                                    .thenReturn(nueva);
+                            // Los aportes proyectados son del año: si aun no tiene, salen de la fuente, como al replicar.
+                            Mono<Void> proyecciones = anuales.proyeccionesDesde(hogar, anio).filter(p -> p.anio() == anio).hasElements()
+                                    .flatMap(tiene -> tiene ? Mono.<Void>empty() : aportesBase(ctx, Optional.ofNullable(mb.origen()))
+                                            .flatMap(aportes -> {
+                                                List<Proyeccion> lista = new ArrayList<>();
+                                                aportes.forEach((usuario, monto) -> {
+                                                    for (int mes = 1; mes <= 12; mes++) {
+                                                        lista.add(new Proyeccion(usuario, anio, mes, monto));
+                                                    }
+                                                });
+                                                return lista.isEmpty() ? Mono.<Void>empty() : anuales.reemplazarProyecciones(hogar, anio, lista);
+                                            }));
+                            return transaccion.enTransaccion(guardar.flatMap(o -> proyecciones.thenReturn(o)));
+                        });
+            });
+        });
+    }
+
+    @Override
+    public Mono<Void> copiarMesBase(int anio, UUID opcionId, Fuente desde) {
+        return registro.contexto().flatMap(ctx -> anualDe(ctx, anio).flatMap(a -> opcion(a, opcionId)
+                .flatMap(op -> copiaDe(ctx.hogar().id(), anio, desde, op.id()))
+                .flatMap(mb -> transaccion.enTransaccion(anuales.ponerMesBase(a.opcion(opcionId).orElseThrow().id(), mb)))));
+    }
+
+    @Override
+    public Mono<ItemPlan> agregarItemBase(int anio, UUID opcionId, IPlanServicePort.DatosItem datos) {
+        return Mono.fromCallable(() -> PlanUseCase.itemValido(datos)).flatMap(d -> registro.contexto().flatMap(ctx -> anualDe(ctx, anio)
+                .flatMap(a -> opcion(a, opcionId).flatMap(op -> categoriaDeGasto(ctx, d.categoriaId())
+                        .then(transaccion.enTransaccion(asegurarMesBase(ctx.hogar().id(), anio, op).flatMap(mb -> {
+                            ItemPlan item = new ItemPlan(UUID.randomUUID(), op.id(), d.categoriaId(), d.nombre(), d.monto(), d.diaVence(),
+                                    PlanUseCase.tipo(d.tipo()), d.cuotaActual(), d.cuotaTotal(),
+                                    mb.items().stream().mapToInt(ItemPlan::orden).max().orElse(0) + 1, d.creditoId());
+                            return anuales.guardarItemBase(op.id(), item).thenReturn(item);
+                        })))))));
+    }
+
+    @Override
+    public Mono<ItemPlan> editarItemBase(int anio, UUID opcionId, UUID itemId, IPlanServicePort.DatosItem datos) {
+        return Mono.fromCallable(() -> PlanUseCase.itemValido(datos)).flatMap(d -> registro.contexto().flatMap(ctx -> anualDe(ctx, anio)
+                .flatMap(a -> opcion(a, opcionId).flatMap(op -> categoriaDeGasto(ctx, d.categoriaId())
+                        .then(transaccion.enTransaccion(asegurarMesBase(ctx.hogar().id(), anio, op).flatMap(mb -> {
+                            Optional<ItemPlan> actual = mb.items().stream().filter(i -> i.id().equals(itemId)).findFirst();
+                            if (actual.isEmpty()) {
+                                return Mono.error(AnualUseCase::itemBaseNoEncontrado);
+                            }
+                            ItemPlan item = new ItemPlan(itemId, op.id(), d.categoriaId(), d.nombre(), d.monto(), d.diaVence(),
+                                    PlanUseCase.tipo(d.tipo()), d.cuotaActual(), d.cuotaTotal(), actual.get().orden(), d.creditoId(),
+                                    null, null, null, false, actual.get().tarjetaId());
+                            return anuales.guardarItemBase(op.id(), item).thenReturn(item);
+                        })))))));
+    }
+
+    @Override
+    public Mono<Void> quitarItemBase(int anio, UUID opcionId, UUID itemId) {
+        return registro.contexto().flatMap(ctx -> anualDe(ctx, anio).flatMap(a -> opcion(a, opcionId)
+                .flatMap(op -> transaccion.enTransaccion(asegurarMesBase(ctx.hogar().id(), anio, op)
+                        .then(anuales.quitarItemBase(op.id(), itemId))))
+                .flatMap(ok -> ok ? Mono.<Void>empty() : Mono.error(AnualUseCase::itemBaseNoEncontrado))));
+    }
+
+    @Override
+    public Mono<PlanAnual> usarMesBase(int anio, UUID opcionId) {
+        return registro.contexto().flatMap(ctx -> {
+            UUID hogar = ctx.hogar().id();
+            return anualDe(ctx, anio).flatMap(a -> opcion(a, opcionId).flatMap(op -> transaccion.enTransaccion(
+                    Mono.zip(asegurarMesBase(hogar, anio, op), categorias.delHogar(hogar).collectList(), creditos(hogar))
+                            .flatMap(t -> anuales.replicar(a.id(), op.id(), celdasDe(anio, t.getT1(), t.getT2(), t.getT3()), t.getT1().origen()))
+                            .then(anuales.deAnio(hogar, anio)))));
+        });
+    }
+
+    /** Una categoria del hogar que no sea Diezmo. */
+    private Mono<Void> categoriaDeGasto(Contexto ctx, UUID categoriaId) {
+        return categorias.porIdEnHogar(categoriaId, ctx.hogar().id())
+                .switchIfEmpty(Mono.error(PlanUseCase::categoriaNoEncontrada))
+                .flatMap(c -> c.tipo() == Categoria.Tipo.DIEZMO
+                        ? Mono.<Void>error(DomainException.datosInvalidos("El diezmo se calcula con las reglas"))
+                        : Mono.<Void>empty());
+    }
+
+    private static DomainException itemBaseNoEncontrado() {
+        return DomainException.noEncontrado("ITEM_NO_ENCONTRADO", "Ese gasto ya no está en el mes base");
     }
 
     // --- Creditos por mes (design D3 y D4 de anual-opciones-y-meses) -------------------------------------------------
@@ -370,16 +529,18 @@ public class AnualUseCase implements IAnualServicePort {
         }
         return registro.contexto().flatMap(ctx -> anualDe(ctx, anio).flatMap(anual -> opcion(anual, opcionId).flatMap(op -> {
             UUID hogar = ctx.hogar().id();
-            Mono<PlanMes> origen = op.base() != null ? planes.deMes(hogar, op.base()) : planes.ultimoAntesDe(hogar, YearMonth.of(anio, 1));
+            // Con mes base editable, la plantilla es el (anual-mes-base-editable); si no, el mes base guardado o el ultimo plan.
+            Mono<PlanMes> origen = op.mesBase() != null ? Mono.empty()
+                    : op.base() != null ? planes.deMes(hogar, op.base()) : planes.ultimoAntesDe(hogar, YearMonth.of(anio, 1));
             return Mono.zip(
                             origen.map(Optional::of).defaultIfEmpty(Optional.empty()),
                             categorias.delHogar(hogar).collectList(),
                             creditos(hogar),
                             tarjetas.delHogar(hogar).collectList())
                     .flatMap(t -> {
-                        List<ItemPlan> plantilla = t.getT1().map(PlanMes::principal).map(Escenario::items).orElse(List.of()).stream()
+                        List<ItemPlan> plantilla = op.mesBase() != null ? op.mesBase().items() : t.getT1().map(PlanMes::principal).map(Escenario::items).orElse(List.of()).stream()
                                 .filter(i -> i.tipo() != ItemPlan.Tipo.DIEZMO).toList();
-                        YearMonth base = op.base() != null ? op.base() : t.getT1().map(PlanMes::ref).orElse(null);
+                        YearMonth base = op.mesBase() != null ? op.mesBase().origen() : op.base() != null ? op.base() : t.getT1().map(PlanMes::ref).orElse(null);
                         Insumos insumos = new Insumos(plantilla, base, t.getT2(), t.getT3(), t.getT4());
                         return Flux.range(1, 12).concatMap(mes -> estadoDelMes(hogar, YearMonth.of(anio, mes)))
                                 .collectList()
@@ -462,7 +623,7 @@ public class AnualUseCase implements IAnualServicePort {
             List<ItemPlan> deCategoria = plantilla.stream().filter(i -> i.categoriaId().equals(c.id())).toList();
             if (!conCeldas.contains(c.id())) {
                 // Una categoria sin fila trae lo del mes base, si la opcion tiene uno.
-                if (op.base() != null) {
+                if (op.base() != null || op.mesBase() != null) {
                     deCategoria.forEach(i -> items.add(i.copia(i.id(), escId, i.monto(), i.cuotaActual(), items.size() + 1)));
                 }
                 continue;

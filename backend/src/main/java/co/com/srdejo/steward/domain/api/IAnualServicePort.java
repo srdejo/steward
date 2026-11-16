@@ -54,6 +54,25 @@ public interface IAnualServicePort {
      */
     Mono<List<MesDelAnual>> meses(int anio, UUID opcionId, List<Integer> actualizar);
 
+    /** La fuente de un mes base: {@code tipo} MES (con {@code mes}), FIJOS o CERO (anual-mes-base-editable). */
+    record Fuente(String tipo, YearMonth mes) {
+    }
+
+    /** "+ Nueva opción desde un mes base": la siguiente letra (o la A si el año no tenia plan), con su mes base y sus celdas. */
+    Mono<PlanAnual.Opcion> nuevaOpcion(int anio, Fuente desde);
+
+    /** "Copiar otro mes": reemplaza el mes base de la opcion; las celdas no cambian. */
+    Mono<Void> copiarMesBase(int anio, UUID opcionId, Fuente desde);
+
+    Mono<co.com.srdejo.steward.domain.model.PlanMes.ItemPlan> agregarItemBase(int anio, UUID opcionId, IPlanServicePort.DatosItem datos);
+
+    Mono<co.com.srdejo.steward.domain.model.PlanMes.ItemPlan> editarItemBase(int anio, UUID opcionId, UUID itemId, IPlanServicePort.DatosItem datos);
+
+    Mono<Void> quitarItemBase(int anio, UUID opcionId, UUID itemId);
+
+    /** "Usar este mes en los 12 meses": las celdas de la opcion desde su mes base. */
+    Mono<PlanAnual> usarMesBase(int anio, UUID opcionId);
+
     /** Un mes que se creo o se actualizo. */
     record MesDelAnual(YearMonth ref, Accion accion) {
 

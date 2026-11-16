@@ -8,6 +8,7 @@ import {
   type CreditoApi,
   type FinanzasApi,
   type IngresoFijoApi,
+  type ItemPlanApi,
   type MovimientoApi,
   type PlanApi,
   type ReglaDiezmoApi,
@@ -85,6 +86,9 @@ export function anual(a: AnualApi): PlanAnual {
         filas: [...filas].map(([categoriaId, montos]) => ({ categoriaId, montos })),
         eventos: o.eventos.map((e) => ({ id: e.id, nombre: e.nombre, mes: e.mes, monto: e.monto, tipo: e.tipo, usuarioId: e.usuarioId ?? null, categoriaId: e.categoriaId ?? null, enAdelante: e.enAdelante ?? false })),
         base: o.base ? { anio: o.base.anio, mes: o.base.mes } : null,
+        mesBase: o.mesBase
+          ? { origen: o.mesBase.origen ? { anio: o.mesBase.origen.anio, mes: o.mesBase.origen.mes } : null, items: o.mesBase.items.map(itemPlan) }
+          : null,
       };
     }),
   };
@@ -125,11 +129,15 @@ function plan(p: PlanApi): PlanMes {
       nota: e.nota,
       archivado: e.archivado,
       ingresos: (e.ingresos ?? []).map((l): IngresoPlan => ({ id: l.id, nombre: l.nombre, monto: l.monto, usuarioId: l.usuarioId ?? null, tipo: l.tipo, ingresoFijoId: l.ingresoFijoId ?? null, bruto: l.bruto ?? l.monto })),
-      items: e.items.map((i): ItemPlan => ({
-        id: i.id, categoriaId: i.categoriaId, nombre: i.nombre, monto: i.monto, diaVence: i.diaVence, tipo: i.tipo, cuota: i.cuota,
-        creditoId: i.creditoId ?? null, ingresoFijoId: i.ingresoFijoId ?? null, aporteId: i.aporteId ?? null, ingresoPlanId: i.ingresoPlanId ?? null, ajustadoAMano: i.ajustadoAMano ?? false, tarjetaId: i.tarjetaId ?? null,
-      })),
+      items: e.items.map(itemPlan),
     })),
+  };
+}
+
+function itemPlan(i: ItemPlanApi): ItemPlan {
+  return {
+    id: i.id, categoriaId: i.categoriaId, nombre: i.nombre, monto: i.monto, diaVence: i.diaVence, tipo: i.tipo, cuota: i.cuota,
+    creditoId: i.creditoId ?? null, ingresoFijoId: i.ingresoFijoId ?? null, aporteId: i.aporteId ?? null, ingresoPlanId: i.ingresoPlanId ?? null, ajustadoAMano: i.ajustadoAMano ?? false, tarjetaId: i.tarjetaId ?? null,
   };
 }
 

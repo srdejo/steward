@@ -4,7 +4,7 @@ import { ReglaError, type Puertos } from '@steward/domain';
 
 import { GoogleDePrueba, USUARIO, finanzasPrueba, finanzasVacias, hogarApi, http, provideConectadoPrueba, responder } from '../../../../testing/conectado';
 import { CLAVE_ESTADO } from '@steward/domain/demo';
-import type { CreditoApi, FinanzasApi, IngresoPlanApi, ItemPlanApi, MovimientoApi, PlanApi } from './api';
+import type { CreditoApi, FinanzasApi, IngresoPlanApi, ItemPlanApi, MovimientoApi, OpcionAnualApi, PlanApi } from './api';
 import { provideAppPrueba } from '../../../../testing/demo';
 import { app } from '../../../../testing/harness';
 import { PUERTOS, puertosConectados } from '../puertos';
@@ -285,9 +285,9 @@ const SALARIO = { id: 'ing-1', usuarioId: USUARIO.id, nombre: 'Salario Ana', bru
 const REGLA = { usuarioId: USUARIO.id, activa: true, porcentaje: 10, base: 'BRUTO' as const, aplicaAportes: false };
 
 /** Un anual del backend con su Opcion A (anual-opciones-y-meses). */
-const anualApi = (o: { celdas?: { categoriaId: string; mes: number; monto: number }[]; eventos?: { id: string; nombre: string; mes: number; monto: number; tipo: 'INGRESO' | 'GASTO'; usuarioId: string | null; categoriaId?: string | null; enAdelante?: boolean }[]; base?: { anio: number; mes: number } | null } = {}) => ({
+const anualApi = (o: { celdas?: { categoriaId: string; mes: number; monto: number }[]; eventos?: { id: string; nombre: string; mes: number; monto: number; tipo: 'INGRESO' | 'GASTO'; usuarioId: string | null; categoriaId?: string | null; enAdelante?: boolean }[]; base?: { anio: number; mes: number } | null; mesBase?: OpcionAnualApi['mesBase'] } = {}) => ({
   anio: 2027, estado: 'BORRADOR' as const, opcionEnUso: null,
-  opciones: [{ id: 'op-a', letra: 'A', creadoPor: USUARIO.id, nota: '', celdas: o.celdas ?? [], eventos: o.eventos ?? [], base: o.base ?? null }],
+  opciones: [{ id: 'op-a', letra: 'A', creadoPor: USUARIO.id, nota: '', celdas: o.celdas ?? [], eventos: o.eventos ?? [], base: o.base ?? null, mesBase: o.mesBase ?? null }],
 });
 const RECIBIDO: MovimientoApi = {
   id: 'mov-1', tipo: 'INGRESO_FIJO', ref: OCT, monto: 6_288_000, fecha: '2026-10-26', usuarioId: USUARIO.id, creadoPor: USUARIO.id,
@@ -949,17 +949,26 @@ describe('pantallas con el plan real (backend-plan-mes-hoy)', () => {
 
   });
 
-  it('recorrido de la Etapa 8: replicar el mes base, un cambio y crear los meses (planear-anio-desde-un-mes)', async () => {
+  it('recorrido de la Etapa 8: el mes base de la Opción A, un cambio y crear los meses (planear-anio-desde-un-mes, anual-mes-base-editable)', async () => {
     finanzasPrueba.valor = finanzas({ planes: [PLAN_OCT] });
     const a = await entrarA('/planear/anual/2027');
     expect(a.texto()).toContain('¿De qué mes parte 2027?');
+    // Un año sin plan nace con la Opción A y su mes base, y se abre el editor.
     a.porTexto('Replicar en los 12 meses').click();
+    const mesBase = { origen: { anio: 2026, mes: 10 }, items: PLAN_OCT.escenarios[0]!.items.map((i) => ({ ...i, id: 'b-' + i.id })) };
     const celdas = Array.from({ length: 12 }, (_, i) => ({ categoriaId: 'cat-1', mes: i + 1, monto: 800_000 }));
-    const replicado = anualApi({ celdas, base: { anio: 2026, mes: 10 } });
-    finanzasPrueba.valor = finanzas({ planes: [PLAN_OCT], anuales: [replicado] });
-    const r0 = await responder('POST', '/api/anuales/2027/replicar', replicado, a.estable);
-    expect(r0.request.body).toEqual({ tipo: 'MES', anio: 2026, mes: 10, opcionId: null });
+    const conBase = anualApi({ celdas, base: { anio: 2026, mes: 10 }, mesBase });
+    finanzasPrueba.valor = finanzas({ planes: [PLAN_OCT], anuales: [conBase] });
+    const r0 = await responder('POST', '/api/anuales/2027/opciones', conBase.opciones[0], a.estable, 201);
+    expect(r0.request.body).toEqual({ desde: { tipo: 'MES', anio: 2026, mes: 10 } });
     await atenderHogar(a);
+    expect(a.url()).toBe('/planear/anual/2027/base?opcion=A');
+    expect(a.texto()).toContain('Mes base de la Opción A');
+
+    a.porTexto('Usar este mes en los 12 meses').click();
+    await responder('POST', '/api/anuales/2027/opciones/op-a/base/usar', conBase, a.estable);
+    await atenderHogar(a);
+    expect(a.url()).toBe('/planear/anual/2027?opcion=A');
     expect(a.texto()).toContain('Plan 2027: lo que cambia');
     expect(a.texto()).not.toContain('Datos de prueba');
 

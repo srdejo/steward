@@ -396,6 +396,31 @@ export function crearAdaptadorDemo(opciones: OpcionesDemo): Puertos {
       async mesesDesdeAnual(anio, opcionId) {
         return R.mesesDesdeAnual(await leerEstado(), anio, opcionId);
       },
+      async nuevaOpcionAnual(anio, desde) {
+        const creadoPor = await usuarioActual();
+        let nueva = '';
+        await cambiar((s) => {
+          const r = R.nuevaOpcionDesdeBase(s, { anio, desde, creadoPor, hoy: hoy() });
+          nueva = r.opcionId;
+          return r.estado;
+        });
+        return nueva;
+      },
+      async copiarMesBase(anio, opcionId, desde) {
+        await cambiar((s) => R.copiarMesBase(s, { anio, opcionId, desde }));
+      },
+      async guardarItemBase(anio, opcionId, item) {
+        await cambiar((s) => R.guardarItemBase(s, { anio, opcionId, item }));
+      },
+      async quitarItemBase(anio, opcionId, itemId) {
+        await cambiar((s) => R.quitarItemBase(s, { anio, opcionId, itemId }));
+      },
+      async usarMesBase(anio, opcionId) {
+        await cambiar((s) => R.usarMesBase(s, { anio, opcionId, hoy: hoy() }));
+      },
+      async vistaMesBase(anio, opcionId) {
+        return R.vistaMesBase(await leerEstado(), anio, opcionId, hoy());
+      },
       async crearOActualizarMeses(anio, opcionId, actualizar) {
         const creadoPor = await usuarioActual();
         await cambiar((s) => R.crearOActualizarMeses(s, { anio, opcionId, actualizar, creadoPor, hoy: hoy() }));

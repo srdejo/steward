@@ -7,6 +7,9 @@ import co.com.srdejo.steward.application.dto.PlanDtos.EventoResponse;
 import co.com.srdejo.steward.application.dto.PlanDtos.ProyeccionRequest;
 import co.com.srdejo.steward.application.dto.PlanDtos.ReplicarRequest;
 import co.com.srdejo.steward.application.dto.PlanDtos.AnualResponse;
+import co.com.srdejo.steward.application.dto.PlanDtos.CopiarMesBaseRequest;
+import co.com.srdejo.steward.application.dto.PlanDtos.ItemRequest;
+import co.com.srdejo.steward.application.dto.PlanDtos.ItemResponse;
 import co.com.srdejo.steward.application.dto.PlanDtos.DuplicarOpcionAnualRequest;
 import co.com.srdejo.steward.application.dto.PlanDtos.MesesAnualRequest;
 import co.com.srdejo.steward.application.dto.PlanDtos.MesDelAnualResponse;
@@ -91,7 +94,40 @@ public class AnualController {
     @PostMapping("/api/anuales/{anio}/opciones")
     @ResponseStatus(HttpStatus.CREATED)
     public Mono<OpcionAnualResponse> duplicarOpcion(@PathVariable int anio, @RequestBody DuplicarOpcionAnualRequest r) {
-        return anual.duplicarOpcion(anio, r.desdeId()).map(OpcionAnualResponse::de);
+        // Con {@code desde}, una opcion nueva desde un mes base (anual-mes-base-editable); si no, duplicar.
+        return (r.desde() != null ? anual.nuevaOpcion(anio, r.desde().fuente()) : anual.duplicarOpcion(anio, r.desdeId()))
+                .map(OpcionAnualResponse::de);
+    }
+
+    /** "Copiar otro mes" en el mes base de una opcion (design D3 de anual-mes-base-editable). */
+    @PutMapping("/api/anuales/{anio}/opciones/{opcionId}/base")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public Mono<Void> copiarMesBase(@PathVariable int anio, @PathVariable UUID opcionId, @RequestBody CopiarMesBaseRequest r) {
+        return anual.copiarMesBase(anio, opcionId, r.desde() == null ? null : r.desde().fuente());
+    }
+
+    @PostMapping("/api/anuales/{anio}/opciones/{opcionId}/base/items")
+    @ResponseStatus(HttpStatus.CREATED)
+    public Mono<ItemResponse> agregarItemBase(@PathVariable int anio, @PathVariable UUID opcionId, @RequestBody ItemRequest r) {
+        return anual.agregarItemBase(anio, opcionId, r.datos()).map(ItemResponse::de);
+    }
+
+    @PutMapping("/api/anuales/{anio}/opciones/{opcionId}/base/items/{itemId}")
+    public Mono<ItemResponse> editarItemBase(@PathVariable int anio, @PathVariable UUID opcionId, @PathVariable UUID itemId,
+                                             @RequestBody ItemRequest r) {
+        return anual.editarItemBase(anio, opcionId, itemId, r.datos()).map(ItemResponse::de);
+    }
+
+    @DeleteMapping("/api/anuales/{anio}/opciones/{opcionId}/base/items/{itemId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public Mono<Void> quitarItemBase(@PathVariable int anio, @PathVariable UUID opcionId, @PathVariable UUID itemId) {
+        return anual.quitarItemBase(anio, opcionId, itemId);
+    }
+
+    /** "Usar este mes en los 12 meses". */
+    @PostMapping("/api/anuales/{anio}/opciones/{opcionId}/base/usar")
+    public Mono<AnualResponse> usarMesBase(@PathVariable int anio, @PathVariable UUID opcionId) {
+        return anual.usarMesBase(anio, opcionId).map(AnualResponse::de);
     }
 
     @DeleteMapping("/api/anuales/{anio}/opciones/{opcionId}")

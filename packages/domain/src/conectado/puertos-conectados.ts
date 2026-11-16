@@ -1,4 +1,5 @@
 import type {
+  BaseAnual,
   CierrePort,
   DatosEvento,
   CuentasPort,
@@ -30,6 +31,7 @@ import {
   type InvitacionApi,
   type InvitacionEnviadaApi,
   type EventoAnualApi,
+  type FuenteBaseApi,
   type FinanzasApi,
   type InvitacionRecibidaApi,
   type OrigenRequest,
@@ -413,6 +415,20 @@ export class PuertosConectados implements Puertos {
       quitarOpcionAnual: (anio, opcionId) => escribir(api.quitarOpcionAnual(anio, opcionId)),
       mesesDesdeAnual: (anio, opcionId) => demo().mesesDesdeAnual(anio, opcionId),
       crearOActualizarMeses: (anio, opcionId, actualizar) => escribir(api.mesesDesdeAnual(anio, opcionId, actualizar)),
+      // El mes base editable (design D3 de anual-mes-base-editable): se escribe en el backend; la vista la calcula el dominio.
+      nuevaOpcionAnual: async (anio, desde) => {
+        const nueva = await api.nuevaOpcionAnual(anio, fuenteApi(desde));
+        await this.recargarFinanzas();
+        return nueva.id;
+      },
+      copiarMesBase: (anio, opcionId, desde) => escribir(api.copiarMesBase(anio, opcionId, fuenteApi(desde))),
+      guardarItemBase: (anio, opcionId, item) => {
+        const cuerpo = { categoriaId: item.categoriaId, nombre: item.nombre, monto: item.monto, diaVence: item.diaVence, tipo: item.tipo, cuota: item.cuota, creditoId: item.creditoId, tarjetaId: item.tarjetaId ?? null };
+        return escribir(item.id ? api.editarItemBase(anio, opcionId, item.id, cuerpo) : api.crearItemBase(anio, opcionId, cuerpo));
+      },
+      quitarItemBase: (anio, opcionId, itemId) => escribir(api.quitarItemBase(anio, opcionId, itemId)),
+      usarMesBase: (anio, opcionId) => escribir(api.usarMesBase(anio, opcionId)),
+      vistaMesBase: (anio, opcionId) => demo().vistaMesBase(anio, opcionId),
       crearAnual: (anio) => escribir(api.crearAnual(anio)),
       editarProyeccion: (usuarioId, ref, monto) => escribir(api.ponerProyeccion(ref.anio, usuarioId, ref.mes, monto)),
       crearMes: (ref, modo) => escribir(api.crearPlan(ref, modo)),
@@ -611,6 +627,10 @@ function recibida(token: string, r: InvitacionRecibidaApi): InvitacionRecibida {
 }
 
 /** Un evento del anual como lo pide el backend: sin categoria ni "en adelante", los valores por defecto. */
+function fuenteApi(b: BaseAnual): FuenteBaseApi {
+  return b.tipo === 'MES' ? { tipo: 'MES', anio: b.ref.anio, mes: b.ref.mes } : b;
+}
+
 function eventoApi(e: DatosEvento): Omit<EventoAnualApi, 'id'> {
   return { nombre: e.nombre, mes: e.mes, monto: e.monto, tipo: e.tipo, usuarioId: e.usuarioId ?? null, categoriaId: e.categoriaId ?? null, enAdelante: e.enAdelante ?? false };
 }

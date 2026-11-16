@@ -587,7 +587,7 @@ public class PlanUseCase implements IPlanServicePort {
     }
 
     /** {@code guardarItem} del dominio, mas los largos y las cuotas. */
-    private static DatosItem itemValido(DatosItem d) {
+    static DatosItem itemValido(DatosItem d) {
         String nombre = d.nombre() == null ? "" : d.nombre().strip();
         if (nombre.isEmpty() || nombre.length() > ItemPlan.NOMBRE_MAX) {
             throw DomainException.datosInvalidos("El gasto necesita un nombre de hasta 60 caracteres");
@@ -610,7 +610,7 @@ public class PlanUseCase implements IPlanServicePort {
                 d.creditoId());
     }
 
-    private static ItemPlan.Tipo tipo(String tipo) {
+    static ItemPlan.Tipo tipo(String tipo) {
         try {
             return ItemPlan.Tipo.valueOf(tipo);
         } catch (IllegalArgumentException | NullPointerException ex) {

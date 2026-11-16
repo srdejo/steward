@@ -7,7 +7,7 @@ import type {
   ItemPlan, MesRef, Origen, Pesos, PlanMes, ReglaDiezmo, TipoCategoria, Usuario,
 } from '../model';
 import type {
-  ConteoBorrado, MesDesdeAnual, DatosCredito, DatosMetodo, DatosTarjeta, ItemEnlazable, ResumenCreditos, VistaCredito, VistaTarjetas, DatosEvento, VistaBase, FiltroTitular, ModoNuevoMes, MovimientoCuenta, ResumenAnual, ResumenMes, ResumenMesPlan, TablaOpciones, VistaCierre, VistaMesEscritorio, VistaCuenta, VistaOpcion, VistaRegistro,
+  ConteoBorrado, MesDesdeAnual, VistaMesBase, DatosCredito, DatosMetodo, DatosTarjeta, ItemEnlazable, ResumenCreditos, VistaCredito, VistaTarjetas, DatosEvento, VistaBase, FiltroTitular, ModoNuevoMes, MovimientoCuenta, ResumenAnual, ResumenMes, ResumenMesPlan, TablaOpciones, VistaCierre, VistaMesEscritorio, VistaCuenta, VistaOpcion, VistaRegistro,
 } from '../rules';
 import type { compararOpciones, loQueTraeElMes } from '../rules';
 
@@ -162,6 +162,17 @@ export interface PlanPort {
   mesesDesdeAnual(anio: number, opcionId: Id): Promise<MesDesdeAnual[]>;
   /** "Meses con la Opción X": crea los meses sin plan y actualiza los de `actualizar`. */
   crearOActualizarMeses(anio: number, opcionId: Id, actualizar: number[]): Promise<void>;
+  /** "+ Nueva opción desde un mes base" (anual-mes-base-editable): devuelve la opcion nueva. */
+  nuevaOpcionAnual(anio: number, desde: BaseAnual): Promise<Id>;
+  /** "Copiar otro mes" en el mes base de una opcion. */
+  copiarMesBase(anio: number, opcionId: Id, desde: BaseAnual): Promise<void>;
+  /** Agregar o editar un gasto del mes base. */
+  guardarItemBase(anio: number, opcionId: Id, item: Omit<ItemPlan, 'id'> & { id?: Id }): Promise<void>;
+  quitarItemBase(anio: number, opcionId: Id, itemId: Id): Promise<void>;
+  /** "Usar este mes en los 12 meses". */
+  usarMesBase(anio: number, opcionId: Id): Promise<void>;
+  /** Lo que ve el editor del mes base. */
+  vistaMesBase(anio: number, opcionId: Id | null): Promise<VistaMesBase>;
   /** "Crear plan anual {año}": vacio, para el año en curso o uno futuro. */
   crearAnual(anio: number): Promise<void>;
   /** El aporte proyectado de una persona en un mes; 0 lo quita. */

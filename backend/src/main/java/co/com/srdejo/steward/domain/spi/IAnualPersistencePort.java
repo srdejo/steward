@@ -47,6 +47,15 @@ public interface IAnualPersistencePort {
     /** Quita una opcion con sus celdas y eventos. */
     Mono<Void> quitarOpcion(UUID opcionId);
 
+    /** Reemplaza el mes base de una opcion (sus items y su origen) (anual-mes-base-editable). */
+    Mono<Void> ponerMesBase(UUID opcionId, PlanAnual.MesBase mesBase);
+
+    /** Agrega o reemplaza un gasto del mes base de la opcion. */
+    Mono<Void> guardarItemBase(UUID opcionId, co.com.srdejo.steward.domain.model.PlanMes.ItemPlan item);
+
+    /** Quita un gasto del mes base; false si no es de esa opcion. */
+    Mono<Boolean> quitarItemBase(UUID opcionId, UUID itemId);
+
     /** Reemplaza los aportes proyectados del año del hogar. */
     Mono<Void> reemplazarProyecciones(UUID hogarId, int anio, List<Proyeccion> proyecciones);
 

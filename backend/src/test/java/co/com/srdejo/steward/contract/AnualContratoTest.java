@@ -211,6 +211,58 @@ class AnualContratoTest extends ContratoBase {
         assertEquals(List.of("Luz:50000"), nombres(f, 2));
     }
 
+    // --- Mes base editable de una opcion (anual-mes-base-editable) ---
+
+    @Test
+    void opcionDesdeUnMesBaseQueSeAjustaYSeUsa() {
+        Map<?, ?> actual = ayudas.crearPlan(daniel, MES, "CERO");
+        String fijos = ayudas.categoria(daniel, "Gastos fijos");
+        String variables = ayudas.categoria(daniel, "Variables");
+        ayudas.item(daniel, actual, escenario(actual), "Internet", 120_000, "FIJO", fijos, null, null);
+        ayudas.item(daniel, actual, escenario(actual), "Transporte", 250_000, "VARIABLE", variables, null, null);
+        ayudas.item(daniel, actual, escenario(actual), "Apoyo familiar", 150_000, "VARIABLE", variables, null, null);
+
+        // Sin anual: la opcion nueva es la A del año.
+        Map<?, ?> a = post(daniel, "/api/anuales/{anio}/opciones", Map.of("desde", base(MES)), ANIO).expectStatus().isCreated()
+                .expectBody(Map.class).returnResult().getResponseBody();
+        assertEquals("A", a.get("letra"));
+        String op = (String) a.get("id");
+        Map<?, ?> mesBase = (Map<?, ?>) a.get("mesBase");
+        assertEquals(Map.of("anio", MES.getYear(), "mes", MES.getMonthValue()), mesBase.get("origen"));
+        List<?> items = (List<?>) mesBase.get("items");
+        assertEquals(List.of("Internet", "Transporte", "Apoyo familiar"), items.stream().map(i -> ((Map<?, ?>) i).get("nombre")).toList());
+        String transporte = (String) ((Map<?, ?>) items.get(1)).get("id");
+        String apoyo = (String) ((Map<?, ?>) items.get(2)).get("id");
+
+        // Ajustar: el mes real y las celdas no cambian.
+        put(daniel, "/api/anuales/{anio}/opciones/{op}/base/items/{id}", PlanContratoTest.itemBody("Transporte", 300_000, "VARIABLE", variables, null, null),
+                ANIO, op, transporte).expectStatus().isOk().expectBody().jsonPath("$.monto").isEqualTo(300_000);
+        delete(daniel, "/api/anuales/{anio}/opciones/{op}/base/items/{id}", ANIO, op, apoyo).expectStatus().isNoContent();
+        delete(daniel, "/api/anuales/{anio}/opciones/{op}/base/items/{id}", ANIO, op, apoyo).expectStatus().isNotFound()
+                .expectBody().jsonPath("$.codigo").isEqualTo("ITEM_NO_ENCONTRADO");
+        post(daniel, "/api/anuales/{anio}/opciones/{op}/base/items", PlanContratoTest.itemBody("Diezmo", 1, "DIEZMO", ayudas.categoria(daniel, "Diezmo"), null, null),
+                ANIO, op).expectStatus().isBadRequest();
+        get(daniel, "/api/finanzas").expectBody()
+                .jsonPath("$.anuales[0].opciones[0].mesBase.items.length()").isEqualTo(2)
+                .jsonPath("$.anuales[0].opciones[0].celdas[?(@.categoriaId == '" + variables + "' && @.mes == 1)].monto").isEqualTo(List.of(400_000))
+                .jsonPath("$.planes[0].escenarios[0].items.length()").isEqualTo(3);
+
+        // Usar: las celdas salen del mes base; los meses tambien.
+        post(daniel, "/api/anuales/{anio}/opciones/{op}/base/usar", Map.of(), ANIO, op).expectStatus().isOk().expectBody()
+                .jsonPath("$.opciones[0].celdas[?(@.categoriaId == '" + variables + "' && @.mes == 3)].monto").isEqualTo(List.of(300_000));
+        post(daniel, "/api/anuales/{anio}/meses", Map.of("opcionId", op, "actualizar", List.of()), ANIO).expectStatus().isOk();
+        Map<?, ?> f = get(daniel, "/api/finanzas").expectBody(Map.class).returnResult().getResponseBody();
+        assertEquals(List.of("Internet:120000", "Transporte:300000"), nombres(f, 3));
+
+        // Otra opcion: la B, desde cero; un mes sin plan da 404.
+        post(daniel, "/api/anuales/{anio}/opciones", Map.of("desde", Map.of("tipo", "CERO")), ANIO).expectStatus().isCreated()
+                .expectBody().jsonPath("$.letra").isEqualTo("B").jsonPath("$.mesBase.items").isEmpty();
+        post(daniel, "/api/anuales/{anio}/opciones", Map.of("desde", base(MES.minusMonths(3))), ANIO).expectStatus().isNotFound()
+                .expectBody().jsonPath("$.codigo").isEqualTo("PLAN_NO_ENCONTRADO");
+        put(daniel, "/api/anuales/{anio}/opciones/{op}/base", Map.of("desde", Map.of("tipo", "CERO")), ANIO, op).expectStatus().isNoContent();
+        get(daniel, "/api/finanzas").expectBody().jsonPath("$.anuales[0].opciones[0].mesBase.items").isEmpty();
+    }
+
     // --- Replicar el mes base (planear-anio-desde-un-mes) ---
 
     @Test

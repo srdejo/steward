@@ -275,7 +275,12 @@ export interface OpcionAnualApi {
   celdas: { categoriaId: string; mes: number; monto: number }[];
   eventos: EventoAnualApi[];
   base?: { anio: number; mes: number } | null;
+  /** El mes base editable (anual-mes-base-editable); null o sin el campo si la opcion no tiene. */
+  mesBase?: { origen: { anio: number; mes: number } | null; items: ItemPlanApi[] } | null;
 }
+
+/** La fuente de un mes base: un mes con plan, solo fijos o desde cero. */
+export type FuenteBaseApi = { tipo: 'MES'; anio: number; mes: number } | { tipo: 'FIJOS' } | { tipo: 'CERO' };
 
 export interface AnualApi {
   anio: number;
@@ -552,6 +557,31 @@ export class Api {
   /** "+ Duplicar Opción X" del año (design D2 de anual-opciones-y-meses). */
   duplicarOpcionAnual(anio: number, desdeId: string): Promise<OpcionAnualApi> {
     return this.t.pedir<OpcionAnualApi>('POST', `/api/anuales/${anio}/opciones`, { desdeId });
+  }
+
+  /** "+ Nueva opción desde un mes base". */
+  nuevaOpcionAnual(anio: number, desde: FuenteBaseApi): Promise<OpcionAnualApi> {
+    return this.t.pedir<OpcionAnualApi>('POST', `/api/anuales/${anio}/opciones`, { desde });
+  }
+
+  copiarMesBase(anio: number, opcionId: string, desde: FuenteBaseApi): Promise<unknown> {
+    return this.t.pedir('PUT', `/api/anuales/${anio}/opciones/${encodeURIComponent(opcionId)}/base`, { desde });
+  }
+
+  crearItemBase(anio: number, opcionId: string, item: ItemPlanRequest): Promise<unknown> {
+    return this.t.pedir('POST', `/api/anuales/${anio}/opciones/${encodeURIComponent(opcionId)}/base/items`, item);
+  }
+
+  editarItemBase(anio: number, opcionId: string, itemId: string, item: ItemPlanRequest): Promise<unknown> {
+    return this.t.pedir('PUT', `/api/anuales/${anio}/opciones/${encodeURIComponent(opcionId)}/base/items/${encodeURIComponent(itemId)}`, item);
+  }
+
+  quitarItemBase(anio: number, opcionId: string, itemId: string): Promise<void> {
+    return this.t.pedir<void>('DELETE', `/api/anuales/${anio}/opciones/${encodeURIComponent(opcionId)}/base/items/${encodeURIComponent(itemId)}`);
+  }
+
+  usarMesBase(anio: number, opcionId: string): Promise<unknown> {
+    return this.t.pedir('POST', `/api/anuales/${anio}/opciones/${encodeURIComponent(opcionId)}/base/usar`, null);
   }
 
   quitarOpcionAnual(anio: number, opcionId: string): Promise<void> {

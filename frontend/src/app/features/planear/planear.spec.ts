@@ -331,7 +331,12 @@ describe('Planear (steward-planear)', () => {
     const base = await p.plan.vistaBase(2028, { tipo: 'MES', ref: OCT });
     expect(a.raiz().querySelector('[data-testid="libre-mes-base"]')!.textContent!.trim()).toBe(formatCop(base.libreMes));
     await a.tocar('Replicar en los 12 meses');
-    expect(a.url()).toBe('/planear/anual/2028');
+    // Nace la Opción A con su mes base, que se abre para ajustarlo (anual-mes-base-editable).
+    await a.estable();
+    expect(a.url()).toBe('/planear/anual/2028/base?opcion=A');
+    await a.tocar('Usar este mes en los 12 meses');
+    await a.estable();
+    expect(a.url()).toBe('/planear/anual/2028?opcion=A');
     expect(a.texto()).toContain('Plan 2028: lo que cambia');
     expect(a.texto()).toContain('La Opción A es copia de octubre 2026');
     // A 390 px: la lista de meses, sin tabla.
