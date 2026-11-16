@@ -25,5 +25,5 @@
 ## 5. Producción
 
 - [x] 5.1 Con confirmación de Daniel: backup, deploy del backend con `V10`, contrato contra el binario. Verificar: health UP, Flyway en versión 10 y acceso con Google igual que antes.
-- [ ] 5.2 Build de la versión actual en TestFlight (D9): hoy 2.2.3. Daniel y su esposa la usan con sus datos reales. Eliminar la cuenta se prueba con una cuenta aparte, nunca con la de ellos. Verificar: Daniel lo confirma, con las mismas cifras en la app y en la PWA.
-- [ ] 5.3 Revisar 4.8 y 5.1.1(v) en la página original, la ficha (con el número del build probado en 5.2), la privacidad y una cuenta de revisión. Con confirmación de Daniel: enviar a revisión. `docs/ROADMAP.md`. Commit.
+- [x] 5.2 Build de la versión actual en TestFlight (D9): hoy 2.2.3. Daniel y su esposa la usan con sus datos reales. Eliminar la cuenta se prueba con una cuenta aparte, nunca con la de ellos. Verificar: Daniel lo confirma, con las mismas cifras en la app y en la PWA.
+- [x] 5.3 Revisar 4.8 y 5.1.1(v) en la página original, la ficha (con el número del build probado en 5.2), la privacidad y una cuenta de revisión. Con confirmación de Daniel: enviar a revisión. `docs/ROADMAP.md`. Commit.
