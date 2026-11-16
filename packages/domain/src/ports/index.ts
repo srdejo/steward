@@ -7,7 +7,7 @@ import type {
   ItemPlan, MesRef, Origen, Pesos, PlanMes, ReglaDiezmo, TipoCategoria, Usuario,
 } from '../model';
 import type {
-  ConteoBorrado, DatosCredito, DatosMetodo, DatosTarjeta, ItemEnlazable, ResumenCreditos, VistaCredito, VistaTarjetas, DatosEvento, VistaBase, FiltroTitular, ModoNuevoMes, MovimientoCuenta, ResumenAnual, ResumenMes, ResumenMesPlan, TablaOpciones, VistaCierre, VistaMesEscritorio, VistaCuenta, VistaOpcion, VistaRegistro,
+  ConteoBorrado, MesDesdeAnual, DatosCredito, DatosMetodo, DatosTarjeta, ItemEnlazable, ResumenCreditos, VistaCredito, VistaTarjetas, DatosEvento, VistaBase, FiltroTitular, ModoNuevoMes, MovimientoCuenta, ResumenAnual, ResumenMes, ResumenMesPlan, TablaOpciones, VistaCierre, VistaMesEscritorio, VistaCuenta, VistaOpcion, VistaRegistro,
 } from '../rules';
 import type { compararOpciones, loQueTraeElMes } from '../rules';
 
@@ -135,23 +135,33 @@ export interface PlanPort {
   mesEscritorio(ref: MesRef, escenarioId?: Id): Promise<VistaMesEscritorio | null>;
   /** Las opciones del mes gasto por gasto (spec "Opciones del mes en escritorio"). */
   tablaOpciones(ref: MesRef): Promise<TablaOpciones>;
-  anual(anio: number): Promise<ResumenAnual | null>;
-  agregarEvento(anio: number, evento: DatosEvento): Promise<void>;
+  /** El resumen del año para una opcion (por defecto la en uso, o la A). */
+  anual(anio: number, opcionId?: Id | null): Promise<ResumenAnual | null>;
+  agregarEvento(anio: number, evento: DatosEvento, opcionId?: Id | null): Promise<void>;
   /** Corregir un cambio de "Lo que cambia". */
   editarEvento(anio: number, eventoId: Id, evento: DatosEvento): Promise<void>;
   quitarEvento(anio: number, eventoId: Id): Promise<void>;
   /** Lo que un mes base pondria en cada mes del año (paso 1). */
   vistaBase(anio: number, base: BaseAnual): Promise<VistaBase>;
   /** "Replicar en los 12 meses": crea el anual si no existe, reemplaza celdas y aportes, conserva los eventos. */
-  replicarMes(anio: number, base: BaseAnual): Promise<void>;
+  replicarMes(anio: number, base: BaseAnual, opcionId?: Id | null): Promise<void>;
   /** "Borrar plan de {año}": el anual y sus aportes proyectados; los meses no cambian. */
   borrarAnual(anio: number): Promise<void>;
   /** Lo que dice la confirmacion de borrar el anual. */
   conteoBorradoAnual(anio: number): Promise<{ cambios: number; proyecciones: boolean }>;
   /** Lo que dejaria libre cada mes con ese cambio ("{Mes} queda en"). */
-  previsualizarEvento(anio: number, eventoId: Id | null, evento: DatosEvento): Promise<Pesos[]>;
-  editarMontoAnual(anio: number, categoriaId: Id, mes: number, monto: Pesos): Promise<void>;
+  previsualizarEvento(anio: number, eventoId: Id | null, evento: DatosEvento, opcionId?: Id | null): Promise<Pesos[]>;
+  editarMontoAnual(anio: number, categoriaId: Id, mes: number, monto: Pesos, opcionId?: Id | null): Promise<void>;
+  /** Crea los meses sin plan con la opcion en uso (o la A), sin actualizar ninguno. */
   crearMesesDesdeAnual(anio: number): Promise<void>;
+  /** "+ Duplicar Opción X" del año: devuelve la nueva (design D1 de anual-opciones-y-meses). */
+  duplicarOpcionAnual(anio: number, opcionId: Id): Promise<Id>;
+  /** "Quitar opción" del año: ni la ultima ni la que esta en uso (OPCION_EN_USO). */
+  quitarOpcionAnual(anio: number, opcionId: Id): Promise<void>;
+  /** Lo que muestra la hoja "Meses con la Opción X" (design D3). */
+  mesesDesdeAnual(anio: number, opcionId: Id): Promise<MesDesdeAnual[]>;
+  /** "Meses con la Opción X": crea los meses sin plan y actualiza los de `actualizar`. */
+  crearOActualizarMeses(anio: number, opcionId: Id, actualizar: number[]): Promise<void>;
   /** "Crear plan anual {año}": vacio, para el año en curso o uno futuro. */
   crearAnual(anio: number): Promise<void>;
   /** El aporte proyectado de una persona en un mes; 0 lo quita. */

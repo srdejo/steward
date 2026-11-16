@@ -43,8 +43,8 @@ class AnualContratoTest extends ContratoBase {
         post(daniel, "/api/anuales", Map.of("anio", ANIO)).expectStatus().isCreated().expectBody()
                 .jsonPath("$.anio").isEqualTo(ANIO)
                 .jsonPath("$.estado").isEqualTo("BORRADOR")
-                .jsonPath("$.celdas").isEmpty()
-                .jsonPath("$.eventos").isEmpty();
+                .jsonPath("$.opciones[0].celdas").isEmpty()
+                .jsonPath("$.opciones[0].eventos").isEmpty();
         get(esposa, "/api/finanzas").expectBody().jsonPath("$.anuales[0].anio").isEqualTo(ANIO);
         post(esposa, "/api/anuales", Map.of("anio", ANIO)).expectStatus().isEqualTo(409)
                 .expectBody().jsonPath("$.codigo").isEqualTo("YA_EXISTE");
@@ -60,8 +60,8 @@ class AnualContratoTest extends ContratoBase {
         celda(daniel, fijos, 1, 800_000).expectStatus().isNoContent();
         celda(esposa, fijos, 1, 900_000).expectStatus().isNoContent();
         get(daniel, "/api/finanzas").expectBody()
-                .jsonPath("$.anuales[0].celdas.length()").isEqualTo(1)
-                .jsonPath("$.anuales[0].celdas[0].monto").isEqualTo(900_000);
+                .jsonPath("$.anuales[0].opciones[0].celdas.length()").isEqualTo(1)
+                .jsonPath("$.anuales[0].opciones[0].celdas[0].monto").isEqualTo(900_000);
         celda(daniel, UUID.randomUUID().toString(), 1, 1).expectStatus().isNotFound()
                 .expectBody().jsonPath("$.codigo").isEqualTo("CATEGORIA_NO_ENCONTRADA");
         celda(daniel, fijos, 13, 1).expectStatus().isBadRequest();
@@ -75,8 +75,8 @@ class AnualContratoTest extends ContratoBase {
         post(esposa, "/api/anuales/{anio}/eventos", evento("SOAT", 3, 1_200_000, "GASTO", null), ANIO).expectStatus().isCreated()
                 .expectBody().jsonPath("$.nombre").isEqualTo("SOAT");
         get(daniel, "/api/finanzas").expectBody()
-                .jsonPath("$.anuales[0].eventos[0].mes").isEqualTo(3)
-                .jsonPath("$.anuales[0].eventos[0].tipo").isEqualTo("GASTO");
+                .jsonPath("$.anuales[0].opciones[0].eventos[0].mes").isEqualTo(3)
+                .jsonPath("$.anuales[0].opciones[0].eventos[0].tipo").isEqualTo("GASTO");
         post(daniel, "/api/anuales/{anio}/eventos", evento("Prima", 6, 1, "OTRO", null), ANIO).expectStatus().isBadRequest();
         post(daniel, "/api/anuales/{anio}/eventos", evento("Prima", 6, 1, "INGRESO", UUID.randomUUID().toString()), ANIO)
                 .expectStatus().isNotFound().expectBody().jsonPath("$.codigo").isEqualTo("MIEMBRO_NO_ENCONTRADO");
@@ -115,7 +115,7 @@ class AnualContratoTest extends ContratoBase {
         celda(daniel, variables, 2, 200_000).expectStatus().isNoContent();
         post(esposa, "/api/anuales/{anio}/eventos", evento("SOAT", 3, 1_200_000, "GASTO", null), ANIO).expectStatus().isCreated();
 
-        List<?> creados = post(esposa, "/api/anuales/{anio}/crear-meses", Map.of(), ANIO).expectStatus().isOk()
+        List<?> creados = post(esposa, "/api/anuales/{anio}/meses", Map.of("actualizar", List.of()), ANIO).expectStatus().isOk()
                 .expectBody(List.class).returnResult().getResponseBody();
         assertEquals(11, creados.size());
 
@@ -140,7 +140,7 @@ class AnualContratoTest extends ContratoBase {
         celda(daniel, ayudas.categoria(daniel, "Diezmo"), 1, 1).expectStatus().isBadRequest()
                 .expectBody().jsonPath("$.codigo").isEqualTo("DATOS_INVALIDOS");
 
-        post(esposa, "/api/anuales/{anio}/crear-meses", Map.of(), ANIO).expectStatus().isOk();
+        post(esposa, "/api/anuales/{anio}/meses", Map.of("actualizar", List.of()), ANIO).expectStatus().isOk();
         Map<?, ?> f = get(daniel, "/api/finanzas").expectBody(Map.class).returnResult().getResponseBody();
         assertEquals(List.of("Diezmo · Salario Daniel:700000", "Diezmo · Prima:300000"), nombres(f, 6));
         assertEquals(List.of("Diezmo · Salario Daniel:700000"), nombres(f, 5));
@@ -150,6 +150,65 @@ class AnualContratoTest extends ContratoBase {
         Map<?, ?> esc = (Map<?, ?>) ((List<?>) junio.get("escenarios")).getFirst();
         assertEquals(List.of("Salario Daniel:6288000:FIJO", "Prima:3000000:EXTRA"), ((List<?>) esc.get("ingresos")).stream()
                 .map(l -> (Map<?, ?>) l).map(l -> l.get("nombre") + ":" + l.get("monto") + ":" + l.get("tipo")).toList());
+    }
+
+    // --- Opciones del plan anual y meses con la Opcion X (anual-opciones-y-meses) ---
+
+    @Test
+    void duplicarYQuitarOpciones() {
+        String fijos = ayudas.categoria(daniel, "Gastos fijos");
+        post(daniel, "/api/anuales", Map.of("anio", ANIO)).expectStatus().isCreated();
+        celda(daniel, fijos, 1, 800_000).expectStatus().isNoContent();
+        String a = opcion(daniel, 0);
+        Map<?, ?> nueva = post(esposa, "/api/anuales/{anio}/opciones", Map.of("desdeId", a), ANIO).expectStatus().isCreated()
+                .expectBody(Map.class).returnResult().getResponseBody();
+        assertEquals(List.of("B", idEsposa, 800_000), List.of(nueva.get("letra"), nueva.get("creadoPor"),
+                ((Map<?, ?>) ((List<?>) nueva.get("celdas")).getFirst()).get("monto")));
+        String b = (String) nueva.get("id");
+        // Cambiar solo la B.
+        put(daniel, "/api/anuales/{anio}/celdas", Map.of("categoriaId", fijos, "mes", 1, "monto", 900_000, "opcionId", b), ANIO)
+                .expectStatus().isNoContent();
+        post(daniel, "/api/anuales/{anio}/eventos", conOpcion(evento("Carro", 4, 1_200_000, "GASTO", null), b), ANIO).expectStatus().isCreated();
+        get(daniel, "/api/finanzas").expectBody()
+                .jsonPath("$.anuales[0].opciones[0].celdas[0].monto").isEqualTo(800_000)
+                .jsonPath("$.anuales[0].opciones[0].eventos").isEmpty()
+                .jsonPath("$.anuales[0].opciones[1].celdas[0].monto").isEqualTo(900_000)
+                .jsonPath("$.anuales[0].opciones[1].eventos[0].nombre").isEqualTo("Carro");
+        // Una opcion ajena, la ultima o la que esta en uso no se quitan.
+        put(daniel, "/api/anuales/{anio}/celdas", Map.of("categoriaId", fijos, "mes", 1, "monto", 1, "opcionId", UUID.randomUUID().toString()), ANIO)
+                .expectStatus().isNotFound().expectBody().jsonPath("$.codigo").isEqualTo("OPCION_NO_ENCONTRADA");
+        post(daniel, "/api/anuales/{anio}/meses", Map.of("opcionId", b, "actualizar", List.of()), ANIO).expectStatus().isOk();
+        delete(daniel, "/api/anuales/{anio}/opciones/{id}", ANIO, b).expectStatus().isEqualTo(409)
+                .expectBody().jsonPath("$.codigo").isEqualTo("OPCION_EN_USO");
+        delete(daniel, "/api/anuales/{anio}/opciones/{id}", ANIO, a).expectStatus().isNoContent();
+        delete(daniel, "/api/anuales/{anio}/opciones/{id}", ANIO, b).expectStatus().isEqualTo(409);
+        get(daniel, "/api/finanzas").expectBody()
+                .jsonPath("$.anuales[0].opcionEnUso").isEqualTo(b)
+                .jsonPath("$.anuales[0].opciones.length()").isEqualTo(1);
+    }
+
+    @Test
+    void actualizarLosMesesVaciosYNoLosCerrados() throws Exception {
+        Map<?, ?> actual = ayudas.crearPlan(daniel, MES, "CERO");
+        String fijos = ayudas.categoria(daniel, "Gastos fijos");
+        ayudas.item(daniel, actual, escenario(actual), "Internet", 120_000, "FIJO", fijos, null, null);
+        // Marzo y abril se crearon antes de llenar el año; febrero ya esta cerrado.
+        ayudas.crearPlan(daniel, YearMonth.of(ANIO, 3), "CERO");
+        ayudas.crearPlan(daniel, YearMonth.of(ANIO, 4), "CERO");
+        Map<?, ?> febrero = ayudas.crearPlan(daniel, YearMonth.of(ANIO, 2), "CERO");
+        ayudas.item(daniel, febrero, escenario(febrero), "Luz", 50_000, "FIJO", fijos, null, null);
+        sql("UPDATE plan_mes SET estado = 'CERRADO' WHERE id = '" + febrero.get("id") + "'");
+        post(daniel, "/api/anuales/{anio}/replicar", base(MES), ANIO).expectStatus().isOk();
+
+        post(daniel, "/api/anuales/{anio}/meses", Map.of("actualizar", List.of(2, 3)), ANIO).expectStatus().isEqualTo(409)
+                .expectBody().jsonPath("$.codigo").isEqualTo("MES_CON_REGISTROS");
+        List<?> hechos = post(daniel, "/api/anuales/{anio}/meses", Map.of("actualizar", List.of(3, 4)), ANIO).expectStatus().isOk()
+                .expectBody(List.class).returnResult().getResponseBody();
+        assertEquals(List.of("1:CREADO", "3:ACTUALIZADO", "4:ACTUALIZADO", "5:CREADO"), hechos.stream().map(m -> (Map<?, ?>) m)
+                .map(m -> m.get("mes") + ":" + m.get("accion")).limit(4).toList());
+        Map<?, ?> f = get(daniel, "/api/finanzas").expectBody(Map.class).returnResult().getResponseBody();
+        assertEquals(List.of("Internet:120000"), nombres(f, 3));
+        assertEquals(List.of("Luz:50000"), nombres(f, 2));
     }
 
     // --- Replicar el mes base (planear-anio-desde-un-mes) ---
@@ -167,12 +226,12 @@ class AnualContratoTest extends ContratoBase {
         // Sin anual: replicar lo crea.
         post(daniel, "/api/anuales/{anio}/replicar", base(MES), ANIO).expectStatus().isOk().expectBody()
                 .jsonPath("$.estado").isEqualTo("BORRADOR")
-                .jsonPath("$.base.anio").isEqualTo(MES.getYear())
-                .jsonPath("$.base.mes").isEqualTo(MES.getMonthValue())
-                .jsonPath("$.celdas.length()").isEqualTo(24);
+                .jsonPath("$.opciones[0].base.anio").isEqualTo(MES.getYear())
+                .jsonPath("$.opciones[0].base.mes").isEqualTo(MES.getMonthValue())
+                .jsonPath("$.opciones[0].celdas.length()").isEqualTo(24);
         Map<?, ?> f = get(esposa, "/api/finanzas").expectBody(Map.class).returnResult().getResponseBody();
         Map<?, ?> anual = (Map<?, ?>) ((List<?>) f.get("anuales")).getFirst();
-        assertEquals(List.of(795_000), ((List<?>) anual.get("celdas")).stream().map(c -> (Map<?, ?>) c)
+        assertEquals(List.of(795_000), ((List<?>) ((Map<?, ?>) ((List<?>) anual.get("opciones")).getFirst()).get("celdas")).stream().map(c -> (Map<?, ?>) c)
                 .filter(c -> c.get("categoriaId").equals(fijos)).map(c -> ((Number) c.get("monto")).intValue()).distinct().toList());
         assertEquals(12, ((List<?>) f.get("proyecciones")).stream().map(p -> (Map<?, ?>) p)
                 .filter(p -> p.get("usuarioId").equals(idEsposa) && p.get("monto").equals(1_500_000)).count());
@@ -180,8 +239,8 @@ class AnualContratoTest extends ContratoBase {
         // Replicar otra vez: las celdas se reemplazan y los eventos se conservan; solo fijos deja Variables en 0.
         post(daniel, "/api/anuales/{anio}/eventos", evento("SOAT", 3, 900_000, "GASTO", null), ANIO).expectStatus().isCreated();
         post(daniel, "/api/anuales/{anio}/replicar", Map.of("tipo", "FIJOS"), ANIO).expectStatus().isOk().expectBody()
-                .jsonPath("$.celdas.length()").isEqualTo(12)
-                .jsonPath("$.eventos[0].nombre").isEqualTo("SOAT");
+                .jsonPath("$.opciones[0].celdas.length()").isEqualTo(12)
+                .jsonPath("$.opciones[0].eventos[0].nombre").isEqualTo("SOAT");
 
         // Mes base sin plan y base invalida.
         post(daniel, "/api/anuales/{anio}/replicar", base(MES.plusMonths(2)), ANIO).expectStatus().isNotFound()
@@ -227,7 +286,7 @@ class AnualContratoTest extends ContratoBase {
         delete(esposa, "/api/anuales/{anio}/eventos/{id}", ANIO, soat).expectStatus().isNotFound()
                 .expectBody().jsonPath("$.codigo").isEqualTo("EVENTO_NO_ENCONTRADO");
 
-        post(esposa, "/api/anuales/{anio}/crear-meses", Map.of(), ANIO).expectStatus().isOk();
+        post(esposa, "/api/anuales/{anio}/meses", Map.of("actualizar", List.of()), ANIO).expectStatus().isOk();
         Map<?, ?> f = get(daniel, "/api/finanzas").expectBody(Map.class).returnResult().getResponseBody();
         // Los items del mes base, Navidad en Variables y sin "Eventos del año" (SOAT se quito).
         assertEquals(List.of("Internet:120000", "Arriendo:675000"), nombres(f, 2).stream().filter(n -> !n.startsWith("Diezmo")).toList());
@@ -244,7 +303,7 @@ class AnualContratoTest extends ContratoBase {
         post(daniel, "/api/anuales", Map.of("anio", ANIO)).expectStatus().isCreated();
         post(daniel, "/api/anuales/{anio}/eventos", evento("SOAT", 3, 900_000, "GASTO", null), ANIO).expectStatus().isCreated();
         proyeccion(esposa, idEsposa, 1, 2_000_000).expectStatus().isNoContent();
-        post(esposa, "/api/anuales/{anio}/crear-meses", Map.of(), ANIO).expectStatus().isOk();
+        post(esposa, "/api/anuales/{anio}/meses", Map.of("actualizar", List.of()), ANIO).expectStatus().isOk();
 
         delete(daniel, "/api/anuales/{anio}", ANIO).expectStatus().isNoContent();
         Map<?, ?> f = get(esposa, "/api/finanzas").expectBody(Map.class).returnResult().getResponseBody();
@@ -269,7 +328,7 @@ class AnualContratoTest extends ContratoBase {
                 .expectStatus().isNotFound().expectBody().jsonPath("$.codigo").isEqualTo("ANUAL_NO_ENCONTRADO");
         get(otro, "/api/finanzas").expectBody().jsonPath("$.anuales").isEmpty();
         client.post().uri("/api/anuales").bodyValue(Map.of("anio", ANIO)).exchange().expectStatus().isUnauthorized();
-        client.post().uri("/api/anuales/{anio}/crear-meses", ANIO).exchange().expectStatus().isUnauthorized();
+        client.post().uri("/api/anuales/{anio}/meses", ANIO).bodyValue(Map.of()).exchange().expectStatus().isUnauthorized();
 
         delete(esposa, "/api/hogar/miembros/yo").expectStatus().isNoContent();
         delete(daniel, "/api/hogar/miembros/yo").expectStatus().isNoContent();
@@ -319,5 +378,18 @@ class AnualContratoTest extends ContratoBase {
                 .findFirst().orElseThrow();
         Map<?, ?> esc = (Map<?, ?>) ((List<?>) plan.get("escenarios")).getFirst();
         return ((List<?>) esc.get("items")).stream().map(i -> (Map<?, ?>) i).map(i -> i.get("nombre") + ":" + i.get("monto")).toList();
+    }
+
+    /** El id de la opcion {@code i} del año, leido de las finanzas. */
+    private String opcion(String sesion, int i) {
+        Map<?, ?> f = get(sesion, "/api/finanzas").expectBody(Map.class).returnResult().getResponseBody();
+        Map<?, ?> anual = (Map<?, ?>) ((List<?>) f.get("anuales")).getFirst();
+        return (String) ((Map<?, ?>) ((List<?>) anual.get("opciones")).get(i)).get("id");
+    }
+
+    private static Map<String, Object> conOpcion(Map<String, Object> evento, String opcionId) {
+        Map<String, Object> m = new java.util.HashMap<>(evento);
+        m.put("opcionId", opcionId);
+        return m;
     }
 }

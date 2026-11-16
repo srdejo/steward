@@ -389,10 +389,23 @@ function itemCuota(s: EstadoHogar, credito: Credito): ItemPlan {
   };
 }
 
-/** Agrega a `items` la cuota de cada credito con saldo que todavia no tenga item enlazado. */
-export function cuotasDeCreditos(s: EstadoHogar, items: ItemPlan[]): ItemPlan[] {
+/** Agrega a `items` la cuota de cada credito con saldo que todavia no tenga item enlazado (y que pase `filtro`, si se da). */
+export function cuotasDeCreditos(s: EstadoHogar, items: ItemPlan[], filtro: (c: Credito) => boolean = () => true): ItemPlan[] {
   const enlazados = new Set(items.map((i) => i.creditoId).filter((id) => id !== null));
-  return [...items, ...s.creditos.filter((c) => c.saldo > 0 && !enlazados.has(c.id)).map((c) => itemCuota(s, c))];
+  return [...items, ...s.creditos.filter((c) => c.saldo > 0 && !enlazados.has(c.id) && filtro(c)).map((c) => itemCuota(s, c))];
+}
+
+/**
+ * Si el credito paga una cuota en `ref` segun su tabla (design D3 de anual-opciones-y-meses). A mano, mientras tenga saldo;
+ * un mes anterior al de `hoy` cuenta como pagado.
+ */
+export function pagaEnMes(c: Credito, ref: MesRef, hoy: Fecha): boolean {
+  if (c.saldo <= 0) return false;
+  if (c.metodo === 'MANUAL') return true;
+  const M = mesDe(hoy);
+  const meses = (ref.anio - M.anio) * 12 + ref.mes - M.mes + 1;
+  if (meses <= 0) return true;
+  return cuotasProyectadas(c, hoy, meses).some((q) => mismoMes(q.ref, ref));
 }
 
 /** "+ Credito": su cuota entra a la opcion en uso del mes en curso si tiene plan y no esta cerrado. */

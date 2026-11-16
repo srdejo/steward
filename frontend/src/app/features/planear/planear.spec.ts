@@ -27,6 +27,7 @@ describe('Planear (steward-planear)', () => {
     await conSesion();
     const a = await app('/planear');
     await a.tocar(/^Diciembre 2026/);
+    await a.estable();
     expect(a.url()).toBe('/planear/2026-12');
     expect(a.texto()).toContain('Aún no tiene plan');
     expect(a.texto()).toContain('Diciembre ya trae Prima +$3.500.000 Diezmo de la prima $350.000 Sobrante de noviembre al cerrar noviembre');
@@ -332,10 +333,11 @@ describe('Planear (steward-planear)', () => {
     await a.tocar('Replicar en los 12 meses');
     expect(a.url()).toBe('/planear/anual/2028');
     expect(a.texto()).toContain('Plan 2028: lo que cambia');
-    expect(a.texto()).toContain('Los 12 meses son copia de octubre 2026');
+    expect(a.texto()).toContain('La Opción A es copia de octubre 2026');
     // A 390 px: la lista de meses, sin tabla.
     expect(a.raiz().querySelector('[data-testid="tabla-anual"]')).toBeNull();
-    expect(a.texto()).toContain(`Enero a diciembre Igual al mes base · 12 meses ${formatCop(base.libreMes)}`);
+    // En 2028 la compra a cuotas ya termino: cada mes deja $375.000 mas que el mes base (anual-opciones-y-meses).
+    expect(a.texto()).toContain(`Enero a diciembre Igual al mes base · 12 meses ${formatCop(base.libreMes + 375_000)}`);
   });
 
   it('replicar sobre un año con montos pide confirmar y conserva lo que cambia', async () => {
@@ -419,11 +421,13 @@ describe('Planear (steward-planear)', () => {
     expect((await p.plan.mes({ anio: 2027, mes: 2 })).plan).toEqual(febrero);
   });
 
-  it('crear los 12 meses deja cada mes en borrador', async () => {
+  it('meses con la Opción A crea los 12 meses en borrador (anual-opciones-y-meses)', async () => {
     const p = await conSesion();
     const a = await app('/planear/anual/2027');
-    await a.tocar('Crear los 12 meses');
-    expect(a.texto()).toContain('Los 12 meses de 2027 quedaron en borrador');
+    await a.tocar('Meses con la Opción A');
+    expect(a.raiz().querySelector('[data-testid="meses-anual"]')!.textContent).toContain('Enero a diciembre');
+    await a.tocar('Crear 12 meses');
+    expect(a.texto()).toContain('Listo: 12 meses creados con la Opción A.');
     expect((await p.plan.mes({ anio: 2027, mes: 1 })).estado).toBe('BORRADOR');
   });
 

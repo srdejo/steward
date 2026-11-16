@@ -58,10 +58,15 @@ final class NacimientoMes {
     }
 
     Mono<Fuentes> fuentes(UUID hogarId, YearMonth ref) {
+        return fuentes(hogarId, ref, null);
+    }
+
+    /** Con los eventos de una opcion del anual; sin {@code opcionId}, la en uso o la primera (anual-opciones-y-meses). */
+    Mono<Fuentes> fuentes(UUID hogarId, YearMonth ref, UUID opcionId) {
         return Mono.zip(
                         ingresos.delHogar(hogarId).filter(IngresoFijo::activo).collectList(),
                         anuales.deAnio(hogarId, ref.getYear())
-                                .map(a -> a.eventos().stream()
+                                .map(a -> a.opcion(opcionId).map(PlanAnual.Opcion::eventos).orElse(List.of()).stream()
                                         .filter(e -> e.tipo() == PlanAnual.Evento.Tipo.INGRESO && e.aplica(ref.getMonthValue()))
                                         .toList())
                                 .defaultIfEmpty(List.of()),

@@ -2,8 +2,8 @@ import type { Categoria, Credito, EstadoHogar, Fecha, Id, IngresoPlan, ItemPlan,
 import { fechaEnMes, mesDe, sumarMeses } from '../rules/base';
 
 /** Version del esquema guardado: si cambia, el adaptador vuelve a sembrar. 2: diezmo como gasto y lineas de ingreso; 3: el diezmo enlazado a su linea;
- * 4: tarjetas y creditos con metodo; 5: la categoria Tarjetas (tarjetas-y-creditos). */
-export const VERSION_ESQUEMA = 5;
+ * 4: tarjetas y creditos con metodo; 5: la categoria Tarjetas (tarjetas-y-creditos); 6: opciones del plan anual (anual-opciones-y-meses). */
+export const VERSION_ESQUEMA = 6;
 
 export const DANIEL = 'u-daniel';
 export const ESPOSA = 'u-esposa';
@@ -199,15 +199,15 @@ export function crearSemilla(hoy: Fecha): EstadoHogar {
     ],
     anuales: [
       {
-        anio: M.anio, estado: 'CREADO', filas: [], base: null,
-        eventos: [
+        anio: M.anio, estado: 'CREADO', opcionEnUso: 'anual-actual-a',
+        opciones: [{ id: 'anual-actual-a', letra: 'A', creadoPor: DANIEL, nota: '', filas: [], base: null, eventos: [
           { id: 'ev-prima-jun', nombre: 'Prima', mes: 6, monto: 3_500_000, tipo: 'INGRESO', usuarioId: DANIEL, categoriaId: null, enAdelante: false },
           { id: 'ev-prima-dic', nombre: 'Prima', mes: 12, monto: 3_500_000, tipo: 'INGRESO', usuarioId: DANIEL, categoriaId: null, enAdelante: false },
-        ],
+        ] }],
       },
       {
-        anio: anioSig, estado: 'BORRADOR', base: null,
-        filas: [
+        anio: anioSig, estado: 'BORRADOR', opcionEnUso: null,
+        opciones: [{ id: 'anual-sig-a', letra: 'A', creadoPor: DANIEL, nota: '', base: null, filas: [
           { categoriaId: 'cat-fijos', montos: doce(795_000) },
           { categoriaId: 'cat-variables', montos: [...doce(400_000).slice(0, 11), 1_080_000] },
           { categoriaId: 'cat-tarjetas', montos: doce(2_620_000) },
@@ -220,7 +220,7 @@ export function crearSemilla(hoy: Fecha): EstadoHogar {
           { id: 'ev2-soat', nombre: 'SOAT', mes: 3, monto: 900_000, tipo: 'GASTO', usuarioId: null, categoriaId: null, enAdelante: false },
           { id: 'ev2-predial', nombre: 'Predial', mes: 4, monto: 1_200_000, tipo: 'GASTO', usuarioId: null, categoriaId: null, enAdelante: false },
           { id: 'ev2-renta', nombre: 'Renta', mes: 8, monto: 1_500_000, tipo: 'GASTO', usuarioId: null, categoriaId: null, enAdelante: false },
-        ],
+        ] }],
       },
     ],
   };

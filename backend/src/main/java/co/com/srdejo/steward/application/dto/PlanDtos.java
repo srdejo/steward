@@ -56,11 +56,13 @@ public final class PlanDtos {
     public record AnualRequest(int anio) {
     }
 
-    public record CeldaRequest(UUID categoriaId, int mes, long monto) {
+    /** {@code opcionId} opcional: sin el, la opcion en uso o la A (design D2 de anual-opciones-y-meses). */
+    public record CeldaRequest(UUID categoriaId, int mes, long monto, UUID opcionId) {
     }
 
     /** {@code categoriaId} y {@code enAdelante} son opcionales (design D3 de planear-anio-desde-un-mes). */
-    public record EventoRequest(String nombre, int mes, long monto, String tipo, UUID usuarioId, UUID categoriaId, Boolean enAdelante) {
+    public record EventoRequest(String nombre, int mes, long monto, String tipo, UUID usuarioId, UUID categoriaId, Boolean enAdelante,
+                                UUID opcionId) {
 
         public boolean adelante() {
             return Boolean.TRUE.equals(enAdelante);
@@ -68,13 +70,21 @@ public final class PlanDtos {
     }
 
     /** "Replicar en los 12 meses": {@code tipo} MES (con {@code anio} y {@code mes}), FIJOS o CERO. */
-    public record ReplicarRequest(String tipo, Integer anio, Integer mes) {
+    public record ReplicarRequest(String tipo, Integer anio, Integer mes, UUID opcionId) {
+    }
+
+    /** "+ Duplicar Opción X" del año. */
+    public record DuplicarOpcionAnualRequest(UUID desdeId) {
+    }
+
+    /** "Meses con la Opción X": los meses (1 a 12) que se actualizan; sin {@code opcionId}, la en uso o la A. */
+    public record MesesAnualRequest(UUID opcionId, List<Integer> actualizar) {
+    }
+
+    public record MesDelAnualResponse(int anio, int mes, String accion) {
     }
 
     public record ProyeccionRequest(UUID usuarioId, int mes, long monto) {
-    }
-
-    public record MesCreadoResponse(int anio, int mes) {
     }
 
     public record EventoResponse(UUID id, String nombre, int mes, long monto, String tipo, UUID usuarioId, UUID categoriaId,
@@ -92,13 +102,22 @@ public final class PlanDtos {
     public record MesRefResponse(int anio, int mes) {
     }
 
-    public record AnualResponse(int anio, String estado, List<CeldaResponse> celdas, List<EventoResponse> eventos, MesRefResponse base) {
+/** Una opcion del año: sus celdas tocadas, sus eventos y su mes base (design D2 de anual-opciones-y-meses). */
+    public record OpcionAnualResponse(UUID id, String letra, UUID creadoPor, String nota, List<CeldaResponse> celdas,
+                                      List<EventoResponse> eventos, MesRefResponse base) {
+
+        public static OpcionAnualResponse de(PlanAnual.Opcion o) {
+            return new OpcionAnualResponse(o.id(), o.letra(), o.creadoPor(), o.nota(),
+                    o.celdas().stream().map(c -> new CeldaResponse(c.categoriaId(), c.mes(), c.monto())).toList(),
+                    o.eventos().stream().map(EventoResponse::de).toList(),
+                    o.base() == null ? null : new MesRefResponse(o.base().getYear(), o.base().getMonthValue()));
+        }
+    }
+
+    public record AnualResponse(int anio, String estado, List<OpcionAnualResponse> opciones, UUID opcionEnUso) {
 
         public static AnualResponse de(PlanAnual a) {
-            return new AnualResponse(a.anio(), a.estado().name(),
-                    a.celdas().stream().map(c -> new CeldaResponse(c.categoriaId(), c.mes(), c.monto())).toList(),
-                    a.eventos().stream().map(EventoResponse::de).toList(),
-                    a.base() == null ? null : new MesRefResponse(a.base().getYear(), a.base().getMonthValue()));
+            return new AnualResponse(a.anio(), a.estado().name(), a.opciones().stream().map(OpcionAnualResponse::de).toList(), a.opcionEnUso());
         }
     }
 

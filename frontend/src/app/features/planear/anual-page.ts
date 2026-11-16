@@ -1,8 +1,8 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import {
   claveMes, formatCop, formatMesAnio, formatMiles, mesDe, nombreMeses, nombreMesCapital,
-  type BaseAnual, type EventoAnual, type FilaAnualVista, type MesesAnualVista, type ResumenMesPlan, type VistaCambio,
+  type BaseAnual, type EventoAnual, type FilaAnualVista, type Id, type MesesAnualVista, type OpcionAnualVista, type ResumenAnual, type ResumenMesPlan, type VistaCambio,
 } from '@steward/domain';
 
 import { consulta, mensajeDeError } from '../../core/datos/consulta';
@@ -12,6 +12,7 @@ import { Monto } from '../../shared/components/monto';
 import { MontoInput } from '../../shared/components/monto-input';
 import { anchoEscritorio } from '../../shared/escritorio';
 import { CambioHoja } from './cambio-hoja';
+import { MesesAnualHoja } from './meses-anual-hoja';
 
 const MESES = Array.from({ length: 12 }, (_, i) => i + 1);
 
@@ -26,10 +27,12 @@ interface OpcionBase {
 /**
  * Planear el año desde un mes (spec steward-planear, "Plan anual"; AnualBase, AnualCambios y AnualMesesMovil del canvas).
  * Paso 1: el mes base y "Replicar en los 12 meses". Paso 2: lo que cambia, en tabla desde 1024 px o en lista de meses.
+ * Con opciones A, B, ... (AnualOpcionesWeb y AnualOpcionesMovil, design D5 de anual-opciones-y-meses): pestañas o chips,
+ * lo distinto de la A marcado, "Las dos opciones, mes a mes" y "Meses con la Opción X".
  */
 @Component({
   selector: 'app-anual-page',
-  imports: [RouterLink, CambioHoja, Hoja, Monto, MontoInput],
+  imports: [RouterLink, CambioHoja, Hoja, MesesAnualHoja, Monto, MontoInput],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'flex flex-col gap-6 px-5 pt-6 pb-4 lg:mx-auto lg:w-full lg:max-w-[1192px] lg:px-10 lg:pt-8' },
   template: `
@@ -99,26 +102,52 @@ interface OpcionBase {
       <div class="flex flex-wrap items-end justify-between gap-4">
         <div class="flex flex-col gap-1">
           <a routerLink="/planear" class="boton-texto -my-2 self-start text-sm font-normal">‹ Plan</a>
-          <span class="rotulo" [class.text-aviso]="r.estado === 'BORRADOR'">{{ r.estado === 'BORRADOR' ? 'Borrador · paso 2 de 2' : 'Meses creados' }}</span>
-          <h1 class="text-[26px] font-bold lg:text-[28px]">Plan {{ r.anio }}: lo que cambia</h1>
-          <p class="text-sm text-secundario">{{ r.base ? 'Los 12 meses son copia de ' + mesAnio(r.base) + '.' : 'Los montos de cada mes.' }} {{ escritorio() ? 'Agrega lo que es distinto en un mes.' : 'Toca un mes para agregar algo distinto.' }}</p>
+          <span class="rotulo" [class.text-aviso]="r.estado === 'BORRADOR'">{{ rotulo(r) }}</span>
+          <h1 class="text-[26px] font-bold lg:text-[28px]">Plan {{ r.anio }}{{ r.opciones.length > 1 ? '' : ': lo que cambia' }}</h1>
+          <p class="text-sm text-secundario">{{ r.base ? 'La Opción ' + r.opcion.letra + ' es copia de ' + mesAnio(r.base) + '.' : 'Los montos de cada mes.' }} {{ escritorio() ? 'Agrega lo que es distinto en un mes.' : 'Toca un mes para agregar algo distinto.' }}</p>
         </div>
         <div class="flex flex-wrap gap-2">
           @if (r.estado === 'BORRADOR') {
             <a [routerLink]="['/planear/anual', anio()]" [queryParams]="{ paso: 'base' }" class="boton-texto self-center text-sm">Cambiar mes base</a>
           }
           <button type="button" class="boton h-10 rounded-control border border-control bg-superficie text-sm" (click)="abrirCambio(null, 1)">+ Algo distinto en un mes</button>
-          @if (r.estado === 'BORRADOR') {
-            <button type="button" class="boton h-10 rounded-control bg-acento text-sm text-white" [disabled]="ocupado()" (click)="crearMeses()">Crear los 12 meses</button>
-          }
+          <button type="button" class="boton h-10 rounded-control bg-acento text-sm text-white" [disabled]="ocupado()" (click)="hojaMeses.set(true)">Meses con la Opción {{ r.opcion.letra }}</button>
         </div>
       </div>
+
+      <div role="tablist" aria-label="Opciones del año" class="flex flex-wrap items-center gap-2" data-testid="opciones-anual">
+        @for (o of r.opciones; track o.id) {
+          <button type="button" role="tab" [attr.aria-selected]="o.id === r.opcion.id" (click)="elegir(o)"
+            class="flex flex-col items-start justify-center gap-px rounded-xl px-4 text-left"
+            [class]="(o.id === r.opcion.id ? 'bg-acento text-white' : 'border border-borde-campo bg-superficie') + (escritorio() ? ' h-[52px]' : ' h-9 rounded-full')">
+            <span class="text-sm font-semibold">Opción {{ o.letra }}{{ autor(o) }}</span>
+            @if (escritorio() && (o.nota || o.enUso)) {
+              <span class="text-xs opacity-80">{{ o.enUso ? 'En uso' + (o.nota ? ' · ' + o.nota : '') : o.nota }}</span>
+            }
+          </button>
+        }
+        <button type="button" class="boton rounded-xl border border-dashed border-control bg-transparent px-3.5 text-sm font-medium" [class]="escritorio() ? 'h-[52px]' : 'h-9 rounded-full'" [disabled]="ocupado()" (click)="duplicar(r)">+ Duplicar Opción {{ r.opcion.letra }}</button>
+        @if (r.opciones.length > 1 && !opcionEnUso(r)) {
+          <button type="button" class="boton-texto text-sm font-normal text-negativo" (click)="quitandoOpcion.set(true)">Quitar opción {{ r.opcion.letra }}</button>
+        }
+      </div>
+      @if (quitandoOpcion()) {
+        <div class="flex flex-col gap-3 rounded-xl bg-aviso-suave px-4 py-3" role="alert" data-testid="confirmar-quitar-opcion">
+          <p class="text-sm text-aviso">Se borran las celdas y los cambios de la Opción {{ r.opcion.letra }}. Las demás opciones y los meses no cambian.</p>
+          <div class="flex flex-wrap gap-2">
+            <button type="button" class="boton h-10 rounded-control bg-negativo text-sm text-white" [disabled]="ocupado()" (click)="quitarOpcion(r)">Sí, quitar la Opción {{ r.opcion.letra }}</button>
+            <button type="button" class="boton-secundario" (click)="quitandoOpcion.set(false)">Cancelar</button>
+          </div>
+        </div>
+      }
 
       <div class="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(200px,1fr))]">
         <div class="tarjeta flex flex-col gap-1 px-5 py-4">
           <span class="text-xs text-secundario">Libre proyectado en el año</span>
           <app-monto class="text-[22px] font-semibold text-acento" [valor]="r.kpis.libreAnio" data-testid="kpi-libre" />
-          @if (r.kpis.porCambios) {
+          @if (frenteA(r); as d) {
+            <span class="text-xs" [class.text-negativo]="d < 0" [class.text-positivo]="d > 0" data-testid="frente-a">{{ conSigno(d) }} frente a la Opción A</span>
+          } @else if (r.kpis.porCambios) {
             <span class="text-xs text-secundario" data-testid="por-cambios">{{ conSigno(r.kpis.porCambios) }} por lo que cambia</span>
           }
         </div>
@@ -136,7 +165,10 @@ interface OpcionBase {
         <div class="flex flex-wrap items-center gap-[18px] text-xs text-secundario">
           <span class="flex items-center gap-1.5"><span class="size-3.5 rounded border border-borde bg-superficie"></span>Igual al mes base</span>
           <span class="flex items-center gap-1.5"><span class="size-3.5 rounded bg-[#F6E7C1]"></span>Cambia ese mes</span>
-          <span>Toca una celda para cambiar solo ese mes.</span>
+          @if (filasA()) {
+            <span class="flex items-center gap-1.5"><span class="size-3.5 rounded bg-superficie shadow-[inset_0_0_0_2px_#3C64A8]"></span>Distinto de la Opción A</span>
+          }
+          <span>Toca una celda para cambiar solo ese mes en la Opción {{ r.opcion.letra }}.</span>
         </div>
         <div class="overflow-x-auto rounded-[14px] border border-borde bg-superficie" tabindex="0" role="region" aria-label="Plan anual por mes">
           <table class="w-full min-w-[1100px] border-collapse font-mono text-xs" data-testid="tabla-anual">
@@ -154,7 +186,7 @@ interface OpcionBase {
                 <tr class="border-b border-divisor" [class.italic]="f.tenue" [class.text-[#7A7D76]]="f.tenue">
                   <th scope="row" class="px-4 py-2.5 text-left font-sans text-[13px] font-normal">{{ f.nombre }}@if (f.detalle) {<span class="block text-[11px] not-italic">{{ f.detalle }}</span>}</th>
                   @for (v of f.valores; track $index; let i = $index) {
-                    <td class="px-1 py-2.5 text-right" [class.bg-[#F6E7C1]]="f.cambia[i]" [class.font-semibold]="f.cambia[i]" [attr.data-cambia]="f.cambia[i] || null">
+                    <td class="px-1 py-2.5 text-right" [class.bg-[#F6E7C1]]="f.cambia[i]" [class.font-semibold]="f.cambia[i] || distintoDeA(f, i)" [class.shadow-[inset_0_0_0_2px_#3C64A8]]="distintoDeA(f, i)" [attr.data-cambia]="f.cambia[i] || null" [attr.data-distinto]="distintoDeA(f, i) || null">
                       @if (editable(f)) {
                         <button type="button" class="w-full text-right hover:text-acento" [attr.aria-label]="f.nombre + ' · ' + nombre(i + 1)" (click)="abrirCelda(f, i + 1, v)">{{ celda(v) }}</button>
                       } @else {
@@ -169,7 +201,7 @@ interface OpcionBase {
                 <tr class="border-b border-divisor" [class.text-secundario]="f.calculado">
                   <th scope="row" class="px-4 py-2.5 text-left font-sans text-[13px] font-normal">{{ f.nombre }}@if (f.detalle) {<span class="block text-[11px] text-secundario">{{ f.detalle }}</span>}</th>
                   @for (v of f.valores; track $index; let i = $index) {
-                    <td class="px-1 py-2.5 text-right" [class.bg-[#F6E7C1]]="f.cambia[i]" [class.font-semibold]="f.cambia[i]" [attr.data-cambia]="f.cambia[i] || null">
+                    <td class="px-1 py-2.5 text-right" [class.bg-[#F6E7C1]]="f.cambia[i]" [class.font-semibold]="f.cambia[i] || distintoDeA(f, i)" [class.shadow-[inset_0_0_0_2px_#3C64A8]]="distintoDeA(f, i)" [attr.data-cambia]="f.cambia[i] || null" [attr.data-distinto]="distintoDeA(f, i) || null">
                       @if (editable(f)) {
                         <button type="button" class="w-full text-right hover:text-acento" [attr.aria-label]="f.nombre + ' · ' + nombre(i + 1)" (click)="abrirCelda(f, i + 1, v)">{{ celda(v) }}</button>
                       } @else {
@@ -188,6 +220,43 @@ interface OpcionBase {
             </tbody>
           </table>
         </div>
+        @if (filasA()) {
+          <section aria-labelledby="mes-a-mes" class="overflow-hidden rounded-[14px] border border-borde bg-superficie" data-testid="mes-a-mes">
+            <div class="flex items-baseline justify-between gap-3 border-b border-divisor px-5 py-4">
+              <h2 id="mes-a-mes" class="text-base font-semibold">Las dos opciones, mes a mes</h2>
+              <span class="text-xs text-secundario">Lo que dejaría libre cada mes</span>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full min-w-[760px] border-collapse font-mono text-xs">
+                <thead>
+                  <tr class="bg-fondo font-sans text-[11px] font-semibold text-secundario">
+                    <th scope="col" class="w-[110px] px-5 py-2.5 text-left"><span class="sr-only">Opción</span></th>
+                    @for (m of meses; track m) {
+                      <th scope="col" class="px-1 py-2.5 text-right">{{ nombre(m).slice(0, 3).toUpperCase() }}</th>
+                    }
+                    <th scope="col" class="px-5 py-2.5 text-right">AÑO</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr class="border-t border-[#F1F0EB]" data-fila="A">
+                    <th scope="row" class="px-5 py-2.5 text-left font-sans text-[13px] font-semibold">Opción A</th>
+                    @for (v of r.libreA; track $index) {
+                      <td class="px-1 py-2.5 text-right" [class.text-negativo]="v < 0">{{ celda(v) }}</td>
+                    }
+                    <td class="px-5 py-2.5 text-right font-semibold">{{ celda(suma(r.libreA)) }}</td>
+                  </tr>
+                  <tr class="border-t border-[#F1F0EB]" [attr.data-fila]="r.opcion.letra">
+                    <th scope="row" class="px-5 py-2.5 text-left font-sans text-[13px] font-semibold">Opción {{ r.opcion.letra }}</th>
+                    @for (v of r.libre; track $index; let i = $index) {
+                      <td class="px-1 py-2.5 text-right" [class.font-semibold]="v !== r.libreA[i]" [class.text-negativo]="v < r.libreA[i]! || v < 0" [class.text-positivo]="v > r.libreA[i]!">{{ celda(v) }}</td>
+                    }
+                    <td class="px-5 py-2.5 text-right font-semibold">{{ celda(r.kpis.libreAnio) }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        }
       } @else {
         <section aria-labelledby="los-meses" class="flex flex-col" data-testid="lista-meses">
           <h2 id="los-meses" class="sr-only">Los 12 meses</h2>
@@ -197,14 +266,19 @@ interface OpcionBase {
                 <span class="text-[15px] font-medium">{{ nombreGrupo(m) }}</span>
                 <span class="text-xs" [class.text-aviso]="m.cambios.length" [class.text-secundario]="!m.cambios.length">{{ m.cambios.length ? m.cambios.join(' · ') : igualTexto(m) }}</span>
               </span>
-              <app-monto class="shrink-0 text-sm" [class.font-semibold]="m.cambios.length" [class.text-negativo]="apretado(m) || m.libre < 0" [valor]="m.libre" />
+              <span class="flex shrink-0 flex-col items-end gap-0.5">
+                <app-monto class="text-sm" [class.font-semibold]="m.cambios.length" [class.text-negativo]="apretado(m) || m.libre < 0" [valor]="m.libre" />
+                @if (vsA(r, m); as d) {
+                  <span class="monto text-[11px]" [class.text-negativo]="d < 0" [class.text-positivo]="d > 0" data-testid="vs-a">{{ conSigno(d) }} vs A</span>
+                }
+              </span>
             </button>
           }
         </section>
       }
 
       <section aria-labelledby="lo-que-cambia" class="flex flex-col gap-1" data-testid="lo-que-cambia">
-        <h2 id="lo-que-cambia" class="rotulo pb-1.5">Lo que cambia · {{ r.cambios.length }}</h2>
+        <h2 id="lo-que-cambia" class="rotulo pb-1.5">Lo que cambia{{ r.opciones.length > 1 ? ' en la Opción ' + r.opcion.letra : '' }} · {{ r.cambios.length }}</h2>
         @if (!r.cambios.length) {
           <p class="text-sm text-secundario">Nada todavía: todos los meses son iguales al mes base.</p>
         }
@@ -219,7 +293,7 @@ interface OpcionBase {
           </button>
         }
       </section>
-      <p class="text-[13px] text-secundario">"Crear los 12 meses" deja cada mes en Borrador con su columna como Opción A. Lo que cambies después en un mes no toca este plan.</p>
+      <p class="text-[13px] text-secundario">"Meses con la Opción {{ r.opcion.letra }}" crea los meses sin plan con su columna y actualiza los que marques. Lo que cambies después en un mes no toca este plan.</p>
       @if (borrando(); as b) {
         <div class="flex flex-col gap-3 rounded-xl bg-aviso-suave px-4 py-3" role="alert" data-testid="confirmar-borrar">
           <p class="text-sm text-aviso">{{ textoBorrado(b) }}</p>
@@ -239,7 +313,10 @@ interface OpcionBase {
         </app-hoja>
       }
       @if (cambio(); as c) {
-        <app-cambio-hoja [anio]="r.anio" [mesInicial]="c.mes" [evento]="c.evento" [categorias]="categorias.value() ?? []" (cerrar)="cambio.set(null)" (guardado)="guardado()" />
+        <app-cambio-hoja [anio]="r.anio" [opcionId]="r.opcion.id" [mesInicial]="c.mes" [evento]="c.evento" [categorias]="categorias.value() ?? []" (cerrar)="cambio.set(null)" (guardado)="guardado()" />
+      }
+      @if (hojaMeses()) {
+        <app-meses-anual-hoja [anio]="r.anio" [opcionId]="r.opcion.id" [letra]="r.opcion.letra" (cerrar)="hojaMeses.set(false)" (guardado)="mesesListos($event)" />
       }
       @if (mensaje()) {
         <p role="status" class="text-sm text-positivo">{{ mensaje() }}</p>
@@ -258,7 +335,36 @@ export class AnualPage {
   readonly anio = input.required<string>();
   /** `?paso=base`: volver al mes base de un año que ya tiene plan. */
   readonly paso = input<string>();
-  protected readonly resumen = consulta(() => Number(this.anio()), (p, anio) => p.plan.anual(anio));
+  /** `?opcion=B`: la opcion que se ve (design D5 de anual-opciones-y-meses). Sin ella, la en uso o la A. */
+  readonly opcion = input<string>();
+  /** La opcion elegida, por id; null hasta resolver la letra de la URL. */
+  private readonly opcionId = signal<Id | null>(null);
+  protected readonly resumen = consulta(() => ({ anio: Number(this.anio()), opcion: this.opcionId() }), (p, x) => p.plan.anual(x.anio, x.opcion));
+  /** El resumen de la Opcion A, para marcar lo distinto cuando se ve otra. */
+  private readonly resumenA = consulta(() => {
+    const r = this.resumen.value();
+    const a = r?.opciones[0];
+    return r && a && a.id !== r.opcion.id ? { anio: r.anio, opcion: a.id } : null;
+  }, (p, x) => (x ? p.plan.anual(x.anio, x.opcion) : Promise.resolve(null)));
+  /** Las filas de la A por clave; null si se ve la A. */
+  protected readonly filasA = computed(() => {
+    const a = this.resumenA.value();
+    if (!a || !this.resumen.value() || this.resumen.value()!.opcion.id === a.opcion.id) return null;
+    return new Map([...a.ingresos, ...a.gastos, ...(a.eventos ? [a.eventos] : [])].map((f) => [f.clave, f.valores]));
+  });
+  protected readonly hojaMeses = signal(false);
+  protected readonly quitandoOpcion = signal(false);
+
+  constructor() {
+    // La letra de la URL se resuelve con las opciones del año.
+    effect(() => {
+      const r = this.resumen.value();
+      const letra = this.opcion();
+      if (!r || !letra || this.opcionId()) return;
+      const o = r.opciones.find((x) => x.letra === letra);
+      if (o && o.id !== r.opcion.id) this.opcionId.set(o.id);
+    });
+  }
   protected readonly categorias = consulta(() => null, (p) => p.hogar.categorias());
   protected readonly inicio = consulta(() => null, (p) => p.plan.inicio());
   protected readonly meses = MESES;
@@ -323,9 +429,9 @@ export class AnualPage {
     }
     this.ocupado.set(true);
     await this.ejecutar(async () => {
-      await this.puertos.plan.replicarMes(Number(this.anio()), this.baseElegida()!);
+      await this.puertos.plan.replicarMes(Number(this.anio()), this.baseElegida()!, this.opcionId());
       this.confirmando.set(false);
-      await this.router.navigate(['/planear/anual', this.anio()]);
+      await this.router.navigate(['/planear/anual', this.anio()], { queryParams: { opcion: this.opcion() ?? null } });
     });
     this.ocupado.set(false);
   }
@@ -345,7 +451,7 @@ export class AnualPage {
     const monto = this.montoCelda() ?? 0;
     await this.ejecutar(async () => {
       if (f.usuarioId) await this.puertos.plan.editarProyeccion(f.usuarioId, { anio, mes }, monto);
-      else await this.puertos.plan.editarMontoAnual(anio, f.categoriaId!, mes, monto);
+      else await this.puertos.plan.editarMontoAnual(anio, f.categoriaId!, mes, monto, this.resumen.value()?.opcion.id);
       this.editando.set(null);
     });
   }
@@ -384,13 +490,75 @@ export class AnualPage {
     this.ocupado.set(false);
   }
 
-  protected async crearMeses(): Promise<void> {
+  /** La hoja de meses termino: dice cuantos se crearon y actualizaron. */
+  protected mesesListos(r: { creados: number; actualizados: number }): void {
+    this.hojaMeses.set(false);
+    const partes = [r.creados ? `${r.creados} ${r.creados === 1 ? 'mes creado' : 'meses creados'}` : '', r.actualizados ? `${r.actualizados} ${r.actualizados === 1 ? 'actualizado' : 'actualizados'}` : ''].filter(Boolean);
+    this.mensaje.set(`Listo: ${partes.join(' y ')} con la Opción ${this.resumen.value()?.opcion.letra ?? 'A'}.`);
+  }
+
+  protected rotulo(r: ResumenAnual): string {
+    const opciones = r.opciones.length > 1 ? ` · ${r.opciones.length} opciones` : '';
+    return (r.estado === 'BORRADOR' ? 'Borrador · paso 2 de 2' : 'Meses creados') + opciones;
+  }
+
+  protected autor(o: OpcionAnualVista): string {
+    return o.inicialAutor && o.creadoPor !== this.usuario.value()?.usuario.id ? ` · ${o.inicialAutor}` : '';
+  }
+
+  private readonly usuario = consulta(() => null, (p) => p.sesion.actual());
+
+  protected opcionEnUso(r: ResumenAnual): boolean {
+    return r.opciones.find((o) => o.id === r.opcion.id)?.enUso ?? false;
+  }
+
+  /** Elegir una opcion: queda en la URL. */
+  protected elegir(o: OpcionAnualVista): void {
+    this.opcionId.set(o.id);
+    this.quitandoOpcion.set(false);
+    void this.router.navigate([], { queryParams: { opcion: o.letra }, queryParamsHandling: 'merge', replaceUrl: true });
+  }
+
+  protected async duplicar(r: ResumenAnual): Promise<void> {
     this.ocupado.set(true);
     await this.ejecutar(async () => {
-      await this.puertos.plan.crearMesesDesdeAnual(Number(this.anio()));
-      this.mensaje.set(`Los 12 meses de ${this.anio()} quedaron en borrador, cada uno con su Opción A.`);
+      const id = await this.puertos.plan.duplicarOpcionAnual(r.anio, r.opcion.id);
+      this.opcionId.set(id);
+      const letra = String.fromCharCode(Math.max(...r.opciones.map((o) => o.letra.charCodeAt(0))) + 1);
+      await this.router.navigate([], { queryParams: { opcion: letra }, queryParamsHandling: 'merge', replaceUrl: true });
     });
     this.ocupado.set(false);
+  }
+
+  protected async quitarOpcion(r: ResumenAnual): Promise<void> {
+    this.ocupado.set(true);
+    await this.ejecutar(async () => {
+      await this.puertos.plan.quitarOpcionAnual(r.anio, r.opcion.id);
+      this.quitandoOpcion.set(false);
+      this.opcionId.set(null);
+      await this.router.navigate([], { queryParams: { opcion: null }, queryParamsHandling: 'merge', replaceUrl: true });
+    });
+    this.ocupado.set(false);
+  }
+
+  /** Cuanto mas o menos deja libre la elegida frente a la A; 0 si se ve la A. */
+  protected frenteA(r: ResumenAnual): number {
+    return r.opciones[0]?.id === r.opcion.id ? 0 : this.suma(r.libre) - this.suma(r.libreA);
+  }
+
+  protected distintoDeA(f: FilaAnualVista, i: number): boolean {
+    const a = this.filasA();
+    if (!a) return false;
+    return (a.get(f.clave)?.[i] ?? 0) !== f.valores[i];
+  }
+
+  /** La diferencia de un mes (o grupo) frente a la A, en la lista de meses. */
+  protected vsA(r: ResumenAnual, m: MesesAnualVista): number {
+    return r.opciones[0]?.id === r.opcion.id ? 0 : m.libre - r.libreA[m.desde - 1]!;
+  }
+
+  protected suma(v: number[]): number {
+    return v.reduce((a, x) => a + x, 0);
   }
 
   protected nombre(mes: number): string {

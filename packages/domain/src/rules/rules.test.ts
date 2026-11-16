@@ -363,13 +363,13 @@ describe('Planear (steward-planear)', () => {
   it('crear meses desde el plan anual salta un mes cerrado sin plan', () => {
     const base = semilla();
     const conCierre = { ...base, cierres: [...base.cierres, { ref: { anio: 2027, mes: 2 }, filas: [], sinRegistrar: 0, sobrante: 0, aAhorro: 0, aSiguiente: 0, cerradoPor: DANIEL, cerradoEn: HOY }] };
-    const s = crearMesesDesdeAnual(conCierre, { anio: 2027, creadoPor: DANIEL });
+    const s = crearMesesDesdeAnual(conCierre, { anio: 2027, creadoPor: DANIEL, hoy: HOY });
     expect(planDe(s, { anio: 2027, mes: 2 })).toBeNull();
     expect(planDe(s, { anio: 2027, mes: 3 })).not.toBeNull();
   });
 
   it('crear meses desde el anual: diezmo de la prima, lineas, y sin celdas de Diezmo', () => {
-    const s = crearMesesDesdeAnual(semilla(), { anio: 2027, creadoPor: DANIEL });
+    const s = crearMesesDesdeAnual(semilla(), { anio: 2027, creadoPor: DANIEL, hoy: HOY });
     const jun = planDe(s, { anio: 2027, mes: 6 })!.escenarios[0]!;
     expect(jun.items.filter((i) => i.tipo === 'DIEZMO').map((i) => [i.nombre, i.monto])).toEqual([['Diezmo · Salario Daniel', 700_000], ['Diezmo · Prima', 350_000]]);
     expect(jun.ingresos.map((l) => [l.nombre, l.monto, l.tipo])).toEqual([['Salario Daniel', 6_288_000, 'FIJO'], ['Prima', 3_500_000, 'EXTRA']]);
@@ -378,7 +378,7 @@ describe('Planear (steward-planear)', () => {
   });
 
   it('crear meses desde el plan anual no se ata despues', () => {
-    const s = crearMesesDesdeAnual(semilla(), { anio: 2027, creadoPor: DANIEL });
+    const s = crearMesesDesdeAnual(semilla(), { anio: 2027, creadoPor: DANIEL, hoy: HOY });
     const ene = vistasOpciones(s, { anio: 2027, mes: 1 })[0]!;
     expect(ene.escenario.letra).toBe('A');
     expect(ene.libre).toBe(598_000);
@@ -739,18 +739,20 @@ describe('Planear el año desde un mes (planear-anio-desde-un-mes)', () => {
   const fila = (s: EstadoHogar, anio: number, categoriaId: string) => resumenAnual(s, anio)!.gastos.find((f) => f.categoriaId === categoriaId)!;
 
   it('replicar octubre: cada mes con los totales de octubre y los aportes registrados', () => {
-    const vista = vistaBase(semilla(), { anio: 2028, base: OCTUBRE });
+    const vista = vistaBase(semilla(), { anio: 2028, base: OCTUBRE, hoy: HOY });
     const s = replicado();
     const r = resumenAnual(s, 2028)!;
     expect(r.base).toEqual(OCT);
     expect(r.estado).toBe('BORRADOR');
-    for (const f of vista.filas) expect(fila(s, 2028, f.categoriaId).valores).toEqual(Array(12).fill(f.monto));
+    // La compra a cuotas termina en junio de 2027: en 2028 Créditos solo trae el libre inversión (anual-opciones-y-meses).
+    for (const f of vista.filas) expect(fila(s, 2028, f.categoriaId).valores).toEqual(Array(12).fill(f.categoriaId === 'cat-creditos' ? f.monto - 375_000 : f.monto));
     expect(vista.aportes).toEqual([{ usuarioId: ESPOSA, nombre: 'Aportes Esposa', monto: 2_500_000 }]);
     expect(r.ingresos.find((f) => f.usuarioId === ESPOSA)!.valores).toEqual(Array(12).fill(2_500_000));
-    expect(r.libre).toEqual(Array(12).fill(vista.libreMes));
+    expect(r.libre).toEqual(Array(12).fill(vista.libreMes + 375_000));
     expect(r.kpis.libreAnio).toBe(vista.libreAnio);
     expect(r.kpis.porCambios).toBe(0);
-    expect(r.meses).toEqual([{ desde: 1, hasta: 12, libre: vista.libreMes, cambios: [] }]);
+    expect(vista.libreAnio).toBe((vista.libreMes + 375_000) * 12);
+    expect(r.meses).toEqual([{ desde: 1, hasta: 12, libre: vista.libreMes + 375_000, cambios: [] }]);
   });
 
   it('solo fijos deja los variables en cero; desde cero, todo en cero', () => {
@@ -810,7 +812,7 @@ describe('Planear el año desde un mes (planear-anio-desde-un-mes)', () => {
   });
 
   it('borrar el plan del año: sin anual ni proyecciones del año, y los meses creados no cambian', () => {
-    let s = crearMesesDesdeAnual(semilla(), { anio: 2027, creadoPor: DANIEL });
+    let s = crearMesesDesdeAnual(semilla(), { anio: 2027, creadoPor: DANIEL, hoy: HOY });
     expect(conteoBorradoAnual(s, 2027)).toEqual({ cambios: 6, proyecciones: true });
     const febrero = planDe(s, { anio: 2027, mes: 2 });
     s = borrarAnual(s, { anio: 2027 });
@@ -825,10 +827,11 @@ describe('Planear el año desde un mes (planear-anio-desde-un-mes)', () => {
   it('crear los meses: los items de octubre, Navidad en Variables y el aumento en adelante', () => {
     let s = agregarEvento(replicado(), { anio: 2028, evento: { nombre: 'Navidad', mes: 12, monto: 680_000, tipo: 'GASTO', usuarioId: null, categoriaId: 'cat-variables' } });
     s = agregarEvento(s, { anio: 2028, evento: { nombre: 'Aumento', mes: 7, monto: 300_000, tipo: 'INGRESO', usuarioId: DANIEL, enAdelante: true } });
-    s = crearMesesDesdeAnual(s, { anio: 2028, creadoPor: DANIEL });
+    s = crearMesesDesdeAnual(s, { anio: 2028, creadoPor: DANIEL, hoy: HOY });
     const octubre = opciones(planDe(s, OCT)!)[0]!.items.filter((i) => i.tipo !== 'DIEZMO').map((i) => i.nombre);
     const febrero = opciones(planDe(s, { anio: 2028, mes: 2 })!)[0]!;
-    expect(febrero.items.filter((i) => i.tipo !== 'DIEZMO').map((i) => i.nombre).sort()).toEqual([...octubre].sort());
+    // Sin la compra a cuotas, que termina en junio de 2027 (anual-opciones-y-meses).
+    expect(febrero.items.filter((i) => i.tipo !== 'DIEZMO').map((i) => i.nombre).sort()).toEqual(octubre.filter((n) => n !== 'Compra a cuotas').sort());
     const diciembre = opciones(planDe(s, { anio: 2028, mes: 12 })!)[0]!;
     expect(diciembre.items.find((i) => i.nombre === 'Navidad')).toMatchObject({ categoriaId: 'cat-variables', monto: 680_000, tipo: 'VARIABLE' });
     expect(diciembre.ingresos.map((i) => i.nombre)).toContain('Aumento');

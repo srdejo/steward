@@ -283,6 +283,12 @@ describe('pantallas en modo conectado (steward-acceso-onboarding, steward-ui-she
 const OCT = { anio: 2026, mes: 10 };
 const SALARIO = { id: 'ing-1', usuarioId: USUARIO.id, nombre: 'Salario Ana', bruto: 7_000_000, neto: 6_288_000, diaPago: 25, cuentaId: null, activo: true };
 const REGLA = { usuarioId: USUARIO.id, activa: true, porcentaje: 10, base: 'BRUTO' as const, aplicaAportes: false };
+
+/** Un anual del backend con su Opcion A (anual-opciones-y-meses). */
+const anualApi = (o: { celdas?: { categoriaId: string; mes: number; monto: number }[]; eventos?: { id: string; nombre: string; mes: number; monto: number; tipo: 'INGRESO' | 'GASTO'; usuarioId: string | null; categoriaId?: string | null; enAdelante?: boolean }[]; base?: { anio: number; mes: number } | null } = {}) => ({
+  anio: 2027, estado: 'BORRADOR' as const, opcionEnUso: null,
+  opciones: [{ id: 'op-a', letra: 'A', creadoPor: USUARIO.id, nota: '', celdas: o.celdas ?? [], eventos: o.eventos ?? [], base: o.base ?? null }],
+});
 const RECIBIDO: MovimientoApi = {
   id: 'mov-1', tipo: 'INGRESO_FIJO', ref: OCT, monto: 6_288_000, fecha: '2026-10-26', usuarioId: USUARIO.id, creadoPor: USUARIO.id,
   cuentaId: null, ingresoFijoId: 'ing-1', bruto: 7_000_000, aplicaDiezmo: true, diezmoDe: [], itemId: null, nota: '', origen: 'NINGUNO',
@@ -669,7 +675,7 @@ describe('plan del mes y registros en el backend (steward-plan-mes, design D5)',
     // Sin anual real, el de prueba (2027) no se ve.
     expect(await p.plan.anual(2027)).toBeNull();
     const crear = p.plan.crearAnual(2027);
-    const vacio = { anio: 2027, estado: 'BORRADOR' as const, celdas: [], eventos: [] };
+    const vacio = anualApi();
     finanzasPrueba.valor = finanzas({ planes: [PLAN_OCT], anuales: [vacio] });
     const r1 = await responder('POST', '/api/anuales', vacio, tick, 201);
     await crear;
@@ -679,17 +685,17 @@ describe('plan del mes y registros en el backend (steward-plan-mes, design D5)',
     expect(r.ingresos.filter((i) => i.tenue).map((i) => i.nombre)).toEqual(['Aportes Ana María']);
 
     const celda = p.plan.editarMontoAnual(2027, 'cat-1', 1, 800_000);
-    const conCelda = { ...vacio, celdas: [{ categoriaId: 'cat-1', mes: 1, monto: 800_000 }] };
+    const conCelda = anualApi({ celdas: [{ categoriaId: 'cat-1', mes: 1, monto: 800_000 }] });
     finanzasPrueba.valor = finanzas({ planes: [PLAN_OCT], anuales: [conCelda] });
     const r2 = await responder('PUT', '/api/anuales/2027/celdas', null, tick, 204);
     await celda;
-    expect(r2.request.body).toEqual({ categoriaId: 'cat-1', mes: 1, monto: 800_000 });
+    expect(r2.request.body).toEqual({ categoriaId: 'cat-1', mes: 1, monto: 800_000, opcionId: null });
     expect((await p.plan.anual(2027))!.gastos[0]!.valores[0]).toBe(800_000);
 
     const evento = p.plan.agregarEvento(2027, { nombre: 'SOAT', mes: 3, monto: 1_200_000, tipo: 'GASTO', usuarioId: null });
     const r3 = await responder('POST', '/api/anuales/2027/eventos', {}, tick, 201);
     await evento;
-    expect(r3.request.body).toEqual({ nombre: 'SOAT', mes: 3, monto: 1_200_000, tipo: 'GASTO', usuarioId: null, categoriaId: null, enAdelante: false });
+    expect(r3.request.body).toEqual({ nombre: 'SOAT', mes: 3, monto: 1_200_000, tipo: 'GASTO', usuarioId: null, categoriaId: null, enAdelante: false, opcionId: null });
 
     // Corregir y quitar un cambio (planear-anio-desde-un-mes).
     const corregir = p.plan.editarEvento(2027, 'ev-1', { nombre: 'SOAT', mes: 4, monto: 900_000, tipo: 'GASTO', usuarioId: null, categoriaId: 'cat-1', enAdelante: true });
@@ -711,8 +717,9 @@ describe('plan del mes y registros en el backend (steward-plan-mes, design D5)',
     expect((await p.plan.anual(2027))!.ingresos.find((i) => i.tenue)!.valores[0]).toBe(2_000_000);
 
     const meses = p.plan.crearMesesDesdeAnual(2027);
-    await responder('POST', '/api/anuales/2027/crear-meses', [{ anio: 2027, mes: 1 }], tick);
+    const r6 = await responder('POST', '/api/anuales/2027/meses', [{ anio: 2027, mes: 1, accion: 'CREADO' }], tick);
     await meses;
+    expect(r6.request.body).toEqual({ opcionId: null, actualizar: [] });
   });
 
   it('cerrar octubre manda la foto del dominio con el último registro del mes (backend-cierre-mes)', async () => {
@@ -948,10 +955,10 @@ describe('pantallas con el plan real (backend-plan-mes-hoy)', () => {
     expect(a.texto()).toContain('¿De qué mes parte 2027?');
     a.porTexto('Replicar en los 12 meses').click();
     const celdas = Array.from({ length: 12 }, (_, i) => ({ categoriaId: 'cat-1', mes: i + 1, monto: 800_000 }));
-    const replicado = { anio: 2027, estado: 'BORRADOR' as const, celdas, eventos: [], base: { anio: 2026, mes: 10 } };
+    const replicado = anualApi({ celdas, base: { anio: 2026, mes: 10 } });
     finanzasPrueba.valor = finanzas({ planes: [PLAN_OCT], anuales: [replicado] });
     const r0 = await responder('POST', '/api/anuales/2027/replicar', replicado, a.estable);
-    expect(r0.request.body).toEqual({ tipo: 'MES', anio: 2026, mes: 10 });
+    expect(r0.request.body).toEqual({ tipo: 'MES', anio: 2026, mes: 10, opcionId: null });
     await atenderHogar(a);
     expect(a.texto()).toContain('Plan 2027: lo que cambia');
     expect(a.texto()).not.toContain('Datos de prueba');
@@ -965,14 +972,17 @@ describe('pantallas con el plan real (backend-plan-mes-hoy)', () => {
     await a.escribir('¿Cuánto?', '1200000');
     a.porTexto('Guardar').click();
     const soat = { id: 'ev-soat', nombre: 'SOAT', mes: 3, monto: 1_200_000, tipo: 'GASTO' as const, usuarioId: null, categoriaId: null, enAdelante: false };
-    finanzasPrueba.valor = finanzas({ planes: [PLAN_OCT], anuales: [{ ...replicado, eventos: [soat] }] });
+    finanzasPrueba.valor = finanzas({ planes: [PLAN_OCT], anuales: [anualApi({ celdas, base: { anio: 2026, mes: 10 }, eventos: [soat] })] });
     const r1 = await responder('POST', '/api/anuales/2027/eventos', soat, a.estable, 201);
-    expect(r1.request.body).toEqual({ nombre: 'SOAT', mes: 3, monto: 1_200_000, tipo: 'GASTO', usuarioId: null, categoriaId: null, enAdelante: false });
+    expect(r1.request.body).toEqual({ nombre: 'SOAT', mes: 3, monto: 1_200_000, tipo: 'GASTO', usuarioId: null, categoriaId: null, enAdelante: false, opcionId: 'op-a' });
     await atenderHogar(a);
     expect(a.texto()).toContain('Lo que cambia · 1');
 
-    a.porTexto('Crear los 12 meses').click();
-    await responder('POST', '/api/anuales/2027/crear-meses', [], a.estable);
+    a.porTexto('Meses con la Opción A').click();
+    await a.estable();
+    a.porTexto('Crear 12 meses').click();
+    const r2 = await responder('POST', '/api/anuales/2027/meses', [], a.estable);
+    expect(r2.request.body).toEqual({ opcionId: 'op-a', actualizar: [] });
     await atenderHogar(a);
   });
 

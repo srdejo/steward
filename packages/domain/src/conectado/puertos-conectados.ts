@@ -29,6 +29,7 @@ import {
   type HogarApi,
   type InvitacionApi,
   type InvitacionEnviadaApi,
+  type EventoAnualApi,
   type FinanzasApi,
   type InvitacionRecibidaApi,
   type OrigenRequest,
@@ -393,17 +394,25 @@ export class PuertosConectados implements Puertos {
       comparar: (ref) => demo().comparar(ref),
       mesEscritorio: (ref, escenarioId) => demo().mesEscritorio(ref, escenarioId),
       tablaOpciones: (ref) => demo().tablaOpciones(ref),
-      anual: (anio) => demo().anual(anio),
+      anual: (anio, opcionId) => demo().anual(anio, opcionId),
       // El plan anual en el backend (design D6 de backend-plan-anual); la cuadricula la calcula el dominio.
-      agregarEvento: (anio, evento) => escribir(api.agregarEvento(anio, eventoApi(evento))),
+      agregarEvento: (anio, evento, opcionId) => escribir(api.agregarEvento(anio, eventoApi(evento), opcionId)),
       editarEvento: (anio, eventoId, evento) => escribir(api.editarEvento(anio, eventoId, eventoApi(evento))),
       quitarEvento: (anio, eventoId) => escribir(api.quitarEvento(anio, eventoId)),
       borrarAnual: (anio) => escribir(api.borrarAnual(anio)),
       conteoBorradoAnual: (anio) => demo().conteoBorradoAnual(anio),
       vistaBase: (anio, base) => demo().vistaBase(anio, base),
-      previsualizarEvento: (anio, eventoId, evento) => demo().previsualizarEvento(anio, eventoId, evento),
-      replicarMes: (anio, base) => escribir(api.replicar(anio, base.tipo === 'MES' ? { tipo: 'MES', anio: base.ref.anio, mes: base.ref.mes } : base)),
-      editarMontoAnual: (anio, categoriaId, mes, monto) => escribir(api.ponerCelda(anio, categoriaId, mes, monto)),
+      previsualizarEvento: (anio, eventoId, evento, opcionId) => demo().previsualizarEvento(anio, eventoId, evento, opcionId),
+      replicarMes: (anio, base, opcionId) => escribir(api.replicar(anio, base.tipo === 'MES' ? { tipo: 'MES', anio: base.ref.anio, mes: base.ref.mes } : base, opcionId)),
+      editarMontoAnual: (anio, categoriaId, mes, monto, opcionId) => escribir(api.ponerCelda(anio, categoriaId, mes, monto, opcionId)),
+      duplicarOpcionAnual: async (anio, opcionId) => {
+        const nueva = await api.duplicarOpcionAnual(anio, opcionId);
+        await this.recargarFinanzas();
+        return nueva.id;
+      },
+      quitarOpcionAnual: (anio, opcionId) => escribir(api.quitarOpcionAnual(anio, opcionId)),
+      mesesDesdeAnual: (anio, opcionId) => demo().mesesDesdeAnual(anio, opcionId),
+      crearOActualizarMeses: (anio, opcionId, actualizar) => escribir(api.mesesDesdeAnual(anio, opcionId, actualizar)),
       crearAnual: (anio) => escribir(api.crearAnual(anio)),
       editarProyeccion: (usuarioId, ref, monto) => escribir(api.ponerProyeccion(ref.anio, usuarioId, ref.mes, monto)),
       crearMes: (ref, modo) => escribir(api.crearPlan(ref, modo)),
@@ -429,7 +438,7 @@ export class PuertosConectados implements Puertos {
         return [...plan.escenarios].sort((a, b) => a.letra.localeCompare(b.letra)).at(-1)!.id;
       },
       quitarOpcion: (planId, escenarioId) => escribir(api.quitarOpcion(planId, escenarioId)),
-      crearMesesDesdeAnual: (anio) => escribir(api.crearMesesDesdeAnual(anio)),
+      crearMesesDesdeAnual: (anio) => escribir(api.mesesDesdeAnual(anio, null, [])),
     };
   }
 
@@ -602,6 +611,6 @@ function recibida(token: string, r: InvitacionRecibidaApi): InvitacionRecibida {
 }
 
 /** Un evento del anual como lo pide el backend: sin categoria ni "en adelante", los valores por defecto. */
-function eventoApi(e: DatosEvento): Omit<AnualApi['eventos'][number], 'id'> {
+function eventoApi(e: DatosEvento): Omit<EventoAnualApi, 'id'> {
   return { nombre: e.nombre, mes: e.mes, monto: e.monto, tipo: e.tipo, usuarioId: e.usuarioId ?? null, categoriaId: e.categoriaId ?? null, enAdelante: e.enAdelante ?? false };
 }

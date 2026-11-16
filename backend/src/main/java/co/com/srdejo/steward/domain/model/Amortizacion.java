@@ -2,6 +2,7 @@ package co.com.srdejo.steward.domain.model;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.YearMonth;
 
 /**
  * Las cuentas de un credito, como {@code rules/credito.ts} del dominio compartido (design D3 de tarjetas-y-creditos): la
@@ -48,6 +49,56 @@ public final class Amortizacion {
 
     public static long interes(long saldo, BigDecimal em) {
         return Math.round(saldo * em.doubleValue() / 100);
+    }
+
+    /** Hasta donde se proyecta un credito (50 años), como {@code MAX_CUOTAS} del dominio. */
+    private static final int MAX_CUOTAS = 600;
+
+    /**
+     * Las cuotas que le faltan segun su tabla ({@code tablaCredito} del dominio): con el plan de pagos, las del plan si el
+     * saldo coincide con la tabla, y si no amortizando hasta la cuota {@code n}; con la tasa, amortizando. Null si la cuota
+     * no alcanza ni el interes.
+     */
+    public static Integer cuotasRestantes(Credito c) {
+        if (c.saldo() <= 0) {
+            return 0;
+        }
+        Integer n = c.metodo() == Credito.Metodo.PLAN ? c.numeroCuotas() : null;
+        if (n != null && c.valorFinanciado() != null
+                && Math.abs(saldoPlan(c.valorFinanciado(), n, c.tasaEm(), c.cuota(), c.cuotasPagadas()) - c.saldo()) <= 1) {
+            return Math.max(0, n - c.cuotasPagadas());
+        }
+        long saldo = c.saldo();
+        int cuenta = 0;
+        for (int k = c.cuotasPagadas() + 1; saldo > 0 && cuenta < MAX_CUOTAS && (n == null || k <= n); k++) {
+            long capital = capital(saldo, c.cuota(), c.tasaEm(), n != null && k == n);
+            if (capital <= 0) {
+                return null;
+            }
+            saldo -= capital;
+            cuenta++;
+        }
+        return cuenta;
+    }
+
+    /**
+     * Si el credito paga una cuota en {@code ref} ({@code pagaEnMes} del dominio, design D3 de anual-opciones-y-meses): a
+     * mano, mientras tenga saldo; un mes anterior al en curso cuenta como pagado; la primera cuota es la del mes en curso, o
+     * la del siguiente si ya se pago.
+     */
+    public static boolean pagaEnMes(Credito c, YearMonth ref, YearMonth mesEnCurso, boolean pagadaEsteMes) {
+        if (c.saldo() <= 0) {
+            return false;
+        }
+        if (c.metodo() == Credito.Metodo.MANUAL || ref.isBefore(mesEnCurso)) {
+            return true;
+        }
+        YearMonth primera = pagadaEsteMes ? mesEnCurso.plusMonths(1) : mesEnCurso;
+        if (ref.isBefore(primera)) {
+            return false;
+        }
+        Integer restantes = cuotasRestantes(c);
+        return restantes != null && restantes > 0 && !ref.isAfter(primera.plusMonths(restantes - 1));
     }
 
     /** El credito despues de pagar una cuota de {@code monto}, y cuanto bajo su saldo (aplicarCuota del dominio). */

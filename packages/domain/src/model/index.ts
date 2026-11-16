@@ -299,13 +299,25 @@ export interface FilaAnual {
   montos: Pesos[];
 }
 
-export interface PlanAnual {
-  anio: number;
-  estado: 'BORRADOR' | 'CREADO';
+/** Una opcion del plan anual (A, B, ...): sus celdas, sus cambios y su mes base (design D1 de anual-opciones-y-meses). */
+export interface OpcionAnual {
+  id: Id;
+  letra: string;
+  creadoPor: Id;
+  nota: string;
   filas: FilaAnual[];
   eventos: EventoAnual[];
   /** El mes que se replico; los items de los meses creados salen de el. null: se lleno a mano. */
   base: MesRef | null;
+}
+
+export interface PlanAnual {
+  anio: number;
+  /** CREADO: ya se llevo una opcion a los meses ("Meses con la Opción X"). */
+  estado: 'BORRADOR' | 'CREADO';
+  opciones: OpcionAnual[];
+  /** La opcion que se llevo a los meses; null si ninguna. */
+  opcionEnUso: Id | null;
 }
 
 /** Estado completo del hogar en el adaptador de prueba (lo que se serializa). */

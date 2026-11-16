@@ -349,7 +349,8 @@ describe('planear el año desde un mes (planear-anio-desde-un-mes)', () => {
     expect(await screen.findByText(/^Octubre 2026 · /)).toBeTruthy();
     await tocar('Replicar en los 12 meses');
     expect(await screen.findByText('2027: lo que cambia')).toBeTruthy();
-    expect(await screen.findByText('Enero a diciembre')).toBeTruthy();
+    // La compra a cuotas termina en junio de 2027: el año ya no es igual los 12 meses (anual-opciones-y-meses).
+    expect(await screen.findByText('Enero a junio')).toBeTruthy();
     await tocar('+ Algo distinto');
     await escribir('¿Qué es?', 'SOAT');
     await escribir('¿Cuánto?', '900000');
@@ -441,9 +442,27 @@ describe('paridad con la PWA (steward-mobile-app)', () => {
     await tocar('May');
     await tocar('Guardar');
     // Mismas cifras que frontend/src/app/features/hoy/paridad.spec.ts.
-    await waitFor(() => expect(screen.getByTestId('kpi-libre')).toHaveTextContent('$40.376.000'));
-    expect(screen.getByTestId('mes-5')).toHaveTextContent('MayoRevisión carro −$400.000$2.998.000');
-    expect(screen.getByTestId('mes-1')).toHaveTextContent('Enero a abrilIgual al mes base · 4 meses$3.398.000');
+    await waitFor(() => expect(screen.getByTestId('kpi-libre')).toHaveTextContent('$44.876.000'));
+    expect(screen.getByTestId('mes-5')).toHaveTextContent('MayoRevisión carro −$400.000$3.373.000');
+    expect(screen.getByTestId('mes-1')).toHaveTextContent('Enero a abrilIgual al mes base · 4 meses$3.773.000');
+  });
+
+  it('la opción B con carro nuevo y los meses con la A dan las mismas cifras que la PWA (anual-opciones-y-meses)', async () => {
+    const p = await conSesion();
+    renderRouter('./src/app', { initialUrl: '/anual/2027' });
+    await tocar('+ Duplicar');
+    await waitFor(async () => expect((await p.plan.anual(2027))!.opciones).toHaveLength(2));
+    const b = (await p.plan.anual(2027))!.opciones[1]!.id;
+    await p.plan.agregarEvento(2027, { nombre: 'Venta carro viejo', mes: 3, monto: 8_000_000, tipo: 'INGRESO', usuarioId: null }, b);
+    await p.plan.agregarEvento(2027, { nombre: 'Cuota carro nuevo', mes: 4, monto: 1_200_000, tipo: 'GASTO', usuarioId: null, categoriaId: 'cat-creditos', enAdelante: true }, b);
+    // Mismas cifras que frontend/src/app/features/planear/anual-opciones.spec.ts.
+    await waitFor(() => expect(screen.getByTestId('frente-a')).toHaveTextContent('−$2.800.000 vs Opción A'));
+    expect(screen.getByTestId('vs-a-4')).toHaveTextContent('−$1.200.000 vs A');
+    await tocar('Opción A');
+    await tocar('Meses con la A');
+    await tocar('Crear 12 meses');
+    await waitFor(() => expect(screen.getByText('Listo: 12 meses creados con la Opción A.')).toBeTruthy());
+    expect((await p.plan.mes({ anio: 2027, mes: 3 })).opciones[0]!.grupos.flatMap((g) => g.items.map((i) => i.nombre))).toContain('SOAT');
   });
 });
 
