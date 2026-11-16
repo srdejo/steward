@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import {
-  claveMes, formatCop, formatMesAnio, formatMiles, mesDe, nombreMeses, nombreMesCapital,
+  claveMes, formatCop, rangoEvento, formatMesAnio, formatMiles, mesDe, nombreMeses, nombreMesCapital,
   type BaseAnual, type EventoAnual, type FilaAnualVista, type Id, type MesesAnualVista, type OpcionAnualVista, type ResumenAnual, type ResumenMesPlan, type VistaCambio,
 } from '@steward/domain';
 
@@ -283,8 +283,8 @@ interface OpcionBase {
           <p class="text-sm text-secundario">Nada todavía: todos los meses son iguales al mes base.</p>
         }
         @for (c of r.cambios; track c.evento.id) {
-          <button type="button" class="grid grid-cols-[48px_1fr_auto] items-center gap-3 border-b border-divisor py-2.5 text-left last:border-b-0 tocable" (click)="abrirCambio(c.evento, c.evento.mes)">
-            <span class="text-[13px] font-semibold text-secundario">{{ nombre(c.evento.mes).slice(0, 3) }}</span>
+          <button type="button" class="grid grid-cols-[88px_1fr_auto] items-center gap-3 border-b border-divisor py-2.5 text-left last:border-b-0 tocable" (click)="abrirCambio(c.evento, c.evento.mes)">
+            <span class="text-[13px] font-semibold text-secundario" data-testid="rango-cambio">{{ rango(c.evento) }}</span>
             <span class="flex min-w-0 flex-col gap-0.5">
               <span class="text-sm font-medium">{{ c.evento.nombre }}</span>
               <span class="text-xs text-secundario">{{ detalleCambio(c) }}</span>
@@ -636,10 +636,15 @@ export class AnualPage {
     return formatCop(v, { signo: true });
   }
 
+  /** "Mar", "Mar a jun" o "Jul en adelante" (anual-evento-rango). */
+  protected rango(e: EventoAnual): string {
+    return rangoEvento(e);
+  }
+
   protected detalleCambio(c: VistaCambio): string {
     const partes = [c.evento.tipo === 'GASTO' ? `Gasto · ${c.donde}` : c.donde];
     if (c.diezmo) partes.push(`diezmo ${formatCop(c.diezmo)}`);
-    if (c.evento.enAdelante) partes.push(`de ${nombreMesCapital(c.evento.mes).toLowerCase()} en adelante`);
+    if (c.evento.hasta > c.evento.mes) partes.push(`${c.evento.hasta - c.evento.mes + 1} meses`);
     return partes.join(' · ');
   }
 

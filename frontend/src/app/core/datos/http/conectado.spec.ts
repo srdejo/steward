@@ -285,7 +285,7 @@ const SALARIO = { id: 'ing-1', usuarioId: USUARIO.id, nombre: 'Salario Ana', bru
 const REGLA = { usuarioId: USUARIO.id, activa: true, porcentaje: 10, base: 'BRUTO' as const, aplicaAportes: false };
 
 /** Un anual del backend con su Opcion A (anual-opciones-y-meses). */
-const anualApi = (o: { celdas?: { categoriaId: string; mes: number; monto: number }[]; eventos?: { id: string; nombre: string; mes: number; monto: number; tipo: 'INGRESO' | 'GASTO'; usuarioId: string | null; categoriaId?: string | null; enAdelante?: boolean }[]; base?: { anio: number; mes: number } | null; mesBase?: OpcionAnualApi['mesBase'] } = {}) => ({
+const anualApi = (o: { celdas?: { categoriaId: string; mes: number; monto: number }[]; eventos?: { id: string; nombre: string; mes: number; monto: number; tipo: 'INGRESO' | 'GASTO'; usuarioId: string | null; categoriaId?: string | null; hasta?: number; enAdelante?: boolean }[]; base?: { anio: number; mes: number } | null; mesBase?: OpcionAnualApi['mesBase'] } = {}) => ({
   anio: 2027, estado: 'BORRADOR' as const, opcionEnUso: null,
   opciones: [{ id: 'op-a', letra: 'A', creadoPor: USUARIO.id, nota: '', celdas: o.celdas ?? [], eventos: o.eventos ?? [], base: o.base ?? null, mesBase: o.mesBase ?? null }],
 });
@@ -695,13 +695,13 @@ describe('plan del mes y registros en el backend (steward-plan-mes, design D5)',
     const evento = p.plan.agregarEvento(2027, { nombre: 'SOAT', mes: 3, monto: 1_200_000, tipo: 'GASTO', usuarioId: null });
     const r3 = await responder('POST', '/api/anuales/2027/eventos', {}, tick, 201);
     await evento;
-    expect(r3.request.body).toEqual({ nombre: 'SOAT', mes: 3, monto: 1_200_000, tipo: 'GASTO', usuarioId: null, categoriaId: null, enAdelante: false, opcionId: null });
+    expect(r3.request.body).toEqual({ nombre: 'SOAT', mes: 3, monto: 1_200_000, tipo: 'GASTO', usuarioId: null, categoriaId: null, hasta: 3, opcionId: null });
 
     // Corregir y quitar un cambio (planear-anio-desde-un-mes).
-    const corregir = p.plan.editarEvento(2027, 'ev-1', { nombre: 'SOAT', mes: 4, monto: 900_000, tipo: 'GASTO', usuarioId: null, categoriaId: 'cat-1', enAdelante: true });
+    const corregir = p.plan.editarEvento(2027, 'ev-1', { nombre: 'SOAT', mes: 4, monto: 900_000, tipo: 'GASTO', usuarioId: null, categoriaId: 'cat-1', hasta: 12 });
     const r5 = await responder('PUT', '/api/anuales/2027/eventos/ev-1', {}, tick);
     await corregir;
-    expect(r5.request.body).toEqual({ nombre: 'SOAT', mes: 4, monto: 900_000, tipo: 'GASTO', usuarioId: null, categoriaId: 'cat-1', enAdelante: true });
+    expect(r5.request.body).toEqual({ nombre: 'SOAT', mes: 4, monto: 900_000, tipo: 'GASTO', usuarioId: null, categoriaId: 'cat-1', hasta: 12 });
     const quitar = p.plan.quitarEvento(2027, 'ev-1');
     await responder('DELETE', '/api/anuales/2027/eventos/ev-1', null, tick, 204);
     await quitar;
@@ -980,10 +980,10 @@ describe('pantallas con el plan real (backend-plan-mes-hoy)', () => {
     mes.dispatchEvent(new Event('change'));
     await a.escribir('¿Cuánto?', '1200000');
     a.porTexto('Guardar').click();
-    const soat = { id: 'ev-soat', nombre: 'SOAT', mes: 3, monto: 1_200_000, tipo: 'GASTO' as const, usuarioId: null, categoriaId: null, enAdelante: false };
+    const soat = { id: 'ev-soat', nombre: 'SOAT', mes: 3, monto: 1_200_000, tipo: 'GASTO' as const, usuarioId: null, categoriaId: null, hasta: 3 };
     finanzasPrueba.valor = finanzas({ planes: [PLAN_OCT], anuales: [anualApi({ celdas, base: { anio: 2026, mes: 10 }, eventos: [soat] })] });
     const r1 = await responder('POST', '/api/anuales/2027/eventos', soat, a.estable, 201);
-    expect(r1.request.body).toEqual({ nombre: 'SOAT', mes: 3, monto: 1_200_000, tipo: 'GASTO', usuarioId: null, categoriaId: null, enAdelante: false, opcionId: 'op-a' });
+    expect(r1.request.body).toEqual({ nombre: 'SOAT', mes: 3, monto: 1_200_000, tipo: 'GASTO', usuarioId: null, categoriaId: null, hasta: 3, opcionId: 'op-a' });
     await atenderHogar(a);
     expect(a.texto()).toContain('Lo que cambia · 1');
 

@@ -301,6 +301,49 @@ class AnualContratoTest extends ContratoBase {
         post(daniel, "/api/anuales/{anio}/replicar", base(MES), MES.getYear() - 1).expectStatus().isBadRequest();
     }
 
+    // --- Evento con rango (anual-evento-rango) ---
+
+    @Test
+    void eventoDeMarzoAJunioYLaAppQueEnviaEnAdelante() {
+        Map<?, ?> actual = ayudas.crearPlan(daniel, MES, "CERO");
+        String variables = ayudas.categoria(daniel, "Variables");
+        ayudas.item(daniel, actual, escenario(actual), "Mercado", 400_000, "VARIABLE", variables, null, null);
+        post(daniel, "/api/anuales/{anio}/replicar", base(MES), ANIO).expectStatus().isOk();
+
+        Map<String, Object> curso = evento("Curso", 3, 250_000, "GASTO", null);
+        curso.put("categoriaId", variables);
+        curso.put("hasta", 6);
+        Map<?, ?> creado = post(daniel, "/api/anuales/{anio}/eventos", curso, ANIO).expectStatus().isCreated()
+                .expectBody(Map.class).returnResult().getResponseBody();
+        assertEquals(List.of(6, false), List.of(creado.get("hasta"), creado.get("enAdelante")));
+        String id = (String) creado.get("id");
+
+        // Hasta antes del mes o despues de diciembre.
+        Map<String, Object> malo = evento("Curso", 6, 250_000, "GASTO", null);
+        malo.put("hasta", 3);
+        post(daniel, "/api/anuales/{anio}/eventos", malo, ANIO).expectStatus().isBadRequest()
+                .expectBody().jsonPath("$.codigo").isEqualTo("DATOS_INVALIDOS");
+        malo.put("hasta", 13);
+        post(daniel, "/api/anuales/{anio}/eventos", malo, ANIO).expectStatus().isBadRequest();
+
+        // La app 2.2.3: "en adelante" sin hasta va a diciembre; editar sin hasta conserva el rango.
+        Map<String, Object> aumento = evento("Aumento", 7, 300_000, "INGRESO", ayudas.idDe(daniel));
+        aumento.put("enAdelante", true);
+        post(daniel, "/api/anuales/{anio}/eventos", aumento, ANIO).expectStatus().isCreated().expectBody()
+                .jsonPath("$.hasta").isEqualTo(12).jsonPath("$.enAdelante").isEqualTo(true);
+        Map<String, Object> deLaApp = evento("Curso inglés", 3, 260_000, "GASTO", null);
+        deLaApp.put("categoriaId", variables);
+        deLaApp.put("enAdelante", false);
+        put(esposa, "/api/anuales/{anio}/eventos/{id}", deLaApp, ANIO, id).expectStatus().isOk().expectBody()
+                .jsonPath("$.hasta").isEqualTo(6).jsonPath("$.monto").isEqualTo(260_000);
+
+        post(daniel, "/api/anuales/{anio}/meses", Map.of("actualizar", List.of()), ANIO).expectStatus().isOk();
+        Map<?, ?> f = get(daniel, "/api/finanzas").expectBody(Map.class).returnResult().getResponseBody();
+        for (int mes = 1; mes <= 8; mes++) {
+            assertEquals(mes >= 3 && mes <= 6, nombres(f, mes).contains("Curso inglés:260000"), "mes " + mes);
+        }
+    }
+
     @Test
     void eventosConCategoriaEnAdelanteYQuitar() {
         put(daniel, "/api/regla-diezmo", FinanzasContratoTest.regla(true, 10, "BRUTO", false)).expectStatus().isOk();

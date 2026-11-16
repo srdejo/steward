@@ -263,6 +263,8 @@ export interface EventoAnualApi {
   tipo: 'INGRESO' | 'GASTO';
   usuarioId: string | null;
   categoriaId?: string | null;
+  /** De `mes` a 12 (anual-evento-rango); el backend tambien responde `enAdelante` para la app 2.2.3. */
+  hasta?: number;
   enAdelante?: boolean;
 }
 

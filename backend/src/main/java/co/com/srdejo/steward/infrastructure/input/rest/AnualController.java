@@ -61,13 +61,13 @@ public class AnualController {
     @PostMapping("/api/anuales/{anio}/eventos")
     @ResponseStatus(HttpStatus.CREATED)
     public Mono<EventoResponse> agregarEvento(@PathVariable int anio, @RequestBody EventoRequest r) {
-        return anual.agregarEvento(anio, r.opcionId(), r.nombre(), r.mes(), r.monto(), r.tipo(), r.usuarioId(), r.categoriaId(), r.adelante())
+        return anual.agregarEvento(anio, r.opcionId(), r.nombre(), r.mes(), r.monto(), r.tipo(), r.usuarioId(), r.categoriaId(), r.hasta(), r.enAdelante())
                 .map(EventoResponse::de);
     }
 
     @PutMapping("/api/anuales/{anio}/eventos/{eventoId}")
     public Mono<EventoResponse> editarEvento(@PathVariable int anio, @PathVariable UUID eventoId, @RequestBody EventoRequest r) {
-        return anual.editarEvento(anio, eventoId, r.nombre(), r.mes(), r.monto(), r.tipo(), r.usuarioId(), r.categoriaId(), r.adelante())
+        return anual.editarEvento(anio, eventoId, r.nombre(), r.mes(), r.monto(), r.tipo(), r.usuarioId(), r.categoriaId(), r.hasta(), r.enAdelante())
                 .map(EventoResponse::de);
     }
 

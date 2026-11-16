@@ -1,5 +1,6 @@
 import type { Categoria, CierreMes, Credito, PlanAnual, Tarjeta, Cuenta, EstadoHogar, IngresoFijo, IngresoPlan, ItemPlan, Movimiento, Origen, PlanMes, ReglaDiezmo } from '../index';
 
+import { hastaDe } from '../index';
 import {
   usuarioDe,
   type AnualApi,
@@ -84,7 +85,7 @@ export function anual(a: AnualApi): PlanAnual {
       return {
         id: o.id, letra: o.letra, creadoPor: o.creadoPor, nota: o.nota ?? '',
         filas: [...filas].map(([categoriaId, montos]) => ({ categoriaId, montos })),
-        eventos: o.eventos.map((e) => ({ id: e.id, nombre: e.nombre, mes: e.mes, monto: e.monto, tipo: e.tipo, usuarioId: e.usuarioId ?? null, categoriaId: e.categoriaId ?? null, enAdelante: e.enAdelante ?? false })),
+        eventos: o.eventos.map((e) => ({ id: e.id, nombre: e.nombre, mes: e.mes, monto: e.monto, tipo: e.tipo, usuarioId: e.usuarioId ?? null, categoriaId: e.categoriaId ?? null, hasta: hastaDe(e) })),
         base: o.base ? { anio: o.base.anio, mes: o.base.mes } : null,
         mesBase: o.mesBase
           ? { origen: o.mesBase.origen ? { anio: o.mesBase.origen.anio, mes: o.mesBase.origen.mes } : null, items: o.mesBase.items.map(itemPlan) }

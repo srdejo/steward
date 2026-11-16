@@ -50,6 +50,14 @@ function tokenAleatorio(): string {
   return Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 10);
 }
 
+/** Los eventos guardados antes de anual-evento-rango solo tienen `enAdelante`: se les pone su `hasta`. */
+function conHasta(s: EstadoHogar): EstadoHogar {
+  for (const a of s.anuales ?? []) for (const o of a.opciones) {
+    o.eventos = o.eventos.map((e) => ({ ...e, hasta: R.hastaDe(e as Parameters<typeof R.hastaDe>[0]) }));
+  }
+  return s;
+}
+
 export function crearAdaptadorDemo(opciones: OpcionesDemo): Puertos {
   const { storage } = opciones;
   const ahora = opciones.ahora ?? (() => new Date());
@@ -93,7 +101,7 @@ export function crearAdaptadorDemo(opciones: OpcionesDemo): Puertos {
   function cargar(): Promise<void> {
     carga ??= (async () => {
       const guardado = await leer<EstadoHogar>(CLAVE_ESTADO);
-      estado = guardado && guardado.version === VERSION_ESQUEMA ? conTitular(guardado) : semilla();
+      estado = guardado && guardado.version === VERSION_ESQUEMA ? conTitular(conHasta(guardado)) : semilla();
       if (!guardado || guardado.version !== VERSION_ESQUEMA) await escribir(CLAVE_ESTADO, estado);
       const s = await leer<SesionGuardada>(CLAVE_SESION);
       if (s) sesion = { usuarioId: s.usuarioId, preferencias: { ...PREFERENCIAS, ...s.preferencias } };

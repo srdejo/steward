@@ -1,5 +1,5 @@
 import {
-  claveMes, formatCop, formatMesAnio, mesDe, nombreMes, nombreMesCapital, nombreMeses,
+  claveMes, formatCop, formatMesAnio, mesDe, nombreMes, nombreMesCapital, nombreMeses, rangoEvento,
   type BaseAnual, type Categoria, type DatosEvento, type EventoAnual, type Id, type MesDesdeAnual, type TipoEvento, type VistaCambio,
 } from '@steward/domain';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -172,7 +172,7 @@ function LoQueCambia({ anio, letra }: { anio: number; letra: string | null }) {
         {d.cambios.map((c) => (
           <Pressable key={c.evento.id} accessibilityRole="button" onPress={() => setCambio({ evento: c.evento, mes: c.evento.mes })}
             style={{ minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.divisor }}>
-            <Texto style={{ width: 36, fontSize: 13, fontFamily: fonts.semibold, color: colors.secundario }}>{nombreMesCapital(c.evento.mes).slice(0, 3)}</Texto>
+            <Texto testID="rango-cambio" style={{ width: 76, fontSize: 13, fontFamily: fonts.semibold, color: colors.secundario }}>{rangoEvento(c.evento)}</Texto>
             <View style={{ flex: 1, gap: 2 }}>
               <Texto style={{ fontSize: 14, fontFamily: fonts.medium }}>{c.evento.nombre}</Texto>
               <Texto v="detalle">{detalleCambio(c)}</Texto>
@@ -289,8 +289,15 @@ function textoBorrado(anio: number, b: { cambios: number; proyecciones: boolean 
 function detalleCambio(c: VistaCambio): string {
   const partes = [c.evento.tipo === 'GASTO' ? `Gasto · ${c.donde}` : c.donde];
   if (c.diezmo) partes.push(`diezmo ${formatCop(c.diezmo)}`);
-  if (c.evento.enAdelante) partes.push(`de ${nombreMes(c.evento.mes)} en adelante`);
+  if (c.evento.hasta > c.evento.mes) partes.push(`${c.evento.hasta - c.evento.mes + 1} meses`);
   return partes.join(' · ');
+}
+
+/** "Solo en marzo", "Marzo a junio · 4 meses" o "De marzo en adelante · 10 meses" (anual-evento-rango). */
+function textoRango(desde: number, hasta: number): string {
+  if (hasta <= desde) return `Solo en ${nombreMes(desde)}`;
+  if (hasta === 12) return `De ${nombreMes(desde)} en adelante · ${13 - desde} meses`;
+  return `${nombreMesCapital(desde)} a ${nombreMes(hasta)} · ${hasta - desde + 1} meses`;
 }
 
 /** "Algo distinto en {mes}" (AnualCambioMovil.dc.html), en hoja como las demas de Planear. */
@@ -303,12 +310,17 @@ function CambioHoja({ anio, opcionId, evento, mesInicial, categorias, onCerrar }
   const [monto, setMonto] = useState<number | null>(evento?.monto ?? null);
   const [categoria, setCategoria] = useState<string>(evento?.categoriaId ?? '');
   const [persona, setPersona] = useState<Id | null>(evento?.usuarioId ?? null);
-  const [cuando, setCuando] = useState<'SOLO' | 'ADELANTE'>(evento?.enAdelante ? 'ADELANTE' : 'SOLO');
+  // "Desde {mes} hasta [mes]" (design D4 de anual-evento-rango).
+  const [hasta, setHasta] = useState(evento?.hasta ?? evento?.mes ?? mesInicial);
+  const cambiarMes = (m: number) => {
+    setMes(m);
+    if (hasta < m) setHasta(m);
+  };
   const [quitando, setQuitando] = useState(false);
   const listo = Boolean(nombre.trim()) && (monto ?? 0) > 0;
   const datos: DatosEvento = {
     nombre, mes, monto: monto ?? 0, tipo, usuarioId: tipo === 'INGRESO' ? persona : null,
-    categoriaId: tipo === 'GASTO' ? categoria || null : null, enAdelante: cuando === 'ADELANTE',
+    categoriaId: tipo === 'GASTO' ? categoria || null : null, hasta: Math.max(hasta, mes),
   };
   const vista = useConsulta(['previa-evento', anio, opcionId, evento?.id ?? null, listo ? JSON.stringify(datos) : null], (p) => (listo ? p.plan.previsualizarEvento(anio, evento?.id ?? null, datos, opcionId) : Promise.resolve(null)));
   const queda = listo ? vista.data?.[mes - 1] ?? null : null;
@@ -331,14 +343,15 @@ function CambioHoja({ anio, opcionId, evento, mesInicial, categorias, onCerrar }
         <>
           <Segmentado opciones={[{ valor: 'INGRESO', etiqueta: 'Ingreso' }, { valor: 'GASTO', etiqueta: 'Gasto' }]} valor={tipo} onCambio={(v) => v && setTipo(v)} />
           <Campo etiqueta="¿Qué es?" valor={nombre} onCambio={setNombre} placeholder={tipo === 'GASTO' ? 'Ej: SOAT' : 'Ej: Prima'} />
-          <MontoInput etiqueta="¿Cuánto?" valor={monto} onCambio={setMonto} />
-          <Segmentado chips etiqueta="Mes" opciones={MESES.map((x) => ({ valor: String(x), etiqueta: nombreMesCapital(x).slice(0, 3) }))} valor={String(mes)} onCambio={(v) => v && setMes(Number(v))} />
+          <MontoInput etiqueta={hasta > mes ? '¿Cuánto cada mes?' : '¿Cuánto?'} valor={monto} onCambio={setMonto} />
+          <Segmentado chips etiqueta="Desde" opciones={MESES.map((x) => ({ valor: String(x), etiqueta: nombreMesCapital(x).slice(0, 3) }))} valor={String(mes)} onCambio={(v) => v && cambiarMes(Number(v))} />
+          <Segmentado chips etiqueta="Hasta" opciones={MESES.filter((x) => x >= mes).map((x) => ({ valor: String(x), etiqueta: nombreMesCapital(x).slice(0, 3) }))} valor={String(Math.max(hasta, mes))} onCambio={(v) => v && setHasta(Number(v))} />
+          <Texto v="pequeno" testID="rango">{textoRango(mes, Math.max(hasta, mes))}</Texto>
           {tipo === 'GASTO' ? (
             <Segmentado chips etiqueta="Categoría" opciones={opcionesCategoria} valor={categoria} onCambio={(v) => setCategoria(v ?? '')} />
           ) : (
             <Segmentado chips opcional etiqueta="De quién · hereda su diezmo" opciones={m.miembros.map((x) => ({ valor: x.usuario.id, etiqueta: x.usuario.nombre }))} valor={persona} onCambio={setPersona} />
           )}
-          <Segmentado etiqueta="¿Cuándo?" opciones={[{ valor: 'SOLO', etiqueta: `Solo en ${nombreMes(mes)}` }, { valor: 'ADELANTE', etiqueta: 'En adelante' }]} valor={cuando} onCambio={(v) => v && setCuando(v)} />
           {queda !== null && (
             <View testID="queda" style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
               <Texto v="pequeno">{`${nombreMesCapital(mes)} queda en`}</Texto>
