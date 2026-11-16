@@ -439,11 +439,13 @@ export function crearAdaptadorDemo(opciones: OpcionesDemo): Puertos {
         await cambiar((s) => R.cuadrarCuentas(s, { saldos, fecha: hoy(), usuarioId }));
       },
       async creditos() {
-        return (await leerEstado()).creditos.map((c) => R.vistaCredito(c, hoy()));
+        const s = await leerEstado();
+        return s.creditos.map((c) => R.vistaCredito(c, hoy(), s));
       },
       async credito(id) {
-        const c = (await leerEstado()).creditos.find((x) => x.id === id);
-        return c ? R.vistaCredito(c, hoy()) : null;
+        const s = await leerEstado();
+        const c = s.creditos.find((x) => x.id === id);
+        return c ? R.vistaCredito(c, hoy(), s) : null;
       },
       async resumenCreditos() {
         return R.resumenCreditos(await leerEstado(), hoy());
@@ -453,6 +455,9 @@ export function crearAdaptadorDemo(opciones: OpcionesDemo): Puertos {
       },
       async agregarCredito(datos) {
         await cambiar((s) => R.agregarCredito(s, { ...datos, fecha: hoy() }));
+      },
+      async eliminarCredito(creditoId) {
+        await cambiar((s) => R.eliminarCredito(s, { creditoId, fecha: hoy() }));
       },
       async actualizarSaldo(creditoId, saldo) {
         await cambiar((s) => R.actualizarSaldoCredito(s, { creditoId, saldo, fecha: hoy() }));

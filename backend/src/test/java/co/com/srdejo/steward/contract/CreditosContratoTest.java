@@ -213,6 +213,41 @@ class CreditosContratoTest extends ContratoBase {
 
     // --- Aislamiento ---
 
+    // --- Eliminar un crédito del hogar (credito-escritorio-y-eliminar) ---
+
+    @Test
+    void eliminarUnCreditoConUnaCuotaPagada() {
+        ayudas.crearPlan(daniel, MES, "CERO");
+        post(daniel, "/api/creditos", libreInversion()).expectStatus().isCreated();
+        String credito = idCredito(daniel);
+        post(daniel, "/api/pagos", PlanContratoTest.pago(itemCuota(daniel), 500_000, idDaniel, "NINGUNO")).expectStatus().isCreated();
+        ayudas.crearPlan(daniel, MES.plusMonths(1), "COPIAR");
+
+        delete(esposa, "/api/creditos/{id}", credito).expectStatus().isNoContent();
+
+        get(daniel, "/api/finanzas").expectBody()
+                .jsonPath("$.creditos").isEmpty()
+                .jsonPath("$.movimientos.length()").isEqualTo(1)
+                .jsonPath("$.movimientos[0].monto").isEqualTo(500_000)
+                .jsonPath("$.movimientos[0].creditoId").isEmpty()
+                .jsonPath("$.planes[0].escenarios[0].items.length()").isEqualTo(1)
+                .jsonPath("$.planes[0].escenarios[0].items[0].nombre").isEqualTo("Cuota libre inversión")
+                .jsonPath("$.planes[0].escenarios[0].items[0].creditoId").isEmpty()
+                .jsonPath("$.planes[1].escenarios[0].items").isEmpty();
+    }
+
+    @Test
+    void eliminarUnCreditoAjenoOInexistente() {
+        post(daniel, "/api/creditos", libreInversion()).expectStatus().isCreated();
+        String credito = idCredito(daniel);
+        String otro = entrar("otro@ejemplo.com", "Otro");
+        crearHogar(otro, "Otra casa").expectStatus().isCreated();
+        delete(otro, "/api/creditos/{id}", credito).expectStatus().isNotFound()
+                .expectBody().jsonPath("$.codigo").isEqualTo("CREDITO_NO_ENCONTRADO");
+        delete(daniel, "/api/creditos/{id}", UUID.randomUUID()).expectStatus().isNotFound();
+        get(daniel, "/api/finanzas").expectBody().jsonPath("$.creditos.length()").isEqualTo(1);
+    }
+
     @Test
     void creditoAjeno() {
         post(daniel, "/api/creditos", libreInversion()).expectStatus().isCreated();

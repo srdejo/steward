@@ -30,6 +30,12 @@ public interface ICuentasServicePort {
     /** "+ Agregar credito": su cuota entra al plan del mes en curso si tiene plan y no esta cerrado. */
     Mono<Credito> crearCredito(DatosCredito datos);
 
+    /**
+     * "Eliminar credito" (credito-escritorio-y-eliminar): sus movimientos quedan sin credito, sus items sin pagos de los
+     * meses abiertos desde el mes en curso se borran y los demas quedan sin enlace.
+     */
+    Mono<Void> eliminarCredito(UUID creditoId);
+
     /** "Corregir con extracto": el saldo que dice el banco, con la fecha de hoy. */
     Mono<Credito> actualizarSaldo(UUID creditoId, long saldo);
 

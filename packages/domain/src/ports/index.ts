@@ -178,6 +178,8 @@ export interface CuentasPort {
   cambiarMetodo(creditoId: Id, datos: DatosMetodo): Promise<void>;
   /** "Corregir con extracto". */
   actualizarSaldo(creditoId: Id, saldo: Pesos): Promise<void>;
+  /** "Eliminar crédito": lo registrado se conserva sin credito (spec "Eliminar un crédito"). */
+  eliminarCredito(creditoId: Id): Promise<void>;
   registrarAbono(creditoId: Id, monto: Pesos, origen: Origen): Promise<void>;
   simular(creditoId: Id, abono: Pesos): Promise<{ cuotasMenos: number; interesesMenos: Pesos } | null>;
   probarComoOpcion(creditoId: Id, ref: MesRef, abono: Pesos): Promise<{ planId: Id; escenarioId: Id }>;

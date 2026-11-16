@@ -8,6 +8,12 @@ import { MetodoCredito } from '@/components/metodo-credito';
 import { useAccion, useConsulta, usePuertos } from '@/data/puertos';
 import { Aviso, Boton, colors, Encabezado, fonts, Monto, MontoInput, Pantalla, Texto, CuerpoModal } from '@/ui';
 
+/** Lo que dice la hoja de "Eliminar crédito" de los pagos (design D2 de credito-escritorio-y-eliminar). */
+function conservan(n: number): string {
+  if (n === 0) return 'No tiene pagos registrados.';
+  return n === 1 ? 'Se conserva el pago registrado, en el historial de las cuentas.' : `Se conservan los ${n} pagos registrados, en el historial de las cuentas.`;
+}
+
 /** Abono que muestra el simulador al abrir (el de la Opción C de los artboards). */
 const ABONO_INICIAL = 1_500_000;
 
@@ -20,7 +26,8 @@ const DETALLE = {
 
 /**
  * Credito.dc.html: saldo, como baja (con "Cambiar"), avance de cuotas, cuota, dia de pago y cuando termina, las proximas
- * cuotas, el simulador con "Probarlo como opción" y los ultimos pagos (spec steward-cuentas, tarjetas-y-creditos).
+ * cuotas, el simulador con "Probarlo como opción", los ultimos pagos y "Eliminar crédito" (spec steward-cuentas,
+ * tarjetas-y-creditos y credito-escritorio-y-eliminar).
  */
 export default function Credito() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -33,6 +40,7 @@ export default function Credito() {
   const [hoja, setHoja] = useState<'saldo' | 'abono' | null>(null);
   const [monto, setMonto] = useState<number | null>(null);
   const [cambiando, setCambiando] = useState(false);
+  const [eliminando, setEliminando] = useState(false);
   const v = vista.data;
 
   if (!v) return <Pantalla><Texto v="pequeno">{vista.isLoading ? 'Cargando…' : 'Ese crédito no existe.'}</Texto></Pantalla>;
@@ -131,6 +139,24 @@ export default function Credito() {
         <Boton tipo="secundario" titulo="Corregir con extracto" onPress={() => setHoja('saldo')} style={{ flex: 1 }} />
         <Boton titulo="Registrar abono" onPress={() => setHoja('abono')} style={{ flex: 1 }} />
       </View>
+      <Boton tipo="texto" titulo="Eliminar crédito" onPress={() => setEliminando(true)} />
+
+      <Modal visible={eliminando} animationType="slide" presentationStyle="formSheet" onRequestClose={() => setEliminando(false)}>
+        <CuerpoModal>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Texto accessibilityRole="header" style={{ fontFamily: fonts.bold, fontSize: 22, flex: 1 }}>¿Eliminar {c.nombre}?</Texto>
+            <Boton tipo="enlace" titulo="Cancelar" onPress={() => setEliminando(false)} />
+          </View>
+          <Texto style={{ fontSize: 15, lineHeight: 22 }}>Sale de Créditos y su cuota sale del plan de {nombreMes(mesDe(puertos.hoy()).mes)} en adelante.</Texto>
+          <View testID="que-se-conserva" style={{ gap: 6, padding: 14, borderRadius: 12, backgroundColor: colors.nota }}>
+            <Texto style={{ fontSize: 13 }}>{conservan(v.pagos.length)}</Texto>
+            <Texto style={{ fontSize: 13 }}>Si la cuota de este mes ya tiene un pago, se queda en el plan.</Texto>
+          </View>
+          <Aviso texto={accion.error} />
+          <Boton tipo="peligro" titulo="Sí, eliminar crédito"
+            onPress={() => accion.ejecutar((p) => p.cuentas.eliminarCredito(id)).then((ok) => { if (ok) { setEliminando(false); router.replace('/cuentas?pestana=creditos'); } })} />
+        </CuerpoModal>
+      </Modal>
 
       <Modal visible={hoja !== null} animationType="slide" presentationStyle="formSheet" onRequestClose={() => setHoja(null)}>
         <CuerpoModal>

@@ -149,6 +149,8 @@ export interface VistaCredito {
   proxima: CuotaProyectada | null;
   /** Las 6 proximas cuotas. */
   proximas: CuotaProyectada[];
+  /** Las 12 proximas, para la tabla de escritorio (CreditoWeb). */
+  proximasAnio: CuotaProyectada[];
   /** Mes de la ultima cuota (≈); null a mano o si no alcanza a pagarse. */
   termina: MesRef | null;
   /** A mano: toca escribir el saldo del extracto. */
@@ -157,12 +159,42 @@ export interface VistaCredito {
   interesesAnioSiguiente: Pesos;
   /** Saldo al final del mes en curso y de los 5 siguientes. */
   proyeccion: Pesos[];
+  /** Los pagos, del mas reciente al mas viejo, con la cuenta de donde salieron si se sabe (CreditoWeb). */
+  pagos: PagoConCuenta[];
+}
+
+export interface PagoConCuenta {
+  fecha: Fecha;
+  monto: Pesos;
+  tipo: 'CUOTA' | 'ABONO';
+  /** Nombre de la cuenta, "Su cuenta" si fue externo, o null si no se sabe. */
+  desde: string | null;
+}
+
+/** La cuenta de cada pago: la del movimiento del mismo dia y monto, del credito o de un item enlazado a el. */
+function pagosConCuenta(c: Credito, estado?: EstadoHogar): PagoConCuenta[] {
+  const items = new Set(estado ? estado.planes.flatMap((p) => p.escenarios.flatMap((e) => e.items)).filter((i) => i.creditoId === c.id).map((i) => i.id) : []);
+  const movs = estado ? estado.movimientos.filter((m) => m.creditoId === c.id || (m.itemId !== null && items.has(m.itemId))) : [];
+  const usados = new Set<string>();
+  return [...c.pagos]
+    .sort((a, b) => b.fecha.localeCompare(a.fecha))
+    .map((p) => {
+      const m = movs.find((x) => !usados.has(x.id) && x.fecha === p.fecha && x.monto === p.monto);
+      if (m) usados.add(m.id);
+      let desde: string | null = null;
+      if (m?.origen.tipo === 'CUENTA') {
+        const id = m.origen.cuentaId;
+        desde = estado?.cuentas.find((x) => x.id === id)?.nombre ?? null;
+      } else if (m?.origen.tipo === 'EXTERNA') desde = 'Su cuenta';
+      return { fecha: p.fecha, monto: p.monto, tipo: p.tipo, desde };
+    });
 }
 
 /** Hasta donde se proyecta para saber cuando termina un credito (50 años). */
 const MAX_CUOTAS = 600;
 
-export function vistaCredito(c: Credito, hoy: Fecha): VistaCredito {
+/** `estado`: para saber de que cuenta salio cada pago; sin el, `desde` es null. */
+export function vistaCredito(c: Credito, hoy: Fecha, estado?: EstadoHogar): VistaCredito {
   const M = mesDe(hoy);
   const todas = c.metodo === 'MANUAL' ? [] : cuotasProyectadas(c, hoy, MAX_CUOTAS);
   const restantes = cuotasRestantes(c);
@@ -175,10 +207,12 @@ export function vistaCredito(c: Credito, hoy: Fecha): VistaCredito {
     progreso: total && c.saldo > 0 ? { actual: Math.min(total, c.cuotasPagadas + 1), total } : null,
     proxima: todas[0] ?? null,
     proximas: todas.slice(0, 6),
+    proximasAnio: todas.slice(0, 12),
     termina: ultima && ultima.saldo === 0 ? ultima.ref : null,
     actualizar: debeActualizar(c, hoy),
     interesesAnioSiguiente: sumar(todas.filter((q) => q.ref.anio === M.anio + 1).map((q) => q.interes)),
     proyeccion: saldosFinDeMes(c, hoy, 6),
+    pagos: pagosConCuenta(c, estado),
   };
 }
 
@@ -200,7 +234,7 @@ export interface ResumenCreditos {
 
 export function resumenCreditos(estado: EstadoHogar, hoy: Fecha): ResumenCreditos {
   const M = mesDe(hoy);
-  const creditos = estado.creditos.map((c) => vistaCredito(c, hoy));
+  const creditos = estado.creditos.map((c) => vistaCredito(c, hoy, estado));
   const deben = sumar(estado.creditos.map((c) => c.saldo));
   const aDiciembre = 12 - M.mes + 1;
   const deberanAlCerrar = sumar(estado.creditos.map((c) => saldosFinDeMes(c, hoy, aDiciembre).at(-1) ?? c.saldo));
@@ -378,5 +412,26 @@ export function agregarCredito(estado: EstadoHogar, datos: DatosCredito & { fech
   const plan = planDe(s, mesDe(datos.fecha));
   const principal = plan && plan.estado !== 'CERRADO' ? escenarioPrincipal(plan) : null;
   if (principal) principal.items.push(itemCuota(s, credito));
+  return s;
+}
+
+/**
+ * "Eliminar crédito" (design D1 de credito-escritorio-y-eliminar): sus pagos y abonos quedan sin credito; en los meses
+ * abiertos desde el de `fecha`, sus items sin pagos ni gastos se quitan; los demas items quedan sin enlace.
+ */
+export function eliminarCredito(estado: EstadoHogar, datos: { creditoId: Id; fecha: Fecha }): EstadoHogar {
+  const s = clonar(estado);
+  creditoDe(s, datos.creditoId);
+  const M = mesDe(datos.fecha);
+  const conRegistros = new Set(s.movimientos.filter((m) => (m.tipo === 'PAGO' || m.tipo === 'GASTO') && m.itemId !== null).map((m) => m.itemId));
+  for (const m of s.movimientos) if (m.creditoId === datos.creditoId) m.creditoId = null;
+  for (const plan of s.planes) {
+    const abierto = plan.estado !== 'CERRADO' && compararMes(plan.ref, M) >= 0;
+    for (const e of plan.escenarios) {
+      e.items = e.items.filter((i) => !(abierto && i.creditoId === datos.creditoId && !conRegistros.has(i.id)));
+      for (const i of e.items) if (i.creditoId === datos.creditoId) i.creditoId = null;
+    }
+  }
+  s.creditos = s.creditos.filter((c) => c.id !== datos.creditoId);
   return s;
 }

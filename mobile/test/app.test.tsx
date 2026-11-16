@@ -193,6 +193,18 @@ describe('Cuentas (steward-cuentas)', () => {
     expect(screen.getByText('Cuota 23 de 60')).toBeTruthy();
     expect(screen.getAllByTestId('cuota-proxima')[0]).toHaveTextContent(/\$228\.000.*\$272\.000.*\$13\.978\.000/);
   });
+
+  it('eliminar la compra a cuotas la quita de Créditos y del plan (credito-escritorio-y-eliminar)', async () => {
+    const p = await conSesion();
+    renderRouter('./src/app', { initialUrl: '/credito/cred-cuotas' });
+    await tocar('Eliminar crédito');
+    expect(await screen.findByText('¿Eliminar Compra a cuotas?')).toBeTruthy();
+    expect(screen.getByTestId('que-se-conserva')).toHaveTextContent(/Se conserva el pago registrado/);
+    await tocar('Sí, eliminar crédito');
+    await waitFor(async () => expect((await p.cuentas.creditos()).map((c) => c.credito.id)).toEqual(['cred-libre']));
+    const oct = await p.plan.mes(OCT);
+    expect(oct.opciones.flatMap((o) => o.grupos.flatMap((g) => g.items.map((i) => i.nombre)))).not.toContain('Compra a cuotas');
+  });
 });
 
 describe('Ajustes (steward-ajustes)', () => {
