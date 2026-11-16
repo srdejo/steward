@@ -24,5 +24,5 @@
 
 ## 5. Producción
 
-- [ ] 5.1 Con confirmación de Daniel: respaldo, despliegue del backend (V14) y la PWA. Verificar: `health UP`; el 2027 real queda con su Opción A en uso; Daniel actualiza marzo a diciembre y los ve con sus gastos.
+- [x] 5.1 Con confirmación de Daniel: respaldo, despliegue del backend (V14) y la PWA. Verificar: `health UP`; el 2027 real queda con su Opción A en uso; Daniel actualiza marzo a diciembre y los ve con sus gastos.
 - [ ] 5.2 Revisión visual de las opciones del año en web (1024, 1280 y 1440 px) y en la app.

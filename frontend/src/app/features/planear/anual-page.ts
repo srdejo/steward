@@ -13,6 +13,7 @@ import { MontoInput } from '../../shared/components/monto-input';
 import { anchoEscritorio } from '../../shared/escritorio';
 import { CambioHoja } from './cambio-hoja';
 import { MesesAnualHoja } from './meses-anual-hoja';
+import { NuevaOpcionHoja } from './nueva-opcion-hoja';
 
 const MESES = Array.from({ length: 12 }, (_, i) => i + 1);
 
@@ -32,7 +33,7 @@ interface OpcionBase {
  */
 @Component({
   selector: 'app-anual-page',
-  imports: [RouterLink, CambioHoja, Hoja, MesesAnualHoja, Monto, MontoInput],
+  imports: [RouterLink, CambioHoja, Hoja, MesesAnualHoja, Monto, MontoInput, NuevaOpcionHoja],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'flex flex-col gap-6 px-5 pt-6 pb-4 lg:mx-auto lg:w-full lg:max-w-[1192px] lg:px-10 lg:pt-8' },
   template: `
@@ -107,9 +108,7 @@ interface OpcionBase {
           <p class="text-sm text-secundario">{{ r.base ? 'La Opción ' + r.opcion.letra + ' es copia de ' + mesAnio(r.base) + '.' : 'Los montos de cada mes.' }} {{ escritorio() ? 'Agrega lo que es distinto en un mes.' : 'Toca un mes para agregar algo distinto.' }}</p>
         </div>
         <div class="flex flex-wrap gap-2">
-          @if (r.estado === 'BORRADOR') {
-            <a [routerLink]="['/planear/anual', anio()]" [queryParams]="{ paso: 'base' }" class="boton-texto self-center text-sm">Cambiar mes base</a>
-          }
+          <button type="button" class="boton-texto self-center text-sm" [disabled]="ocupado()" (click)="cambiarMesBase(r)">Cambiar mes base</button>
           <button type="button" class="boton h-10 rounded-control border border-control bg-superficie text-sm" (click)="abrirCambio(null, 1)">+ Algo distinto en un mes</button>
           <button type="button" class="boton h-10 rounded-control bg-acento text-sm text-white" [disabled]="ocupado()" (click)="hojaMeses.set(true)">Meses con la Opción {{ r.opcion.letra }}</button>
         </div>
@@ -127,6 +126,7 @@ interface OpcionBase {
           </button>
         }
         <button type="button" class="boton rounded-xl border border-dashed border-control bg-transparent px-3.5 text-sm font-medium" [class]="escritorio() ? 'h-[52px]' : 'h-9 rounded-full'" [disabled]="ocupado()" (click)="duplicar(r)">+ Duplicar Opción {{ r.opcion.letra }}</button>
+        <button type="button" class="boton rounded-xl border border-dashed border-control bg-transparent px-3.5 text-sm font-medium" [class]="escritorio() ? 'h-[52px]' : 'h-9 rounded-full'" [disabled]="ocupado()" (click)="hojaNueva.set(true)">+ Nueva opción desde un mes base</button>
         @if (r.opciones.length > 1 && !opcionEnUso(r)) {
           <button type="button" class="boton-texto text-sm font-normal text-negativo" (click)="quitandoOpcion.set(true)">Quitar opción {{ r.opcion.letra }}</button>
         }
@@ -315,6 +315,9 @@ interface OpcionBase {
       @if (cambio(); as c) {
         <app-cambio-hoja [anio]="r.anio" [opcionId]="r.opcion.id" [mesInicial]="c.mes" [evento]="c.evento" [categorias]="categorias.value() ?? []" (cerrar)="cambio.set(null)" (guardado)="guardado()" />
       }
+      @if (hojaNueva()) {
+        <app-nueva-opcion-hoja [anio]="r.anio" [letra]="siguienteLetra(r)" [accion]="crearOpcion" (cerrar)="hojaNueva.set(false)" />
+      }
       @if (hojaMeses()) {
         <app-meses-anual-hoja [anio]="r.anio" [opcionId]="r.opcion.id" [letra]="r.opcion.letra" (cerrar)="hojaMeses.set(false)" (guardado)="mesesListos($event)" />
       }
@@ -353,6 +356,8 @@ export class AnualPage {
     return new Map([...a.ingresos, ...a.gastos, ...(a.eventos ? [a.eventos] : [])].map((f) => [f.clave, f.valores]));
   });
   protected readonly hojaMeses = signal(false);
+  /** "+ Nueva opción desde un mes base" (anual-mes-base-editable). */
+  protected readonly hojaNueva = signal(false);
   protected readonly quitandoOpcion = signal(false);
 
   constructor() {
@@ -422,6 +427,13 @@ export class AnualPage {
 
   protected async replicar(): Promise<void> {
     const r = this.resumen.value();
+    // Un año sin plan nace con la Opción A y su mes base, y se ajusta en el editor (design D4 de anual-mes-base-editable).
+    if (!r) {
+      this.ocupado.set(true);
+      await this.ejecutar(() => this.crearOpcion(this.baseElegida()!));
+      this.ocupado.set(false);
+      return;
+    }
     const tieneMontos = Boolean(r && r.gastos.some((f) => f.valores.some((v) => v > 0)));
     if (tieneMontos && !this.confirmando()) {
       this.confirmando.set(true);
@@ -526,6 +538,40 @@ export class AnualPage {
       this.opcionId.set(id);
       const letra = String.fromCharCode(Math.max(...r.opciones.map((o) => o.letra.charCodeAt(0))) + 1);
       await this.router.navigate([], { queryParams: { opcion: letra }, queryParamsHandling: 'merge', replaceUrl: true });
+    });
+    this.ocupado.set(false);
+  }
+
+  protected siguienteLetra(r: ResumenAnual): string {
+    return String.fromCharCode(Math.max(...r.opciones.map((o) => o.letra.charCodeAt(0))) + 1);
+  }
+
+  /** Crea una opcion desde un mes base y abre su editor. */
+  protected readonly crearOpcion = async (base: BaseAnual): Promise<void> => {
+    const anio = Number(this.anio());
+    const antes = this.resumen.value()?.opciones.length ?? 0;
+    await this.puertos.plan.nuevaOpcionAnual(anio, base);
+    const letra = antes ? String.fromCharCode('A'.charCodeAt(0) + antes) : 'A';
+    const resumen = await this.puertos.plan.anual(anio);
+    const nueva = resumen?.opciones.at(-1)?.letra ?? letra;
+    this.hojaNueva.set(false);
+    await this.router.navigate(['/planear/anual', anio, 'base'], { queryParams: { opcion: nueva } });
+  };
+
+  /** "Cambiar mes base": si la opcion aun no tiene, se copia de su base (o del mes en curso) y se abre el editor. */
+  protected async cambiarMesBase(r: ResumenAnual): Promise<void> {
+    this.ocupado.set(true);
+    await this.ejecutar(async () => {
+      if (!r.opcion.conMesBase) {
+        const ref = r.base ?? mesDe(this.puertos.hoy());
+        try {
+          await this.puertos.plan.copiarMesBase(r.anio, r.opcion.id, { tipo: 'MES', ref });
+        } catch {
+          // El mes en curso sin plan: los fijos del ultimo mes.
+          await this.puertos.plan.copiarMesBase(r.anio, r.opcion.id, { tipo: 'FIJOS' });
+        }
+      }
+      await this.router.navigate(['/planear/anual', r.anio, 'base'], { queryParams: { opcion: r.opcion.letra } });
     });
     this.ocupado.set(false);
   }

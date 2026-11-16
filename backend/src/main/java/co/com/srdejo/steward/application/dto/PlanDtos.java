@@ -74,7 +74,19 @@ public final class PlanDtos {
     }
 
     /** "+ Duplicar Opción X" del año. */
-    public record DuplicarOpcionAnualRequest(UUID desdeId) {
+    public record DuplicarOpcionAnualRequest(UUID desdeId, FuenteRequest desde) {
+    }
+
+    /** La fuente de un mes base (anual-mes-base-editable): {@code tipo} MES (con {@code anio} y {@code mes}), FIJOS o CERO. */
+    public record FuenteRequest(String tipo, Integer anio, Integer mes) {
+
+        public co.com.srdejo.steward.domain.api.IAnualServicePort.Fuente fuente() {
+            YearMonth ref = anio == null || mes == null || mes < 1 || mes > 12 ? null : YearMonth.of(anio, mes);
+            return new co.com.srdejo.steward.domain.api.IAnualServicePort.Fuente(tipo, ref);
+        }
+    }
+
+    public record CopiarMesBaseRequest(FuenteRequest desde) {
     }
 
     /** "Meses con la Opción X": los meses (1 a 12) que se actualizan; sin {@code opcionId}, la en uso o la A. */
@@ -104,14 +116,21 @@ public final class PlanDtos {
 
 /** Una opcion del año: sus celdas tocadas, sus eventos y su mes base (design D2 de anual-opciones-y-meses). */
     public record OpcionAnualResponse(UUID id, String letra, UUID creadoPor, String nota, List<CeldaResponse> celdas,
-                                      List<EventoResponse> eventos, MesRefResponse base) {
+                                      List<EventoResponse> eventos, MesRefResponse base, MesBaseResponse mesBase) {
 
         public static OpcionAnualResponse de(PlanAnual.Opcion o) {
             return new OpcionAnualResponse(o.id(), o.letra(), o.creadoPor(), o.nota(),
                     o.celdas().stream().map(c -> new CeldaResponse(c.categoriaId(), c.mes(), c.monto())).toList(),
                     o.eventos().stream().map(EventoResponse::de).toList(),
-                    o.base() == null ? null : new MesRefResponse(o.base().getYear(), o.base().getMonthValue()));
+                    o.base() == null ? null : new MesRefResponse(o.base().getYear(), o.base().getMonthValue()),
+                    o.mesBase() == null ? null : new MesBaseResponse(
+                            o.mesBase().origen() == null ? null : new MesRefResponse(o.mesBase().origen().getYear(), o.mesBase().origen().getMonthValue()),
+                            o.mesBase().items().stream().map(ItemResponse::de).toList()));
         }
+    }
+
+    /** El mes base editable de una opcion (anual-mes-base-editable). */
+    public record MesBaseResponse(MesRefResponse origen, List<ItemResponse> items) {
     }
 
     public record AnualResponse(int anio, String estado, List<OpcionAnualResponse> opciones, UUID opcionEnUso) {

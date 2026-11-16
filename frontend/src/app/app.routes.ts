@@ -37,6 +37,7 @@ export const routes: Routes = [
         ],
       },
       { path: 'planear', data: { ancho: 'escritorio' }, loadComponent: () => import('./features/planear/planear-inicio-page').then((m) => m.PlanearInicioPage) },
+      { path: 'planear/anual/:anio/base', data: { ancho: 'completo' }, loadComponent: () => import('./features/planear/anual-base-page').then((m) => m.AnualBasePage) },
       { path: 'planear/anual/:anio', data: { ancho: 'completo' }, loadComponent: () => import('./features/planear/anual-page').then((m) => m.AnualPage) },
       { path: 'planear/:mes', data: { ancho: 'completo' }, loadComponent: () => import('./features/planear/mes-page').then((m) => m.MesPage) },
       { path: 'planear/:mes/comparar', data: { ancho: 'completo' }, canActivate: [compararEnElMes], loadComponent: () => import('./features/planear/comparar-page').then((m) => m.CompararPage) },

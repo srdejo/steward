@@ -1,7 +1,7 @@
-import type { BaseAnual, EstadoHogar, EventoAnual, Fecha, Id, ItemPlan, MesRef, OpcionAnual, Pesos, PlanAnual, PlanMes } from '../model';
+import type { BaseAnual, EstadoHogar, EventoAnual, Fecha, Id, ItemPlan, MesBaseAnual, MesRef, OpcionAnual, Pesos, PlanAnual, PlanMes } from '../model';
 import { formatCop, formatPorcentaje, nombreMesCapital } from '../format';
 import { ReglaError, clonar, compararMes, mesDe, mismoMes, nuevoId, sumar } from './base';
-import { anualDe, cierreDe, escenarioPrincipal, eventosDelMes, movimientosDe, nombreUsuario, opcionDe, planDe, reglaDe } from './consultas';
+import { anualDe, categoria, cierreDe, escenarioPrincipal, eventosDelMes, movimientosDe, nombreUsuario, opcionDe, planDe, reglaDe } from './consultas';
 import { cuotasDeCreditos, pagaEnMes } from './credito';
 import { calcularDiezmo, diezmosDelMes, ingresosNuevos } from './ingresos';
 import { lineasDeTarjetas } from './tarjetas';
@@ -61,8 +61,8 @@ export interface ResumenAnual {
   anio: number;
   estado: 'BORRADOR' | 'CREADO';
   base: MesRef | null;
-  /** La opcion que se ve. */
-  opcion: { id: Id; letra: string };
+  /** La opcion que se ve; `conMesBase` si ya tiene su mes base editable. */
+  opcion: { id: Id; letra: string; conMesBase: boolean };
   opciones: OpcionAnualVista[];
   /** Lo que dejaria libre cada mes la Opcion A, para "vs A" y "Las dos opciones, mes a mes". */
   libreA: Pesos[];
@@ -115,7 +115,7 @@ export function resumenAnual(estado: EstadoHogar, anio: number, opcionId?: Id | 
   const a = anual.opciones[0]!;
   return {
     ...r,
-    opcion: { id: op.id, letra: op.letra },
+    opcion: { id: op.id, letra: op.letra, conMesBase: Boolean(op.mesBase) },
     opciones: anual.opciones.map((o) => {
       const autor = estado.usuarios.find((u) => u.id === o.creadoPor);
       return {
@@ -158,7 +158,7 @@ function resumenDeOpcion(estado: EstadoHogar, anual: PlanAnual, op: OpcionAnual)
   // anual-opciones-y-meses), o $0. "Eventos del año" va en su propia fila.
   const conFila = new Set(op.filas.map((f) => f.categoriaId));
   // Solo con mes base: un año vacio (o desde cero) ve sus categorias en $0.
-  const plantilla = op.base ? plantillaDe(estado, anio, op) : [];
+  const plantilla = op.base || op.mesBase ? plantillaDe(estado, anio, op) : [];
   const filas = [
     ...op.filas,
     ...[...categorias.values()].filter((c) => !conFila.has(c.id) && c.nombre !== CATEGORIA_EVENTOS && c.tipo !== 'DIEZMO').sort((a, b) => a.orden - b.orden)
@@ -342,6 +342,7 @@ export function duplicarOpcionAnual(estado: EstadoHogar, datos: { anio: number; 
   const id = nuevoId(s, 'opa');
   anual.opciones.push({
     id, letra, creadoPor: datos.creadoPor, nota: '', base: origen.base ? { ...origen.base } : null,
+    mesBase: origen.mesBase ? { origen: origen.mesBase.origen, items: origen.mesBase.items.map((i) => ({ ...i, id: nuevoId(s, 'itb') })) } : null,
     filas: origen.filas.map((f) => ({ categoriaId: f.categoriaId, montos: [...f.montos] })),
     eventos: origen.eventos.map((e) => ({ ...e, id: nuevoId(s, 'ev') })),
   });
@@ -474,8 +475,12 @@ function siguePagando(estado: EstadoHogar, item: ItemPlan, base: MesRef | null, 
   return true;
 }
 
-/** La plantilla de una opcion: los items de su mes base (o del ultimo plan antes del año), sin los de diezmo. */
+/**
+ * La plantilla de una opcion: su mes base editable si lo tiene (anual-mes-base-editable); si no, los items del mes base
+ * guardado (o del ultimo plan antes del año), sin los de diezmo.
+ */
 function plantillaDe(estado: EstadoHogar, anio: number, op: OpcionAnual): ItemPlan[] {
+  if (op.mesBase) return op.mesBase.items;
   const origen = op.base ? planDe(estado, op.base) : ultimoPlanAntes(estado, anio);
   // Los items de diezmo del plan base no se copian: cada mes gana los suyos (design D2 de diezmo-como-gasto).
   return (origen ? escenarioPrincipal(origen)?.items ?? [] : []).filter((i) => i.tipo !== 'DIEZMO');
@@ -487,7 +492,7 @@ function plantillaDe(estado: EstadoHogar, anio: number, op: OpcionAnual): ItemPl
  * gasto; la cuota de los creditos sin item que pagan ese mes; sus lineas de ingreso y su diezmo.
  */
 function itemsDelMes(s: EstadoHogar, anual: PlanAnual, op: OpcionAnual, ref: MesRef, hoy: Fecha, eventosCat: Id | null): { items: ItemPlan[]; ingresos: ReturnType<typeof ingresosNuevos> } {
-  const base = op.base ?? ultimoPlanAntes(s, anual.anio)?.ref ?? null;
+  const base = op.mesBase ? op.mesBase.origen : op.base ?? ultimoPlanAntes(s, anual.anio)?.ref ?? null;
   const delMes = plantillaDe(s, anual.anio, op)
     .filter((i) => siguePagando(s, i, base, ref, hoy))
     .map((i) => ({ ...i, id: nuevoId(s, 'item'), cuota: i.cuota && base ? { ...i.cuota, actual: i.cuota.actual + mesesEntre(base, ref) } : i.cuota }));
@@ -503,7 +508,7 @@ function itemsDelMes(s: EstadoHogar, anual: PlanAnual, op: OpcionAnual, ref: Mes
     const fila = op.filas.find((f) => f.categoriaId === c.id);
     if (!fila) {
       // Una categoria sin fila trae lo del mes base, si la opcion tiene uno (un año vacio no trae nada).
-      if (op.base) items.push(...deCategoria);
+      if (op.base || op.mesBase) items.push(...deCategoria);
       continue;
     }
     const monto = fila.montos[ref.mes - 1] ?? 0;
@@ -635,4 +640,168 @@ export function borrarAnual(estado: EstadoHogar, datos: { anio: number }): Estad
   s.anuales = s.anuales.filter((a) => a.anio !== datos.anio);
   s.proyecciones = s.proyecciones.filter((p) => p.ref.anio !== datos.anio);
   return s;
+}
+
+// --- Mes base editable de una opcion (anual-mes-base-editable) -----------------------------------------------------
+
+/** Una copia de los gastos de la fuente, con ids nuevos y sin diezmo (design D2). */
+function copiaDeBase(s: EstadoHogar, anio: number, desde: BaseAnual): MesBaseAnual {
+  if (desde.tipo === 'MES' && !planDe(s, desde.ref)) throw new ReglaError('NO_EXISTE', 'Ese mes no tiene plan');
+  const origen = desde.tipo === 'MES' ? desde.ref : desde.tipo === 'FIJOS' ? ultimoPlanAntes(s, anio)?.ref ?? null : null;
+  return { origen: origen ? { ...origen } : null, items: itemsBase(s, desde, anio).map((i) => ({ ...i, id: nuevoId(s, 'itb') })) };
+}
+
+/** Las celdas de la opcion desde su mes base: por categoria, el total de cada mes sin los creditos que ya terminaron. */
+function llenarDesdeMesBase(s: EstadoHogar, anio: number, op: OpcionAnual, hoy: Fecha): void {
+  const base = op.mesBase!;
+  op.filas = [...s.categorias]
+    .filter((c) => c.tipo !== 'DIEZMO' && c.nombre !== CATEGORIA_EVENTOS)
+    .sort((a, b) => a.orden - b.orden)
+    .map((c) => ({
+      categoriaId: c.id,
+      montos: MESES.map((mes) => sumar(base.items.filter((i) => i.categoriaId === c.id && siguePagando(s, i, base.origen, { anio, mes }, hoy)).map((i) => i.monto))),
+    }));
+  op.base = base.origen ? { ...base.origen } : null;
+}
+
+/** El mes base de una opcion; si no tiene, uno nuevo desde su plantilla de hoy. */
+function mesBaseDe(s: EstadoHogar, anio: number, op: OpcionAnual): MesBaseAnual {
+  if (!op.mesBase) {
+    const origen = op.base ?? ultimoPlanAntes(s, anio)?.ref ?? null;
+    op.mesBase = { origen: origen ? { ...origen } : null, items: plantillaDe(s, anio, op).map((i) => ({ ...i, id: nuevoId(s, 'itb') })) };
+  }
+  return op.mesBase;
+}
+
+/**
+ * "+ Nueva opción desde un mes base": la siguiente letra, a nombre de quien la crea, con el mes base copiado de la fuente y
+ * sus celdas llenas desde el. Si el año no tenia plan, se crea y la nueva es su Opcion A.
+ */
+export function nuevaOpcionDesdeBase(estado: EstadoHogar, datos: { anio: number; desde: BaseAnual; creadoPor: Id; hoy: Fecha }): { estado: EstadoHogar; opcionId: Id } {
+  if (datos.anio < mesDe(datos.hoy).anio) throw new ReglaError('MONTO_INVALIDO', 'El plan anual es del año en curso o uno futuro');
+  const nuevo = !anualDe(estado, datos.anio);
+  const s = nuevo ? crearAnual(estado, { anio: datos.anio, hoy: datos.hoy, creadoPor: datos.creadoPor }) : clonar(estado);
+  const anual = anualDe(s, datos.anio)!;
+  let op: OpcionAnual;
+  if (nuevo) {
+    op = anual.opciones[0]!;
+  } else {
+    const letra = [...LETRAS].find((l) => !anual.opciones.some((o) => o.letra === l));
+    if (!letra) throw new ReglaError('MUCHAS_OPCIONES', 'No caben más opciones en este año');
+    op = { id: nuevoId(s, 'opa'), letra, creadoPor: datos.creadoPor, nota: '', filas: [], eventos: [], base: null };
+    anual.opciones.push(op);
+  }
+  op.mesBase = copiaDeBase(s, datos.anio, datos.desde);
+  llenarDesdeMesBase(s, datos.anio, op, datos.hoy);
+  // Los aportes proyectados son del año: si aun no tiene, salen de la fuente, como al replicar.
+  if (!s.proyecciones.some((p) => p.ref.anio === datos.anio)) {
+    for (const a of vistaBase(s, { anio: datos.anio, base: datos.desde }).aportes) for (const mes of MESES) s.proyecciones.push({ usuarioId: a.usuarioId, ref: { anio: datos.anio, mes }, monto: a.monto });
+  }
+  return { estado: s, opcionId: op.id };
+}
+
+/** "Copiar otro mes": reemplaza el mes base; las celdas no cambian hasta "Usar este mes". */
+export function copiarMesBase(estado: EstadoHogar, datos: { anio: number; opcionId?: Id | null; desde: BaseAnual }): EstadoHogar {
+  const s = clonar(estado);
+  const op = opcionOError(anualOError(s, datos.anio), datos.opcionId);
+  op.mesBase = copiaDeBase(s, datos.anio, datos.desde);
+  return s;
+}
+
+/** Agregar o editar un gasto del mes base, con las reglas de `guardarItem`; nunca en Diezmo. */
+export function guardarItemBase(estado: EstadoHogar, datos: { anio: number; opcionId?: Id | null; item: Omit<ItemPlan, 'id'> & { id?: Id } }): EstadoHogar {
+  if (!(datos.item.monto >= 0)) throw new ReglaError('MONTO_INVALIDO', 'El monto no puede ser negativo');
+  if (!datos.item.nombre.trim()) throw new ReglaError('NOMBRE_REQUERIDO', 'El gasto necesita un nombre');
+  const s = clonar(estado);
+  if (categoria(s, datos.item.categoriaId).tipo === 'DIEZMO') throw new ReglaError('DATOS_INVALIDOS', 'El diezmo se calcula con las reglas');
+  const op = opcionOError(anualOError(s, datos.anio), datos.opcionId);
+  const base = mesBaseDe(s, datos.anio, op);
+  const item = { ...datos.item, nombre: datos.item.nombre.trim(), ingresoPlanId: null, aporteId: null, ingresoFijoId: null, ajustadoAMano: false };
+  if (datos.item.id) {
+    const i = base.items.findIndex((x) => x.id === datos.item.id);
+    if (i < 0) throw new ReglaError('NO_EXISTE', 'Ese gasto ya no está en el mes base');
+    base.items[i] = { ...item, id: datos.item.id } as ItemPlan;
+  } else {
+    base.items.push({ ...item, id: nuevoId(s, 'itb') } as ItemPlan);
+  }
+  return s;
+}
+
+export function quitarItemBase(estado: EstadoHogar, datos: { anio: number; opcionId?: Id | null; itemId: Id }): EstadoHogar {
+  const s = clonar(estado);
+  const op = opcionOError(anualOError(s, datos.anio), datos.opcionId);
+  const base = mesBaseDe(s, datos.anio, op);
+  if (!base.items.some((i) => i.id === datos.itemId)) throw new ReglaError('NO_EXISTE', 'Ese gasto ya no está en el mes base');
+  base.items = base.items.filter((i) => i.id !== datos.itemId);
+  return s;
+}
+
+/** "Usar este mes en los 12 meses": las celdas de la opcion desde su mes base; los eventos y las proyecciones siguen. */
+export function usarMesBase(estado: EstadoHogar, datos: { anio: number; opcionId?: Id | null; hoy: Fecha }): EstadoHogar {
+  const s = clonar(estado);
+  const op = opcionOError(anualOError(s, datos.anio), datos.opcionId);
+  mesBaseDe(s, datos.anio, op);
+  llenarDesdeMesBase(s, datos.anio, op, datos.hoy);
+  return s;
+}
+
+/** Una fila del editor del mes base. */
+export interface FilaMesBase {
+  item: ItemPlan;
+  /** "Fijo", "Durante el mes", "Corte 13 · valor del extracto", "Sigue la tabla del crédito". */
+  detalle: string;
+  /** El ultimo mes del año en que se paga, si termina antes de diciembre. */
+  terminaEn: number | null;
+}
+
+export interface VistaMesBase {
+  opcion: { id: Id; letra: string };
+  origen: MesRef | null;
+  grupos: { categoriaId: Id; nombre: string; color: string; total: Pesos; filas: FilaMesBase[] }[];
+  /** Ingresos fijos y aportes proyectados de enero. */
+  entra: Pesos;
+  sale: Pesos;
+  diezmo: Pesos;
+  libreMes: Pesos;
+  /** El año con el mes base, mes a mes, sin los creditos que terminan (≈). */
+  libreAnio: Pesos;
+}
+
+/** Lo que ve el editor del mes base (design D2). Sin mes base, el que se crearia desde la plantilla de la opcion. */
+export function vistaMesBase(estado: EstadoHogar, anio: number, opcionId: Id | null | undefined, hoy: Fecha): VistaMesBase {
+  const s = clonar(estado);
+  const op = opcionOError(anualOError(s, anio), opcionId);
+  const base = mesBaseDe(s, anio, op);
+  const categorias = [...s.categorias].filter((c) => c.tipo !== 'DIEZMO').sort((a, b) => a.orden - b.orden);
+  const terminaEn = (i: ItemPlan): number | null => {
+    const corte = MESES.find((mes) => !siguePagando(s, i, base.origen, { anio, mes }, hoy));
+    return corte && corte > 1 ? corte - 1 : null;
+  };
+  const detalle = (i: ItemPlan): string => {
+    const t = i.tarjetaId ? s.tarjetas.find((x) => x.id === i.tarjetaId) : undefined;
+    if (t) return `Corte ${t.diaCorte} · ${t.pago.tipo === 'FIJO' ? 'pago fijo' : 'valor del extracto'}`;
+    if (i.creditoId) return 'Sigue la tabla del crédito';
+    if (i.cuota) return `Cuota ${i.cuota.actual} de ${i.cuota.total}`;
+    return i.tipo === 'VARIABLE' ? 'Durante el mes' : 'Fijo';
+  };
+  const grupos = categorias
+    .map((c) => {
+      const items = base.items.filter((i) => i.categoriaId === c.id);
+      return { categoriaId: c.id, nombre: c.nombre, color: c.color, total: sumar(items.map((i) => i.monto)), filas: items.map((item) => ({ item, detalle: detalle(item), terminaEn: terminaEn(item) })) };
+    })
+    .filter((g) => g.filas.length || g.nombre !== CATEGORIA_EVENTOS);
+  const fijos = s.ingresosFijos.filter((f) => f.activo);
+  let diezmo = 0;
+  for (const f of fijos) {
+    const regla = reglaDe(s, f.usuarioId);
+    if (regla) diezmo += calcularDiezmo(regla.porcentaje, f.bruto, f.neto, regla.base);
+  }
+  const entraMes = (mes: number) => sumar(fijos.map((f) => f.neto)) + sumar(s.proyecciones.filter((p) => p.ref.anio === anio && p.ref.mes === mes).map((p) => p.monto));
+  const saleMes = (mes: number) => sumar(base.items.filter((i) => siguePagando(s, i, base.origen, { anio, mes }, hoy)).map((i) => i.monto));
+  const sale = sumar(base.items.map((i) => i.monto));
+  return {
+    opcion: { id: op.id, letra: op.letra }, origen: base.origen, grupos,
+    entra: entraMes(1), sale, diezmo, libreMes: entraMes(1) - sale - diezmo,
+    libreAnio: sumar(MESES.map((mes) => entraMes(mes) - saleMes(mes) - diezmo)),
+  };
 }

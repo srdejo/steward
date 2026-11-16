@@ -31,6 +31,11 @@ Planear también cambia desde 1024 px (`PlanInicioWeb.dc.html`): la tarjeta del 
    - Se eligen en pestañas (escritorio) o chips (móvil), y la elegida queda en la URL (`?opcion=B`). "+ Duplicar Opción X" copia la elegida y "Quitar opción" quita la que no está en uso.
    - Las celdas, los cambios y replicar van a la opción elegida. Con otra opción que no sea la A, las celdas distintas de la A se marcan con un borde azul, el KPI dice cuánto más o menos deja libre frente a la A, y aparece "Las dos opciones, mes a mes"; en móvil, cada mes muestra la diferencia "vs A".
    - **"Meses con la Opción X"** (`meses-anual-hoja.ts`) reemplaza a "Crear los 12 meses". Lista los meses agrupados: los que no tienen plan se crean, los que se pueden actualizar llevan una casilla y los que tienen registros o un cierre dicen por qué no se tocan. Llama a `PlanPort.crearOActualizarMeses` (`POST /api/anuales/{anio}/meses`).
+4. **Mes base editable** (cambio `anual-mes-base-editable`, solo web):
+   - "+ Nueva opción desde un mes base" (`nueva-opcion-hoja.ts`) elige la fuente (por defecto el mes en curso), crea la siguiente letra con una copia de ese mes y abre su editor. Un año sin plan hace lo mismo desde el paso 1: nace la Opción A.
+   - El editor (`anual-base-page.ts`, ruta `/planear/anual/{año}/base?opcion=X`) lista los gastos por categoría con el monto editable en la celda, "+ Agregar a …", quitar, "Copiar otro mes" y lo que queda libre. Los cambios no tocan el mes real.
+   - "Usar este mes en los 12 meses" llena la opción desde su mes base (sin los créditos que ya terminaron) y vuelve al año, donde se agregan los eventos. Con mes base, "Meses con la Opción X" toma de ahí los gastos de cada mes.
+   - "Cambiar mes base" se ve siempre: si la opción aún no tiene, primero copia su base (o el mes en curso) y abre el editor.
 
 Tiene dos **modos de datos** (`src/app/config/modo.ts`):
 

@@ -27,6 +27,8 @@ describe('paridad con la app (steward-mobile-app)', () => {
     await conSesion();
     const a = await app('/planear/anual/2028');
     await a.tocar('Replicar en los 12 meses');
+    // El mes base de la Opción A se usa tal cual (anual-mes-base-editable).
+    await a.tocar('Usar este mes en los 12 meses');
     await a.tocar('+ Algo distinto en un mes');
     await a.escribir('¿Qué es?', 'Revisión carro');
     const mes = a.raiz().querySelector<HTMLSelectElement>('app-cambio-hoja select')!;

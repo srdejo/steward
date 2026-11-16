@@ -44,13 +44,32 @@ public record PlanAnual(UUID id, UUID hogarId, int anio, Estado estado, List<Opc
                 .filter(l -> opciones.stream().noneMatch(o -> o.letra().equals(l))).findFirst();
     }
 
-    /** Una opcion del año: sus celdas tocadas, sus eventos y el mes que se replico en ella (null si se lleno a mano). */
-    public record Opcion(UUID id, String letra, UUID creadoPor, String nota, List<Celda> celdas, List<Evento> eventos, YearMonth base) {
+    /**
+     * Una opcion del año: sus celdas tocadas, sus eventos, el mes que se replico en ella (null si se lleno a mano) y su mes
+     * base editable (null si no tiene; anual-mes-base-editable).
+     */
+    public record Opcion(UUID id, String letra, UUID creadoPor, String nota, List<Celda> celdas, List<Evento> eventos, YearMonth base,
+                         MesBase mesBase) {
 
         public Opcion {
             nota = nota == null ? "" : nota;
             celdas = celdas == null ? List.of() : List.copyOf(celdas);
             eventos = eventos == null ? List.of() : List.copyOf(eventos);
+        }
+
+        public Opcion(UUID id, String letra, UUID creadoPor, String nota, List<Celda> celdas, List<Evento> eventos, YearMonth base) {
+            this(id, letra, creadoPor, nota, celdas, eventos, base, null);
+        }
+    }
+
+    /**
+     * Los gastos que valen igual todos los meses en una opcion, copiados de {@code origen} (null: desde cero) y editados a
+     * mano. Sus items llevan como {@code escenarioId} el id de la opcion.
+     */
+    public record MesBase(YearMonth origen, List<PlanMes.ItemPlan> items) {
+
+        public MesBase {
+            items = items == null ? List.of() : List.copyOf(items);
         }
     }
 

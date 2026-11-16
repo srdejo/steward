@@ -309,6 +309,14 @@ export interface OpcionAnual {
   eventos: EventoAnual[];
   /** El mes que se replico; los items de los meses creados salen de el. null: se lleno a mano. */
   base: MesRef | null;
+  /** El mes base editable de la opcion (anual-mes-base-editable); si existe, los meses salen de el. */
+  mesBase?: MesBaseAnual | null;
+}
+
+/** Los gastos que valen igual todos los meses en una opcion, copiados de `origen` y editados a mano. Sin items de diezmo. */
+export interface MesBaseAnual {
+  origen: MesRef | null;
+  items: ItemPlan[];
 }
 
 export interface PlanAnual {

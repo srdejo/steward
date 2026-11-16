@@ -59,7 +59,7 @@ public class AnualR2dbcAdapter implements IAnualPersistencePort {
 
     private Flux<PlanAnual> completos(DatabaseClient.GenericExecuteSpec consulta) {
         return consulta.map(AnualR2dbcAdapter::anual).all().concatMap(a -> db.sql(
-                        "SELECT id, letra, creado_por, nota, base_anio, base_mes FROM anual_opcion WHERE anual_id = :id ORDER BY letra")
+                        "SELECT id, letra, creado_por, nota, base_anio, base_mes, con_mes_base FROM anual_opcion WHERE anual_id = :id ORDER BY letra")
                 .bind("id", a.id())
                 .map(AnualR2dbcAdapter::opcion)
                 .all()
@@ -69,7 +69,14 @@ public class AnualR2dbcAdapter implements IAnualPersistencePort {
     }
 
     private Mono<Opcion> conCeldasYEventos(Opcion o) {
-        return Mono.zip(
+        Mono<java.util.Optional<PlanAnual.MesBase>> mesBase = o.mesBase() == null ? Mono.just(java.util.Optional.empty())
+                : db.sql("SELECT id, categoria_id, nombre, monto, dia_vence, tipo, cuota_actual, cuota_total, credito_id, tarjeta_id, orden "
+                                + "FROM anual_base_item WHERE opcion_id = :id ORDER BY orden, id")
+                        .bind("id", o.id())
+                        .map(r -> itemBase(r, o.id()))
+                        .all().collectList()
+                        .map(items -> java.util.Optional.of(new PlanAnual.MesBase(o.base(), items)));
+        return Mono.zip(mesBase, Mono.zip(
                         db.sql("SELECT categoria_id, mes, monto FROM anual_celda WHERE opcion_id = :id ORDER BY categoria_id, mes")
                                 .bind("id", o.id())
                                 .map(r -> new Celda(r.get("categoria_id", UUID.class), r.get("mes", Short.class), r.get("monto", Long.class)))
@@ -79,7 +86,9 @@ public class AnualR2dbcAdapter implements IAnualPersistencePort {
                                 .bind("id", o.id())
                                 .map(AnualR2dbcAdapter::evento)
                                 .all().collectList())
-                .map(t -> new Opcion(o.id(), o.letra(), o.creadoPor(), o.nota(), t.getT1(), t.getT2(), o.base()));
+                .map(t -> new Opcion(o.id(), o.letra(), o.creadoPor(), o.nota(), t.getT1(), t.getT2(), o.base(), null)))
+                .map(t -> new Opcion(t.getT2().id(), t.getT2().letra(), t.getT2().creadoPor(), t.getT2().nota(), t.getT2().celdas(),
+                        t.getT2().eventos(), t.getT2().base(), t.getT1().orElse(null)));
     }
 
     @Override
@@ -179,7 +188,60 @@ public class AnualR2dbcAdapter implements IAnualPersistencePort {
         return spec.then()
                 .thenMany(Flux.fromIterable(o.celdas()).concatMap(c -> ponerCelda(anualId, o.id(), c.categoriaId(), c.mes(), c.monto())))
                 .thenMany(Flux.fromIterable(o.eventos()).concatMap(e -> agregarEvento(anualId, o.id(), e)))
+                .then(o.mesBase() == null ? Mono.empty() : ponerMesBase(o.id(), o.mesBase()))
                 .then(Mono.just(o));
+    }
+
+    @Override
+    public Mono<Void> ponerMesBase(UUID opcionId, PlanAnual.MesBase mesBase) {
+        var marcar = db.sql("UPDATE anual_opcion SET con_mes_base = true, base_anio = :anio, base_mes = :mes WHERE id = :id").bind("id", opcionId);
+        marcar = Sql.opcional(marcar, "anio", mesBase.origen() == null ? null : (short) mesBase.origen().getYear(), Short.class);
+        marcar = Sql.opcional(marcar, "mes", mesBase.origen() == null ? null : (short) mesBase.origen().getMonthValue(), Short.class);
+        return db.sql("DELETE FROM anual_base_item WHERE opcion_id = :id").bind("id", opcionId).then()
+                .thenMany(Flux.fromIterable(mesBase.items()).concatMap(i -> guardarItemBase(opcionId, i)))
+                .then(marcar.then());
+    }
+
+    @Override
+    public Mono<Void> guardarItemBase(UUID opcionId, co.com.srdejo.steward.domain.model.PlanMes.ItemPlan i) {
+        var spec = db.sql("INSERT INTO anual_base_item (id, opcion_id, categoria_id, nombre, monto, dia_vence, tipo, cuota_actual, cuota_total, "
+                        + "credito_id, tarjeta_id, orden) VALUES (:id, :opcion, :categoria, :nombre, :monto, :dia, :tipo, :actual, :total, :credito, "
+                        + ":tarjeta, :orden) ON CONFLICT (id) DO UPDATE SET categoria_id = excluded.categoria_id, nombre = excluded.nombre, "
+                        + "monto = excluded.monto, dia_vence = excluded.dia_vence, tipo = excluded.tipo, cuota_actual = excluded.cuota_actual, "
+                        + "cuota_total = excluded.cuota_total, credito_id = excluded.credito_id, tarjeta_id = excluded.tarjeta_id")
+                .bind("id", i.id())
+                .bind("opcion", opcionId)
+                .bind("categoria", i.categoriaId())
+                .bind("nombre", i.nombre())
+                .bind("monto", i.monto())
+                .bind("tipo", i.tipo().name())
+                .bind("orden", i.orden());
+        spec = Sql.opcional(spec, "dia", i.diaVence() == null ? null : i.diaVence().shortValue(), Short.class);
+        spec = Sql.opcional(spec, "actual", i.cuotaActual() == null ? null : i.cuotaActual().shortValue(), Short.class);
+        spec = Sql.opcional(spec, "total", i.cuotaTotal() == null ? null : i.cuotaTotal().shortValue(), Short.class);
+        spec = Sql.opcional(spec, "credito", i.creditoId(), UUID.class);
+        spec = Sql.opcional(spec, "tarjeta", i.tarjetaId(), UUID.class);
+        return spec.then()
+                .then(db.sql("UPDATE anual_opcion SET con_mes_base = true WHERE id = :id").bind("id", opcionId).then());
+    }
+
+    @Override
+    public Mono<Boolean> quitarItemBase(UUID opcionId, UUID itemId) {
+        return db.sql("DELETE FROM anual_base_item WHERE id = :id AND opcion_id = :opcion")
+                .bind("id", itemId)
+                .bind("opcion", opcionId)
+                .fetch().rowsUpdated().map(n -> n > 0);
+    }
+
+    private static co.com.srdejo.steward.domain.model.PlanMes.ItemPlan itemBase(Readable r, UUID opcionId) {
+        Short dia = r.get("dia_vence", Short.class);
+        Short actual = r.get("cuota_actual", Short.class);
+        Short total = r.get("cuota_total", Short.class);
+        return new co.com.srdejo.steward.domain.model.PlanMes.ItemPlan(r.get("id", UUID.class), opcionId, r.get("categoria_id", UUID.class),
+                r.get("nombre", String.class), r.get("monto", Long.class), dia == null ? null : dia.intValue(),
+                co.com.srdejo.steward.domain.model.PlanMes.ItemPlan.Tipo.valueOf(r.get("tipo", String.class)),
+                actual == null ? null : actual.intValue(), total == null ? null : total.intValue(), r.get("orden", Integer.class),
+                r.get("credito_id", UUID.class), null, null, null, false, r.get("tarjeta_id", UUID.class));
     }
 
     @Override
@@ -228,8 +290,10 @@ public class AnualR2dbcAdapter implements IAnualPersistencePort {
     private static Opcion opcion(Readable r) {
         Short anio = r.get("base_anio", Short.class);
         Short mes = r.get("base_mes", Short.class);
+        YearMonth base = anio == null || mes == null ? null : YearMonth.of(anio, mes);
+        // Con mes base, sus items se leen despues; aqui solo se marca que lo tiene.
         return new Opcion(r.get("id", UUID.class), r.get("letra", String.class), r.get("creado_por", UUID.class), r.get("nota", String.class),
-                List.of(), List.of(), anio == null || mes == null ? null : YearMonth.of(anio, mes));
+                List.of(), List.of(), base, Boolean.TRUE.equals(r.get("con_mes_base", Boolean.class)) ? new PlanAnual.MesBase(base, List.of()) : null);
     }
 
     private static Evento evento(Readable r) {
