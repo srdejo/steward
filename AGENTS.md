@@ -2,7 +2,7 @@
 
 - `packages/domain/`: dominio compartido de Presupuesto Hogar (modelo, reglas, puertos, adaptador de prueba). Las reglas de negocio van aquí, no en las apps.
 - `frontend/`: PWA Angular 22. Se despliega con `infra/` del workspace; ver `docs/DEPLOYMENT.md`.
-- `mobile/`: app Expo. La v1 publicada en App Store sale de `release/1.0.x` (tag `v1.0.2`); en `main`, el diseño nuevo, conectado al backend (2.2.3, enviada a revisión de App Store para reemplazar a la v1). Trunk-based: se trabaja sobre `main`, con ramas cortas y PR. Comandos de npm/expo/eas se corren dentro de `mobile/`.
+- `mobile/`: app Expo. La v1 (1.0.2) queda en `release/1.0.x` (tag `v1.0.2`); en `main`, el diseño nuevo, conectado al backend, publicado en App Store desde la 2.2.3 en lugar de la v1. Trunk-based: se trabaja sobre `main`, con ramas cortas y PR. Comandos de npm/expo/eas se corren dentro de `mobile/`.
 - `backend/`: API de la versión en la nube (Spring Boot 4.1 reactivo, Java 25). Día a día en JVM; imagen nativa (GraalVM) solo para desplegar. `gradlew check` corre también el contrato en modo AOT. Ver `backend/README.md` y `backend/docs/`.
 - Correos: siempre por la API `contact` del workspace. Google: el OAuth client de beauty (ver `docs/DEPLOYMENT.md`).
 

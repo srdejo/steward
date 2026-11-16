@@ -17,7 +17,7 @@ Las etapas 2 a 9 siguen el "Orden sugerido de implementación" del handoff. Conv
 - 2026-10-26 — Infra de Presupuesto Hogar lista: `steward.test` y `https://steward.srdejo.com.co` sirviendo la página Próximamente, con el backend reservado en el VPS
 - 2026-10-26 — UI completa con datos de prueba: las 22 pantallas del diseño en la PWA (`steward.test`) y en la app Expo, con las mismas cifras en las dos (cambio OpenSpec `presupuesto-hogar-ui`)
 - 2026-10-28 — Backend con acceso, hogar e invitaciones (Etapa 2): dos personas comparten un hogar en `steward.test`; el invitado se une por el enlace o, sin él, desde la invitación a su correo (cambio OpenSpec `backend-acceso-hogar`)
-- 2026-11-15 — App móvil conectada (Etapa 12): la app usa el backend de producción con acceso con Google y Apple, se probó en TestFlight con datos reales y se envió a revisión de App Store para reemplazar a la v1 (cambio OpenSpec `app-movil-conectada`)
+- 2026-11-15 — App móvil conectada (Etapa 12): la app usa el backend de producción con acceso con Google y Apple, se probó en TestFlight con datos reales y Apple aprobó la 2.2.3, que reemplaza a la v1 en App Store (cambio OpenSpec `app-movil-conectada`)
 - 2026-10-28 — Ingresos fijos, regla y diezmo al recibir en el backend (Etapa 3): un hogar nuevo completa el onboarding en `steward.test`, y al marcar el salario como recibido los dos miembros ven "Disponible para diezmar $700.000" (cambio OpenSpec `backend-ingresos-diezmo`)
 - 2026-10-28 — Plan del mes y Hoy en el backend (Etapa 4) y objetivo "Hogar en la nube con un plan del mes usable": dos personas crean el plan de octubre, una paga Internet desde su cuenta, la otra registra un aporte y un gasto, y las dos ven las mismas cifras de "Te queda libre" y "Vs. plan" (cambio OpenSpec `backend-plan-mes-hoy`)
 - 2026-10-29 — Cuentas, cuadre y créditos en el backend (Etapa 5): dos personas agregan un crédito y su cuota aparece en Hoy; pagarla desde Davivienda deja el crédito en $13.978.000, mueven $100.000 al efectivo, cuadran Davivienda con $50.000 de "Gastos sin registrar" que el Cierre muestra, y un abono deja el crédito en $12.978.000, igual para las dos (cambio OpenSpec `backend-cuentas-creditos`)
@@ -176,7 +176,7 @@ Cambio OpenSpec `plan-mes-siguiente`.
 - [x] App conectada al backend y al día con la PWA, con acceso con Google y Apple y eliminar la cuenta (cambio OpenSpec `app-movil-conectada`).
 - [x] Probada en TestFlight por Daniel y su esposa con sus datos reales, con las mismas cifras que la PWA.
 - [x] Enviada a revisión de App Store (2026-11-15), en lugar de la v1.
-- [ ] Aprobada y publicada en App Store.
+- [x] Aprobada y publicada en App Store (2.2.3, 2026-11-15).
 
 ## Etapa 13 — Passkeys
 
