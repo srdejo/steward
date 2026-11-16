@@ -107,11 +107,40 @@ public final class FinanzasDtos {
     public record TransferenciaRequest(UUID desde, UUID hacia, long monto) {
     }
 
-    public record CreditoRequest(String nombre, String entidad, long saldo, long totalOriginal, long cuota,
-                                 @NotNull(message = "Escribe la tasa") BigDecimal tasaEM, int diaPago) {
+    /** {@code metodo} null es TASA (design D3 de tarjetas-y-creditos). */
+    public record CreditoRequest(String nombre, String entidad, Long saldo, Long totalOriginal, Long cuota,
+                                 @NotNull(message = "Escribe la tasa") BigDecimal tasaEM, int diaPago, String metodo,
+                                 Integer numeroCuotas, Integer cuotasPagadas, Long valorFinanciado) {
 
         public DatosCredito datos() {
-            return new DatosCredito(nombre, entidad, saldo, totalOriginal, cuota, tasaEM, diaPago);
+            return new DatosCredito(nombre, entidad, saldo == null ? 0 : saldo, totalOriginal == null ? 0 : totalOriginal,
+                    cuota == null ? 0 : cuota, tasaEM, diaPago, metodo, numeroCuotas,
+                    cuotasPagadas == null ? 0 : cuotasPagadas, valorFinanciado);
+        }
+    }
+
+    public record MetodoCreditoRequest(String metodo, Long saldo, Long cuota, BigDecimal tasaEM, Integer numeroCuotas,
+                                       Integer cuotasPagadas, Long valorFinanciado) {
+
+        public co.com.srdejo.steward.domain.api.ICuentasServicePort.DatosMetodo datos() {
+            return new co.com.srdejo.steward.domain.api.ICuentasServicePort.DatosMetodo(metodo, saldo == null ? 0 : saldo,
+                    cuota == null ? 0 : cuota, tasaEM, numeroCuotas,
+                    cuotasPagadas == null ? 0 : cuotasPagadas, valorFinanciado);
+        }
+    }
+
+    public record TarjetaRequest(String nombre, int diaCorte, int diaPago, String uso, String pagoTipo, long pagoMonto,
+                                 UUID itemId) {
+
+        public co.com.srdejo.steward.domain.api.ITarjetasServicePort.DatosTarjeta datos() {
+            return new co.com.srdejo.steward.domain.api.ITarjetasServicePort.DatosTarjeta(nombre, diaCorte, diaPago, uso, pagoTipo, pagoMonto);
+        }
+    }
+
+    public record TarjetaResponse(UUID id, String nombre, int diaCorte, int diaPago, String uso, String pagoTipo, long pagoMonto) {
+
+        public static TarjetaResponse de(co.com.srdejo.steward.domain.model.Tarjeta t) {
+            return new TarjetaResponse(t.id(), t.nombre(), t.diaCorte(), t.diaPago(), t.uso(), t.pagoTipo().name(), t.pagoMonto());
         }
     }
 
@@ -127,12 +156,14 @@ public final class FinanzasDtos {
     /** {@code pagos}: los ultimos, del mas reciente al mas antiguo (salen de lo registrado). */
     public record CreditoResponse(UUID id, String nombre, String entidad, long saldo, LocalDate saldoActualizadoEn,
                                   long cuota, BigDecimal tasaEM, int diaPago, long totalOriginal,
-                                  List<PagoCreditoResponse> pagos) {
+                                  List<PagoCreditoResponse> pagos, String metodo, Integer numeroCuotas, int cuotasPagadas,
+                                  Long valorFinanciado) {
 
         public static CreditoResponse de(Credito c) {
             return new CreditoResponse(c.id(), c.nombre(), c.entidad(), c.saldo(), c.saldoActualizadoEn(), c.cuota(),
                     ReglaResponse.sinCeros(c.tasaEm()), c.diaPago(), c.totalOriginal(),
-                    c.pagos().stream().map(p -> new PagoCreditoResponse(p.fecha(), p.monto(), p.tipo().name())).toList());
+                    c.pagos().stream().map(p -> new PagoCreditoResponse(p.fecha(), p.monto(), p.tipo().name())).toList(),
+                    c.metodo().name(), c.numeroCuotas(), c.cuotasPagadas(), c.valorFinanciado());
         }
     }
 
@@ -173,7 +204,7 @@ public final class FinanzasDtos {
                                    List<CuentaResponse> cuentas, List<PlanResponse> planes,
                                    List<MovimientoResponse> movimientos, List<CreditoResponse> creditos,
                                    List<CierreResponse> cierres, List<AnualResponse> anuales,
-                                   List<ProyeccionResponse> proyecciones) {
+                                   List<ProyeccionResponse> proyecciones, List<TarjetaResponse> tarjetas) {
 
         /** Los planes ya traen su estado efectivo (lo calcula el caso de uso). */
         public static FinanzasResponse de(Finanzas f, LocalDate hoy) {
@@ -187,7 +218,8 @@ public final class FinanzasDtos {
                     f.creditos().stream().map(CreditoResponse::de).toList(),
                     f.cierres().stream().map(CierreResponse::de).toList(),
                     f.anuales().stream().map(AnualResponse::de).toList(),
-                    f.proyecciones().stream().map(ProyeccionResponse::de).toList());
+                    f.proyecciones().stream().map(ProyeccionResponse::de).toList(),
+                    f.tarjetas().stream().map(TarjetaResponse::de).toList());
         }
     }
 }

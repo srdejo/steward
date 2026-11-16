@@ -1,38 +1,71 @@
-import { formatCop, formatTasa, sumar, type FiltroTitular as Filtro, type Id } from '@steward/domain';
-import { router } from 'expo-router';
-import { useState } from 'react';
-import { Modal, Text, View } from 'react-native';
+import { type FiltroTitular as Filtro, type Id } from '@steward/domain';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { Modal, Pressable, Text, View } from 'react-native';
 
+import { CuentasCreditos } from '@/components/cuentas-creditos';
+import { CuentasTarjetas } from '@/components/cuentas-tarjetas';
 import { FiltroTitular } from '@/components/filtro-titular';
 import { useMiembros } from '@/data/miembros';
 import { useAccion, useConsulta } from '@/data/puertos';
 import { Aviso, Boton, Campo, colors, Fila, fonts, Monto, MontoInput, Pantalla, Segmentado, Texto, CuerpoModal } from '@/ui';
 
 const CONJUNTA = '__conjunta__';
+type Pestana = 'cuentas' | 'tarjetas' | 'creditos';
+const PESTANAS: { valor: Pestana; etiqueta: string }[] = [
+  { valor: 'cuentas', etiqueta: 'Cuentas' },
+  { valor: 'tarjetas', etiqueta: 'Tarjetas' },
+  { valor: 'creditos', etiqueta: 'Créditos' },
+];
 
-/** Cuentas.dc.html: saldo del hogar estimado, cuentas con titular y cuadre, y los créditos (spec steward-cuentas). */
+/**
+ * Cuentas.dc.html, TarjetasMovil.dc.html y CreditosMovil.dc.html: pestañas Cuentas, Tarjetas y Créditos (spec steward-cuentas,
+ * tarjetas-y-creditos). Cuentas tiene el saldo del hogar estimado y las cuentas con titular y cuadre. `?pestana=` abre otra.
+ */
 export default function Cuentas() {
+  const params = useLocalSearchParams<{ pestana?: string }>();
+  const inicial: Pestana = params.pestana === 'tarjetas' || params.pestana === 'creditos' ? params.pestana : 'cuentas';
+  const [pestana, setPestana] = useState<Pestana>(inicial);
+  useEffect(() => setPestana(inicial), [inicial]);
+  const tarjetas = useConsulta(['tarjetas'], (p) => p.tarjetas.vista());
+  const pronto = tarjetas.data?.pagoPronto;
+
+  return (
+    <Pantalla>
+      <View accessibilityRole="tablist" style={{ flexDirection: 'row', gap: 4, borderBottomWidth: 1, borderBottomColor: colors.borde }}>
+        {PESTANAS.map((t) => {
+          const activa = pestana === t.valor;
+          return (
+            <Pressable key={t.valor} accessibilityRole="tab" accessibilityState={{ selected: activa }} onPress={() => setPestana(t.valor)}
+              style={{ minHeight: 44, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 6, borderBottomWidth: 2, borderBottomColor: activa ? colors.acento : 'transparent' }}>
+              <Texto style={{ fontSize: 14, fontFamily: activa ? fonts.semibold : fonts.regular, color: activa ? colors.texto : colors.secundario }}>{t.etiqueta}</Texto>
+              {t.valor === 'tarjetas' && pronto && (
+                <Texto testID="pago-pronto" style={{ fontSize: 11, fontFamily: fonts.semibold, color: '#8A2A15', backgroundColor: '#FBEDE8', borderRadius: 10, paddingHorizontal: 6, paddingVertical: 1, overflow: 'hidden' }}>
+                  {pronto.dias === 0 ? 'Pago hoy' : `Pago en ${pronto.dias} ${pronto.dias === 1 ? 'día' : 'días'}`}
+                </Texto>
+              )}
+            </Pressable>
+          );
+        })}
+      </View>
+      {pestana === 'tarjetas' ? <CuentasTarjetas /> : pestana === 'creditos' ? <CuentasCreditos /> : <PestanaCuentas />}
+    </Pantalla>
+  );
+}
+
+/** La pestaña Cuentas: saldo del hogar, cuadrar, mover dinero y las cuentas con su titular y cuadre. */
+function PestanaCuentas() {
   const m = useMiembros();
   const [filtro, setFiltro] = useState<Filtro>('TODAS');
   const datos = useConsulta(['cuentas', filtro], (p) => p.cuentas.cuentas(filtro));
   const todas = useConsulta(['cuentas', 'TODAS'], (p) => p.cuentas.cuentas());
-  const creditos = useConsulta(['creditos'], (p) => p.cuentas.creditos());
   const accion = useAccion();
-  const [hoja, setHoja] = useState<'agregar' | 'mover' | 'credito' | null>(null);
+  const [hoja, setHoja] = useState<'agregar' | 'mover' | null>(null);
   const [nombre, setNombre] = useState('');
   const [titular, setTitular] = useState<string | null>(CONJUNTA);
   const [monto, setMonto] = useState<number | null>(null);
   const [desde, setDesde] = useState<Id | null>(null);
   const [hacia, setHacia] = useState<Id | null>(null);
-  const [entidad, setEntidad] = useState('');
-  const [totalOriginal, setTotalOriginal] = useState<number | null>(null);
-  const [cuota, setCuota] = useState<number | null>(null);
-  const [tasaTexto, setTasaTexto] = useState('');
-  const [diaTexto, setDiaTexto] = useState('');
-  const tasaEM = Number(tasaTexto.trim().replace(',', '.') || '0');
-  const dia = Number(diaTexto.trim());
-  // El total original es opcional: si falta, es el saldo.
-  const creditoCompleto = !!nombre.trim() && monto !== null && !!cuota && Number.isInteger(dia) && dia >= 1 && Number.isFinite(tasaEM);
 
   const cerrar = () => {
     setHoja(null);
@@ -40,18 +73,13 @@ export default function Cuentas() {
     setMonto(null);
     setDesde(null);
     setHacia(null);
-    setEntidad('');
-    setTotalOriginal(null);
-    setCuota(null);
-    setTasaTexto('');
-    setDiaTexto('');
     accion.limpiar();
   };
   const opcionesCuenta = (todas.data?.cuentas ?? []).map((c) => ({ valor: c.cuenta.id, etiqueta: c.cuenta.nombre }));
   const d = datos.data;
 
   return (
-    <Pantalla>
+    <>
       {d && (
         <>
           <View style={{ gap: 6 }}>
@@ -75,29 +103,13 @@ export default function Cuentas() {
               </Fila>
             ))}
           </View>
-          <View style={{ gap: 4 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Texto v="subtitulo" accessibilityRole="header">Créditos</Texto>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                <Texto v="detalle">Debes {formatCop(sumar((creditos.data ?? []).map((c) => c.credito.saldo)))}</Texto>
-                <Boton tipo="texto" titulo="+ Crédito" onPress={() => setHoja('credito')} />
-              </View>
-            </View>
-            {(creditos.data ?? []).map((c) => (
-              <Fila key={c.credito.id} titulo={c.credito.nombre} ultima detalle={`Cuota ${formatCop(c.credito.cuota)} · ${formatTasa(c.credito.tasaEM)}${c.cuotasRestantes !== null ? ` · faltan ${c.cuotasRestantes}` : ''}`} onPress={() => router.push(`/credito/${c.credito.id}`)}>
-                <Monto valor={c.credito.saldo} />
-                <Texto>›</Texto>
-              </Fila>
-            ))}
-          </View>
-          <Texto v="detalle">Las tarjetas de crédito y compras a cuotas viven en el plan como gastos del mes. Aquí solo van las deudas con saldo y tasa.</Texto>
         </>
       )}
 
       <Modal visible={hoja !== null} animationType="slide" presentationStyle="formSheet" onRequestClose={cerrar}>
         <CuerpoModal>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Texto accessibilityRole="header" style={{ fontFamily: fonts.bold, fontSize: 22 }}>{hoja === 'agregar' ? 'Nueva cuenta' : hoja === 'credito' ? 'Nuevo crédito' : 'Mover dinero'}</Texto>
+            <Texto accessibilityRole="header" style={{ fontFamily: fonts.bold, fontSize: 22 }}>{hoja === 'agregar' ? 'Nueva cuenta' : 'Mover dinero'}</Texto>
             <Boton tipo="enlace" titulo="Cancelar" onPress={cerrar} />
           </View>
           {hoja === 'agregar' ? (
@@ -108,21 +120,6 @@ export default function Cuentas() {
               <Aviso texto={accion.error} />
               <Boton titulo="Agregar cuenta" deshabilitado={!nombre.trim() || monto === null || accion.ocupado}
                 onPress={() => accion.ejecutar((p) => p.cuentas.agregar({ nombre, titularId: titular === CONJUNTA ? null : titular, saldo: monto! })).then((ok) => ok && cerrar())} />
-            </>
-          ) : hoja === 'credito' ? (
-            <>
-              <Campo etiqueta="Nombre" valor={nombre} onCambio={setNombre} placeholder="Ej: Libre inversión" />
-              <Campo etiqueta="Entidad" valor={entidad} onCambio={setEntidad} placeholder="Ej: Bancolombia" />
-              <MontoInput etiqueta="Saldo" valor={monto} onCambio={setMonto} />
-              <MontoInput etiqueta="Total original" valor={totalOriginal} onCambio={setTotalOriginal} />
-              <MontoInput etiqueta="Cuota" valor={cuota} onCambio={setCuota} />
-              <View style={{ flexDirection: 'row', gap: 10 }}>
-                <View style={{ flex: 1 }}><Campo etiqueta="Tasa (% EM)" teclado="decimal-pad" valor={tasaTexto} onCambio={setTasaTexto} placeholder="1,6" /></View>
-                <View style={{ flex: 1 }}><Campo etiqueta="Día de pago" teclado="number-pad" valor={diaTexto} onCambio={setDiaTexto} placeholder="15" /></View>
-              </View>
-              <Aviso texto={accion.error} />
-              <Boton titulo="Agregar crédito" deshabilitado={!creditoCompleto || accion.ocupado}
-                onPress={() => accion.ejecutar((p) => p.cuentas.agregarCredito({ nombre, entidad, saldo: monto!, totalOriginal: totalOriginal ?? monto!, cuota: cuota!, tasaEM, diaPago: dia })).then((ok) => ok && cerrar())} />
             </>
           ) : (
             <>
@@ -136,6 +133,6 @@ export default function Cuentas() {
           )}
         </CuerpoModal>
       </Modal>
-    </Pantalla>
+    </>
   );
 }

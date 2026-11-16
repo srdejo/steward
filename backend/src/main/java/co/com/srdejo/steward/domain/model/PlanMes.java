@@ -89,12 +89,21 @@ public record PlanMes(UUID id, UUID hogarId, YearMonth ref, Estado estado, UUID 
      * @param ingresoPlanId DIEZMO: la linea de ingreso de la opcion de la que sale; se recalcula con ella (design D1 de
      *                      usabilidad-plan).
      * @param ajustadoAMano DIEZMO: su monto se cambio a mano y ya no sigue a su linea hasta "Volver a calcular".
+     * @param tarjetaId     la tarjeta de la que es la linea del plan (design D1 de tarjetas-y-creditos).
      */
     public record ItemPlan(UUID id, UUID escenarioId, UUID categoriaId, String nombre, long monto, Integer diaVence,
                            Tipo tipo, Integer cuotaActual, Integer cuotaTotal, int orden, UUID creditoId,
-                           UUID ingresoFijoId, UUID aporteId, UUID ingresoPlanId, boolean ajustadoAMano) {
+                           UUID ingresoFijoId, UUID aporteId, UUID ingresoPlanId, boolean ajustadoAMano, UUID tarjetaId) {
 
         public static final int NOMBRE_MAX = 60;
+
+        /** Sin tarjeta. */
+        public ItemPlan(UUID id, UUID escenarioId, UUID categoriaId, String nombre, long monto, Integer diaVence,
+                        Tipo tipo, Integer cuotaActual, Integer cuotaTotal, int orden, UUID creditoId,
+                        UUID ingresoFijoId, UUID aporteId, UUID ingresoPlanId, boolean ajustadoAMano) {
+            this(id, escenarioId, categoriaId, nombre, monto, diaVence, tipo, cuotaActual, cuotaTotal, orden, creditoId,
+                    ingresoFijoId, aporteId, ingresoPlanId, ajustadoAMano, null);
+        }
 
         /** Sin enlace de diezmo. */
         public ItemPlan(UUID id, UUID escenarioId, UUID categoriaId, String nombre, long monto, Integer diaVence,
@@ -112,19 +121,29 @@ public record PlanMes(UUID id, UUID hogarId, YearMonth ref, Estado estado, UUID 
         /** El mismo item en otra opcion (o con otro monto o cuota), con sus enlaces. */
         public ItemPlan copia(UUID nuevoId, UUID otroEscenario, long otroMonto, Integer otraCuota, int otroOrden) {
             return new ItemPlan(nuevoId, otroEscenario, categoriaId, nombre, otroMonto, diaVence, tipo, otraCuota, cuotaTotal,
-                    otroOrden, creditoId, ingresoFijoId, aporteId, ingresoPlanId, ajustadoAMano);
+                    otroOrden, creditoId, ingresoFijoId, aporteId, ingresoPlanId, ajustadoAMano, tarjetaId);
         }
 
         /** El mismo item con otro monto y nombre, y su marca de "ajustado a mano". */
         public ItemPlan conMonto(String otroNombre, long otroMonto, boolean ajustado) {
             return new ItemPlan(id, escenarioId, categoriaId, otroNombre, otroMonto, diaVence, tipo, cuotaActual, cuotaTotal, orden,
-                    creditoId, ingresoFijoId, aporteId, ingresoPlanId, ajustado);
+                    creditoId, ingresoFijoId, aporteId, ingresoPlanId, ajustado, tarjetaId);
         }
 
         /** El mismo item enlazado a otra linea (la copia de la suya al duplicar). */
         public ItemPlan conLinea(UUID linea) {
             return new ItemPlan(id, escenarioId, categoriaId, nombre, monto, diaVence, tipo, cuotaActual, cuotaTotal, orden,
-                    creditoId, ingresoFijoId, aporteId, linea, ajustadoAMano);
+                    creditoId, ingresoFijoId, aporteId, linea, ajustadoAMano, tarjetaId);
+        }
+
+        /** La linea de una tarjeta: su nombre, su monto y su dia de pago, enlazada a ella (o sin enlace con null). */
+        public ItemPlan conTarjeta(Tarjeta t) {
+            if (t == null) {
+                return new ItemPlan(id, escenarioId, categoriaId, nombre, monto, diaVence, tipo, cuotaActual, cuotaTotal, orden,
+                        creditoId, ingresoFijoId, aporteId, ingresoPlanId, ajustadoAMano, null);
+            }
+            return new ItemPlan(id, escenarioId, categoriaId, nombre, t.pagoMonto(), t.diaPago(), tipo, cuotaActual, cuotaTotal,
+                    orden, creditoId, ingresoFijoId, aporteId, ingresoPlanId, ajustadoAMano, t.id());
         }
 
         public enum Tipo {

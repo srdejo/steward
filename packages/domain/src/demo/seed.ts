@@ -1,8 +1,9 @@
-import type { Categoria, EstadoHogar, Fecha, Id, IngresoPlan, ItemPlan, MesRef, Movimiento, Origen, PlanMes, TipoItem, TipoMovimiento } from '../model';
+import type { Categoria, Credito, EstadoHogar, Fecha, Id, IngresoPlan, ItemPlan, MesRef, Movimiento, Origen, PlanMes, Tarjeta, TipoItem, TipoMovimiento } from '../model';
 import { fechaEnMes, mesDe, sumarMeses } from '../rules/base';
 
-/** Version del esquema guardado: si cambia, el adaptador vuelve a sembrar. 2: diezmo como gasto y lineas de ingreso; 3: el diezmo enlazado a su linea. */
-export const VERSION_ESQUEMA = 3;
+/** Version del esquema guardado: si cambia, el adaptador vuelve a sembrar. 2: diezmo como gasto y lineas de ingreso; 3: el diezmo enlazado a su linea;
+ * 4: tarjetas y creditos con metodo; 5: la categoria Tarjetas (tarjetas-y-creditos). */
+export const VERSION_ESQUEMA = 5;
 
 export const DANIEL = 'u-daniel';
 export const ESPOSA = 'u-esposa';
@@ -10,8 +11,9 @@ export const ESPOSA = 'u-esposa';
 const CATEGORIAS: Categoria[] = [
   { id: 'cat-diezmo', nombre: 'Diezmo', color: '#0F766E', orden: 0, tipo: 'DIEZMO', sistema: true },
   { id: 'cat-fijos', nombre: 'Gastos fijos', color: '#E2551B', orden: 1, tipo: 'FIJO', sistema: true },
-  { id: 'cat-tarjetas', nombre: 'Tarjetas y cuotas', color: '#7C4DDB', orden: 2, tipo: 'TARJETA', sistema: true },
-  { id: 'cat-variables', nombre: 'Variables', color: '#8D8F88', orden: 3, tipo: 'VARIABLE', sistema: true },
+  { id: 'cat-variables', nombre: 'Variables', color: '#8D8F88', orden: 2, tipo: 'VARIABLE', sistema: true },
+  // Las lineas de las tarjetas van en Tarjetas; las compras a cuotas y los prestamos, en Creditos (tarjetas-y-creditos).
+  { id: 'cat-tarjetas', nombre: 'Tarjetas', color: '#7C4DDB', orden: 3, tipo: 'TARJETA', sistema: true },
   { id: 'cat-creditos', nombre: 'Créditos', color: '#2E6B45', orden: 4, tipo: 'CREDITO', sistema: true },
 ];
 
@@ -25,11 +27,13 @@ interface DefItem {
   cuota?: { actual: number; total: number };
   credito?: Id;
   ingreso?: Id;
+  tarjeta?: Id;
 }
 
 /**
- * Plan de octubre de los artboards: fijos $795.000, tarjetas $2.675.000, variables $720.000, creditos $500.000, y el diezmo del
- * salario como gasto sin pagar (design D6 de diezmo-como-gasto): el plan sigue en $5.390.000.
+ * Plan de octubre de los artboards: fijos $795.000, tarjetas $2.620.000, creditos $875.000 (la compra a cuotas y el prestamo), variables
+ * $400.000, y el diezmo del salario como gasto sin pagar (design D6 de diezmo-como-gasto): el plan sigue en $5.390.000.
+ * La tarjeta Nu es la linea de Mercado (HoyWeb.dc.html de tarjetas-y-creditos).
  */
 const ITEMS: DefItem[] = [
   { id: 'diezmo-salario', cat: 'cat-diezmo', nombre: 'Diezmo · Salario Daniel', monto: 700_000, dia: 25, tipo: 'DIEZMO', ingreso: 'ing-salario' },
@@ -38,10 +42,10 @@ const ITEMS: DefItem[] = [
   { id: 'internet', cat: 'cat-fijos', nombre: 'Internet', monto: 120_000, dia: 10, tipo: 'FIJO' },
   { id: 'luz', cat: 'cat-fijos', nombre: 'Recibo Luz', monto: 50_000, dia: 12, tipo: 'FIJO' },
   { id: 'gas', cat: 'cat-fijos', nombre: 'Gas', monto: 25_000, dia: 14, tipo: 'FIJO' },
-  { id: 'mastercard', cat: 'cat-tarjetas', nombre: 'Tarjeta Mastercard', monto: 1_500_000, dia: 30, tipo: 'FIJO' },
-  { id: 'visa', cat: 'cat-tarjetas', nombre: 'Tarjeta Visa', monto: 800_000, dia: 18, tipo: 'FIJO' },
-  { id: 'cuotas', cat: 'cat-tarjetas', nombre: 'Compra a cuotas', monto: 375_000, dia: 20, tipo: 'CUOTA', cuota: { actual: 4, total: 12 } },
-  { id: 'mercado', cat: 'cat-variables', nombre: 'Mercado', monto: 320_000, dia: null, tipo: 'VARIABLE' },
+  { id: 'mastercard', cat: 'cat-tarjetas', nombre: 'Tarjeta Mastercard', monto: 1_500_000, dia: 30, tipo: 'FIJO', tarjeta: 'tar-mastercard' },
+  { id: 'visa', cat: 'cat-tarjetas', nombre: 'Tarjeta Visa · Gasolina', monto: 800_000, dia: 6, tipo: 'FIJO', tarjeta: 'tar-visa' },
+  { id: 'cuotas', cat: 'cat-creditos', nombre: 'Compra a cuotas', monto: 375_000, dia: 20, tipo: 'CREDITO', credito: 'cred-cuotas' },
+  { id: 'mercado', cat: 'cat-tarjetas', nombre: 'Tarjeta Nu · Mercado', monto: 320_000, dia: 28, tipo: 'FIJO', tarjeta: 'tar-nu' },
   { id: 'transporte', cat: 'cat-variables', nombre: 'Transporte', monto: 250_000, dia: null, tipo: 'VARIABLE' },
   { id: 'apoyo', cat: 'cat-variables', nombre: 'Apoyo familiar', monto: 150_000, dia: null, tipo: 'VARIABLE' },
   { id: 'cuota-credito', cat: 'cat-creditos', nombre: 'Cuota libre inversión', monto: 500_000, dia: 15, tipo: 'CREDITO', credito: 'cred-libre' },
@@ -52,7 +56,31 @@ function items(prefijo: string, cuotaExtra = 0): ItemPlan[] {
     id: `${prefijo}-${d.id}`, categoriaId: d.cat, nombre: d.nombre, monto: d.monto, diaVence: d.dia, tipo: d.tipo,
     cuota: d.cuota ? { actual: d.cuota.actual + cuotaExtra, total: d.cuota.total } : null, creditoId: d.credito ?? null,
     ingresoFijoId: d.ingreso ?? null, aporteId: null, ingresoPlanId: d.ingreso ? `${prefijo}-ing-salario` : null, ajustadoAMano: false,
+    tarjetaId: d.tarjeta ?? null,
   }));
+}
+
+/** Tarjetas de los artboards TarjetasWeb y TarjetasMovil. */
+const TARJETAS: Tarjeta[] = [
+  { id: 'tar-nu', nombre: 'Nu', diaCorte: 13, diaPago: 28, uso: 'Mercado', pago: { tipo: 'COMPLETA', estimado: 320_000 } },
+  { id: 'tar-mastercard', nombre: 'Mastercard', diaCorte: 15, diaPago: 30, uso: '', pago: { tipo: 'FIJO', monto: 1_500_000 } },
+  { id: 'tar-visa', nombre: 'Visa', diaCorte: 21, diaPago: 6, uso: 'Gasolina', pago: { tipo: 'COMPLETA', estimado: 800_000 } },
+];
+
+/** Creditos de CreditosWeb: el prestamo con la tasa y la compra a cuotas con su plan de pagos. */
+function creditos(M: MesRef, ant1: MesRef): Credito[] {
+  return [
+    {
+      id: 'cred-libre', nombre: 'Libre inversión', entidad: 'Davivienda', saldo: 14_250_000, saldoActualizadoEn: fechaEnMes(M, 25), cuota: 500_000, tasaEM: 1.6,
+      diaPago: 15, totalOriginal: 22_500_000, pagos: [{ fecha: fechaEnMes(M, 15), monto: 500_000, tipo: 'CUOTA' }, { fecha: fechaEnMes(ant1, 15), monto: 500_000, tipo: 'CUOTA' }],
+      metodo: 'TASA', numeroCuotas: null, cuotasPagadas: 22, valorFinanciado: null,
+    },
+    {
+      id: 'cred-cuotas', nombre: 'Compra a cuotas', entidad: 'Almacén', saldo: 3_375_000, saldoActualizadoEn: fechaEnMes(ant1, 20), cuota: 375_000, tasaEM: 0,
+      diaPago: 20, totalOriginal: 4_500_000, pagos: [{ fecha: fechaEnMes(ant1, 20), monto: 375_000, tipo: 'CUOTA' }],
+      metodo: 'PLAN', numeroCuotas: 12, cuotasPagadas: 3, valorFinanciado: 4_500_000,
+    },
+  ];
 }
 
 /** Linea de ingreso de cada opcion: el salario con su neto (design D8). */
@@ -93,7 +121,6 @@ export function crearSemilla(hoy: Fecha): EstadoHogar {
   pago('transporte', 3, 150_000, DANIEL, cuenta('cta-davivienda'), 'GASTO');
   pago('pension', 5, 550_000, DANIEL, cuenta('cta-davivienda'));
   pago('apoyo', 6, 150_000, DANIEL, cuenta('cta-davivienda'), 'GASTO');
-  pago('mercado', 7, 100_000, DANIEL, cuenta('cta-davivienda'), 'GASTO');
   pago('celular', 8, 50_000, DANIEL, cuenta('cta-nu'));
   pago('internet', 10, 75_000, DANIEL, cuenta('cta-davivienda'));
   pago('luz', 12, 38_000, ESPOSA, { tipo: 'EXTERNA' });
@@ -102,7 +129,6 @@ export function crearSemilla(hoy: Fecha): EstadoHogar {
   mov('APORTE', M, 16, 1_000_000, ESPOSA, cuenta('cta-davivienda'));
   pago('transporte', 17, 100_000, DANIEL, cuenta('cta-nu'), 'GASTO');
   pago('visa', 18, 800_000, DANIEL, cuenta('cta-nu'));
-  pago('mercado', 21, 80_000, DANIEL, cuenta('cta-nu'), 'GASTO');
   mov('INGRESO_FIJO', M, 25, 6_288_000, DANIEL, cuenta('cta-davivienda'), { ingresoFijoId: 'ing-salario', bruto: 7_000_000 });
   // Aporte de la esposa registrado para el mes siguiente (Planear: "Registrado el 26 oct").
   mov('APORTE', sig, 26, 2_000_000, ESPOSA, { tipo: 'NINGUNO' }, { fecha: f(M, 26) });
@@ -153,10 +179,8 @@ export function crearSemilla(hoy: Fecha): EstadoHogar {
       { id: 'cta-efectivo', nombre: 'Efectivo', titularId: null, saldoCuadre: 200_000, fechaCuadre: f(M, 24), cuadrada: true, seqCuadre: seq },
       { id: 'cta-ahorros-esposa', nombre: 'Ahorros Esposa', titularId: ESPOSA, saldoCuadre: 1_420_000, fechaCuadre: f(ant1, 20), cuadrada: true, seqCuadre: seq },
     ],
-    creditos: [{
-      id: 'cred-libre', nombre: 'Libre inversión', entidad: 'Davivienda', saldo: 14_250_000, saldoActualizadoEn: f(M, 25), cuota: 500_000, tasaEM: 1.6,
-      diaPago: 15, totalOriginal: 22_500_000, pagos: [{ fecha: f(M, 15), monto: 500_000, tipo: 'CUOTA' }, { fecha: f(ant1, 15), monto: 500_000, tipo: 'CUOTA' }],
-    }],
+    creditos: creditos(M, ant1),
+    tarjetas: TARJETAS.map((t) => ({ ...t, pago: { ...t.pago } })),
     categorias: [...CATEGORIAS, { id: 'cat-ahorro', nombre: 'Ahorro', color: '#1E5A4C', orden: 5, tipo: 'OTRO', sistema: false }],
     planes: [
       { ...plan('plan-m-2', ant2, 'CERRADO', 'm-2', -2) },
@@ -185,9 +209,9 @@ export function crearSemilla(hoy: Fecha): EstadoHogar {
         anio: anioSig, estado: 'BORRADOR', base: null,
         filas: [
           { categoriaId: 'cat-fijos', montos: doce(795_000) },
-          { categoriaId: 'cat-tarjetas', montos: doce(2_675_000) },
-          { categoriaId: 'cat-variables', montos: [...doce(720_000).slice(0, 11), 1_400_000] },
-          { categoriaId: 'cat-creditos', montos: doce(500_000) },
+          { categoriaId: 'cat-variables', montos: [...doce(400_000).slice(0, 11), 1_080_000] },
+          { categoriaId: 'cat-tarjetas', montos: doce(2_620_000) },
+          { categoriaId: 'cat-creditos', montos: doce(875_000) },
         ],
         eventos: [
           { id: 'ev2-prima-jun', nombre: 'Prima', mes: 6, monto: 3_500_000, tipo: 'INGRESO', usuarioId: DANIEL, categoriaId: null, enAdelante: false },
@@ -214,6 +238,7 @@ export function crearHogarVacio(): EstadoHogar {
     ingresosFijos: [],
     cuentas: [],
     creditos: [],
+    tarjetas: [],
     categorias: CATEGORIAS.map((c) => ({ ...c })),
     planes: [],
     movimientos: [],

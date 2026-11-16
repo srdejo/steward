@@ -888,7 +888,9 @@ describe('pantallas con finanzas reales (backend-ingresos-diezmo)', () => {
     const a = await entrarA('/cuentas');
     expect(a.raiz().querySelector('[data-cuenta="Nu"]')?.textContent).toContain('Ana María');
     expect(a.raiz().querySelector('[data-cuenta="Davivienda"]')).toBeNull();
+    await a.tocar('Créditos', '[role="tab"]');
     expect(a.texto()).toContain('Sin créditos.');
+    await a.tocar('Cuentas', '[role="tab"]');
     await a.tocar('Cuadrar cuentas');
     expect(a.url()).toBe('/cuentas/cuadrar');
     await atenderHogar(a);
@@ -1046,21 +1048,22 @@ describe('pantallas con el plan real (backend-plan-mes-hoy)', () => {
     finanzasPrueba.valor = finanzas({ planes: [PLAN_OCT], cuentas: [DAVIVIENDA] });
     const a = await entrarA('/cuentas');
 
-    // + Agregar crédito: su cuota entra a la Opción A de octubre.
-    await a.tocar('+ Agregar', '[aria-label="Agregar crédito"]');
+    // + Crédito, con la tasa: su cuota entra a la Opción A de octubre.
+    await a.tocar('Créditos', '[role="tab"]');
+    await a.tocar('+ Crédito');
     await a.escribir('Nombre', 'Libre inversión');
     await a.escribir('Entidad', 'Bancolombia');
-    await a.escribir('Saldo', '14250000');
+    await a.escribir('Día de pago', '15');
+    await a.escribir('Saldo hoy', '14250000');
     await a.escribir('Total original', '20000000');
     await a.escribir('Cuota', '500000');
-    await a.escribir('Tasa (% EM)', '1,6');
-    await a.escribir('Día de pago', '15');
+    await a.escribir('Tasa (%)', '1,6');
     a.porTexto('Agregar crédito').click();
     finanzasPrueba.valor = finanzas({ planes: [conCuota], cuentas: [DAVIVIENDA], creditos: [CREDITO] });
     const crear = await responder('POST', '/api/creditos', CREDITO, a.estable, 201);
-    expect(crear.request.body).toMatchObject({ nombre: 'Libre inversión', tasaEM: 1.6, diaPago: 15, totalOriginal: 20_000_000 });
+    expect(crear.request.body).toMatchObject({ nombre: 'Libre inversión', metodo: 'TASA', tasaEM: 1.6, diaPago: 15, totalOriginal: 20_000_000, saldo: 14_250_000, cuota: 500_000 });
     await atenderHogar(a);
-    expect(a.texto()).toContain('Libre inversión Cuota $500.000 · 1,6% EM');
+    expect(a.texto()).toContain('Libre inversión Bancolombia Con la tasa · 1,6% EM');
     await a.ir('/hoy');
     await atenderHogar(a);
     expect(a.texto()).toContain('Cuota libre inversión');
@@ -1074,9 +1077,11 @@ describe('pantallas con el plan real (backend-plan-mes-hoy)', () => {
     finanzasPrueba.valor = finanzas({ planes: [conCuota], cuentas: [DAVIVIENDA], creditos: [conPago], movimientos: [pago] });
     await responder('POST', '/api/pagos', pago, a.estable, 201);
     await pagar;
-    await a.ir('/cuentas');
+    await a.ir('/cuentas?pestana=creditos');
     await atenderHogar(a);
     expect(a.texto()).toContain('$13.978.000');
+    await a.ir('/cuentas');
+    await atenderHogar(a);
     expect(a.raiz().querySelector('[data-cuenta="Davivienda"]')?.textContent?.replace(/\s+/g, ' ')).toContain('≈ $3.500.000');
 
     // Abono desde Davivienda.

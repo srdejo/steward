@@ -25,12 +25,15 @@ public interface ICreditoPersistencePort {
     /** Baja el saldo en el abono. Vacio si el abono es mayor que el saldo (y no cambia nada). */
     Mono<Credito> abonar(UUID id, long monto, LocalDate fecha);
 
-    /**
-     * Baja el saldo en la parte de capital de una cuota: el monto menos el interes del mes, sin bajar de cero. La fecha del
-     * saldo no cambia, como en el dominio.
-     */
+    /** Paga una cuota segun el metodo del credito ({@link co.com.srdejo.steward.domain.model.Amortizacion}). La fecha del saldo no cambia. */
     Mono<Long> pagarCuota(UUID id, long monto);
 
-    /** Le devuelve al saldo lo que le bajo un pago o abono borrado (design D3 de usabilidad-plan). */
-    Mono<Void> devolver(UUID id, long capital);
+    /**
+     * Le devuelve al saldo lo que le bajo un pago o abono borrado (design D3 de usabilidad-plan). Si era una cuota, tambien
+     * descuenta la cuota pagada (tarjetas-y-creditos).
+     */
+    Mono<Void> devolver(UUID id, long capital, boolean cuota);
+
+    /** "Cambiar" como baja el saldo: el metodo y sus datos (design D3 de tarjetas-y-creditos). */
+    Mono<Credito> cambiarMetodo(Credito credito);
 }

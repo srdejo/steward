@@ -161,6 +161,8 @@ export interface ItemPlanApi {
   /** DIEZMO: la linea de la opcion de la que sale y si su monto se cambio a mano (design D1 de usabilidad-plan). */
   ingresoPlanId?: string | null;
   ajustadoAMano?: boolean;
+  /** La tarjeta de la que es la linea (design D1 de tarjetas-y-creditos). */
+  tarjetaId?: string | null;
 }
 
 /** Linea de ingreso de una opcion (design D8 de diezmo-como-gasto). */
@@ -209,6 +211,35 @@ export interface CreditoApi {
   totalOriginal: number;
   /** Los ultimos, del mas reciente al mas antiguo. */
   pagos: { fecha: string; monto: number; tipo: 'CUOTA' | 'ABONO' }[];
+  /** Como baja el saldo (design D3 de tarjetas-y-creditos); sin el campo, TASA. */
+  metodo?: 'TASA' | 'PLAN' | 'MANUAL';
+  numeroCuotas?: number | null;
+  cuotasPagadas?: number;
+  valorFinanciado?: number | null;
+}
+
+/** Tarjeta de credito (spec steward-tarjetas): `pagoMonto` es el fijo o, si se paga completa, el estimado. */
+export interface TarjetaApi {
+  id: string;
+  nombre: string;
+  diaCorte: number;
+  diaPago: number;
+  uso: string;
+  pagoTipo: 'COMPLETA' | 'FIJO';
+  pagoMonto: number;
+}
+
+/** Al crear: `itemId` enlaza un item de Creditos del mes en curso en lugar de crear otro. */
+export type TarjetaRequest = Omit<TarjetaApi, 'id'> & { itemId?: string | null };
+
+export interface MetodoCreditoRequest {
+  metodo: 'TASA' | 'PLAN' | 'MANUAL';
+  saldo: number;
+  cuota: number;
+  tasaEM: number;
+  numeroCuotas: number | null;
+  cuotasPagadas: number;
+  valorFinanciado: number | null;
 }
 
 /** La foto del cierre que guardo el backend (design D1 de backend-cierre-mes). */
@@ -251,6 +282,8 @@ export interface FinanzasApi {
   /** Los de esos meses, mas los de antes que todavia cuentan en el saldo estimado de una cuenta. */
   movimientos: MovimientoApi[];
   creditos: CreditoApi[];
+  /** Sin el campo (backend de antes de V12): ninguna. */
+  tarjetas?: TarjetaApi[];
   /** Desde tres meses antes del mes en curso: el del mes anterior a los planes trae su "Sobrante de {mes}". */
   cierres: CierreApi[];
   /** Desde el año del primer mes que se lee. */
@@ -525,6 +558,22 @@ export class Api {
 
   crearCredito(datos: Omit<CreditoApi, 'id' | 'saldoActualizadoEn' | 'pagos'>): Promise<CreditoApi> {
     return this.t.pedir<CreditoApi>('POST', '/api/creditos', datos);
+  }
+
+  cambiarMetodoCredito(id: string, datos: MetodoCreditoRequest): Promise<CreditoApi> {
+    return this.t.pedir<CreditoApi>('PUT', `/api/creditos/${encodeURIComponent(id)}/metodo`, datos);
+  }
+
+  crearTarjeta(datos: TarjetaRequest): Promise<TarjetaApi> {
+    return this.t.pedir<TarjetaApi>('POST', '/api/tarjetas', datos);
+  }
+
+  editarTarjeta(id: string, datos: Omit<TarjetaApi, 'id'>): Promise<TarjetaApi> {
+    return this.t.pedir<TarjetaApi>('PUT', `/api/tarjetas/${encodeURIComponent(id)}`, datos);
+  }
+
+  quitarTarjeta(id: string): Promise<void> {
+    return this.t.pedir<void>('DELETE', `/api/tarjetas/${encodeURIComponent(id)}`);
   }
 
   actualizarSaldoCredito(id: string, saldo: number): Promise<CreditoApi> {

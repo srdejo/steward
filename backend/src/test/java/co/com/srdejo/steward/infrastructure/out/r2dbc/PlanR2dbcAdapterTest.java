@@ -60,7 +60,7 @@ class PlanR2dbcAdapterTest {
     @Test
     void categoriasEnOrdenYSinRepetir() {
         StepVerifier.create(categorias.delHogar(hogar).map(Categoria::nombre))
-                .expectNext("Diezmo", "Gastos fijos", "Tarjetas y cuotas", "Variables", "Créditos")
+                .expectNext("Diezmo", "Gastos fijos", "Variables", "Tarjetas", "Créditos")
                 .verifyComplete();
         Categoria repetida = new Categoria(UUID.randomUUID(), hogar, "variables", "#000", 5, Categoria.Tipo.OTRO, false);
         StepVerifier.create(categorias.crear(repetida))

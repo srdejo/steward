@@ -3,7 +3,7 @@
 PWA de Presupuesto Hogar en Angular 22 (standalone, signals, zoneless), con Tailwind 4 y service worker. Una sola base responsive: por debajo de 1024 px se ve como app móvil, con barra inferior Ejecución · Plan · Cuentas; desde 1024 px, con menú lateral, que suma Ajustes como cuarto destino.
 
 Las páginas con vista de escritorio leen el ancho con `anchoEscritorio()` (`shared/escritorio.ts`); en las pruebas se simula con `anchoDeVentana(px)` de `testing/harness.ts`. Desde 1024 px:
-- **Cuentas** (`CuentasWeb.dc.html`): pestañas Cuentas · Tarjetas · Créditos, el cuadre en tabla en la misma página (la lógica está en `features/cuentas/estado-cuadre.ts`, compartida con `/cuentas/cuadrar`) y "Movimientos recientes" de todas las cuentas, armados con `movimientos(id)` de cada una.
+- **Cuentas** (`CuentasWeb.dc.html`): el cuadre en tabla en la misma página (la lógica está en `features/cuentas/estado-cuadre.ts`, compartida con `/cuentas/cuadrar`), "Movimientos recientes" de todas las cuentas, armados con `movimientos(id)` de cada una, y los resúmenes de tarjetas y créditos.
 - **Cierre** (`CierreWeb.dc.html`): plan frente a lo real con diferencia y uso del plan, "Para tener en cuenta en {mes}" y el reparto al lado.
 - **Ajustes** (`AjustesWeb.dc.html`): las secciones como tarjetas en cuadrícula, con "Invitar por correo" en la tarjeta Hogar.
 - **Acceso** (`AccesoWeb.dc.html`): dos paneles, solo con CSS (el botón de Google se dibuja una vez).
@@ -31,7 +31,12 @@ Tiene dos **modos de datos** (`src/app/config/modo.ts`):
 
 **Al pasar a la Etapa 4, el plan de prueba desaparece en modo conectado.** Hoy y Planear muestran solo los planes reales. Un hogar que todavía no tiene el plan del mes en curso (por ejemplo, "Jimenez Navarro" en `steward.test`) ve en Hoy "Este mes no tiene plan" y lo crea desde Planear, con "Empezar desde cero" o "Solo fijos e ingresos". Desde la Etapa 8 tampoco hay plan anual de prueba: un año sin anual abre el paso del mes base.
 
-**Al pasar a la Etapa 5, los créditos de prueba también desaparecen.** Cuentas muestra "Sin créditos." hasta que se agregan con "+ Agregar" en Créditos. La cuota de un crédito entra sola al plan del mes en curso (si ya tiene plan) y a los meses que se creen después.
+**Tarjetas y créditos** (cambio `tarjetas-y-creditos`). Cuentas tiene tres pestañas, en móvil y escritorio, que se abren con `?pestana=tarjetas|creditos`:
+- **Tarjetas** (`features/cuentas/tarjetas-tab.ts`, `TarjetasWeb` y `TarjetasMovil`): "Por pagar este ciclo", las próximas fechas (calendario de 5 semanas en escritorio, lista en móvil) y cada tarjeta con su próximo pago y corte y su ayuda; `tarjeta-hoja.ts` agrega, edita o quita. La tarjeta es la línea del plan (`ItemPlan.tarjetaId`) y no lleva deuda.
+- **Créditos** (`features/cuentas/creditos-tab.ts`, `CreditosWeb` y `CreditosMovil`): lo que deben y pagan, los indicadores del año, la tabla con el crédito elegido al lado y la proyección a 6 meses. `metodo-hoja.ts` es "¿Cómo baja el saldo?" (con la tasa EM o EA, con el plan de pagos o a mano), para agregar y para "Cambiar".
+- Las cifras salen de `rules/tarjetas.ts` y `rules/credito.ts` del dominio, como en la app.
+
+**Al pasar a la Etapa 5, los créditos de prueba también desaparecen.** La pestaña Créditos muestra "Sin créditos." hasta que se agregan con "+ Crédito". La cuota de un crédito entra sola al plan del mes en curso (si ya tiene plan) y a los meses que se creen después.
 
 Los datos de prueba viven en el navegador (`localStorage`, clave `steward-demo/v1`) y se restablecen desde Ajustes. Mientras algún módulo los use, se ve el aviso "Datos de prueba". En modo conectado no existe "Probar desde cero" y la sesión es un JWT en `localStorage` (`steward/sesion`).
 

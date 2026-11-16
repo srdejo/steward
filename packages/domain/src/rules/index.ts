@@ -5,6 +5,7 @@ export * from './ejecucion';
 export * from './cuentas';
 export * from './registros';
 export * from './credito';
+export * from './tarjetas';
 export * from './plan';
 export * from './anual';
 export * from './cierre';

@@ -3,13 +3,25 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Modal, View } from 'react-native';
 
+import { mesCorto } from '@/components/cuentas-creditos';
+import { MetodoCredito } from '@/components/metodo-credito';
 import { useAccion, useConsulta, usePuertos } from '@/data/puertos';
 import { Aviso, Boton, colors, Encabezado, fonts, Monto, MontoInput, Pantalla, Texto, CuerpoModal } from '@/ui';
 
 /** Abono que muestra el simulador al abrir (el de la Opción C de los artboards). */
 const ABONO_INICIAL = 1_500_000;
 
-/** Credito.dc.html: saldo, avance, cuota, tasa y dia de pago, simulador con "Probarlo como opción" y ultimos pagos. */
+const METODO = { TASA: 'Baja solo con la tasa', PLAN: 'Sigue el plan de pagos', MANUAL: 'Lo actualizas a mano' } as const;
+const DETALLE = {
+  TASA: 'Al marcar la cuota pagada, se descuenta el capital.',
+  PLAN: 'Al pagar una cuota, el saldo queda en lo que dice la tabla para esa cuota.',
+  MANUAL: 'Escribe el saldo cuando llegue el extracto.',
+} as const;
+
+/**
+ * Credito.dc.html: saldo, como baja (con "Cambiar"), avance de cuotas, cuota, dia de pago y cuando termina, las proximas
+ * cuotas, el simulador con "Probarlo como opción" y los ultimos pagos (spec steward-cuentas, tarjetas-y-creditos).
+ */
 export default function Credito() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const puertos = usePuertos();
@@ -20,6 +32,7 @@ export default function Credito() {
   const accion = useAccion();
   const [hoja, setHoja] = useState<'saldo' | 'abono' | null>(null);
   const [monto, setMonto] = useState<number | null>(null);
+  const [cambiando, setCambiando] = useState(false);
   const v = vista.data;
 
   if (!v) return <Pantalla><Texto v="pequeno">{vista.isLoading ? 'Cargando…' : 'Ese crédito no existe.'}</Texto></Pantalla>;
@@ -27,12 +40,26 @@ export default function Credito() {
 
   return (
     <Pantalla>
-      <Encabezado titulo={c.nombre} rotulo={`Crédito · ${c.entidad}`} volver="/cuentas" volverTexto="Cuentas" />
+      <Encabezado titulo={c.nombre} rotulo={`Crédito · ${c.entidad}`} volver="/cuentas?pestana=creditos" volverTexto="Créditos" />
       <View style={{ gap: 6, marginTop: -12 }}>
         <Monto testID="saldo-credito" valor={c.saldo} style={{ fontSize: 30, fontFamily: fonts.monoSemibold }} />
         <Texto v="pequeno">Saldo actualizado el {formatFechaCorta(c.saldoActualizadoEn)}</Texto>
       </View>
+      <View testID="metodo" style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: 12, borderRadius: 12, backgroundColor: colors.acentoSuave }}>
+        <View style={{ flex: 1, gap: 2 }}>
+          <Texto style={{ fontSize: 14, fontFamily: fonts.semibold }}>{METODO[c.metodo]}{c.metodo === 'MANUAL' ? '' : ` · ${formatTasa(c.tasaEM)}`}</Texto>
+          <Texto v="detalle">{DETALLE[c.metodo]}</Texto>
+        </View>
+        <Boton tipo="texto" titulo="Cambiar" onPress={() => setCambiando(true)} />
+      </View>
+      {v.actualizar && <Texto style={{ fontSize: 13, color: colors.aviso, backgroundColor: colors.avisoSuave, padding: 10, borderRadius: 8, overflow: 'hidden' }}>Ya pasó el día de pago: actualiza el saldo con el extracto.</Texto>}
       <View style={{ gap: 8 }}>
+        {v.progreso && (
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+            <Texto style={{ fontSize: 14, fontFamily: fonts.semibold }}>Cuota {v.progreso.actual} de {v.progreso.total}</Texto>
+            <Texto v="detalle">{v.progreso.actual - 1} pagadas · faltan {v.progreso.total - v.progreso.actual + 1}</Texto>
+          </View>
+        )}
         <View accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: 100, now: v.porcentajePagado }} style={{ height: 8, borderRadius: 4, backgroundColor: colors.borde }}>
           <View style={{ width: `${v.porcentajePagado}%`, height: 8, borderRadius: 4, backgroundColor: colors.acento }} />
         </View>
@@ -44,8 +71,8 @@ export default function Credito() {
       <View style={{ flexDirection: 'row', gap: 8 }}>
         {[
           ['Cuota', <Monto key="c" valor={c.cuota} style={{ fontSize: 13, fontFamily: fonts.monoSemibold }} />],
-          ['Tasa', <Texto key="t" style={{ fontFamily: fonts.monoSemibold, fontSize: 13 }}>{formatTasa(c.tasaEM)}</Texto>],
           ['Paga el', <Texto key="d" style={{ fontFamily: fonts.monoSemibold, fontSize: 13 }}>Día {c.diaPago}</Texto>],
+          ['Termina', <Texto key="t" testID="termina" style={{ fontFamily: fonts.monoSemibold, fontSize: 13 }}>{v.termina ? `${c.metodo === 'TASA' ? '≈ ' : ''}${mesCorto(v.termina)}` : '—'}</Texto>],
         ].map(([etiqueta, valor]) => (
           <View key={etiqueta as string} style={{ flex: 1, gap: 4, padding: 12, borderRadius: 12, backgroundColor: colors.superficie, borderWidth: 1, borderColor: colors.borde }}>
             <Texto style={{ fontSize: 11, color: colors.secundario }}>{etiqueta}</Texto>
@@ -53,6 +80,28 @@ export default function Credito() {
           </View>
         ))}
       </View>
+
+      {v.proximas.length > 0 && (
+        <View style={{ gap: 4 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
+            <Texto v="subtitulo">Próximas cuotas</Texto>
+            {v.cuotasRestantes !== null && <Texto v="detalle">Faltan {v.cuotasRestantes} cuotas</Texto>}
+          </View>
+          {v.proximas.map((q) => (
+            <View key={q.k} testID="cuota-proxima" style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.divisor }}>
+              <Texto style={{ fontSize: 13, width: 80 }}>{q.k}{v.progreso ? ` / ${v.progreso.total}` : ''} {nombreMes(q.ref.mes).slice(0, 3)}</Texto>
+              <Monto valor={q.interes} style={{ fontSize: 12 }} />
+              <Monto valor={q.capital} style={{ fontSize: 12 }} />
+              <Monto valor={q.saldo} style={{ fontSize: 12, fontFamily: fonts.monoSemibold }} />
+            </View>
+          ))}
+          {v.interesesAnioSiguiente > 0 && (
+            <Texto testID="intereses-anio" style={{ fontSize: 13, color: '#8A2A15', backgroundColor: '#FBEDE8', padding: 10, borderRadius: 8, overflow: 'hidden' }}>
+              En {mesDe(puertos.hoy()).anio + 1} pagarías <Monto valor={v.interesesAnioSiguiente} siempreVisible style={{ fontSize: 13, color: '#8A2A15' }} /> en intereses.
+            </Texto>
+          )}
+        </View>
+      )}
 
       <View style={{ gap: 10, padding: 16, borderRadius: 14, backgroundColor: colors.acentoSuave }}>
         <Texto style={{ fontSize: 14, fontFamily: fonts.semibold, color: colors.acentoOscuro }}>¿Y si abonas extra?</Texto>
@@ -79,21 +128,22 @@ export default function Credito() {
       </View>
       <Aviso texto={accion.error} />
       <View style={{ flexDirection: 'row', gap: 8 }}>
-        <Boton tipo="secundario" titulo="Actualizar saldo" onPress={() => setHoja('saldo')} style={{ flex: 1 }} />
+        <Boton tipo="secundario" titulo="Corregir con extracto" onPress={() => setHoja('saldo')} style={{ flex: 1 }} />
         <Boton titulo="Registrar abono" onPress={() => setHoja('abono')} style={{ flex: 1 }} />
       </View>
 
       <Modal visible={hoja !== null} animationType="slide" presentationStyle="formSheet" onRequestClose={() => setHoja(null)}>
         <CuerpoModal>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Texto accessibilityRole="header" style={{ fontFamily: fonts.bold, fontSize: 22 }}>{hoja === 'saldo' ? 'Actualizar saldo' : 'Registrar abono'}</Texto>
+            <Texto accessibilityRole="header" style={{ fontFamily: fonts.bold, fontSize: 22 }}>{hoja === 'saldo' ? 'Corregir con extracto' : 'Registrar abono'}</Texto>
             <Boton tipo="enlace" titulo="Cancelar" onPress={() => setHoja(null)} />
           </View>
-          <MontoInput etiqueta={hoja === 'saldo' ? 'Saldo que dice el banco' : '¿Cuánto abonaste?'} grande valor={monto} onCambio={setMonto} />
+          <MontoInput etiqueta={hoja === 'saldo' ? 'Saldo que dice el extracto' : '¿Cuánto abonaste?'} grande valor={monto} onCambio={setMonto} />
           <Boton titulo="Guardar" deshabilitado={monto === null}
             onPress={() => accion.ejecutar((p) => (hoja === 'saldo' ? p.cuentas.actualizarSaldo(id, monto!) : p.cuentas.registrarAbono(id, monto!, { tipo: 'NINGUNO' }))).then((ok) => { if (ok) { setHoja(null); setMonto(null); } })} />
         </CuerpoModal>
       </Modal>
+      {cambiando && <MetodoCredito credito={c} onCerrar={() => setCambiando(false)} />}
     </Pantalla>
   );
 }

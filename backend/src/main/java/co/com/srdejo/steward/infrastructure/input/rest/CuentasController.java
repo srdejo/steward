@@ -5,6 +5,7 @@ import co.com.srdejo.steward.application.dto.FinanzasDtos.CreditoRequest;
 import co.com.srdejo.steward.application.dto.FinanzasDtos.CreditoResponse;
 import co.com.srdejo.steward.application.dto.FinanzasDtos.CuadreRequest;
 import co.com.srdejo.steward.application.dto.FinanzasDtos.CuentaResponse;
+import co.com.srdejo.steward.application.dto.FinanzasDtos.MetodoCreditoRequest;
 import co.com.srdejo.steward.application.dto.FinanzasDtos.MovimientoResponse;
 import co.com.srdejo.steward.application.dto.FinanzasDtos.OrigenDto;
 import co.com.srdejo.steward.application.dto.FinanzasDtos.SaldoCreditoRequest;
@@ -68,6 +69,12 @@ public class CuentasController {
     @PutMapping("/api/creditos/{id}/saldo")
     public Mono<CreditoResponse> actualizarSaldo(@PathVariable UUID id, @RequestBody SaldoCreditoRequest r) {
         return cuentas.actualizarSaldo(id, r.saldo()).map(CreditoResponse::de);
+    }
+
+    /** "Cambiar" como baja el saldo (design D6 de tarjetas-y-creditos). */
+    @PutMapping("/api/creditos/{id}/metodo")
+    public Mono<CreditoResponse> cambiarMetodo(@PathVariable UUID id, @RequestBody MetodoCreditoRequest r) {
+        return cuentas.cambiarMetodo(id, r.datos()).map(CreditoResponse::de);
     }
 
     /** "Probarlo como opcion de {mes}" (design D2 de backend-opciones-mes): una opcion nueva del mes con el abono extra. */

@@ -21,13 +21,16 @@ public record Categoria(UUID id, UUID hogarId, String nombre, String color, int 
         OTRO
     }
 
-    /** Las cinco del sistema, como en el dominio compartido (seed.ts), en su orden. */
+    /**
+     * Las cinco del sistema, como en el dominio compartido (seed.ts), en su orden. Tarjetas tiene las lineas de las
+     * tarjetas; Creditos, las compras a cuotas y los prestamos (tarjetas-y-creditos, V13).
+     */
     public static List<Categoria> delSistema(UUID hogarId) {
         return List.of(
                 new Categoria(UUID.randomUUID(), hogarId, "Diezmo", "#0F766E", 0, Tipo.DIEZMO, true),
                 new Categoria(UUID.randomUUID(), hogarId, "Gastos fijos", "#E2551B", 1, Tipo.FIJO, true),
-                new Categoria(UUID.randomUUID(), hogarId, "Tarjetas y cuotas", "#7C4DDB", 2, Tipo.TARJETA, true),
-                new Categoria(UUID.randomUUID(), hogarId, "Variables", "#8D8F88", 3, Tipo.VARIABLE, true),
+                new Categoria(UUID.randomUUID(), hogarId, "Variables", "#8D8F88", 2, Tipo.VARIABLE, true),
+                new Categoria(UUID.randomUUID(), hogarId, "Tarjetas", "#7C4DDB", 3, Tipo.TARJETA, true),
                 new Categoria(UUID.randomUUID(), hogarId, "Créditos", "#2E6B45", 4, Tipo.CREDITO, true));
     }
 }

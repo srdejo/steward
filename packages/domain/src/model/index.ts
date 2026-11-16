@@ -101,8 +101,34 @@ export interface Credito {
   diaPago: number;
   totalOriginal: Pesos;
   pagos: PagoCredito[];
+  /** Como baja el saldo (design D3 de tarjetas-y-creditos). Los de antes son TASA. */
+  metodo: MetodoCredito;
+  /** PLAN: numero total de cuotas de la tabla. */
+  numeroCuotas: number | null;
+  /** Cuotas ya pagadas (PLAN; en TASA, si se conoce). */
+  cuotasPagadas: number;
+  /** PLAN: el valor financiado, de donde sale la tabla. */
+  valorFinanciado: Pesos | null;
 }
 
+/** TASA: saldo, tasa y cuota. PLAN: valor, numero de cuotas y tasa (tabla aproximada). MANUAL: el saldo se escribe del extracto. */
+export type MetodoCredito = 'TASA' | 'PLAN' | 'MANUAL';
+
+/** Completa: se paga el valor del extracto (`estimado` es el ultimo pagado). Fijo: siempre el mismo monto. */
+export type PagoTarjeta = { tipo: 'COMPLETA'; estimado: Pesos } | { tipo: 'FIJO'; monto: Pesos };
+
+/** Tarjeta de credito: fechas, uso y como se paga. No lleva deuda ni compras (spec steward-tarjetas). */
+export interface Tarjeta {
+  id: Id;
+  nombre: string;
+  diaCorte: number;
+  diaPago: number;
+  /** "Mercado", "Gasolina"; '' = sin uso. */
+  uso: string;
+  pago: PagoTarjeta;
+}
+
+/** TARJETA: las lineas de las tarjetas de credito; CREDITO: compras a cuotas y prestamos (tarjetas-y-creditos). */
 export type TipoCategoria = 'DIEZMO' | 'FIJO' | 'TARJETA' | 'VARIABLE' | 'CREDITO' | 'OTRO';
 
 export interface Categoria {
@@ -139,6 +165,8 @@ export interface ItemPlan {
   ingresoPlanId: Id | null;
   /** DIEZMO: su monto se cambio a mano; ya no sigue a su linea hasta "Volver a calcular". */
   ajustadoAMano: boolean;
+  /** Tarjeta de la que es la linea del plan (design D1 de tarjetas-y-creditos). Sin el campo = ninguna. */
+  tarjetaId?: Id | null;
 }
 
 /** FIJO sale de Ajustes, EXTRA de un evento del plan anual, OTRO se agrego a mano (design D8 de diezmo-como-gasto). */
@@ -291,6 +319,7 @@ export interface EstadoHogar {
   ingresosFijos: IngresoFijo[];
   cuentas: Cuenta[];
   creditos: Credito[];
+  tarjetas: Tarjeta[];
   categorias: Categoria[];
   planes: PlanMes[];
   movimientos: Movimiento[];

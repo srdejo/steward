@@ -7,7 +7,7 @@ import type {
   ItemPlan, MesRef, Origen, Pesos, PlanMes, ReglaDiezmo, TipoCategoria, Usuario,
 } from '../model';
 import type {
-  ConteoBorrado, DatosCredito, DatosEvento, VistaBase, FiltroTitular, ModoNuevoMes, MovimientoCuenta, ResumenAnual, ResumenMes, ResumenMesPlan, VistaCierre, VistaCuenta, VistaOpcion, VistaRegistro,
+  ConteoBorrado, DatosCredito, DatosMetodo, DatosTarjeta, ItemEnlazable, ResumenCreditos, VistaCredito, VistaTarjetas, DatosEvento, VistaBase, FiltroTitular, ModoNuevoMes, MovimientoCuenta, ResumenAnual, ResumenMes, ResumenMesPlan, VistaCierre, VistaCuenta, VistaOpcion, VistaRegistro,
 } from '../rules';
 import type { compararOpciones, loQueTraeElMes } from '../rules';
 
@@ -154,12 +154,6 @@ export interface PlanPort {
   editarProyeccion(usuarioId: Id, ref: MesRef, monto: Pesos): Promise<void>;
 }
 
-export interface VistaCredito {
-  credito: Credito;
-  cuotasRestantes: number | null;
-  porcentajePagado: number;
-}
-
 export interface CuentasPort {
   cuentas(filtro?: FiltroTitular): Promise<{ cuentas: VistaCuenta[]; total: Pesos }>;
   /** Lo registrado despues del ultimo cuadre de la cuenta. */
@@ -174,10 +168,26 @@ export interface CuentasPort {
   credito(id: Id): Promise<VistaCredito | null>;
   /** "+ Agregar" en Creditos: su cuota entra al plan del mes en curso. */
   agregarCredito(datos: DatosCredito): Promise<void>;
+  /** La pestaña Creditos: indicadores, tabla y proyeccion (spec "Proyeccion de creditos"). */
+  resumenCreditos(): Promise<ResumenCreditos>;
+  /** "Cambiar" en el detalle: otro metodo o sus datos (spec "Como baja el saldo de un credito"). */
+  cambiarMetodo(creditoId: Id, datos: DatosMetodo): Promise<void>;
+  /** "Corregir con extracto". */
   actualizarSaldo(creditoId: Id, saldo: Pesos): Promise<void>;
   registrarAbono(creditoId: Id, monto: Pesos, origen: Origen): Promise<void>;
   simular(creditoId: Id, abono: Pesos): Promise<{ cuotasMenos: number; interesesMenos: Pesos } | null>;
   probarComoOpcion(creditoId: Id, ref: MesRef, abono: Pesos): Promise<{ planId: Id; escenarioId: Id }>;
+}
+
+/** Tarjetas de credito (spec steward-tarjetas). */
+export interface TarjetasPort {
+  vista(): Promise<VistaTarjetas>;
+  /** `itemId`: un item de Creditos del mes en curso que pasa a ser la linea de la tarjeta. */
+  agregar(datos: DatosTarjeta & { itemId?: Id | null }): Promise<void>;
+  editar(id: Id, datos: DatosTarjeta): Promise<void>;
+  quitar(id: Id): Promise<void>;
+  /** Items de Creditos del mes en curso que se pueden enlazar a una tarjeta nueva. */
+  enlazables(): Promise<ItemEnlazable[]>;
 }
 
 export interface CierrePort {
@@ -199,6 +209,7 @@ export interface Puertos {
   movimientos: MovimientosPort;
   plan: PlanPort;
   cuentas: CuentasPort;
+  tarjetas: TarjetasPort;
   cierre: CierrePort;
   demo: DemoPort | null;
   /** Fecha de hoy segun el reloj de la app. */

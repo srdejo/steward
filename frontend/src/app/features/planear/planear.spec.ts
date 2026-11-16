@@ -108,10 +108,10 @@ describe('Planear (steward-planear)', () => {
     await conSesion();
     const a = await app('/planear/2026-11');
     await a.tocar(/^Variables/);
-    await a.tocar(/^Mercado/);
+    await a.tocar(/^Transporte/);
     await a.escribir('Monto', '420000');
     await a.tocar('Guardar');
-    expect(a.raiz().querySelector('[data-testid="dejaria-libre"]')!.textContent!.trim()).toBe('$2.798.000');
+    expect(a.raiz().querySelector('[data-testid="dejaria-libre"]')!.textContent!.trim()).toBe('$2.728.000');
   });
 
   it('el tipo sale de la categoría y abrir y guardar no lo cambia (plan-mes-siguiente)', async () => {
@@ -129,12 +129,10 @@ describe('Planear (steward-planear)', () => {
     await a.tocar('+ Gasto');
     await a.escribir('Nombre', 'Nevera');
     await a.escribir('Monto', '300000');
-    await a.tocar('Tarjetas y cuotas', 'app-hoja [role="radio"]');
-    await a.tocar(/.*/, 'app-hoja [role="switch"]');
-    await a.escribir('Cuota actual', '4');
-    await a.escribir('De cuántas', '12');
+    // Créditos reúne tarjetas, cuotas y préstamos (tarjetas-y-creditos): su gasto es de tipo CREDITO.
+    await a.tocar('Créditos', 'app-hoja [role="radio"]');
     await a.tocar('Guardar');
-    expect(await item('Nevera')).toMatchObject({ tipo: 'CUOTA', cuota: { actual: 4, total: 12 } });
+    expect(await item('Nevera')).toMatchObject({ tipo: 'CREDITO', cuota: null });
 
     // Un Fijo en Variables, de antes, conserva su tipo.
     const raro = (await p.hogar.categorias()).find((c) => c.tipo === 'VARIABLE')!;
@@ -167,7 +165,7 @@ describe('Planear (steward-planear)', () => {
     await conSesion();
     const a = await app('/planear/2026-11');
     await a.tocar(/^Variables/);
-    await a.tocar(/^Mercado/);
+    await a.tocar(/^Transporte/);
     await a.escribir('Monto', '420000');
     await a.tocar('Cancelar');
     expect(a.raiz().querySelector('[data-testid="dejaria-libre"]')!.textContent!.trim()).toBe('$2.898.000');
@@ -200,10 +198,10 @@ describe('Planear (steward-planear)', () => {
     expect(a.porTexto(/^Variables/).textContent).toContain('›');
     await a.tocar(/^Variables/);
     expect(a.porTexto(/^Variables/).textContent).toContain('⌄');
-    await a.tocar(/^Mercado/);
+    await a.tocar(/^Transporte/);
     await a.escribir('Monto', '400000');
     await a.tocar('Guardar');
-    expect((await p.plan.mes(OCT)).opciones[0]!.escenario.items.find((i) => i.nombre === 'Mercado')!.monto).toBe(400_000);
+    expect((await p.plan.mes(OCT)).opciones[0]!.escenario.items.find((i) => i.nombre === 'Transporte')!.monto).toBe(400_000);
   });
 
   it('un mes cerrado sigue en solo lectura (usabilidad-plan)', async () => {
@@ -245,7 +243,7 @@ describe('Planear (steward-planear)', () => {
     const a = await app('/planear/2026-11/comparar');
     const resaltadas = () => [...a.raiz().querySelectorAll('tr[data-cambia="true"] th')].map((th) => th.firstElementChild!.textContent!.trim());
     expect(resaltadas()).toEqual(['Variables', 'Créditos', 'Ahorro']);
-    expect(a.texto()).toContain('Sin cambios Diezmo, Gastos fijos, Tarjetas y cuotas 4.170.000 4.170.000 4.170.000');
+    expect(a.texto()).toContain('Sin cambios Diezmo, Gastos fijos, Tarjetas 4.115.000 4.115.000 4.115.000');
     expect(a.texto()).toContain('Queda libre 2.898.000 1.298.000 1.398.000');
     expect(a.raiz().querySelector('[data-testid="tabla-comparar"]')!.classList).toContain('overflow-x-auto');
     await a.tocar('Mostrar solo lo que cambia', 'label');
@@ -258,7 +256,8 @@ describe('Planear (steward-planear)', () => {
     const pagar = (itemId: string, monto: number) => p.movimientos.marcarPago({ itemId, ref: OCT, monto, usuarioId: 'u-daniel', origen: { tipo: 'CUENTA', cuentaId: 'cta-davivienda' } });
     await pagar('m0-mastercard', 1_500_000);
     await pagar('m0-cuotas', 375_000);
-    await p.movimientos.registrarGasto({ monto: 140_000, itemId: 'm0-mercado', nota: '', usuarioId: 'u-daniel', origen: { tipo: 'NINGUNO' }, ref: OCT });
+    // Mercado es la tarjeta Nu: se paga con el valor del extracto (tarjetas-y-creditos).
+    await pagar('m0-mercado', 320_000);
     await p.movimientos.registrarGasto({ monto: 112_000, itemId: null, nota: 'Farmacia', usuarioId: 'u-daniel', origen: { tipo: 'NINGUNO' }, ref: OCT });
     // El diezmo es un item del plan: se marca pagado como los demas (diezmo-como-gasto).
     await p.movimientos.marcarPago({ itemId: 'm0-diezmo-salario', ref: OCT, monto: 700_000, usuarioId: 'u-daniel', origen: { tipo: 'NINGUNO' } });
@@ -291,7 +290,7 @@ describe('Planear (steward-planear)', () => {
     anchoDeVentana(1280);
     try {
       const p = await conSesion();
-      await p.movimientos.registrarGasto({ monto: 800_000, itemId: 'm0-mercado', nota: '', usuarioId: 'u-daniel', origen: { tipo: 'NINGUNO' }, ref: OCT });
+      await p.movimientos.registrarGasto({ monto: 80_000, itemId: 'm0-transporte', nota: '', usuarioId: 'u-daniel', origen: { tipo: 'NINGUNO' }, ref: OCT });
       await p.cuentas.cuadrar([{ cuentaId: 'cta-efectivo', saldoBanco: 150_000 }]);
       const a = await app('/planear/2026-10/cierre');
       expect(a.texto()).toContain('Octubre 2026 terminó con');

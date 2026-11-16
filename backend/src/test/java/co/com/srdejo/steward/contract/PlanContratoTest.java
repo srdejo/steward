@@ -32,8 +32,8 @@ class PlanContratoTest extends ContratoBase {
     @Test
     void hogarNuevoConLasCategoriasDelSistema() {
         get(daniel, "/api/finanzas").expectBody()
-                .jsonPath("$.categorias[*].nombre").isEqualTo(List.of("Diezmo", "Gastos fijos", "Tarjetas y cuotas", "Variables", "Créditos"))
-                .jsonPath("$.categorias[*].tipo").isEqualTo(List.of("DIEZMO", "FIJO", "TARJETA", "VARIABLE", "CREDITO"))
+                .jsonPath("$.categorias[*].nombre").isEqualTo(List.of("Diezmo", "Gastos fijos", "Variables", "Tarjetas", "Créditos"))
+                .jsonPath("$.categorias[*].tipo").isEqualTo(List.of("DIEZMO", "FIJO", "VARIABLE", "TARJETA", "CREDITO"))
                 .jsonPath("$.categorias[0].sistema").isEqualTo(true);
     }
 
@@ -70,9 +70,9 @@ class PlanContratoTest extends ContratoBase {
     void copiarMesAnteriorAvanzaCuotasYSoloFijosDejaVariablesEnCero() {
         Map<?, ?> actual = crearPlan(daniel, MES, "CERO");
         String esc = escenario(actual);
-        item(daniel, actual, esc, "Compra a cuotas", 375_000, "CUOTA", categoria(daniel, "Tarjetas y cuotas"), 4, 12);
+        item(daniel, actual, esc, "Compra a cuotas", 375_000, "CUOTA", categoria(daniel, "Créditos"), 4, 12);
         item(daniel, actual, esc, "Mercado", 320_000, "VARIABLE", categoria(daniel, "Variables"), null, null);
-        item(daniel, actual, esc, "Última cuota", 100_000, "CUOTA", categoria(daniel, "Tarjetas y cuotas"), 12, 12);
+        item(daniel, actual, esc, "Última cuota", 100_000, "CUOTA", categoria(daniel, "Créditos"), 12, 12);
 
         post(daniel, "/api/planes", Map.of("anio", MES.plusMonths(1).getYear(), "mes", MES.plusMonths(1).getMonthValue(), "modo", "COPIAR"))
                 .expectStatus().isCreated().expectBody()

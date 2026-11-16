@@ -1,4 +1,4 @@
-import type { Categoria, CierreMes, Credito, PlanAnual, Cuenta, EstadoHogar, IngresoFijo, IngresoPlan, ItemPlan, Movimiento, Origen, PlanMes, ReglaDiezmo } from '../index';
+import type { Categoria, CierreMes, Credito, PlanAnual, Tarjeta, Cuenta, EstadoHogar, IngresoFijo, IngresoPlan, ItemPlan, Movimiento, Origen, PlanMes, ReglaDiezmo } from '../index';
 
 import {
   usuarioDe,
@@ -11,6 +11,7 @@ import {
   type MovimientoApi,
   type PlanApi,
   type ReglaDiezmoApi,
+  type TarjetaApi,
   type UsuarioApi,
 } from './api';
 
@@ -47,6 +48,7 @@ export function superponerFinanzas(estado: EstadoHogar, finanzas: FinanzasApi, m
       (c): Cuenta => ({ id: c.id, nombre: c.nombre, titularId: c.titularId, saldoCuadre: c.saldoCuadre, fechaCuadre: c.fechaCuadre, cuadrada: c.cuadrada, seqCuadre: base + c.seqCuadre }),
     ),
     creditos: finanzas.creditos.map(credito),
+    tarjetas: (finanzas.tarjetas ?? []).map(tarjeta),
     planes: finanzas.planes.map(plan),
     movimientos: reales,
     cierres: finanzas.cierres.map(cierre),
@@ -93,6 +95,14 @@ export function credito(c: CreditoApi): Credito {
   return {
     id: c.id, nombre: c.nombre, entidad: c.entidad, saldo: c.saldo, saldoActualizadoEn: c.saldoActualizadoEn, cuota: c.cuota,
     tasaEM: c.tasaEM, diaPago: c.diaPago, totalOriginal: c.totalOriginal, pagos: c.pagos.map((p) => ({ ...p })),
+    metodo: c.metodo ?? 'TASA', numeroCuotas: c.numeroCuotas ?? null, cuotasPagadas: c.cuotasPagadas ?? 0, valorFinanciado: c.valorFinanciado ?? null,
+  };
+}
+
+export function tarjeta(t: TarjetaApi): Tarjeta {
+  return {
+    id: t.id, nombre: t.nombre, diaCorte: t.diaCorte, diaPago: t.diaPago, uso: t.uso,
+    pago: t.pagoTipo === 'FIJO' ? { tipo: 'FIJO', monto: t.pagoMonto } : { tipo: 'COMPLETA', estimado: t.pagoMonto },
   };
 }
 
@@ -111,7 +121,7 @@ function plan(p: PlanApi): PlanMes {
       ingresos: (e.ingresos ?? []).map((l): IngresoPlan => ({ id: l.id, nombre: l.nombre, monto: l.monto, usuarioId: l.usuarioId ?? null, tipo: l.tipo, ingresoFijoId: l.ingresoFijoId ?? null, bruto: l.bruto ?? l.monto })),
       items: e.items.map((i): ItemPlan => ({
         id: i.id, categoriaId: i.categoriaId, nombre: i.nombre, monto: i.monto, diaVence: i.diaVence, tipo: i.tipo, cuota: i.cuota,
-        creditoId: i.creditoId ?? null, ingresoFijoId: i.ingresoFijoId ?? null, aporteId: i.aporteId ?? null, ingresoPlanId: i.ingresoPlanId ?? null, ajustadoAMano: i.ajustadoAMano ?? false,
+        creditoId: i.creditoId ?? null, ingresoFijoId: i.ingresoFijoId ?? null, aporteId: i.aporteId ?? null, ingresoPlanId: i.ingresoPlanId ?? null, ajustadoAMano: i.ajustadoAMano ?? false, tarjetaId: i.tarjetaId ?? null,
       })),
     })),
   };

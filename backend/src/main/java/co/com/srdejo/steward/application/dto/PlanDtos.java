@@ -152,12 +152,12 @@ public final class PlanDtos {
     /** {@code ingresoFijoId} y {@code aporteId}: el ingreso o el aporte que origina un item de diezmo. */
     public record ItemResponse(UUID id, UUID categoriaId, String nombre, long monto, Integer diaVence, String tipo,
                                CuotaDto cuota, UUID creditoId, UUID ingresoFijoId, UUID aporteId, UUID ingresoPlanId,
-                               boolean ajustadoAMano) {
+                               boolean ajustadoAMano, UUID tarjetaId) {
 
         public static ItemResponse de(ItemPlan i) {
             return new ItemResponse(i.id(), i.categoriaId(), i.nombre(), i.monto(), i.diaVence(), i.tipo().name(),
                     i.cuotaActual() == null ? null : new CuotaDto(i.cuotaActual(), i.cuotaTotal()), i.creditoId(),
-                    i.ingresoFijoId(), i.aporteId(), i.ingresoPlanId(), i.ajustadoAMano());
+                    i.ingresoFijoId(), i.aporteId(), i.ingresoPlanId(), i.ajustadoAMano(), i.tarjetaId());
         }
     }
 

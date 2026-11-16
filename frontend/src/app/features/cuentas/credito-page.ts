@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject, input, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import { claveMes, formatFechaCorta, formatTasa, mesDe, nombreMes, sumarMeses } from '@steward/domain';
+import { claveMes, formatFechaCorta, formatTasa, mesDe, nombreMes, sumarMeses, type MesRef } from '@steward/domain';
 
 import { consulta, mensajeDeError } from '../../core/datos/consulta';
 import { PUERTOS } from '../../core/datos/puertos';
@@ -9,21 +9,30 @@ import { Monto } from '../../shared/components/monto';
 import { MontoInput } from '../../shared/components/monto-input';
 import { Segmentado } from '../../shared/components/segmentado';
 import { opcionesDeHoja } from '../hoy/opciones-hoja';
+import { MetodoHoja } from './metodo-hoja';
+
+const METODO = { TASA: 'Baja solo con la tasa', PLAN: 'Sigue el plan de pagos', MANUAL: 'Lo actualizas a mano' } as const;
+const DETALLE = {
+  TASA: 'Al marcar la cuota pagada, se descuenta el capital.',
+  PLAN: 'Al pagar una cuota, el saldo queda en lo que dice la tabla para esa cuota.',
+  MANUAL: 'Escribe el saldo cuando llegue el extracto.',
+} as const;
 
 /** Abono que muestra el simulador al abrir (el de la Opción C de los artboards). */
 const ABONO_INICIAL = 1_500_000;
 
 /**
- * Credito.dc.html: saldo, avance, cuota, tasa y dia de pago, el simulador "¿Y si abonas extra?" con
- * "Probarlo como opción" (crea un escenario en el mes siguiente) y los ultimos pagos.
+ * Credito.dc.html: saldo, como baja (con "Cambiar"), avance de cuotas, cuota, dia de pago y cuando termina, las
+ * proximas cuotas con interes y capital, el simulador "¿Y si abonas extra?" con "Probarlo como opción" y los ultimos
+ * pagos (spec steward-cuentas, tarjetas-y-creditos).
  */
 @Component({
   selector: 'app-credito-page',
-  imports: [RouterLink, Hoja, Monto, MontoInput, Segmentado],
+  imports: [RouterLink, Hoja, Monto, MontoInput, Segmentado, MetodoHoja],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'flex flex-col gap-5 px-5 pt-6 pb-4' },
   template: `
-    <a routerLink="/cuentas" class="boton-texto -my-2 self-start text-sm font-normal">‹ Cuentas</a>
+    <a routerLink="/cuentas" [queryParams]="{ pestana: 'creditos' }" class="boton-texto -my-2 self-start text-sm font-normal">‹ Créditos</a>
 
     @if (vista.value(); as v) {
       <div class="flex flex-col gap-1.5">
@@ -33,7 +42,18 @@ const ABONO_INICIAL = 1_500_000;
         <span class="text-[13px] text-secundario">Saldo actualizado el {{ fecha(v.credito.saldoActualizadoEn) }}</span>
       </div>
 
+      <div class="flex items-center justify-between gap-3 rounded-xl bg-acento-suave px-3.5 py-3" data-testid="metodo">
+        <span class="flex flex-col gap-0.5"><span class="text-sm font-semibold">{{ metodo[v.credito.metodo] }}{{ v.credito.metodo === 'MANUAL' ? '' : ' · ' + tasa(v.credito.tasaEM) }}</span><span class="text-xs text-secundario">{{ detalle[v.credito.metodo] }}</span></span>
+        <button type="button" class="boton-texto font-semibold" (click)="cambiando.set(true)">Cambiar</button>
+      </div>
+      @if (v.actualizar) {
+        <p class="rounded-lg bg-aviso-suave px-3 py-2 text-[13px] text-aviso" role="note">Ya pasó el día de pago: actualiza el saldo con el extracto.</p>
+      }
+
       <div class="flex flex-col gap-2">
+        @if (v.progreso; as g) {
+          <div class="flex justify-between text-sm"><span class="font-semibold">Cuota {{ g.actual }} de {{ g.total }}</span><span class="text-secundario">{{ g.actual - 1 }} pagadas · faltan {{ g.total - g.actual + 1 }}</span></div>
+        }
         <div class="flex h-2 rounded bg-borde" role="progressbar" [attr.aria-valuenow]="v.porcentajePagado" aria-valuemin="0" aria-valuemax="100" aria-label="Pagado del crédito">
           <span class="rounded bg-acento" [style.width.%]="v.porcentajePagado"></span>
         </div>
@@ -47,9 +67,32 @@ const ABONO_INICIAL = 1_500_000;
 
       <div class="grid grid-cols-3 gap-2">
         <div class="flex flex-col gap-1 rounded-xl border border-borde bg-superficie p-3"><span class="text-[11px] text-secundario">Cuota</span><app-monto class="text-[13px] font-semibold" [valor]="v.credito.cuota" /></div>
-        <div class="flex flex-col gap-1 rounded-xl border border-borde bg-superficie p-3"><span class="text-[11px] text-secundario">Tasa</span><span class="monto text-[13px] font-semibold">{{ tasa(v.credito.tasaEM) }}</span></div>
         <div class="flex flex-col gap-1 rounded-xl border border-borde bg-superficie p-3"><span class="text-[11px] text-secundario">Paga el</span><span class="monto text-[13px] font-semibold">Día {{ v.credito.diaPago }}</span></div>
+        <div class="flex flex-col gap-1 rounded-xl border border-borde bg-superficie p-3"><span class="text-[11px] text-secundario">Termina</span><span class="monto text-[13px] font-semibold" data-testid="termina">{{ v.termina ? (v.credito.metodo === 'TASA' ? '≈ ' : '') + mes(v.termina) : '—' }}</span></div>
       </div>
+
+      @if (v.proximas.length) {
+        <section class="flex flex-col gap-1" aria-labelledby="proximas">
+          <div class="flex items-baseline justify-between"><h2 id="proximas" class="text-base font-semibold">Próximas cuotas</h2>
+            @if (v.cuotasRestantes !== null) {<span class="text-xs text-secundario">Faltan {{ v.cuotasRestantes }} cuotas</span>}</div>
+          <table class="w-full border-collapse text-sm" data-testid="proximas-cuotas">
+            <thead><tr class="text-[11px] font-semibold tracking-[0.06em] text-secundario"><th scope="col" class="py-2 text-left">CUOTA</th><th scope="col" class="py-2 text-right">INTERÉS</th><th scope="col" class="py-2 text-right">CAPITAL</th><th scope="col" class="py-2 text-right">QUEDA</th></tr></thead>
+            <tbody>
+              @for (q of v.proximas; track q.k) {
+                <tr class="border-t border-divisor">
+                  <th scope="row" class="py-2 text-left font-normal">{{ q.k }}{{ v.progreso ? ' / ' + v.progreso.total : '' }} <span class="text-xs text-secundario">{{ mesCorto(q.ref) }}</span></th>
+                  <td class="monto py-2 text-right text-xs"><app-monto [valor]="q.interes" /></td>
+                  <td class="monto py-2 text-right text-xs"><app-monto [valor]="q.capital" /></td>
+                  <td class="monto py-2 text-right text-xs font-semibold"><app-monto [valor]="q.saldo" /></td>
+                </tr>
+              }
+            </tbody>
+          </table>
+          @if (v.interesesAnioSiguiente) {
+            <p class="rounded-lg bg-[#FBEDE8] px-3 py-2 text-[13px] text-[#8A2A15]" data-testid="intereses-anio">En {{ anioSiguiente }} pagarías <app-monto [valor]="v.interesesAnioSiguiente" [siempreVisible]="true" /> en intereses.</p>
+          }
+        </section>
+      }
 
       <section class="flex flex-col gap-2.5 rounded-[14px] bg-acento-suave p-4" aria-labelledby="simulador">
         <h2 id="simulador" class="text-sm font-semibold text-acento-oscuro">¿Y si abonas extra?</h2>
@@ -84,19 +127,22 @@ const ABONO_INICIAL = 1_500_000;
       }
 
       <div class="grid grid-cols-2 gap-2">
-        <button type="button" class="boton h-[50px] rounded-[14px] border border-[#D9D8D2] bg-superficie text-sm" (click)="hoja.set('saldo')">Actualizar saldo</button>
+        <button type="button" class="boton h-[50px] rounded-[14px] border border-[#D9D8D2] bg-superficie text-sm" (click)="hoja.set('saldo')">Corregir con extracto</button>
         <button type="button" class="boton h-[50px] rounded-[14px] bg-acento text-sm text-white" (click)="hoja.set('abono')">Registrar abono</button>
       </div>
 
       @if (hoja(); as h) {
-        <app-hoja [titulo]="h === 'saldo' ? 'Actualizar saldo' : 'Registrar abono'" (cerrar)="hoja.set(null)">
-          <app-monto-input [etiqueta]="h === 'saldo' ? 'Saldo que dice el banco' : '¿Cuánto abonaste?'" [grande]="true" [(valor)]="monto" />
+        <app-hoja [titulo]="h === 'saldo' ? 'Corregir con extracto' : 'Registrar abono'" (cerrar)="hoja.set(null)">
+          <app-monto-input [etiqueta]="h === 'saldo' ? 'Saldo que dice el extracto' : '¿Cuánto abonaste?'" [grande]="true" [(valor)]="monto" />
           @if (h === 'abono') {
             <!-- Desde donde salio el abono, como en Marcar pago (spec steward-cuentas). -->
             <app-segmentado etiqueta="Desde · Opcional" [chips]="true" [opcional]="true" [opciones]="opciones.desde()" [(valor)]="desde" />
           }
           <button type="button" class="boton-grande" [disabled]="monto() === null" (click)="guardar(h)">Guardar</button>
         </app-hoja>
+      }
+      @if (cambiando()) {
+        <app-metodo-hoja [credito]="v.credito" (cerrar)="cambiando.set(false)" />
       }
     } @else if (!vista.isLoading()) {
       <p class="text-secundario">Ese crédito no existe.</p>
@@ -113,6 +159,10 @@ export class CreditoPage {
 
   private readonly siguiente = sumarMeses(mesDe(this.puertos.hoy()), 1);
   protected readonly mesSiguiente = nombreMes(this.siguiente.mes);
+  protected readonly anioSiguiente = mesDe(this.puertos.hoy()).anio + 1;
+  protected readonly metodo = METODO;
+  protected readonly detalle = DETALLE;
+  protected readonly cambiando = signal(false);
 
   protected readonly abono = signal<number | null>(ABONO_INICIAL);
   protected readonly simulacion = consulta(() => ({ id: this.id(), abono: this.abono() ?? 0 }), (p, x) => p.cuentas.simular(x.id, x.abono));
@@ -128,6 +178,15 @@ export class CreditoPage {
 
   protected tasa(t: number): string {
     return formatTasa(t);
+  }
+
+  /** "dic 2029". */
+  protected mes(ref: MesRef): string {
+    return `${nombreMes(ref.mes).slice(0, 3)} ${ref.anio}`;
+  }
+
+  protected mesCorto(ref: MesRef): string {
+    return nombreMes(ref.mes).slice(0, 3);
   }
 
   protected async probar(): Promise<void> {

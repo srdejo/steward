@@ -26,7 +26,7 @@ public class PlanR2dbcAdapter implements IPlanPersistencePort {
 
     private static final String PLAN = "SELECT id, hogar_id, ref_anio, ref_mes, estado, escenario_activo_id FROM plan_mes ";
     private static final String ITEM = "id, escenario_id, categoria_id, nombre, monto, dia_vence, tipo, cuota_actual, cuota_total, orden, credito_id, "
-            + "ingreso_fijo_id, aporte_id, ingreso_plan_id, ajustado_a_mano";
+            + "ingreso_fijo_id, aporte_id, ingreso_plan_id, ajustado_a_mano, tarjeta_id";
     private static final String INGRESO = "id, escenario_id, nombre, monto, usuario_id, tipo, ingreso_fijo_id, bruto, orden";
 
     private final DatabaseClient db;
@@ -158,14 +158,14 @@ public class PlanR2dbcAdapter implements IPlanPersistencePort {
     @Override
     public Mono<ItemPlan> crearItem(ItemPlan item) {
         return valores(db.sql("INSERT INTO item_plan (" + ITEM + ") VALUES (:id, :escenario, :categoria, :nombre, :monto, "
-                + ":dia, :tipo, :cuotaActual, :cuotaTotal, :orden, :credito, :ingreso, :aporte, :linea, :ajustado)"), item).then().thenReturn(item);
+                + ":dia, :tipo, :cuotaActual, :cuotaTotal, :orden, :credito, :ingreso, :aporte, :linea, :ajustado, :tarjeta)"), item).then().thenReturn(item);
     }
 
     @Override
     public Mono<ItemPlan> actualizarItem(ItemPlan item) {
         return valores(db.sql("UPDATE item_plan SET categoria_id = :categoria, nombre = :nombre, monto = :monto, "
                 + "dia_vence = :dia, tipo = :tipo, cuota_actual = :cuotaActual, cuota_total = :cuotaTotal, orden = :orden, credito_id = :credito, "
-                + "ingreso_fijo_id = :ingreso, aporte_id = :aporte, ingreso_plan_id = :linea, ajustado_a_mano = :ajustado "
+                + "ingreso_fijo_id = :ingreso, aporte_id = :aporte, ingreso_plan_id = :linea, ajustado_a_mano = :ajustado, tarjeta_id = :tarjeta "
                 + "WHERE id = :id AND escenario_id = :escenario"), item).then().thenReturn(item);
     }
 
@@ -184,6 +184,7 @@ public class PlanR2dbcAdapter implements IPlanPersistencePort {
         conValores = Sql.opcional(conValores, "cuotaTotal", corto(i.cuotaTotal()), Short.class);
         conValores = Sql.opcional(conValores, "ingreso", i.ingresoFijoId(), UUID.class);
         conValores = Sql.opcional(conValores, "aporte", i.aporteId(), UUID.class);
+        conValores = Sql.opcional(conValores, "tarjeta", i.tarjetaId(), UUID.class);
         return Sql.opcional(conValores, "credito", i.creditoId(), UUID.class);
     }
 
@@ -275,7 +276,7 @@ public class PlanR2dbcAdapter implements IPlanPersistencePort {
                 ItemPlan.Tipo.valueOf(row.get("tipo", String.class)), actual == null ? null : actual.intValue(),
                 total == null ? null : total.intValue(), row.get("orden", Integer.class), row.get("credito_id", UUID.class),
                 row.get("ingreso_fijo_id", UUID.class), row.get("aporte_id", UUID.class), row.get("ingreso_plan_id", UUID.class),
-                Boolean.TRUE.equals(row.get("ajustado_a_mano", Boolean.class)));
+                Boolean.TRUE.equals(row.get("ajustado_a_mano", Boolean.class)), row.get("tarjeta_id", UUID.class));
     }
 
     private static IngresoPlan ingreso(Readable row) {

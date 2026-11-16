@@ -14,6 +14,7 @@ import type {
   Puertos,
   Sesion,
   SesionPort,
+  TarjetasPort,
   Usuario,
   VistaHogar,
 } from '../index';
@@ -85,6 +86,7 @@ export class PuertosConectados implements Puertos {
   readonly movimientos: MovimientosPort;
   readonly plan: PlanPort;
   readonly cierre: CierrePort;
+  readonly tarjetas: TarjetasPort;
 
   constructor(private readonly d: Dependencias) {
     this.demoActual = this.nuevoDemo(null);
@@ -96,6 +98,7 @@ export class PuertosConectados implements Puertos {
     this.movimientos = this.crearMovimientos();
     this.plan = this.crearPlan();
     this.cierre = this.crearCierre();
+    this.tarjetas = this.crearTarjetas();
   }
   /** Ya nada es de prueba en modo conectado: sin aviso ni "Restablecer" (design D6 de backend-plan-anual). */
   get demo() {
@@ -428,6 +431,26 @@ export class PuertosConectados implements Puertos {
     };
   }
 
+  /** Tarjetas reales (design D6 de tarjetas-y-creditos): se escriben en el backend; la vista la calcula el dominio. */
+  private crearTarjetas(): TarjetasPort {
+    const api = this.d.api;
+    const escribir = async (accion: Promise<unknown>): Promise<void> => {
+      await accion;
+      await this.recargarFinanzas();
+    };
+    const cuerpo = (d: Parameters<TarjetasPort['editar']>[1]) => ({
+      nombre: d.nombre, diaCorte: d.diaCorte, diaPago: d.diaPago, uso: d.uso,
+      pagoTipo: d.pago.tipo, pagoMonto: d.pago.tipo === 'FIJO' ? d.pago.monto : d.pago.estimado,
+    });
+    return {
+      vista: () => this.demoActual.tarjetas.vista(),
+      enlazables: () => this.demoActual.tarjetas.enlazables(),
+      agregar: (d) => escribir(api.crearTarjeta({ ...cuerpo(d), itemId: d.itemId ?? null })),
+      editar: (id, d) => escribir(api.editarTarjeta(id, cuerpo(d))),
+      quitar: (id) => escribir(api.quitarTarjeta(id)),
+    };
+  }
+
   /**
    * Cuentas y creditos reales (design D7 de backend-cuentas-creditos): las escrituras van al backend y releen las
    * finanzas; las vistas (saldo estimado, diferencia del cuadre, simulador) las calcula el dominio sobre lo superpuesto.
@@ -457,6 +480,12 @@ export class PuertosConectados implements Puertos {
       cuadrar: (saldos) => escribir(api.cuadrar(saldos)),
       creditos: () => this.demoActual.cuentas.creditos(),
       credito: (id) => this.demoActual.cuentas.credito(id),
+      resumenCreditos: () => this.demoActual.cuentas.resumenCreditos(),
+      cambiarMetodo: (id, datos) =>
+        escribir(api.cambiarMetodoCredito(id, {
+          metodo: datos.metodo, saldo: datos.saldo, cuota: datos.cuota, tasaEM: datos.tasaEM,
+          numeroCuotas: datos.numeroCuotas ?? null, cuotasPagadas: datos.cuotasPagadas ?? 0, valorFinanciado: datos.valorFinanciado ?? null,
+        })),
       agregarCredito: (datos) => escribir(api.crearCredito(datos)),
       actualizarSaldo: (id, saldo) => escribir(api.actualizarSaldoCredito(id, saldo)),
       registrarAbono: async (id, monto, origen) => {
