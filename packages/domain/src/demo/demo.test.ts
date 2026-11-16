@@ -12,8 +12,9 @@ describe('adaptador demo (steward-ui-shell: modo demo)', () => {
     await p.plan.replicarMes(2028, { tipo: 'MES', ref: OCT });
     await p.plan.agregarEvento(2028, { nombre: 'Revisión carro', mes: 5, monto: 400_000, tipo: 'GASTO', usuarioId: null });
     const r = (await p.plan.anual(2028))!;
-    expect(r.libre[1]).toBe(base.libreMes);
-    expect(r.libre[4]).toBe(base.libreMes - 400_000);
+    // En 2028 la compra a cuotas ya termino: cada mes deja libre $375.000 mas que el mes base (anual-opciones-y-meses).
+    expect(r.libre[1]).toBe(base.libreMes + 375_000);
+    expect(r.libre[4]).toBe(r.libre[1]! - 400_000);
   });
   it('la semilla da los totales de Hoy', async () => {
     const p = crearAdaptadorDemo({ storage: storageEnMemoria(), ahora });

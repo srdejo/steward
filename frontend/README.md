@@ -27,6 +27,10 @@ Planear también cambia desde 1024 px (`PlanInicioWeb.dc.html`): la tarjeta del 
 **Plan del año** (`features/planear/anual-page.ts`, spec `steward-planear` "Plan anual") se arma en dos pasos:
 1. **Mes base:** un mes con plan, "Solo fijos e ingresos" o "Desde cero". "Replicar en los 12 meses" llena el año con ese mes (o reemplaza sus montos, con confirmación; se llega con `?paso=base`).
 2. **Lo que cambia:** "Algo distinto en un mes" (`cambio-hoja.ts`) agrega un ingreso o gasto en su categoría, solo ese mes o de ese mes en adelante, y dice en cuánto queda el mes. Desde 1024 px se ve la tabla de 12 meses con las celdas que cambian resaltadas; con menos, la lista de meses (los seguidos sin cambios, agrupados). Abajo, la lista "Lo que cambia", donde cada cambio se corrige o se quita, y "Borrar plan de {año}", que dice qué se borra y deja el año sin plan (los meses ya creados no cambian).
+3. **Opciones** (cambio `anual-opciones-y-meses`). El año tiene opciones A, B, ...:
+   - Se eligen en pestañas (escritorio) o chips (móvil), y la elegida queda en la URL (`?opcion=B`). "+ Duplicar Opción X" copia la elegida y "Quitar opción" quita la que no está en uso.
+   - Las celdas, los cambios y replicar van a la opción elegida. Con otra opción que no sea la A, las celdas distintas de la A se marcan con un borde azul, el KPI dice cuánto más o menos deja libre frente a la A, y aparece "Las dos opciones, mes a mes"; en móvil, cada mes muestra la diferencia "vs A".
+   - **"Meses con la Opción X"** (`meses-anual-hoja.ts`) reemplaza a "Crear los 12 meses". Lista los meses agrupados: los que no tienen plan se crean, los que se pueden actualizar llevan una casilla y los que tienen registros o un cierre dicen por qué no se tocan. Llama a `PlanPort.crearOActualizarMeses` (`POST /api/anuales/{anio}/meses`).
 
 Tiene dos **modos de datos** (`src/app/config/modo.ts`):
 

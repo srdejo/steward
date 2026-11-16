@@ -255,13 +255,33 @@ export interface CierreApi {
 }
 
 /** El plan anual: solo las celdas tocadas; las demas valen cero (design D5 de backend-plan-anual). */
+export interface EventoAnualApi {
+  id: string;
+  nombre: string;
+  mes: number;
+  monto: number;
+  tipo: 'INGRESO' | 'GASTO';
+  usuarioId: string | null;
+  categoriaId?: string | null;
+  enAdelante?: boolean;
+}
+
+/** Una opcion del año: sus celdas tocadas, sus eventos y su mes base (design D2 de anual-opciones-y-meses). */
+export interface OpcionAnualApi {
+  id: string;
+  letra: string;
+  creadoPor: string;
+  nota: string;
+  celdas: { categoriaId: string; mes: number; monto: number }[];
+  eventos: EventoAnualApi[];
+  base?: { anio: number; mes: number } | null;
+}
+
 export interface AnualApi {
   anio: number;
   estado: 'BORRADOR' | 'CREADO';
-  celdas: { categoriaId: string; mes: number; monto: number }[];
-  eventos: { id: string; nombre: string; mes: number; monto: number; tipo: 'INGRESO' | 'GASTO'; usuarioId: string | null; categoriaId?: string | null; enAdelante?: boolean }[];
-  /** El mes que se replico (design D1 de planear-anio-desde-un-mes). */
-  base?: { anio: number; mes: number } | null;
+  opciones: OpcionAnualApi[];
+  opcionEnUso?: string | null;
 }
 
 export interface ProyeccionApi {
@@ -504,15 +524,15 @@ export class Api {
     return this.t.pedir<AnualApi>('POST', '/api/anuales', { anio });
   }
 
-  ponerCelda(anio: number, categoriaId: string, mes: number, monto: number): Promise<void> {
-    return this.t.pedir<void>('PUT', `/api/anuales/${anio}/celdas`, { categoriaId, mes, monto });
+  ponerCelda(anio: number, categoriaId: string, mes: number, monto: number, opcionId?: string | null): Promise<void> {
+    return this.t.pedir<void>('PUT', `/api/anuales/${anio}/celdas`, { categoriaId, mes, monto, opcionId: opcionId ?? null });
   }
 
-  agregarEvento(anio: number, evento: Omit<AnualApi['eventos'][number], 'id'>): Promise<unknown> {
-    return this.t.pedir('POST', `/api/anuales/${anio}/eventos`, evento);
+  agregarEvento(anio: number, evento: Omit<EventoAnualApi, 'id'>, opcionId?: string | null): Promise<unknown> {
+    return this.t.pedir('POST', `/api/anuales/${anio}/eventos`, { ...evento, opcionId: opcionId ?? null });
   }
 
-  editarEvento(anio: number, eventoId: string, evento: Omit<AnualApi['eventos'][number], 'id'>): Promise<unknown> {
+  editarEvento(anio: number, eventoId: string, evento: Omit<EventoAnualApi, 'id'>): Promise<unknown> {
     return this.t.pedir('PUT', `/api/anuales/${anio}/eventos/${encodeURIComponent(eventoId)}`, evento);
   }
 
@@ -525,17 +545,28 @@ export class Api {
   }
 
   /** "Replicar en los 12 meses": crea el anual si no existe. */
-  replicar(anio: number, base: { tipo: 'MES'; anio: number; mes: number } | { tipo: 'FIJOS' } | { tipo: 'CERO' }): Promise<AnualApi> {
-    return this.t.pedir<AnualApi>('POST', `/api/anuales/${anio}/replicar`, base);
+  replicar(anio: number, base: { tipo: 'MES'; anio: number; mes: number } | { tipo: 'FIJOS' } | { tipo: 'CERO' }, opcionId?: string | null): Promise<AnualApi> {
+    return this.t.pedir<AnualApi>('POST', `/api/anuales/${anio}/replicar`, { ...base, opcionId: opcionId ?? null });
+  }
+
+  /** "+ Duplicar Opción X" del año (design D2 de anual-opciones-y-meses). */
+  duplicarOpcionAnual(anio: number, desdeId: string): Promise<OpcionAnualApi> {
+    return this.t.pedir<OpcionAnualApi>('POST', `/api/anuales/${anio}/opciones`, { desdeId });
+  }
+
+  quitarOpcionAnual(anio: number, opcionId: string): Promise<void> {
+    return this.t.pedir<void>('DELETE', `/api/anuales/${anio}/opciones/${encodeURIComponent(opcionId)}`);
+  }
+
+  /** "Meses con la Opción X": crea los meses sin plan y actualiza los de `actualizar`. Sin opcion, la en uso o la A. */
+  mesesDesdeAnual(anio: number, opcionId: string | null, actualizar: number[]): Promise<{ anio: number; mes: number; accion: 'CREADO' | 'ACTUALIZADO' }[]> {
+    return this.t.pedir('POST', `/api/anuales/${anio}/meses`, { opcionId, actualizar });
   }
 
   ponerProyeccion(anio: number, usuarioId: string, mes: number, monto: number): Promise<void> {
     return this.t.pedir<void>('PUT', `/api/anuales/${anio}/proyecciones`, { usuarioId, mes, monto });
   }
 
-  crearMesesDesdeAnual(anio: number): Promise<MesApi[]> {
-    return this.t.pedir<MesApi[]>('POST', `/api/anuales/${anio}/crear-meses`, null);
-  }
 
   duplicarOpcion(planId: string, desde: string): Promise<PlanApi> {
     return this.t.pedir<PlanApi>('POST', `/api/planes/${encodeURIComponent(planId)}/escenarios`, { desde });

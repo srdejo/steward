@@ -75,6 +75,8 @@ export class CambioHoja implements OnInit {
   private readonly miembros = inject(MiembrosHogar);
 
   readonly anio = input.required<number>();
+  /** La opcion del año donde va el cambio (anual-opciones-y-meses); sin ella, la en uso o la A. */
+  readonly opcionId = input<Id | null>(null);
   /** El mes con que abre "+ Algo distinto" o el mes tocado en la lista. */
   readonly mesInicial = input(1);
   readonly categorias = input.required<Categoria[]>();
@@ -120,8 +122,8 @@ export class CambioHoja implements OnInit {
   }));
 
   private readonly vistaPrevia = resource({
-    params: () => (this.listo() ? { anio: this.anio(), id: this.evento()?.id ?? null, datos: this.datos() } : undefined),
-    loader: ({ params: p }) => this.puertos.plan.previsualizarEvento(p.anio, p.id, p.datos),
+    params: () => (this.listo() ? { anio: this.anio(), id: this.evento()?.id ?? null, datos: this.datos(), opcion: this.opcionId() } : undefined),
+    loader: ({ params: p }) => this.puertos.plan.previsualizarEvento(p.anio, p.id, p.datos, p.opcion),
   });
   protected readonly queda = computed(() => (this.vistaPrevia.hasValue() && this.listo() ? this.vistaPrevia.value()[this.mes() - 1] ?? null : null));
 
@@ -138,7 +140,7 @@ export class CambioHoja implements OnInit {
 
   protected guardar(): Promise<void> {
     const e = this.evento();
-    return this.ejecutar(() => (e ? this.puertos.plan.editarEvento(this.anio(), e.id, this.datos()) : this.puertos.plan.agregarEvento(this.anio(), this.datos())));
+    return this.ejecutar(() => (e ? this.puertos.plan.editarEvento(this.anio(), e.id, this.datos()) : this.puertos.plan.agregarEvento(this.anio(), this.datos(), this.opcionId())));
   }
 
   protected quitar(): Promise<void> {

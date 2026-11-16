@@ -6,6 +6,7 @@ import co.com.srdejo.steward.domain.model.Hogar;
 import co.com.srdejo.steward.domain.model.PlanAnual;
 import co.com.srdejo.steward.domain.model.PlanAnual.Celda;
 import co.com.srdejo.steward.domain.model.PlanAnual.Evento;
+import co.com.srdejo.steward.domain.model.PlanAnual.Opcion;
 import co.com.srdejo.steward.domain.model.PlanAnual.Proyeccion;
 import co.com.srdejo.steward.domain.model.Usuario;
 import io.r2dbc.spi.ConnectionFactories;
@@ -55,51 +56,78 @@ class AnualR2dbcAdapterTest {
         fijos = categorias.delHogar(hogar).blockFirst().id();
     }
 
+    /** Un anual con su Opcion A (design D2 de anual-opciones-y-meses). */
+    private PlanAnual nuevo() {
+        return new PlanAnual(UUID.randomUUID(), hogar, 2027, PlanAnual.Estado.BORRADOR,
+                List.of(new Opcion(UUID.randomUUID(), "A", daniel, "", List.of(), List.of(), null)), null);
+    }
+
     @Test
     void crearLlenarYLeer() {
-        PlanAnual a = anuales.crear(new PlanAnual(UUID.randomUUID(), hogar, 2027, PlanAnual.Estado.BORRADOR, List.of(), List.of())).block();
-        anuales.ponerCelda(a.id(), fijos, 1, 800_000).block();
-        anuales.ponerCelda(a.id(), fijos, 1, 900_000).block();
-        anuales.agregarEvento(a.id(), new Evento(UUID.randomUUID(), "SOAT", 3, 1_200_000, Evento.Tipo.GASTO, null)).block();
-        anuales.marcarCreado(a.id()).block();
+        PlanAnual a = anuales.crear(nuevo()).block();
+        UUID opA = a.opciones().getFirst().id();
+        anuales.ponerCelda(a.id(), opA, fijos, 1, 800_000).block();
+        anuales.ponerCelda(a.id(), opA, fijos, 1, 900_000).block();
+        anuales.agregarEvento(a.id(), opA, new Evento(UUID.randomUUID(), "SOAT", 3, 1_200_000, Evento.Tipo.GASTO, null)).block();
+        anuales.usarOpcion(a.id(), opA).block();
 
         PlanAnual leido = anuales.deAnio(hogar, 2027).block();
-        assertEquals(List.of(new Celda(fijos, 1, 900_000)), leido.celdas());
-        assertEquals("SOAT", leido.eventos().getFirst().nombre());
+        Opcion leidaA = leido.opciones().getFirst();
+        assertEquals(List.of(new Celda(fijos, 1, 900_000)), leidaA.celdas());
+        assertEquals("SOAT", leidaA.eventos().getFirst().nombre());
         assertEquals(PlanAnual.Estado.CREADO, leido.estado());
+        assertEquals(opA, leido.opcionEnUso());
         StepVerifier.create(anuales.desde(hogar, 2028)).verifyComplete();
-        StepVerifier.create(anuales.crear(new PlanAnual(UUID.randomUUID(), hogar, 2027, PlanAnual.Estado.BORRADOR, List.of(), List.of())))
+        StepVerifier.create(anuales.crear(nuevo()))
                 .expectErrorMatches(ex -> ex instanceof DomainException d && d.codigo().equals("YA_EXISTE"))
                 .verify();
     }
 
     @Test
     void replicarYEventosConCategoria() {
-        PlanAnual a = anuales.crear(new PlanAnual(UUID.randomUUID(), hogar, 2027, PlanAnual.Estado.BORRADOR, List.of(), List.of())).block();
-        anuales.ponerCelda(a.id(), fijos, 1, 1).block();
+        PlanAnual a = anuales.crear(nuevo()).block();
+        UUID opA = a.opciones().getFirst().id();
+        anuales.ponerCelda(a.id(), opA, fijos, 1, 1).block();
         Evento viejo = new Evento(UUID.randomUUID(), "Prima", 6, 3_000_000, Evento.Tipo.INGRESO, daniel);
-        anuales.agregarEvento(a.id(), viejo).block();
+        anuales.agregarEvento(a.id(), opA, viejo).block();
         Evento navidad = new Evento(UUID.randomUUID(), "Navidad", 12, 680_000, Evento.Tipo.GASTO, null, fijos, true);
-        anuales.agregarEvento(a.id(), navidad).block();
-        anuales.replicar(a.id(), List.of(new Celda(fijos, 2, 795_000)), java.time.YearMonth.of(2026, 10)).block();
+        anuales.agregarEvento(a.id(), opA, navidad).block();
+        anuales.replicar(a.id(), opA, List.of(new Celda(fijos, 2, 795_000)), java.time.YearMonth.of(2026, 10)).block();
 
-        PlanAnual leido = anuales.deAnio(hogar, 2027).block();
-        assertEquals(List.of(new Celda(fijos, 2, 795_000)), leido.celdas());
-        assertEquals(java.time.YearMonth.of(2026, 10), leido.base());
+        Opcion leida = anuales.deAnio(hogar, 2027).block().opciones().getFirst();
+        assertEquals(List.of(new Celda(fijos, 2, 795_000)), leida.celdas());
+        assertEquals(java.time.YearMonth.of(2026, 10), leida.base());
         // Los eventos de antes leen sin categoria ni "en adelante".
-        assertEquals(List.of(viejo, navidad), leido.eventos());
+        assertEquals(List.of(viejo, navidad), leida.eventos());
 
         Evento corregido = new Evento(navidad.id(), "Navidad", 11, 700_000, Evento.Tipo.GASTO, null, null, false);
         assertEquals(true, anuales.editarEvento(a.id(), corregido).block());
-        assertEquals(corregido, anuales.deAnio(hogar, 2027).block().eventos().getLast());
+        assertEquals(corregido, anuales.deAnio(hogar, 2027).block().opciones().getFirst().eventos().getLast());
         assertEquals(true, anuales.quitarEvento(a.id(), navidad.id()).block());
         assertEquals(false, anuales.quitarEvento(a.id(), navidad.id()).block());
-        anuales.replicar(a.id(), List.of(), null).block();
-        assertEquals(null, anuales.deAnio(hogar, 2027).block().base());
+        anuales.replicar(a.id(), opA, List.of(), null).block();
+        assertEquals(null, anuales.deAnio(hogar, 2027).block().opciones().getFirst().base());
 
         anuales.ponerProyeccion(hogar, new Proyeccion(daniel, 2027, 1, 1)).block();
         anuales.reemplazarProyecciones(hogar, 2027, List.of(new Proyeccion(daniel, 2027, 3, 2_000_000))).block();
         StepVerifier.create(anuales.proyeccionesDesde(hogar, 2027).map(Proyeccion::mes)).expectNext(3).verifyComplete();
+    }
+
+    @Test
+    void opcionesConSusCeldasYEventos() {
+        PlanAnual a = anuales.crear(nuevo()).block();
+        UUID opA = a.opciones().getFirst().id();
+        anuales.ponerCelda(a.id(), opA, fijos, 1, 800_000).block();
+        Opcion b = new Opcion(UUID.randomUUID(), "B", daniel, "con carro", List.of(new Celda(fijos, 1, 900_000)),
+                List.of(new Evento(UUID.randomUUID(), "Carro", 4, 1_200_000, Evento.Tipo.GASTO, null, null, true)), java.time.YearMonth.of(2026, 10));
+        anuales.crearOpcion(a.id(), b).block();
+
+        PlanAnual leido = anuales.deAnio(hogar, 2027).block();
+        assertEquals(List.of("A", "B"), leido.opciones().stream().map(Opcion::letra).toList());
+        assertEquals(List.of(new Celda(fijos, 1, 800_000)), leido.opciones().get(0).celdas());
+        assertEquals(b, leido.opciones().get(1));
+        anuales.quitarOpcion(b.id()).block();
+        assertEquals(1, anuales.deAnio(hogar, 2027).block().opciones().size());
     }
 
     @Test

@@ -2,29 +2,56 @@ package co.com.srdejo.steward.domain.model;
 
 import java.time.YearMonth;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
- * El plan anual del hogar, como {@code PlanAnual} del dominio compartido (design D2 de backend-plan-anual). Solo guarda
- * las celdas tocadas; las demas valen cero. Las vistas (cuadricula, KPI) las calcula el cliente. {@code base}: el mes que
- * se replico (design D1 de planear-anio-desde-un-mes); los meses creados copian sus items. Null si se lleno a mano.
+ * El plan anual del hogar, como {@code PlanAnual} del dominio compartido (design D2 de backend-plan-anual). Tiene una o
+ * mas opciones (A, B, ...), cada una con sus celdas tocadas (las demas valen cero), sus eventos y su mes base
+ * (design D1 y D2 de anual-opciones-y-meses). {@code opcionEnUso}: la que se llevo a los meses; null si ninguna. Las
+ * vistas (cuadricula, KPI) las calcula el cliente.
  */
-public record PlanAnual(UUID id, UUID hogarId, int anio, Estado estado, List<Celda> celdas, List<Evento> eventos, YearMonth base) {
+public record PlanAnual(UUID id, UUID hogarId, int anio, Estado estado, List<Opcion> opciones, UUID opcionEnUso) {
 
     public static final int NOMBRE_EVENTO_MAX = 60;
+    public static final String LETRAS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
     public PlanAnual {
-        celdas = celdas == null ? List.of() : List.copyOf(celdas);
-        eventos = eventos == null ? List.of() : List.copyOf(eventos);
-    }
-
-    public PlanAnual(UUID id, UUID hogarId, int anio, Estado estado, List<Celda> celdas, List<Evento> eventos) {
-        this(id, hogarId, anio, estado, celdas, eventos, null);
+        opciones = opciones == null ? List.of() : List.copyOf(opciones);
     }
 
     public enum Estado {
         BORRADOR,
         CREADO
+    }
+
+    /** La opcion con ese id, si es de este año. */
+    public Optional<Opcion> buscar(UUID opcionId) {
+        return opciones.stream().filter(o -> o.id().equals(opcionId)).findFirst();
+    }
+
+    /** La opcion pedida; sin id, la en uso o la primera ({@code opcionDe} del dominio). Vacio si el id no es de este año. */
+    public Optional<Opcion> opcion(UUID opcionId) {
+        if (opcionId != null) {
+            return buscar(opcionId);
+        }
+        return Optional.ofNullable(opcionEnUso).flatMap(this::buscar).or(() -> opciones.stream().findFirst());
+    }
+
+    /** La siguiente letra libre ({@code duplicarOpcionAnual} del dominio); vacio si no caben mas. */
+    public Optional<String> siguienteLetra() {
+        return LETRAS.chars().mapToObj(c -> String.valueOf((char) c))
+                .filter(l -> opciones.stream().noneMatch(o -> o.letra().equals(l))).findFirst();
+    }
+
+    /** Una opcion del año: sus celdas tocadas, sus eventos y el mes que se replico en ella (null si se lleno a mano). */
+    public record Opcion(UUID id, String letra, UUID creadoPor, String nota, List<Celda> celdas, List<Evento> eventos, YearMonth base) {
+
+        public Opcion {
+            nota = nota == null ? "" : nota;
+            celdas = celdas == null ? List.of() : List.copyOf(celdas);
+            eventos = eventos == null ? List.of() : List.copyOf(eventos);
+        }
     }
 
     public record Celda(UUID categoriaId, int mes, long monto) {

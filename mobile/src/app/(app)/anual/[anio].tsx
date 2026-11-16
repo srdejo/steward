@@ -1,6 +1,6 @@
 import {
   claveMes, formatCop, formatMesAnio, mesDe, nombreMes, nombreMesCapital, nombreMeses,
-  type BaseAnual, type Categoria, type DatosEvento, type EventoAnual, type Id, type TipoEvento, type VistaCambio,
+  type BaseAnual, type Categoria, type DatosEvento, type EventoAnual, type Id, type MesDesdeAnual, type TipoEvento, type VistaCambio,
 } from '@steward/domain';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
@@ -15,14 +15,15 @@ const MESES = Array.from({ length: 12 }, (_, i) => i + 1);
 
 /**
  * Planear el año desde un mes (spec steward-planear, "Plan anual"; AnualBaseMovil, AnualMesesMovil y AnualCambioMovil del
- * canvas). Paso 1: el mes base y "Replicar en los 12 meses". Paso 2: la lista de los 12 meses y lo que cambia.
+ * canvas). Paso 1: el mes base y "Replicar en los 12 meses". Paso 2: la lista de los 12 meses y lo que cambia. Con
+ * opciones A, B, ... (AnualOpcionesMovil y AnualActualizarMovil, anual-opciones-y-meses): chips, "vs A" y la hoja de meses.
  */
 export default function Anual() {
-  const { anio, paso } = useLocalSearchParams<{ anio: string; paso?: string }>();
+  const { anio, paso, opcion } = useLocalSearchParams<{ anio: string; paso?: string; opcion?: string }>();
   const r = useConsulta(['anual', anio], (p) => p.plan.anual(Number(anio)));
   if (paso === 'base' || (!r.isLoading && !r.data)) return <PasoBase anio={Number(anio)} conPlan={Boolean(r.data)} tieneMontos={Boolean(r.data?.gastos.some((f) => f.valores.some((v) => v > 0)))} />;
   if (!r.data) return <Pantalla><Encabezado titulo={`Plan ${anio}`} volver="/planear" volverTexto="Plan" /><Texto v="pequeno">Cargando…</Texto></Pantalla>;
-  return <LoQueCambia anio={Number(anio)} />;
+  return <LoQueCambia anio={Number(anio)} letra={opcion ?? null} />;
 }
 
 function PasoBase({ anio, conPlan, tieneMontos }: { anio: number; conPlan: boolean; tieneMontos: boolean }) {
@@ -90,8 +91,13 @@ function PasoBase({ anio, conPlan, tieneMontos }: { anio: number; conPlan: boole
   );
 }
 
-function LoQueCambia({ anio }: { anio: number }) {
-  const r = useConsulta(['anual', String(anio)], (p) => p.plan.anual(anio));
+function LoQueCambia({ anio, letra }: { anio: number; letra: string | null }) {
+  // La opcion elegida por id; sin ella, la de la letra de la URL, la en uso o la A.
+  const [opcionId, setOpcionId] = useState<Id | null>(null);
+  const base = useConsulta(['anual', String(anio), 'opciones'], (p) => p.plan.anual(anio));
+  const pedida = opcionId ?? base.data?.opciones.find((o) => o.letra === letra)?.id ?? null;
+  const r = useConsulta(['anual', String(anio), pedida], (p) => p.plan.anual(anio, pedida));
+  const [hojaMeses, setHojaMeses] = useState(false);
   const categorias = useConsulta(['categorias'], (p) => p.hogar.categorias());
   const accion = useAccion();
   const [cambio, setCambio] = useState<{ evento: EventoAnual | null; mes: number } | null>(null);
@@ -101,19 +107,38 @@ function LoQueCambia({ anio }: { anio: number }) {
   const d = r.data;
   if (!d) return null;
 
-  const crearMeses = () => accion.ejecutar((p) => p.plan.crearMesesDesdeAnual(anio)).then((ok) => ok && setMensaje(`Los 12 meses de ${anio} quedaron en borrador, cada uno con su Opción A.`));
   const apretado = d.kpis.mesApretado.mes;
+  const esA = d.opciones[0]?.id === d.opcion.id;
+  const suma = (v: number[]) => v.reduce((a, x) => a + x, 0);
+  const frenteA = esA ? 0 : suma(d.libre) - suma(d.libreA);
+  const duplicar = () => accion.ejecutar(async (p) => setOpcionId(await p.plan.duplicarOpcionAnual(anio, d.opcion.id)));
 
   return (
     <Pantalla>
-      <Encabezado titulo={`${anio}: lo que cambia`} rotulo={d.estado === 'BORRADOR' ? 'Borrador · paso 2 de 2' : 'Meses creados'} rotuloColor={d.estado === 'BORRADOR' ? colors.aviso : undefined} volver="/planear" volverTexto="Plan" />
+      <Encabezado titulo={d.opciones.length > 1 ? `Plan ${anio}` : `${anio}: lo que cambia`} rotulo={(d.estado === 'BORRADOR' ? 'Borrador · paso 2 de 2' : 'Meses creados') + (d.opciones.length > 1 ? ` · ${d.opciones.length} opciones` : '')} rotuloColor={d.estado === 'BORRADOR' ? colors.aviso : undefined} volver="/planear" volverTexto="Plan" />
       <Texto v="pequeno">{d.base ? `Cada mes es copia de ${formatMesAnio(d.base).toLowerCase()}. ` : ''}Toca un mes para agregar algo distinto.</Texto>
       {d.estado === 'BORRADOR' && <Boton tipo="texto" titulo="Cambiar mes base" onPress={() => router.push(`/anual/${anio}?paso=base`)} />}
+
+      <View accessibilityRole="tablist" testID="opciones-anual" style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+        {d.opciones.map((o) => {
+          const sel = o.id === d.opcion.id;
+          return (
+            <Pressable key={o.id} accessibilityRole="tab" accessibilityState={{ selected: sel }} onPress={() => setOpcionId(o.id)}
+              style={{ minHeight: 44, justifyContent: 'center', paddingHorizontal: 14, borderRadius: 22, backgroundColor: sel ? colors.acento : colors.superficie, borderWidth: sel ? 0 : 1, borderColor: colors.borde }}>
+              <Texto style={{ fontSize: 14, fontFamily: sel ? fonts.semibold : fonts.regular, color: sel ? '#FFFFFF' : colors.texto }}>{`Opción ${o.letra}${o.inicialAutor && o.creadoPor !== d.opciones[0]?.creadoPor ? ' · ' + o.inicialAutor : ''}`}</Texto>
+            </Pressable>
+          );
+        })}
+        <Pressable accessibilityRole="button" onPress={() => void duplicar()} style={{ minHeight: 44, justifyContent: 'center', paddingHorizontal: 14, borderRadius: 22, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.control }}>
+          <Texto style={{ fontSize: 14 }}>+ Duplicar</Texto>
+        </Pressable>
+      </View>
 
       <View style={{ flexDirection: 'row', gap: 12, padding: 16, borderRadius: 16, backgroundColor: colors.superficie, borderWidth: 1, borderColor: colors.borde }}>
         <View style={{ flex: 1, gap: 4 }}>
           <Texto v="detalle">Libre en el año</Texto>
           <Monto testID="kpi-libre" valor={d.kpis.libreAnio} style={{ fontSize: 17, fontFamily: fonts.monoSemibold, color: colors.acento }} />
+          {frenteA !== 0 && <Texto testID="frente-a" style={{ fontSize: 12, color: frenteA < 0 ? colors.negativo : colors.positivo }}>{`${formatCop(frenteA, { signo: true })} vs Opción A`}</Texto>}
         </View>
         <View style={{ flex: 1, gap: 4 }}>
           <Texto v="detalle">Más apretado</Texto>
@@ -131,14 +156,19 @@ function LoQueCambia({ anio }: { anio: number }) {
                 <Texto style={{ fontSize: 15, fontFamily: fonts.medium }}>{nombreMeses(m)}</Texto>
                 <Texto style={{ fontSize: 12, color: m.cambios.length ? colors.aviso : '#7A7D76' }}>{m.cambios.length ? m.cambios.join(' · ') : m.desde === m.hasta ? 'Igual al mes base' : `Igual al mes base · ${m.hasta - m.desde + 1} meses`}</Texto>
               </View>
-              <Monto valor={m.libre} style={{ fontSize: 14, fontFamily: m.cambios.length ? fonts.monoSemibold : fonts.mono, color: enRojo ? colors.negativo : m.cambios.length ? colors.texto : colors.secundario }} />
+              <View style={{ alignItems: 'flex-end', gap: 2 }}>
+                <Monto valor={m.libre} style={{ fontSize: 14, fontFamily: m.cambios.length ? fonts.monoSemibold : fonts.mono, color: enRojo ? colors.negativo : m.cambios.length ? colors.texto : colors.secundario }} />
+                {!esA && m.libre !== d.libreA[m.desde - 1] && (
+                  <Texto testID={`vs-a-${m.desde}`} style={{ fontSize: 11, fontFamily: fonts.mono, color: m.libre < d.libreA[m.desde - 1]! ? colors.negativo : colors.positivo }}>{`${formatCop(m.libre - d.libreA[m.desde - 1]!, { signo: true })} vs A`}</Texto>
+                )}
+              </View>
             </Pressable>
           );
         })}
       </View>
 
       <View style={{ gap: 4 }} testID="lo-que-cambia">
-        <Texto v="rotulo">{`Lo que cambia · ${d.cambios.length}`}</Texto>
+        <Texto v="rotulo">{`Lo que cambia${d.opciones.length > 1 ? ` en la Opción ${d.opcion.letra}` : ''} · ${d.cambios.length}`}</Texto>
         {d.cambios.map((c) => (
           <Pressable key={c.evento.id} accessibilityRole="button" onPress={() => setCambio({ evento: c.evento, mes: c.evento.mes })}
             style={{ minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.divisor }}>
@@ -154,7 +184,7 @@ function LoQueCambia({ anio }: { anio: number }) {
 
       <View style={{ flexDirection: 'row', gap: 8 }}>
         <Boton tipo="secundario" titulo="+ Algo distinto" onPress={() => setCambio({ evento: null, mes: 1 })} style={{ flex: 1 }} />
-        {d.estado === 'BORRADOR' && <Boton titulo="Crear 12 meses" deshabilitado={accion.ocupado} onPress={() => void crearMeses()} style={{ flex: 1 }} />}
+        <Boton titulo={`Meses con la ${d.opcion.letra}`} deshabilitado={accion.ocupado} onPress={() => setHojaMeses(true)} style={{ flex: 1 }} />
       </View>
       {borrando ? (
         <View testID="confirmar-borrar" style={{ gap: 10, padding: 14, borderRadius: 12, backgroundColor: colors.avisoSuave }}>
@@ -167,8 +197,83 @@ function LoQueCambia({ anio }: { anio: number }) {
       )}
       {mensaje ? <Texto style={{ color: colors.positivo }}>{mensaje}</Texto> : null}
       <Aviso texto={accion.error} />
-      {cambio && <CambioHoja anio={anio} evento={cambio.evento} mesInicial={cambio.mes} categorias={categorias.data ?? []} onCerrar={() => setCambio(null)} />}
+      {cambio && <CambioHoja anio={anio} opcionId={d.opcion.id} evento={cambio.evento} mesInicial={cambio.mes} categorias={categorias.data ?? []} onCerrar={() => setCambio(null)} />}
+      {hojaMeses && (
+        <MesesHoja anio={anio} opcionId={d.opcion.id} letra={d.opcion.letra} onCerrar={() => setHojaMeses(false)}
+          onListo={(n) => { setHojaMeses(false); setMensaje(textoListo(n, d.opcion.letra)); }} />
+      )}
     </Pantalla>
+  );
+}
+
+/** "Listo: 2 meses creados y 10 actualizados con la Opción A." */
+function textoListo(n: { creados: number; actualizados: number }, letra: string): string {
+  const partes = [n.creados ? `${n.creados} ${n.creados === 1 ? 'mes creado' : 'meses creados'}` : '', n.actualizados ? `${n.actualizados} ${n.actualizados === 1 ? 'actualizado' : 'actualizados'}` : ''].filter(Boolean);
+  return `Listo: ${partes.join(' y ')} con la Opción ${letra}.`;
+}
+
+/** Meses seguidos que se muestran juntos: misma accion, mismo estado de hoy y misma marca. */
+function agrupar(meses: MesDesdeAnual[]): MesDesdeAnual[][] {
+  const grupos: MesDesdeAnual[][] = [];
+  for (const m of meses) {
+    const ultimo = grupos.at(-1);
+    const u = ultimo?.at(-1);
+    if (u && u.accion === m.accion && u.ahora === m.ahora && u.motivo === m.motivo && u.marcado === m.marcado && u.mes === m.mes - 1) ultimo!.push(m);
+    else grupos.push([m]);
+  }
+  return grupos;
+}
+
+/** "Meses con la Opción X" (AnualActualizarMovil.dc.html, design D3 de anual-opciones-y-meses). */
+function MesesHoja({ anio, opcionId, letra, onCerrar, onListo }: { anio: number; opcionId: Id; letra: string; onCerrar: () => void; onListo: (n: { creados: number; actualizados: number }) => void }) {
+  const accion = useAccion();
+  const meses = useConsulta(['meses-anual', anio, opcionId], (p) => p.plan.mesesDesdeAnual(anio, opcionId));
+  const [marcados, setMarcados] = useState<Set<number> | null>(null);
+  const lista = meses.data ?? [];
+  const elegidos = marcados ?? new Set(lista.filter((m) => m.accion === 'ACTUALIZABLE' && m.marcado).map((m) => m.mes));
+  const crear = lista.filter((m) => m.accion === 'CREAR').length;
+  const actualizar = [...elegidos].sort((a, b) => a - b);
+  const plural = (n: number) => (n === 1 ? 'mes' : 'meses');
+  const boton = crear && actualizar.length ? `Crear ${crear} y actualizar ${actualizar.length} ${plural(actualizar.length)}`
+    : crear ? `Crear ${crear} ${plural(crear)}` : actualizar.length ? `Actualizar ${actualizar.length} ${plural(actualizar.length)}` : 'Nada que crear ni actualizar';
+  const nombre = (g: MesDesdeAnual[]) => (g.length === 1 ? nombreMesCapital(g[0]!.mes) : `${nombreMesCapital(g[0]!.mes)} a ${nombreMes(g.at(-1)!.mes)}`);
+  const marcado = (g: MesDesdeAnual[]) => g[0]!.accion === 'CREAR' || (g[0]!.accion === 'ACTUALIZABLE' && g.every((m) => elegidos.has(m.mes)));
+  const alternar = (g: MesDesdeAnual[]) => {
+    const nuevos = new Set(elegidos);
+    const marcar = !marcado(g);
+    for (const m of g) {
+      if (marcar) nuevos.add(m.mes);
+      else nuevos.delete(m.mes);
+    }
+    setMarcados(nuevos);
+  };
+  const textoAccion = (g: MesDesdeAnual[]) => (g[0]!.accion === 'BLOQUEADO' ? g[0]!.motivo : g[0]!.accion === 'CREAR' ? (g.length > 1 ? 'Se crean' : 'Se crea') : marcado(g) ? (g.length > 1 ? 'Se actualizan' : 'Se actualiza') : 'No se toca');
+
+  return (
+    <HojaPlan titulo={`Meses con la Opción ${letra}`} antetitulo={`Plan ${anio}`} onCerrar={onCerrar}>
+      <Texto v="pequeno">Los meses sin plan se crean con su columna. Los que ya tienen plan solo cambian si los marcas.</Texto>
+      <View testID="meses-anual" style={{ borderWidth: 1, borderColor: colors.borde, borderRadius: 14, overflow: 'hidden' }}>
+        {agrupar(lista).map((g, k) => {
+          const bloqueado = g[0]!.accion !== 'ACTUALIZABLE';
+          return (
+            <Pressable key={g[0]!.mes} testID={`meses-${g.map((m) => m.mes).join('-')}`} accessibilityRole="checkbox" accessibilityState={{ checked: marcado(g), disabled: bloqueado }}
+              accessibilityLabel={`Actualizar ${nombre(g)}`} disabled={bloqueado} onPress={() => alternar(g)}
+              style={{ minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 8, borderTopWidth: k ? 1 : 0, borderTopColor: colors.divisor, backgroundColor: g[0]!.accion === 'BLOQUEADO' ? colors.fondo : colors.superficie }}>
+              <View style={{ width: 20, height: 20, borderRadius: 4, borderWidth: 2, borderColor: marcado(g) ? colors.acento : colors.control, backgroundColor: marcado(g) ? colors.acento : 'transparent', opacity: bloqueado && g[0]!.accion === 'BLOQUEADO' ? 0.4 : 1 }} />
+              <View style={{ flex: 1, gap: 2 }}>
+                <Texto style={{ fontSize: 15, fontFamily: fonts.semibold }}>{nombre(g)}</Texto>
+                <Texto v="detalle">{g[0]!.ahora + (g.length > 1 ? ` · ${g.length} meses` : '')}</Texto>
+              </View>
+              <Texto style={{ fontSize: 12, fontFamily: fonts.semibold, color: marcado(g) && g[0]!.accion !== 'BLOQUEADO' ? colors.acento : colors.secundario }}>{textoAccion(g)}</Texto>
+            </Pressable>
+          );
+        })}
+      </View>
+      <Texto style={{ fontSize: 12, lineHeight: 18, color: '#6B4A00', backgroundColor: '#FBF4E2', padding: 10, borderRadius: 10, overflow: 'hidden' }}>{`Actualizar reemplaza el plan de ese mes, con sus opciones, por la columna de la Opción ${letra}. Los meses con pagos, gastos o un cierre no se tocan.`}</Texto>
+      <Aviso texto={accion.error} />
+      <Boton titulo={boton} deshabilitado={accion.ocupado || !(crear + actualizar.length)}
+        onPress={() => void accion.ejecutar((p) => p.plan.crearOActualizarMeses(anio, opcionId, actualizar)).then((ok) => ok && onListo({ creados: crear, actualizados: actualizar.length }))} />
+    </HojaPlan>
   );
 }
 
@@ -189,7 +294,7 @@ function detalleCambio(c: VistaCambio): string {
 }
 
 /** "Algo distinto en {mes}" (AnualCambioMovil.dc.html), en hoja como las demas de Planear. */
-function CambioHoja({ anio, evento, mesInicial, categorias, onCerrar }: { anio: number; evento: EventoAnual | null; mesInicial: number; categorias: Categoria[]; onCerrar: () => void }) {
+function CambioHoja({ anio, opcionId, evento, mesInicial, categorias, onCerrar }: { anio: number; opcionId: Id; evento: EventoAnual | null; mesInicial: number; categorias: Categoria[]; onCerrar: () => void }) {
   const accion = useAccion();
   const m = useMiembros();
   const [tipo, setTipo] = useState<TipoEvento>(evento?.tipo ?? 'GASTO');
@@ -205,7 +310,7 @@ function CambioHoja({ anio, evento, mesInicial, categorias, onCerrar }: { anio: 
     nombre, mes, monto: monto ?? 0, tipo, usuarioId: tipo === 'INGRESO' ? persona : null,
     categoriaId: tipo === 'GASTO' ? categoria || null : null, enAdelante: cuando === 'ADELANTE',
   };
-  const vista = useConsulta(['previa-evento', anio, evento?.id ?? null, listo ? JSON.stringify(datos) : null], (p) => (listo ? p.plan.previsualizarEvento(anio, evento?.id ?? null, datos) : Promise.resolve(null)));
+  const vista = useConsulta(['previa-evento', anio, opcionId, evento?.id ?? null, listo ? JSON.stringify(datos) : null], (p) => (listo ? p.plan.previsualizarEvento(anio, evento?.id ?? null, datos, opcionId) : Promise.resolve(null)));
   const queda = listo ? vista.data?.[mes - 1] ?? null : null;
 
   const terminar = (ok: boolean) => ok && onCerrar();
@@ -242,7 +347,7 @@ function CambioHoja({ anio, evento, mesInicial, categorias, onCerrar }: { anio: 
           )}
           <Aviso texto={accion.error} />
           <Boton titulo="Guardar" deshabilitado={!listo || accion.ocupado}
-            onPress={() => void accion.ejecutar((p) => (evento ? p.plan.editarEvento(anio, evento.id, datos) : p.plan.agregarEvento(anio, datos))).then(terminar)} />
+            onPress={() => void accion.ejecutar((p) => (evento ? p.plan.editarEvento(anio, evento.id, datos) : p.plan.agregarEvento(anio, datos, opcionId))).then(terminar)} />
           {evento && <Boton tipo="texto" titulo="Quitar" onPress={() => setQuitando(true)} />}
         </>
       )}

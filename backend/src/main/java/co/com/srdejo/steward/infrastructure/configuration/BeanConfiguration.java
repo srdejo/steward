@@ -241,9 +241,10 @@ public class BeanConfiguration {
                                        ICategoriaPersistencePort categorias, IPlanPersistencePort planes,
                                        ICierrePersistencePort cierres, IIngresoFijoPersistencePort ingresos,
                                        IReglaDiezmoPersistencePort reglas, IMovimientoPersistencePort movimientos,
-                                       ICurrentUserPort usuarioActual, ITransaccionPort transaccion, IClockPort clock) {
+                                       ICurrentUserPort usuarioActual, ITransaccionPort transaccion, IClockPort clock,
+                                       ICreditoPersistencePort creditos, ITarjetaPersistencePort tarjetas) {
         return new AnualUseCase(hogares, cuentas, anuales, categorias, planes, cierres, ingresos, reglas, movimientos,
-                usuarioActual, transaccion, clock);
+                usuarioActual, transaccion, clock, creditos, tarjetas);
     }
 
     @Bean

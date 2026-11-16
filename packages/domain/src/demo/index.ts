@@ -371,18 +371,38 @@ export function crearAdaptadorDemo(opciones: OpcionesDemo): Puertos {
       async tablaOpciones(ref) {
         return R.tablaOpciones(await leerEstado(), ref, hoy());
       },
-      async anual(anio) {
-        return R.resumenAnual(await leerEstado(), anio);
+      async anual(anio, opcionId) {
+        return R.resumenAnual(await leerEstado(), anio, opcionId);
       },
-      async agregarEvento(anio, evento) {
-        await cambiar((s) => R.agregarEvento(s, { anio, evento }));
+      async agregarEvento(anio, evento, opcionId) {
+        await cambiar((s) => R.agregarEvento(s, { anio, evento, opcionId }));
       },
-      async editarMontoAnual(anio, categoriaId, mes, monto) {
-        await cambiar((s) => R.editarMontoAnual(s, { anio, categoriaId, mes, monto }));
+      async editarMontoAnual(anio, categoriaId, mes, monto, opcionId) {
+        await cambiar((s) => R.editarMontoAnual(s, { anio, categoriaId, mes, monto, opcionId }));
+      },
+      async duplicarOpcionAnual(anio, opcionId) {
+        const creadoPor = await usuarioActual();
+        let nueva = '';
+        await cambiar((s) => {
+          const r = R.duplicarOpcionAnual(s, { anio, opcionId, creadoPor });
+          nueva = r.opcionId;
+          return r.estado;
+        });
+        return nueva;
+      },
+      async quitarOpcionAnual(anio, opcionId) {
+        await cambiar((s) => R.quitarOpcionAnual(s, { anio, opcionId }));
+      },
+      async mesesDesdeAnual(anio, opcionId) {
+        return R.mesesDesdeAnual(await leerEstado(), anio, opcionId);
+      },
+      async crearOActualizarMeses(anio, opcionId, actualizar) {
+        const creadoPor = await usuarioActual();
+        await cambiar((s) => R.crearOActualizarMeses(s, { anio, opcionId, actualizar, creadoPor, hoy: hoy() }));
       },
       async crearMesesDesdeAnual(anio) {
         const creadoPor = await usuarioActual();
-        await cambiar((s) => R.crearMesesDesdeAnual(s, { anio, creadoPor }));
+        await cambiar((s) => R.crearMesesDesdeAnual(s, { anio, creadoPor, hoy: hoy() }));
       },
       async editarEvento(anio, eventoId, evento) {
         await cambiar((s) => R.editarEvento(s, { anio, eventoId, evento }));
@@ -391,10 +411,10 @@ export function crearAdaptadorDemo(opciones: OpcionesDemo): Puertos {
         await cambiar((s) => R.quitarEvento(s, { anio, eventoId }));
       },
       async vistaBase(anio, base) {
-        return R.vistaBase(await leerEstado(), { anio, base });
+        return R.vistaBase(await leerEstado(), { anio, base, hoy: hoy() });
       },
-      async previsualizarEvento(anio, eventoId, evento) {
-        return R.previsualizarEvento(await leerEstado(), { anio, eventoId, evento });
+      async previsualizarEvento(anio, eventoId, evento, opcionId) {
+        return R.previsualizarEvento(await leerEstado(), { anio, eventoId, evento, opcionId });
       },
       async borrarAnual(anio) {
         await cambiar((s) => R.borrarAnual(s, { anio }));
@@ -402,11 +422,13 @@ export function crearAdaptadorDemo(opciones: OpcionesDemo): Puertos {
       async conteoBorradoAnual(anio) {
         return R.conteoBorradoAnual(await leerEstado(), anio);
       },
-      async replicarMes(anio, base) {
-        await cambiar((s) => R.replicarMes(s, { anio, base, hoy: hoy() }));
+      async replicarMes(anio, base, opcionId) {
+        const creadoPor = await usuarioActual();
+        await cambiar((s) => R.replicarMes(s, { anio, base, hoy: hoy(), opcionId, creadoPor }));
       },
       async crearAnual(anio) {
-        await cambiar((s) => R.crearAnual(s, { anio, hoy: hoy() }));
+        const creadoPor = await usuarioActual();
+        await cambiar((s) => R.crearAnual(s, { anio, hoy: hoy(), creadoPor }));
       },
       async editarProyeccion(usuarioId, ref, monto) {
         await cambiar((s) => R.editarProyeccion(s, { usuarioId, ref, monto }));

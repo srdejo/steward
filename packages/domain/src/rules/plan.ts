@@ -4,7 +4,7 @@ import { libreAnualDelMes } from './anual';
 import { ReglaError, clonar, compararMes, mesDe, nuevoId, sumar, sumarMeses } from './base';
 import { cuotasDeCreditos } from './credito';
 import { lineasDeTarjetas } from './tarjetas';
-import { anualDe, categoria, cierreDe, escenario, escenarioPrincipal, eventosDelMes, nombreUsuario, opciones, planDe, planPorId } from './consultas';
+import { anualDe, opcionDe, categoria, cierreDe, escenario, escenarioPrincipal, eventosDelMes, nombreUsuario, opciones, planDe, planPorId } from './consultas';
 import { diezmoDeLineaNueva, diezmoSugerido, diezmosDelMes, ingresosDelMes, ingresosNuevos, itemConPagos, recibeLinea, seguirLinea, totalIngresos, type LineaIngreso } from './ingresos';
 import { devolverCapital } from './credito';
 
@@ -377,7 +377,7 @@ export function planInicio(estado: EstadoHogar, hoy: Fecha, meses = 3, anteriore
     const plan = planDe(estado, ref);
     if (!plan) {
       const anual = anualDe(estado, ref.anio);
-      if (anual && anual.estado === 'BORRADOR' && anual.filas.length) {
+      if (anual && anual.estado === 'BORRADOR' && opcionDe(anual).filas.length) {
         return { ref, plan: null, estado: 'SIN_PLAN', detalle: 'Saldrá del plan anual', libre: [libreAnualDelMes(estado, ref)] };
       }
       return { ref, plan: null, estado: 'SIN_PLAN', detalle: 'Sin plan', libre: [] };

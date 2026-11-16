@@ -146,11 +146,11 @@ export function totalIngresos(lineas: LineaIngreso[]): Pesos {
 }
 
 /** Lineas con que nace una opcion (design D8): una por ingreso fijo activo (su neto) y una por evento de ingreso del anual del mes. */
-export function ingresosNuevos(s: EstadoHogar, ref: MesRef): IngresoPlan[] {
+export function ingresosNuevos(s: EstadoHogar, ref: MesRef, opcionId?: Id | null): IngresoPlan[] {
   const fijos: IngresoPlan[] = s.ingresosFijos
     .filter((f) => f.activo)
     .map((f) => ({ id: nuevoId(s, 'ingp'), nombre: f.nombre, monto: f.neto, usuarioId: f.usuarioId, tipo: 'FIJO', ingresoFijoId: f.id, bruto: f.bruto }));
-  const extras: IngresoPlan[] = eventosDelMes(anualDe(s, ref.anio), ref.mes)
+  const extras: IngresoPlan[] = eventosDelMes(anualDe(s, ref.anio), ref.mes, opcionId)
     .filter((e) => e.tipo === 'INGRESO')
     .map((e) => ({ id: nuevoId(s, 'ingp'), nombre: e.nombre, monto: e.monto, usuarioId: e.usuarioId, tipo: 'EXTRA', ingresoFijoId: null, bruto: e.monto }));
   return [...fijos, ...extras];

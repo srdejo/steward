@@ -69,18 +69,24 @@ export function categoria(c: CategoriaApi): Categoria {
   return { id: c.id, nombre: c.nombre, color: c.color, orden: c.orden, tipo: c.tipo, sistema: c.sistema };
 }
 
-/** Las celdas tocadas, por categoria, en filas de 12 montos. */
+/** Cada opcion del año, con sus celdas tocadas por categoria en filas de 12 montos (design D2 de anual-opciones-y-meses). */
 export function anual(a: AnualApi): PlanAnual {
-  const filas = new Map<string, number[]>();
-  for (const c of a.celdas) {
-    const montos = filas.get(c.categoriaId) ?? Array.from({ length: 12 }, () => 0);
-    montos[c.mes - 1] = c.monto;
-    filas.set(c.categoriaId, montos);
-  }
   return {
-    anio: a.anio, estado: a.estado, filas: [...filas].map(([categoriaId, montos]) => ({ categoriaId, montos })),
-    eventos: a.eventos.map((e) => ({ id: e.id, nombre: e.nombre, mes: e.mes, monto: e.monto, tipo: e.tipo, usuarioId: e.usuarioId ?? null, categoriaId: e.categoriaId ?? null, enAdelante: e.enAdelante ?? false })),
-    base: a.base ? { anio: a.base.anio, mes: a.base.mes } : null,
+    anio: a.anio, estado: a.estado, opcionEnUso: a.opcionEnUso ?? null,
+    opciones: a.opciones.map((o) => {
+      const filas = new Map<string, number[]>();
+      for (const c of o.celdas) {
+        const montos = filas.get(c.categoriaId) ?? Array.from({ length: 12 }, () => 0);
+        montos[c.mes - 1] = c.monto;
+        filas.set(c.categoriaId, montos);
+      }
+      return {
+        id: o.id, letra: o.letra, creadoPor: o.creadoPor, nota: o.nota ?? '',
+        filas: [...filas].map(([categoriaId, montos]) => ({ categoriaId, montos })),
+        eventos: o.eventos.map((e) => ({ id: e.id, nombre: e.nombre, mes: e.mes, monto: e.monto, tipo: e.tipo, usuarioId: e.usuarioId ?? null, categoriaId: e.categoriaId ?? null, enAdelante: e.enAdelante ?? false })),
+        base: o.base ? { anio: o.base.anio, mes: o.base.mes } : null,
+      };
+    }),
   };
 }
 
