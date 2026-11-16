@@ -270,6 +270,12 @@ public class CuentasUseCase implements ICuentasServicePort {
                                                 "", o.origen(), null, c.id(), null, m, 0))))))));
     }
 
+    @Override
+    public Mono<Void> eliminarCredito(UUID creditoId) {
+        return registro.contexto().flatMap(ctx -> creditoDelHogar(creditoId, ctx)
+                .flatMap(c -> transaccion.enTransaccion(creditos.eliminar(c.id(), registro.mesEnCurso()))));
+    }
+
     private Mono<Credito> creditoDelHogar(UUID creditoId, Contexto ctx) {
         return creditos.porIdEnHogar(creditoId, ctx.hogar().id())
                 .switchIfEmpty(Mono.error(CuentasUseCase::creditoNoEncontrado));

@@ -48,7 +48,7 @@ export const routes: Routes = [
         loadComponent: () => import('./features/cuentas/cuenta-page').then((m) => m.CuentaPage),
         children: [{ path: 'registro/:registroId', loadComponent: () => import('./features/hoy/registro-hoja').then((m) => m.RegistroHoja) }],
       },
-      { path: 'cuentas/credito/:id', loadComponent: () => import('./features/cuentas/credito-page').then((m) => m.CreditoPage) },
+      { path: 'cuentas/credito/:id', data: { ancho: 'escritorio' }, loadComponent: () => import('./features/cuentas/credito-page').then((m) => m.CreditoPage) },
       { path: 'ajustes', data: { ancho: 'escritorio' }, loadComponent: () => import('./features/ajustes/ajustes-page').then((m) => m.AjustesPage) },
     ],
   },

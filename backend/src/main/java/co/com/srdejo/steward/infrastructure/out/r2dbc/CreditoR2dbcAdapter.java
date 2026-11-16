@@ -10,6 +10,7 @@ import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.List;
 import java.util.UUID;
 
@@ -116,6 +117,21 @@ public class CreditoR2dbcAdapter implements ICreditoPersistencePort {
                 .bind("capital", capital)
                 .bind("cuota", cuota)
                 .then();
+    }
+
+    @Override
+    public Mono<Void> eliminar(UUID id, YearMonth desde) {
+        Mono<Void> soltarMovimientos = db.sql("UPDATE movimiento SET credito_id = NULL WHERE credito_id = :id").bind("id", id).then();
+        Mono<Void> quitarItems = db.sql("DELETE FROM item_plan i USING escenario e, plan_mes p "
+                        + "WHERE i.credito_id = :id AND e.id = i.escenario_id AND p.id = e.plan_id AND p.estado <> 'CERRADO' "
+                        + "AND (p.ref_anio * 12 + p.ref_mes) >= :desde "
+                        + "AND NOT EXISTS (SELECT 1 FROM movimiento m WHERE m.item_id = i.id)")
+                .bind("id", id)
+                .bind("desde", desde.getYear() * 12 + desde.getMonthValue())
+                .then();
+        Mono<Void> soltarItems = db.sql("UPDATE item_plan SET credito_id = NULL WHERE credito_id = :id").bind("id", id).then();
+        Mono<Void> borrar = db.sql("DELETE FROM credito WHERE id = :id").bind("id", id).then();
+        return soltarMovimientos.then(quitarItems).then(soltarItems).then(borrar);
     }
 
     @Override

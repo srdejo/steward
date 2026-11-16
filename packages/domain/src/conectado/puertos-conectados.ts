@@ -490,6 +490,7 @@ export class PuertosConectados implements Puertos {
         })),
       agregarCredito: (datos) => escribir(api.crearCredito(datos)),
       actualizarSaldo: (id, saldo) => escribir(api.actualizarSaldoCredito(id, saldo)),
+      eliminarCredito: (id) => escribir(api.eliminarCredito(id)),
       registrarAbono: async (id, monto, origen) => {
         const usuarioId = this.titularId;
         if (!usuarioId) throw new ReglaError('SIN_SESION', 'Inicia sesión otra vez');

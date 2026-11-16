@@ -5,6 +5,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.UUID;
 
 /**
@@ -33,6 +34,12 @@ public interface ICreditoPersistencePort {
      * descuenta la cuota pagada (tarjetas-y-creditos).
      */
     Mono<Void> devolver(UUID id, long capital, boolean cuota);
+
+    /**
+     * Borra el credito: suelta sus movimientos, borra sus items sin movimientos de los planes no cerrados desde {@code desde}
+     * y suelta los demas (design D1 de credito-escritorio-y-eliminar). Corre en la transaccion del caso de uso.
+     */
+    Mono<Void> eliminar(UUID id, YearMonth desde);
 
     /** "Cambiar" como baja el saldo: el metodo y sus datos (design D3 de tarjetas-y-creditos). */
     Mono<Credito> cambiarMetodo(Credito credito);

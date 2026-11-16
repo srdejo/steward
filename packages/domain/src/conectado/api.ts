@@ -437,6 +437,11 @@ export class Api {
     return this.t.pedir<CuentaApi>('POST', '/api/cuentas', { nombre, titular, saldo });
   }
 
+  /** "Eliminar crédito" (credito-escritorio-y-eliminar). */
+  eliminarCredito(id: string): Promise<void> {
+    return this.t.pedir<void>('DELETE', `/api/creditos/${encodeURIComponent(id)}`);
+  }
+
   quitarCuenta(id: string): Promise<void> {
     return this.t.pedir<void>('DELETE', `/api/cuentas/${encodeURIComponent(id)}`);
   }

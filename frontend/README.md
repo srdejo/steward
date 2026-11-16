@@ -41,6 +41,13 @@ Tiene dos **modos de datos** (`src/app/config/modo.ts`):
 - **Tarjetas** (`features/cuentas/tarjetas-tab.ts`, `TarjetasWeb` y `TarjetasMovil`): "Por pagar este ciclo", las próximas fechas (calendario de 5 semanas en escritorio, lista en móvil) y cada tarjeta con su próximo pago y corte y su ayuda; `tarjeta-hoja.ts` agrega, edita o quita. La tarjeta es la línea del plan (`ItemPlan.tarjetaId`) y no lleva deuda.
 - **Créditos** (`features/cuentas/creditos-tab.ts`, `CreditosWeb` y `CreditosMovil`): lo que deben y pagan, los indicadores del año, la tabla con el crédito elegido al lado y la proyección a 6 meses. `metodo-hoja.ts` es "¿Cómo baja el saldo?" (con la tasa EM o EA, con el plan de pagos o a mano), para agregar y para "Cambiar".
 - Las cifras salen de `rules/tarjetas.ts` y `rules/credito.ts` del dominio, como en la app.
+- **El detalle de un crédito** (`credito-page.ts`, ruta con `data.ancho = 'escritorio'`; cambio `credito-escritorio-y-eliminar`). Desde 1024 px usa `CreditoWeb`:
+  - los indicadores Cuota, Pagado, Termina e Intereses;
+  - las 12 próximas cuotas, con su barra de capital e interés (`VistaCredito.proximasAnio`);
+  - los últimos pagos, con su cuenta (`VistaCredito.pagos`);
+  - al lado, el método, el simulador y "Eliminar crédito".
+
+  "Eliminar crédito" está en móvil y escritorio. Una hoja dice qué se conserva; al confirmar, llama a `cuentas.eliminarCredito` (`DELETE /api/creditos/{id}`) y vuelve a la pestaña Créditos.
 
 **Al pasar a la Etapa 5, los créditos de prueba también desaparecen.** La pestaña Créditos muestra "Sin créditos." hasta que se agregan con "+ Crédito". La cuota de un crédito entra sola al plan del mes en curso (si ya tiene plan) y a los meses que se creen después.
 

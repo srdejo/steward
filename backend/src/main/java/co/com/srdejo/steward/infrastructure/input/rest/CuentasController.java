@@ -66,6 +66,13 @@ public class CuentasController {
         return cuentas.crearCredito(r.datos()).map(CreditoResponse::de);
     }
 
+    /** "Eliminar credito" (credito-escritorio-y-eliminar): lo registrado se conserva sin credito. */
+    @DeleteMapping("/api/creditos/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public Mono<Void> eliminarCredito(@PathVariable UUID id) {
+        return cuentas.eliminarCredito(id);
+    }
+
     @PutMapping("/api/creditos/{id}/saldo")
     public Mono<CreditoResponse> actualizarSaldo(@PathVariable UUID id, @RequestBody SaldoCreditoRequest r) {
         return cuentas.actualizarSaldo(id, r.saldo()).map(CreditoResponse::de);
