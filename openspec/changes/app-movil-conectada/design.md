@@ -95,7 +95,7 @@ Al primer ingreso, si existe `@steward/budget_v3` y no se ha mostrado el aviso, 
 
 ### D9. Distribución
 
-- **Versión:** la del `app.json` de `main` (hoy 2.2.1). La app siguió creciendo en TestFlight (2.0.0, 2.1.0, 2.2.0 y 2.2.1) mientras se completaba esta etapa, así que no vuelve a 2.0.0.
+- **Versión:** la del `app.json` de `main` (hoy 2.2.3). La app siguió creciendo en TestFlight (2.0.0, 2.1.0, 2.2.0, 2.2.1 y 2.2.3) mientras se completaba esta etapa, así que no vuelve a 2.0.0.
 - **Build:** perfil `testflight` de `eas.json`, que es distribución de tienda: el mismo build que se prueba en TestFlight sirve para la revisión. No hace falta otro con `production`.
 - **Revisión:**
   - el envío es solo con confirmación de Daniel, y se manda el build ya probado;

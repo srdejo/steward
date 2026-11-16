@@ -13,7 +13,7 @@ Publicar agrega requisitos de Apple que hoy no se cumplen: una opción de acceso
 - "Eliminar mi cuenta" en Ajustes, en la app y en la PWA, con `POST /api/cuenta/eliminar`.
 - Una vez, la app avisa a quien traiga datos de la v1 que la app empieza de cero; esos datos no se borran ni se importan.
 - **BREAKING:** la versión pública de la app deja de ser local: requiere cuenta e internet.
-- La versión del `app.json` (hoy 2.2.1, build 23): primero TestFlight y, con confirmación de Daniel, revisión de App Store con un build ya probado.
+- La versión del `app.json` (hoy 2.2.3): primero TestFlight y, con confirmación de Daniel, revisión de App Store con un build ya probado.
 
 Fuera de alcance:
 - Importar los datos de la v1.

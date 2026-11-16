@@ -45,7 +45,7 @@ Al primer ingreso, si el dispositivo tiene datos de la v1, la app SHALL avisar u
 - **THEN** no ve el aviso
 
 ### Requirement: Distribución en TestFlight y App Store
-La app SHALL salir con la versión del `app.json` de `main` (hoy 2.2.1), con el perfil `testflight` de `eas.json` (distribución de tienda y número de build remoto con autoincremento): primero por TestFlight y, con confirmación de Daniel, a revisión de App Store con un build ya probado en TestFlight, en lugar de la v1. La ficha de App Store Connect MUST llevar el mismo número de versión que ese build. MUST NOT distribuirse por Google Play. La v1 SHALL seguir en `release/1.0.x` y su tag `v1.0.2`.
+La app SHALL salir con la versión del `app.json` de `main` (hoy 2.2.3), con el perfil `testflight` de `eas.json` (distribución de tienda y número de build remoto con autoincremento): primero por TestFlight y, con confirmación de Daniel, a revisión de App Store con un build ya probado en TestFlight, en lugar de la v1. La ficha de App Store Connect MUST llevar el mismo número de versión que ese build. MUST NOT distribuirse por Google Play. La v1 SHALL seguir en `release/1.0.x` y su tag `v1.0.2`.
 
 #### Scenario: Primero TestFlight
 - **WHEN** se genera el build de la versión actual
