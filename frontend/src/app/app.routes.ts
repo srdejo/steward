@@ -1,7 +1,13 @@
-import { Routes } from '@angular/router';
+import { inject } from '@angular/core';
+import { Router, type CanActivateFn, type Routes } from '@angular/router';
 
 import { accesoGuard, appGuard, onboardingGuard } from './core/sesion/guards';
 import { Shell } from './core/layout/shell';
+import { ESCRITORIO } from './shared/escritorio';
+
+/** En escritorio el mes ya muestra las opciones lado a lado: Comparar lleva al mes (design D6 de plan-mes-escritorio). */
+const compararEnElMes: CanActivateFn = (ruta) =>
+  typeof matchMedia === 'function' && matchMedia(ESCRITORIO).matches ? inject(Router).createUrlTree(['/planear', ruta.paramMap.get('mes')]) : true;
 
 // Rutas de design D5. Cada pantalla carga lazy; los destinos principales viven dentro del Shell.
 export const routes: Routes = [
@@ -32,8 +38,8 @@ export const routes: Routes = [
       },
       { path: 'planear', data: { ancho: 'escritorio' }, loadComponent: () => import('./features/planear/planear-inicio-page').then((m) => m.PlanearInicioPage) },
       { path: 'planear/anual/:anio', data: { ancho: 'completo' }, loadComponent: () => import('./features/planear/anual-page').then((m) => m.AnualPage) },
-      { path: 'planear/:mes', loadComponent: () => import('./features/planear/mes-page').then((m) => m.MesPage) },
-      { path: 'planear/:mes/comparar', data: { ancho: 'completo' }, loadComponent: () => import('./features/planear/comparar-page').then((m) => m.CompararPage) },
+      { path: 'planear/:mes', data: { ancho: 'completo' }, loadComponent: () => import('./features/planear/mes-page').then((m) => m.MesPage) },
+      { path: 'planear/:mes/comparar', data: { ancho: 'completo' }, canActivate: [compararEnElMes], loadComponent: () => import('./features/planear/comparar-page').then((m) => m.CompararPage) },
       { path: 'planear/:mes/cierre', data: { ancho: 'escritorio' }, loadComponent: () => import('./features/planear/cierre-page').then((m) => m.CierrePage) },
       { path: 'cuentas', data: { ancho: 'escritorio' }, loadComponent: () => import('./features/cuentas/cuentas-page').then((m) => m.CuentasPage) },
       { path: 'cuentas/cuadrar', loadComponent: () => import('./features/cuentas/cuadrar-page').then((m) => m.CuadrarPage) },

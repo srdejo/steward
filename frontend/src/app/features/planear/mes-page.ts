@@ -12,7 +12,10 @@ import { Encabezado } from '../../shared/components/encabezado';
 import { Hoja } from '../../shared/components/hoja';
 import { Kpi } from '../../shared/components/kpi';
 import { Monto } from '../../shared/components/monto';
+import { anchoEscritorio } from '../../shared/escritorio';
 import { MesDeHoy } from '../hoy/mes-de-hoy';
+import { MesOpciones } from './mes-opciones';
+import { MesUnaOpcion } from './mes-una-opcion';
 import { GastoPlanHoja } from './gasto-plan-hoja';
 import { IngresoHoja } from './ingreso-hoja';
 
@@ -21,12 +24,14 @@ import { IngresoHoja } from './ingreso-hoja';
  * Borrador: Planear.dc.html (opciones, lo que dejaria libre, ingresos y gastos por categoria). Las lineas de ingreso y los
  * gastos se editan en hojas con "Guardar" (design D5 de usabilidad-plan).
  * Activo: el plan elegido, editable con las mismas hojas, con acceso a Hoy y al cierre. Cerrado: en solo lectura.
+ * Desde 1024 px (plan-mes-escritorio, design D1): un mes con una opcion (o Activo o Cerrado) es MesWeb.dc.html y uno con
+ * varias, la tabla de opciones; sin plan, las formas de empezar y "ya trae" una al lado de la otra.
  */
 @Component({
   selector: 'app-mes-page',
-  imports: [NgTemplateOutlet, RouterLink, Encabezado, GastoPlanHoja, Hoja, IngresoHoja, Kpi, Monto],
+  imports: [NgTemplateOutlet, RouterLink, Encabezado, GastoPlanHoja, Hoja, IngresoHoja, Kpi, MesOpciones, MesUnaOpcion, Monto],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'flex flex-col gap-[18px] px-5 pt-6 pb-4' },
+  host: { '[class]': "escritorio() ? 'flex flex-col gap-5 px-8 pt-6 pb-10' : 'mx-auto flex w-full max-w-[560px] flex-col gap-[18px] px-5 pt-6 pb-4'" },
   template: `
     @if (!ref()) {
       <app-encabezado titulo="Mes no válido" volver="/planear" volverTexto="Plan" />
@@ -34,6 +39,8 @@ import { IngresoHoja } from './ingreso-hoja';
       @switch (v.estado) {
         @case ('SIN_PLAN') {
           <app-encabezado [titulo]="titulo()" volver="/planear" volverTexto="Plan" />
+          <div class="flex flex-col gap-[18px] lg:grid lg:grid-cols-2 lg:items-start lg:gap-8" data-testid="mes-sin-plan">
+          <div class="flex flex-col gap-[18px]">
           <p class="-mt-2 text-[15px] leading-normal text-secundario">Aún no tiene plan. Empieza desde algo que ya existe y ajusta lo que cambie.</p>
           <div class="flex flex-col gap-2.5">
             @for (o of formasDeEmpezar(); track o.modo; let primero = $first) {
@@ -47,6 +54,7 @@ import { IngresoHoja } from './ingreso-hoja';
                 <span class="text-lg" [class]="primero ? 'text-acento' : 'text-secundario'" aria-hidden="true">›</span>
               </button>
             }
+          </div>
           </div>
           @if (trae.value(); as lineas) {
             @if (lineas.length) {
@@ -66,9 +74,19 @@ import { IngresoHoja } from './ingreso-hoja';
               </div>
             }
           }
+          </div>
         }
 
         @case ('BORRADOR') {
+          @if (escritorio() && v.plan && actual(); as o) {
+            @if (v.opciones.length > 1) {
+              <app-mes-opciones [ref]="ref()!" [planId]="v.plan!.id" [enUso]="v.plan!.escenarioActivoId" [(elegida)]="elegida"
+                (duplicar)="duplicar()" (usar)="usar(o, false)" (abrirGasto)="hojaGasto.set($event)" />
+            } @else {
+              <app-mes-una-opcion [ref]="ref()!" estado="BORRADOR" [planId]="v.plan!.id" [escenarioId]="o.escenario.id" [lineas]="o.escenario.ingresos"
+                (duplicar)="duplicar()" (usar)="usar(o, false)" (abrirGasto)="hojaGasto.set($event)" (abrirIngreso)="hojaIngreso.set({ linea: $event })" />
+            }
+          } @else {
           <app-encabezado [titulo]="titulo()" rotulo="Borrador" [volver]="'/planear'" volverTexto="Plan">
             <a [routerLink]="['/planear/anual', ref()!.anio]" class="boton-texto">Ver año</a>
           </app-encabezado>
@@ -119,9 +137,14 @@ import { IngresoHoja } from './ingreso-hoja';
               <button type="button" class="boton h-[52px] rounded-[14px] bg-acento text-white" (click)="usar(o)">Usar opción {{ o.escenario.letra }}</button>
             </div>
           }
+          }
         }
 
         @default {
+          @if (escritorio() && v.plan && actual(); as o) {
+            <app-mes-una-opcion [ref]="ref()!" [estado]="v.estado" [planId]="v.plan!.id" [escenarioId]="o.escenario.id" [lineas]="o.escenario.ingresos"
+              (verEjecucion)="verEjecucion()" (abrirGasto)="hojaGasto.set($event)" (abrirIngreso)="hojaIngreso.set({ linea: $event })" />
+          } @else {
           <app-encabezado [titulo]="titulo()" [rotulo]="v.estado === 'ACTIVO' ? 'Activo' : 'Cerrado'" volver="/planear" volverTexto="Plan" />
           @if (v.opciones[0]; as o) {
             <section class="tarjeta flex flex-col gap-3 p-[18px]">
@@ -140,6 +163,7 @@ import { IngresoHoja } from './ingreso-hoja';
             }
             <a [routerLink]="['/planear', clave(), 'cierre']" class="boton-grande" [class.col-span-2]="v.estado !== 'ACTIVO'">{{ v.estado === 'ACTIVO' ? 'Cierre de mes' : 'Ver cierre' }}</a>
           </div>
+          }
         }
       }
 
@@ -170,7 +194,7 @@ import { IngresoHoja } from './ingreso-hoja';
           <app-ingreso-hoja [planId]="v.plan.id" [escenarioId]="o.escenario.id" [letra]="o.escenario.letra" [linea]="h.linea" (cerrar)="hojaIngreso.set(null)" (guardado)="guardado()" />
         }
         @if (hojaGasto(); as h) {
-          <app-gasto-plan-hoja [planId]="v.plan.id" [escenarioId]="o.escenario.id" [letra]="o.escenario.letra" [categorias]="categoriasParaAgregar()" [lineas]="o.escenario.ingresos" [item]="h.item" (cerrar)="hojaGasto.set(null)" (guardado)="guardado()" />
+          <app-gasto-plan-hoja [planId]="v.plan.id" [escenarioId]="o.escenario.id" [letra]="o.escenario.letra" [categorias]="categoriasParaAgregar()" [lineas]="o.escenario.ingresos" [item]="h.item" [categoriaInicial]="h.categoriaId ?? null" (cerrar)="hojaGasto.set(null)" (guardado)="guardado()" />
         }
       }
 
@@ -264,7 +288,8 @@ export class MesPage {
   protected readonly elegida = signal<Id | null>(null);
   protected readonly abierta = signal<Id | null>(null);
   protected readonly hojaIngreso = signal<{ linea: IngresoPlan | null } | null>(null);
-  protected readonly hojaGasto = signal<{ item: ItemPlan | null } | null>(null);
+  protected readonly hojaGasto = signal<{ item: ItemPlan | null; categoriaId?: Id | null } | null>(null);
+  protected readonly escritorio = anchoEscritorio();
   protected readonly aviso = signal(false);
   protected readonly conteo = signal<ConteoBorrado | null>(null);
   protected readonly seguro = signal(false);
@@ -278,7 +303,8 @@ export class MesPage {
 
   protected readonly actual = computed<VistaOpcion | null>(() => {
     const opciones = this.vista.value()?.opciones ?? [];
-    return opciones.find((o) => o.escenario.id === this.elegida()) ?? opciones[0] ?? null;
+    const id = this.elegida() ?? this.vista.value()?.plan?.escenarioActivoId;
+    return opciones.find((o) => o.escenario.id === id) ?? opciones[0] ?? null;
   });
 
   /** El mes anterior, para "Copiar {mes} · Opción A · gastos $X". */
@@ -332,12 +358,13 @@ export class MesPage {
     this.confirmarQuitar.set(false);
   }
 
-  protected async usar(o: VistaOpcion): Promise<void> {
+  /** En movil vuelve a Planear; en escritorio se queda en el mes, que pasa a la vista de una opcion. */
+  protected async usar(o: VistaOpcion, volver = true): Promise<void> {
     const plan = this.vista.value()?.plan;
     if (!plan) return;
     await this.ejecutar(async () => {
       await this.puertos.plan.usar(plan.id, o.escenario.id);
-      await this.router.navigateByUrl('/planear');
+      if (volver) await this.router.navigateByUrl('/planear');
     });
   }
 

@@ -7,7 +7,7 @@ import type {
   ItemPlan, MesRef, Origen, Pesos, PlanMes, ReglaDiezmo, TipoCategoria, Usuario,
 } from '../model';
 import type {
-  ConteoBorrado, DatosCredito, DatosMetodo, DatosTarjeta, ItemEnlazable, ResumenCreditos, VistaCredito, VistaTarjetas, DatosEvento, VistaBase, FiltroTitular, ModoNuevoMes, MovimientoCuenta, ResumenAnual, ResumenMes, ResumenMesPlan, VistaCierre, VistaCuenta, VistaOpcion, VistaRegistro,
+  ConteoBorrado, DatosCredito, DatosMetodo, DatosTarjeta, ItemEnlazable, ResumenCreditos, VistaCredito, VistaTarjetas, DatosEvento, VistaBase, FiltroTitular, ModoNuevoMes, MovimientoCuenta, ResumenAnual, ResumenMes, ResumenMesPlan, TablaOpciones, VistaCierre, VistaMesEscritorio, VistaCuenta, VistaOpcion, VistaRegistro,
 } from '../rules';
 import type { compararOpciones, loQueTraeElMes } from '../rules';
 
@@ -131,6 +131,10 @@ export interface PlanPort {
   /** "Borrar plan de {mes}" (design D4 de usabilidad-plan). */
   borrarPlan(ref: MesRef): Promise<void>;
   comparar(ref: MesRef): Promise<ReturnType<typeof compararOpciones>>;
+  /** El mes con una opcion en escritorio (spec "Plan de un mes en escritorio"); null sin plan. */
+  mesEscritorio(ref: MesRef, escenarioId?: Id): Promise<VistaMesEscritorio | null>;
+  /** Las opciones del mes gasto por gasto (spec "Opciones del mes en escritorio"). */
+  tablaOpciones(ref: MesRef): Promise<TablaOpciones>;
   anual(anio: number): Promise<ResumenAnual | null>;
   agregarEvento(anio: number, evento: DatosEvento): Promise<void>;
   /** Corregir un cambio de "Lo que cambia". */

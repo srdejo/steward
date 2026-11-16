@@ -102,6 +102,8 @@ export class GastoPlanHoja implements OnInit {
   readonly lineas = input<IngresoPlan[]>([]);
   /** null: "+ Gasto". */
   readonly item = input<ItemPlan | null>(null);
+  /** "+ Agregar a {grupo}": la categoria con que abre un gasto nuevo. */
+  readonly categoriaInicial = input<Id | null>(null);
   readonly cerrar = output<void>();
   readonly guardado = output<void>();
 
@@ -150,7 +152,7 @@ export class GastoPlanHoja implements OnInit {
     const i = this.item();
     this.nombre.set(i?.nombre ?? '');
     this.monto.set(i?.monto ?? null);
-    this.categoria.set(i?.categoriaId ?? this.categorias()[0]?.id ?? null);
+    this.categoria.set(i?.categoriaId ?? this.categoriaInicial() ?? this.categorias()[0]?.id ?? null);
     this.aCuotas.set(i?.tipo === 'CUOTA');
     this.cambia.set(i?.tipo === 'VARIABLE');
     this.dia.set(i?.diaVence ? String(i.diaVence) : '');
