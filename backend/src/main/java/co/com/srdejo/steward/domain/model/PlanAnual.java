@@ -78,18 +78,28 @@ public record PlanAnual(UUID id, UUID hogarId, int anio, Estado estado, List<Opc
 
     /**
      * {@code usuarioId}: en un ingreso extra, la persona cuya regla de diezmo hereda. {@code categoriaId}: en un gasto, su
-     * categoria (null: "Eventos del año"). {@code enAdelante}: se repite de su mes a diciembre (design D3 de
-     * planear-anio-desde-un-mes).
+     * categoria (null: "Eventos del año"). {@code hasta}: el ultimo mes en que se repite, de {@code mes} a 12 (design D2 de
+     * anual-evento-rango).
      */
-    public record Evento(UUID id, String nombre, int mes, long monto, Tipo tipo, UUID usuarioId, UUID categoriaId, boolean enAdelante) {
+    public record Evento(UUID id, String nombre, int mes, long monto, Tipo tipo, UUID usuarioId, UUID categoriaId, int hasta) {
 
         public Evento(UUID id, String nombre, int mes, long monto, Tipo tipo, UUID usuarioId) {
-            this(id, nombre, mes, monto, tipo, usuarioId, null, false);
+            this(id, nombre, mes, monto, tipo, usuarioId, null, mes);
         }
 
-        /** Si el evento toca el mes: el suyo, o uno posterior si es "en adelante" ({@code eventosDelMes} del dominio). */
+        /** Como antes de anual-evento-rango: "en adelante" es hasta diciembre; si no, solo su mes. */
+        public Evento(UUID id, String nombre, int mes, long monto, Tipo tipo, UUID usuarioId, UUID categoriaId, boolean enAdelante) {
+            this(id, nombre, mes, monto, tipo, usuarioId, categoriaId, enAdelante ? 12 : mes);
+        }
+
+        /** Si el evento toca el mes: de su mes a su {@code hasta} ({@code eventosDelMes} del dominio). */
         public boolean aplica(int mesDelAnio) {
-            return mes == mesDelAnio || (enAdelante && mes < mesDelAnio);
+            return mes <= mesDelAnio && mesDelAnio <= hasta;
+        }
+
+        /** Lo que lee la app 2.2.3: "en adelante" si va hasta diciembre desde un mes anterior. */
+        public boolean enAdelante() {
+            return hasta == 12 && mes < 12;
         }
 
         public enum Tipo {

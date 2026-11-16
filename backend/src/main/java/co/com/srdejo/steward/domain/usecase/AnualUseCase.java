@@ -119,8 +119,9 @@ public class AnualUseCase implements IAnualServicePort {
 
     @Override
     public Mono<Evento> agregarEvento(int anio, UUID opcionId, String nombre, int mes, long monto, String tipo, UUID usuarioId,
-                                      UUID categoriaId, boolean enAdelante) {
-        return evento(UUID.randomUUID(), nombre, mes, monto, tipo, usuarioId, categoriaId, enAdelante)
+                                      UUID categoriaId, Integer hasta, Boolean enAdelante) {
+        int h = hasta != null ? hasta : Boolean.TRUE.equals(enAdelante) ? 12 : mes;
+        return evento(UUID.randomUUID(), nombre, mes, monto, tipo, usuarioId, categoriaId, h)
                 .flatMap(evento -> registro.contexto().flatMap(ctx -> anualDe(ctx, anio)
                         .flatMap(a -> opcion(a, opcionId).flatMap(op -> validarEvento(ctx, evento)
                                 .then(anuales.agregarEvento(a.id(), op.id(), evento))))));
@@ -128,11 +129,24 @@ public class AnualUseCase implements IAnualServicePort {
 
     @Override
     public Mono<Evento> editarEvento(int anio, UUID eventoId, String nombre, int mes, long monto, String tipo, UUID usuarioId,
-                                     UUID categoriaId, boolean enAdelante) {
-        return evento(eventoId, nombre, mes, monto, tipo, usuarioId, categoriaId, enAdelante)
-                .flatMap(evento -> registro.contexto().flatMap(ctx -> anualDe(ctx, anio)
-                        .flatMap(a -> validarEvento(ctx, evento).then(anuales.editarEvento(a.id(), evento)))
-                        .flatMap(ok -> ok ? Mono.just(evento) : Mono.error(AnualUseCase::eventoNoEncontrado))));
+                                     UUID categoriaId, Integer hasta, Boolean enAdelante) {
+        return registro.contexto().flatMap(ctx -> anualDe(ctx, anio).flatMap(a -> {
+            // Sin hasta (la app 2.2.3): "en adelante" es diciembre; si no, se conserva el rango guardado si aun cabe
+            // (Riesgos del design de anual-evento-rango).
+            int h;
+            if (hasta != null) {
+                h = hasta;
+            } else if (Boolean.TRUE.equals(enAdelante)) {
+                h = 12;
+            } else {
+                int guardado = a.opciones().stream().flatMap(o -> o.eventos().stream()).filter(e -> e.id().equals(eventoId))
+                        .mapToInt(Evento::hasta).findFirst().orElse(mes);
+                h = guardado < 12 && guardado >= mes ? guardado : mes;
+            }
+            return evento(eventoId, nombre, mes, monto, tipo, usuarioId, categoriaId, h)
+                    .flatMap(evento -> validarEvento(ctx, evento).then(anuales.editarEvento(a.id(), evento))
+                            .flatMap(ok -> ok ? Mono.just(evento) : Mono.error(AnualUseCase::eventoNoEncontrado)));
+        }));
     }
 
     @Override
@@ -159,7 +173,7 @@ public class AnualUseCase implements IAnualServicePort {
             UUID id = UUID.randomUUID();
             Opcion nueva = new Opcion(id, letra.get(), ctx.usuario(), "", origen.celdas(),
                     origen.eventos().stream().map(e -> new Evento(UUID.randomUUID(), e.nombre(), e.mes(), e.monto(), e.tipo(),
-                            e.usuarioId(), e.categoriaId(), e.enAdelante())).toList(),
+                            e.usuarioId(), e.categoriaId(), e.hasta())).toList(),
                     origen.base(), origen.mesBase() == null ? null : new PlanAnual.MesBase(origen.mesBase().origen(), origen.mesBase().items().stream()
                             .map(i -> i.copia(UUID.randomUUID(), id, i.monto(), i.cuotaActual(), i.orden())).toList()));
             return transaccion.enTransaccion(anuales.crearOpcion(a.id(), nueva));
@@ -189,7 +203,7 @@ public class AnualUseCase implements IAnualServicePort {
 
     /** Los datos de un evento, como {@code validarEvento} del dominio: un ingreso no lleva categoria; un gasto, persona. */
     private static Mono<Evento> evento(UUID id, String nombre, int mes, long monto, String tipo, UUID usuarioId, UUID categoriaId,
-                                       boolean enAdelante) {
+                                       int hasta) {
         String limpio = nombre == null ? "" : nombre.strip();
         Evento.Tipo t;
         try {
@@ -200,10 +214,13 @@ public class AnualUseCase implements IAnualServicePort {
         if (limpio.isEmpty() || limpio.length() > PlanAnual.NOMBRE_EVENTO_MAX || mes < 1 || mes > 12 || monto <= 0) {
             return Mono.error(DomainException.datosInvalidos("El evento necesita nombre, mes y monto"));
         }
+        if (hasta < mes || hasta > 12) {
+            return Mono.error(DomainException.datosInvalidos("El \"hasta\" va del mes del cambio a diciembre"));
+        }
         if (t == Evento.Tipo.INGRESO && categoriaId != null) {
             return Mono.error(DomainException.datosInvalidos("Un ingreso no lleva categoría"));
         }
-        return Mono.just(new Evento(id, limpio, mes, monto, t, t == Evento.Tipo.INGRESO ? usuarioId : null, categoriaId, enAdelante));
+        return Mono.just(new Evento(id, limpio, mes, monto, t, t == Evento.Tipo.INGRESO ? usuarioId : null, categoriaId, hasta));
     }
 
     private Mono<Void> validarEvento(Contexto ctx, Evento e) {

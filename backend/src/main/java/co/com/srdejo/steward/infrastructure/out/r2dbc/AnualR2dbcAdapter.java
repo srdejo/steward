@@ -81,7 +81,7 @@ public class AnualR2dbcAdapter implements IAnualPersistencePort {
                                 .bind("id", o.id())
                                 .map(r -> new Celda(r.get("categoria_id", UUID.class), r.get("mes", Short.class), r.get("monto", Long.class)))
                                 .all().collectList(),
-                        db.sql("SELECT id, nombre, mes, monto, tipo, usuario_id, categoria_id, en_adelante FROM anual_evento "
+                        db.sql("SELECT id, nombre, mes, monto, tipo, usuario_id, categoria_id, hasta FROM anual_evento "
                                         + "WHERE opcion_id = :id ORDER BY creado_en, id")
                                 .bind("id", o.id())
                                 .map(AnualR2dbcAdapter::evento)
@@ -106,7 +106,7 @@ public class AnualR2dbcAdapter implements IAnualPersistencePort {
     @Override
     public Mono<Evento> agregarEvento(UUID anualId, UUID opcionId, Evento e) {
         var spec = db.sql("INSERT INTO anual_evento (id, anual_id, opcion_id, nombre, mes, monto, tipo, usuario_id, categoria_id, "
-                        + "en_adelante) VALUES (:id, :anual, :opcion, :nombre, :mes, :monto, :tipo, :usuario, :categoria, :adelante)")
+                        + "hasta) VALUES (:id, :anual, :opcion, :nombre, :mes, :monto, :tipo, :usuario, :categoria, :hasta)")
                 .bind("id", e.id())
                 .bind("anual", anualId)
                 .bind("opcion", opcionId)
@@ -114,7 +114,7 @@ public class AnualR2dbcAdapter implements IAnualPersistencePort {
                 .bind("mes", (short) e.mes())
                 .bind("monto", e.monto())
                 .bind("tipo", e.tipo().name())
-                .bind("adelante", e.enAdelante());
+                .bind("hasta", (short) e.hasta());
         spec = Sql.opcional(spec, "usuario", e.usuarioId(), UUID.class);
         return Sql.opcional(spec, "categoria", e.categoriaId(), UUID.class).then().thenReturn(e);
     }
@@ -262,14 +262,14 @@ public class AnualR2dbcAdapter implements IAnualPersistencePort {
     @Override
     public Mono<Boolean> editarEvento(UUID anualId, Evento e) {
         var spec = db.sql("UPDATE anual_evento SET nombre = :nombre, mes = :mes, monto = :monto, tipo = :tipo, usuario_id = :usuario, "
-                        + "categoria_id = :categoria, en_adelante = :adelante WHERE id = :id AND anual_id = :anual")
+                        + "categoria_id = :categoria, hasta = :hasta WHERE id = :id AND anual_id = :anual")
                 .bind("id", e.id())
                 .bind("anual", anualId)
                 .bind("nombre", e.nombre())
                 .bind("mes", (short) e.mes())
                 .bind("monto", e.monto())
                 .bind("tipo", e.tipo().name())
-                .bind("adelante", e.enAdelante());
+                .bind("hasta", (short) e.hasta());
         spec = Sql.opcional(spec, "usuario", e.usuarioId(), UUID.class);
         return Sql.opcional(spec, "categoria", e.categoriaId(), UUID.class).fetch().rowsUpdated().map(n -> n > 0);
     }
@@ -299,6 +299,6 @@ public class AnualR2dbcAdapter implements IAnualPersistencePort {
     private static Evento evento(Readable r) {
         return new Evento(r.get("id", UUID.class), r.get("nombre", String.class), r.get("mes", Short.class), r.get("monto", Long.class),
                 Evento.Tipo.valueOf(r.get("tipo", String.class)), r.get("usuario_id", UUID.class), r.get("categoria_id", UUID.class),
-                Boolean.TRUE.equals(r.get("en_adelante", Boolean.class)));
+                r.get("hasta", Short.class).intValue());
     }
 }

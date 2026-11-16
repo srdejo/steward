@@ -19,7 +19,7 @@ import type {
   Usuario,
   VistaHogar,
 } from '../index';
-import { ReglaError, claveMes, sumarMeses } from '../index';
+import { ReglaError, claveMes, hastaDe, sumarMeses } from '../index';
 import { crearAdaptadorDemo, type StorageLike } from '../demo';
 
 import {
@@ -632,5 +632,5 @@ function fuenteApi(b: BaseAnual): FuenteBaseApi {
 }
 
 function eventoApi(e: DatosEvento): Omit<EventoAnualApi, 'id'> {
-  return { nombre: e.nombre, mes: e.mes, monto: e.monto, tipo: e.tipo, usuarioId: e.usuarioId ?? null, categoriaId: e.categoriaId ?? null, enAdelante: e.enAdelante ?? false };
+  return { nombre: e.nombre, mes: e.mes, monto: e.monto, tipo: e.tipo, usuarioId: e.usuarioId ?? null, categoriaId: e.categoriaId ?? null, hasta: hastaDe(e) };
 }

@@ -354,7 +354,7 @@ describe('planear el año desde un mes (planear-anio-desde-un-mes)', () => {
     await tocar('+ Algo distinto');
     await escribir('¿Qué es?', 'SOAT');
     await escribir('¿Cuánto?', '900000');
-    await tocar('Mar');
+    fireEvent.press((await screen.findAllByText('Mar')).at(-2)!);
     await tocar('Guardar');
     expect(await screen.findByText('SOAT −$900.000')).toBeTruthy();
     expect(screen.getByText('Lo que cambia · 1')).toBeTruthy();
@@ -439,12 +439,31 @@ describe('paridad con la PWA (steward-mobile-app)', () => {
     await tocar('+ Algo distinto');
     await escribir('¿Qué es?', 'Revisión carro');
     await escribir('¿Cuánto?', '400000');
-    await tocar('May');
+    // "Desde" es la primera fila de meses; "Hasta" sigue al desde (anual-evento-rango).
+    fireEvent.press((await screen.findAllByText('May')).at(-2)!);
     await tocar('Guardar');
     // Mismas cifras que frontend/src/app/features/hoy/paridad.spec.ts.
     await waitFor(() => expect(screen.getByTestId('kpi-libre')).toHaveTextContent('$44.876.000'));
     expect(screen.getByTestId('mes-5')).toHaveTextContent('MayoRevisión carro −$400.000$3.373.000');
     expect(screen.getByTestId('mes-1')).toHaveTextContent('Enero a abrilIgual al mes base · 4 meses$3.773.000');
+  });
+
+  it('un gasto de marzo a junio: el rango en la hoja y en la lista (anual-evento-rango)', async () => {
+    const p = await conSesion();
+    renderRouter('./src/app', { initialUrl: '/anual/2027' });
+    const antes = (await p.plan.anual(2027))!.libre;
+    await tocar('+ Algo distinto');
+    await escribir('¿Qué es?', 'Curso');
+    // Desde y Hasta muestran los dos "Mar": el penultimo es el del desde.
+    fireEvent.press((await screen.findAllByText('Mar')).at(-2)!);
+    expect(await screen.findByTestId('rango')).toHaveTextContent('Solo en marzo');
+    fireEvent.press((await screen.findAllByText('Jun')).at(-1)!);
+    expect(await screen.findByTestId('rango')).toHaveTextContent('Marzo a junio · 4 meses');
+    await escribir('¿Cuánto cada mes?', '250000');
+    await tocar('Variables');
+    await tocar('Guardar');
+    await waitFor(async () => expect((await p.plan.anual(2027))!.libre.map((v, i) => antes[i]! - v)).toEqual([0, 0, 250_000, 250_000, 250_000, 250_000, 0, 0, 0, 0, 0, 0]));
+    expect((await screen.findAllByTestId('rango-cambio')).map((x) => x.props.children)).toContain('Mar a jun');
   });
 
   it('la opción B con carro nuevo y los meses con la A dan las mismas cifras que la PWA (anual-opciones-y-meses)', async () => {

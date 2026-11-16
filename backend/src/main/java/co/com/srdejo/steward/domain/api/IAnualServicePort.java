@@ -19,13 +19,16 @@ public interface IAnualServicePort {
 
     Mono<Void> ponerCelda(int anio, UUID opcionId, UUID categoriaId, int mes, long monto);
 
-    /** {@code categoriaId} solo en gastos (null: "Eventos del año"); {@code enAdelante}: de ese mes a diciembre. */
+    /**
+     * {@code categoriaId} solo en gastos (null: "Eventos del año"). {@code hasta}: de {@code mes} a 12; sin el,
+     * {@code enAdelante} da diciembre y si no, el mismo mes (design D2 de anual-evento-rango).
+     */
     Mono<Evento> agregarEvento(int anio, UUID opcionId, String nombre, int mes, long monto, String tipo, UUID usuarioId,
-                               UUID categoriaId, boolean enAdelante);
+                               UUID categoriaId, Integer hasta, Boolean enAdelante);
 
     /** Corrige un evento con los mismos datos que al agregarlo; {@code EVENTO_NO_ENCONTRADO} si no es de ese anual. */
     Mono<Evento> editarEvento(int anio, UUID eventoId, String nombre, int mes, long monto, String tipo, UUID usuarioId,
-                              UUID categoriaId, boolean enAdelante);
+                              UUID categoriaId, Integer hasta, Boolean enAdelante);
 
     Mono<Void> quitarEvento(int anio, UUID eventoId);
 

@@ -33,30 +33,35 @@ const MESES = Array.from({ length: 12 }, (_, i) => i + 1);
           <span class="rotulo">¿Qué es?</span>
           <input class="campo" [placeholder]="tipo() === 'GASTO' ? 'Ej: SOAT' : 'Ej: Prima'" [value]="nombre()" (input)="nombre.set($any($event.target).value)" />
         </label>
-        <div class="grid grid-cols-2 gap-3">
-          <label class="flex flex-col gap-2">
-            <span class="rotulo">Mes</span>
-            <select class="campo" [value]="mes()" (change)="mes.set(+$any($event.target).value)">
-              @for (m of meses; track m) {
-                <option [value]="m" [selected]="m === mes()">{{ nombreMesCapital(m) }}</option>
-              }
-            </select>
-          </label>
-          <app-monto-input etiqueta="¿Cuánto?" [(valor)]="monto" />
-        </div>
+        <app-monto-input [etiqueta]="hasta() > mes() ? '¿Cuánto cada mes?' : '¿Cuánto?'" [(valor)]="monto" />
         @if (tipo() === 'GASTO') {
           <app-segmentado etiqueta="Categoría" [chips]="true" [opciones]="opcionesCategoria()" [valor]="categoria()" (valorChange)="categoria.set($event ?? '')" />
         } @else {
           <app-segmentado etiqueta="De quién · hereda su diezmo" [chips]="true" [opcional]="true" [opciones]="personas()" [(valor)]="persona" />
         }
-        <fieldset class="flex flex-col gap-1">
+        <fieldset class="flex flex-col gap-1.5" data-testid="cuando">
           <legend class="rotulo pb-1">¿Cuándo?</legend>
-          <label class="flex min-h-10 items-center gap-2.5 text-[15px]"><input type="radio" name="cuando" class="size-5 accent-acento" [checked]="!enAdelante()" (change)="enAdelante.set(false)" />Solo en {{ nombreMes(mes()) }}</label>
-          <label class="flex min-h-10 items-center gap-2.5 text-[15px]"><input type="radio" name="cuando" class="size-5 accent-acento" [checked]="enAdelante()" (change)="enAdelante.set(true)" />De {{ nombreMes(mes()) }} en adelante</label>
+          <div class="grid grid-cols-2 gap-3">
+            <label class="flex flex-col gap-1 text-xs text-secundario">Desde
+              <select class="campo text-texto" aria-label="Desde" [value]="mes()" (change)="cambiarMes(+$any($event.target).value)">
+                @for (m of meses; track m) {
+                  <option [value]="m" [selected]="m === mes()">{{ nombreMesCapital(m) }}</option>
+                }
+              </select>
+            </label>
+            <label class="flex flex-col gap-1 text-xs text-secundario">Hasta
+              <select class="campo text-texto" aria-label="Hasta" [value]="hasta()" (change)="hasta.set(+$any($event.target).value)">
+                @for (m of mesesHasta(); track m) {
+                  <option [value]="m" [selected]="m === hasta()">{{ nombreMesCapital(m) }}</option>
+                }
+              </select>
+            </label>
+          </div>
+          <span class="text-xs text-secundario" data-testid="rango">{{ textoRango() }}</span>
         </fieldset>
         @if (queda(); as q) {
           <p class="flex justify-between text-[13px] text-secundario" data-testid="queda">
-            <span>{{ nombreMesCapital(mes()) }} queda en</span><app-monto class="text-texto" [class.text-negativo]="q < 0" [valor]="q" />
+            <span>{{ nombreMesCapital(mes()) }} queda en{{ hasta() > mes() ? '; el cambio sigue hasta ' + nombreMes(hasta()) : '' }}</span><app-monto class="text-texto" [class.text-negativo]="q < 0" [valor]="q" />
           </p>
         }
         @if (error()) {
@@ -100,7 +105,17 @@ export class CambioHoja implements OnInit {
   /** null: "Eventos del año". */
   protected readonly categoria = signal<Id | null>(null);
   protected readonly persona = signal<Id | null>(null);
-  protected readonly enAdelante = signal(false);
+  /** El ultimo mes del cambio, de `mes` a diciembre (anual-evento-rango). */
+  protected readonly hasta = signal(1);
+  protected readonly mesesHasta = computed(() => this.meses.filter((m) => m >= this.mes()));
+  /** "Solo en marzo", "Marzo a junio · 4 meses" o "De marzo en adelante". */
+  protected readonly textoRango = computed(() => {
+    const desde = this.mes();
+    const hasta = this.hasta();
+    if (hasta <= desde) return `Solo en ${nombreMes(desde)}`;
+    if (hasta === 12) return `De ${nombreMes(desde)} en adelante · ${13 - desde} meses`;
+    return `${nombreMesCapital(desde)} a ${nombreMes(hasta)} · ${hasta - desde + 1} meses`;
+  });
   protected readonly quitando = signal(false);
   protected readonly guardando = signal(false);
   protected readonly error = signal('');
@@ -118,7 +133,7 @@ export class CambioHoja implements OnInit {
     nombre: this.nombre(), mes: this.mes(), monto: this.monto() ?? 0, tipo: this.tipo(),
     usuarioId: this.tipo() === 'INGRESO' ? this.persona() : null,
     categoriaId: this.tipo() === 'GASTO' ? this.categoria() || null : null,
-    enAdelante: this.enAdelante(),
+    hasta: Math.max(this.hasta(), this.mes()),
   }));
 
   private readonly vistaPrevia = resource({
@@ -135,7 +150,13 @@ export class CambioHoja implements OnInit {
     this.monto.set(e?.monto ?? null);
     this.categoria.set(e?.categoriaId ?? '');
     this.persona.set(e?.usuarioId ?? null);
-    this.enAdelante.set(e?.enAdelante ?? false);
+    this.hasta.set(e?.hasta ?? this.mes());
+  }
+
+  /** Cambiar el "desde": si el "hasta" queda antes, sube al mes nuevo. */
+  protected cambiarMes(mes: number): void {
+    this.mes.set(mes);
+    if (this.hasta() < mes) this.hasta.set(mes);
   }
 
   protected guardar(): Promise<void> {

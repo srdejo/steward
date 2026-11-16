@@ -395,10 +395,14 @@ describe('Planear (steward-planear)', () => {
     mes.value = '7';
     mes.dispatchEvent(new Event('change'));
     await a.escribir('¿Cuánto?', '300000');
-    await a.tocar('De julio en adelante', 'app-cambio-hoja label');
+    const hasta = a.raiz().querySelector<HTMLSelectElement>('app-cambio-hoja select[aria-label="Hasta"]')!;
+    hasta.value = '12';
+    hasta.dispatchEvent(new Event('change'));
+    await a.estable();
+    expect(a.raiz().querySelector('[data-testid="rango"]')!.textContent!.trim()).toBe('De julio en adelante · 6 meses');
     await a.tocar('Guardar');
     const r = (await p.plan.anual(2028))!;
-    expect(r.cambios[0]!.evento).toMatchObject({ nombre: 'Aumento', tipo: 'INGRESO', mes: 7, enAdelante: true });
+    expect(r.cambios[0]!.evento).toMatchObject({ nombre: 'Aumento', tipo: 'INGRESO', mes: 7, hasta: 12 });
     expect(r.libre[5]).toBe(r.libre[0]);
     expect(r.libre[6]).toBeGreaterThan(r.libre[0]!);
   });

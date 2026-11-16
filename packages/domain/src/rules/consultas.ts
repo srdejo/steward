@@ -70,12 +70,17 @@ export function opcionDe(anual: PlanAnual, id?: Id | null): OpcionAnual {
 }
 
 /**
- * Los eventos que tocan un mes en una opcion (por defecto la en uso): los suyos y los de un mes anterior "en adelante"
- * (design D3 de planear-anio-desde-un-mes).
+ * Los eventos que tocan un mes en una opcion (por defecto la en uso): los que lo tienen en su rango, de su mes a su
+ * `hasta` (design D1 de anual-evento-rango).
  */
 export function eventosDelMes(anual: PlanAnual | null | undefined, mes: number, opcionId?: Id | null): EventoAnual[] {
   if (!anual || !anual.opciones.length) return [];
-  return opcionDe(anual, opcionId).eventos.filter((e) => e.mes === mes || (e.enAdelante && e.mes < mes));
+  return opcionDe(anual, opcionId).eventos.filter((e) => aplicaEn(e, mes));
+}
+
+/** Si un evento del año toca un mes: de su mes a su `hasta`. */
+export function aplicaEn(e: Pick<EventoAnual, 'mes' | 'hasta'>, mes: number): boolean {
+  return e.mes <= mes && mes <= e.hasta;
 }
 
 /** Un mes cerrado queda en solo lectura: nada se registra contra el. */

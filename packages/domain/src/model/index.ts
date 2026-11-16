@@ -286,8 +286,8 @@ export interface EventoAnual {
   usuarioId: Id | null;
   /** Gasto en una categoria del hogar; null = "Eventos del año" (design D3 de planear-anio-desde-un-mes). */
   categoriaId: Id | null;
-  /** "De ese mes en adelante": se repite del mes del evento a diciembre. */
-  enAdelante: boolean;
+  /** Hasta que mes se repite, de `mes` a 12: el mismo mes es "solo ese mes" y 12, "en adelante" (anual-evento-rango). */
+  hasta: number;
 }
 
 /** Base para replicar en el plan anual: un mes con plan, solo los fijos del ultimo plan, o desde cero. */

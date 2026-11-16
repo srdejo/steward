@@ -243,13 +243,31 @@ export function nombreMeses(m: MesesAnualVista): string {
   return m.desde === m.hasta ? nombreMesCapital(m.desde) : `${nombreMesCapital(m.desde)} a ${nombreMesCapital(m.hasta).toLowerCase()}`;
 }
 
-/** Lo que se escribe al agregar o corregir un evento; categoria y "en adelante" son opcionales. */
-export type DatosEvento = Omit<EventoAnual, 'id' | 'categoriaId' | 'enAdelante'> & { categoriaId?: Id | null; enAdelante?: boolean };
+/**
+ * Lo que se escribe al agregar o corregir un evento; categoria y `hasta` son opcionales. Sin `hasta`, `enAdelante` da
+ * diciembre y si no, el mismo mes (design D1 de anual-evento-rango).
+ */
+export type DatosEvento = Omit<EventoAnual, 'id' | 'categoriaId' | 'hasta'> & { categoriaId?: Id | null; hasta?: number | null; enAdelante?: boolean };
+
+/** El `hasta` de un evento guardado o enviado sin el (los de antes de anual-evento-rango). */
+export function hastaDe(e: { mes: number; hasta?: number | null; enAdelante?: boolean | null }): number {
+  return e.hasta ?? (e.enAdelante ? 12 : e.mes);
+}
+
+/** "Mar", "Mar a jun" o "Mar en adelante". */
+export function rangoEvento(e: Pick<EventoAnual, 'mes' | 'hasta'>): string {
+  const corto = (m: number) => nombreMesCapital(m).slice(0, 3);
+  if (e.hasta <= e.mes) return corto(e.mes);
+  if (e.hasta === 12) return `${corto(e.mes)} en adelante`;
+  return `${corto(e.mes)} a ${corto(e.hasta).toLowerCase()}`;
+}
 
 function validarEvento(estado: EstadoHogar, evento: DatosEvento): Omit<EventoAnual, 'id'> {
   const nombre = evento.nombre.trim();
   if (!nombre || nombre.length > 60) throw new ReglaError('NOMBRE_REQUERIDO', 'El evento necesita un nombre');
   if (!(evento.monto > 0) || evento.mes < 1 || evento.mes > 12) throw new ReglaError('MONTO_INVALIDO', 'Revisa el mes y el monto');
+  const hasta = hastaDe(evento);
+  if (!Number.isInteger(hasta) || hasta < evento.mes || hasta > 12) throw new ReglaError('MONTO_INVALIDO', 'El "hasta" va del mes del cambio a diciembre');
   const categoriaId = evento.categoriaId ?? null;
   if (categoriaId) {
     if (evento.tipo !== 'GASTO') throw new ReglaError('DATOS_INVALIDOS', 'Un ingreso no lleva categoría');
@@ -258,7 +276,7 @@ function validarEvento(estado: EstadoHogar, evento: DatosEvento): Omit<EventoAnu
     if (cat.tipo === 'DIEZMO') throw new ReglaError('DATOS_INVALIDOS', 'El diezmo del año se calcula con las reglas');
   }
   if (evento.usuarioId && !estado.hogar.miembros.some((m) => m.usuarioId === evento.usuarioId)) throw new ReglaError('NO_EXISTE', 'Esa persona no es del hogar');
-  return { nombre, mes: evento.mes, monto: evento.monto, tipo: evento.tipo, usuarioId: evento.tipo === 'INGRESO' ? evento.usuarioId ?? null : null, categoriaId, enAdelante: evento.enAdelante ?? false };
+  return { nombre, mes: evento.mes, monto: evento.monto, tipo: evento.tipo, usuarioId: evento.tipo === 'INGRESO' ? evento.usuarioId ?? null : null, categoriaId, hasta };
 }
 
 function anualOError(s: EstadoHogar, anio: number): PlanAnual {

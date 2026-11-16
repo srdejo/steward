@@ -60,13 +60,12 @@ public final class PlanDtos {
     public record CeldaRequest(UUID categoriaId, int mes, long monto, UUID opcionId) {
     }
 
-    /** {@code categoriaId} y {@code enAdelante} son opcionales (design D3 de planear-anio-desde-un-mes). */
+    /**
+     * {@code categoriaId}, {@code hasta} y {@code enAdelante} son opcionales; {@code enAdelante} solo cuenta sin {@code hasta}
+     * (design D2 de anual-evento-rango).
+     */
     public record EventoRequest(String nombre, int mes, long monto, String tipo, UUID usuarioId, UUID categoriaId, Boolean enAdelante,
-                                UUID opcionId) {
-
-        public boolean adelante() {
-            return Boolean.TRUE.equals(enAdelante);
-        }
+                                UUID opcionId, Integer hasta) {
     }
 
     /** "Replicar en los 12 meses": {@code tipo} MES (con {@code anio} y {@code mes}), FIJOS o CERO. */
@@ -99,11 +98,13 @@ public final class PlanDtos {
     public record ProyeccionRequest(UUID usuarioId, int mes, long monto) {
     }
 
+    /** Con {@code hasta} y, para la app 2.2.3, {@code enAdelante} (verdadero si va hasta diciembre desde un mes anterior). */
     public record EventoResponse(UUID id, String nombre, int mes, long monto, String tipo, UUID usuarioId, UUID categoriaId,
-                                 boolean enAdelante) {
+                                 boolean enAdelante, int hasta) {
 
         public static EventoResponse de(PlanAnual.Evento e) {
-            return new EventoResponse(e.id(), e.nombre(), e.mes(), e.monto(), e.tipo().name(), e.usuarioId(), e.categoriaId(), e.enAdelante());
+            return new EventoResponse(e.id(), e.nombre(), e.mes(), e.monto(), e.tipo().name(), e.usuarioId(), e.categoriaId(), e.enAdelante(),
+                    e.hasta());
         }
     }
 
