@@ -33,6 +33,9 @@ describe('Opciones del año', () => {
     expect(textoLegible(a.raiz().querySelector('[data-testid="frente-a"]')!)).toBe('−$2.800.000 frente a la Opción A');
     const creditos = [...a.raiz().querySelectorAll('[data-testid="tabla-anual"] tr')].find((tr) => tr.querySelector('th')!.textContent!.trim() === 'Créditos')!;
     expect([...creditos.querySelectorAll('td')].map((td) => td.hasAttribute('data-distinto'))).toEqual([false, false, false, ...Array(9).fill(true)]);
+    // El diezmo es igual en las dos: sin marca.
+    const diezmo = [...a.raiz().querySelectorAll('[data-testid="tabla-anual"] tr')].find((tr) => tr.querySelector('th')!.textContent!.trim().startsWith('Diezmo'))!;
+    expect(diezmo.querySelectorAll('td[data-distinto]').length).toBe(0);
     const mesAMes = a.raiz().querySelector('[data-testid="mes-a-mes"]')!;
     expect(textoLegible(mesAMes.querySelector('[data-fila="B"]')!)).toContain('Opción B');
     expect(a.texto()).toContain('Lo que cambia en la Opción B · 8');

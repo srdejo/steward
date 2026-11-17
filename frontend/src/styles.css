@@ -72,6 +72,18 @@ body {
   }
 }
 
+/* Lo distinto de la Opcion A en el plan anual: un triangulo en la esquina, que se ve tambien sobre el relleno de "Cambia ese mes". */
+@utility marca-distinto {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 0;
+  height: 0;
+  border-top: 8px solid #3c64a8;
+  border-left: 8px solid transparent;
+  pointer-events: none;
+}
+
 @utility boton {
   @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-control px-4 text-[15px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50;
 }

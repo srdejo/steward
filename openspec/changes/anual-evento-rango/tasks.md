@@ -25,6 +25,6 @@
 
 ## 6. Entrega
 
-- [ ] 6.1 Con confirmación de Daniel: PR, respaldo y despliegue del backend (V16) y la PWA. Verificar: `health UP` y un evento de marzo a junio en producción.
+- [x] 6.1 Con confirmación de Daniel: PR, respaldo y despliegue del backend (V16) y la PWA. Verificar: `health UP` y un evento de marzo a junio en producción.
 - [ ] 6.2 Con confirmación de Daniel: versión 2.2.4 de la app a TestFlight.
 - [ ] 6.3 Revisión visual de la hoja a 390 px y 1280 px, y en la app.
