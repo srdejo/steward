@@ -166,7 +166,7 @@ interface OpcionBase {
           <span class="flex items-center gap-1.5"><span class="size-3.5 rounded border border-borde bg-superficie"></span>Igual al mes base</span>
           <span class="flex items-center gap-1.5"><span class="size-3.5 rounded bg-[#F6E7C1]"></span>Cambia ese mes</span>
           @if (filasA()) {
-            <span class="flex items-center gap-1.5"><span class="size-3.5 rounded bg-superficie shadow-[inset_0_0_0_2px_#3C64A8]"></span>Distinto de la Opción A</span>
+            <span class="flex items-center gap-1.5"><span class="relative size-3.5 overflow-hidden rounded border border-borde bg-superficie"><span class="marca-distinto"></span></span>Distinto de la Opción A</span>
           }
           <span>Toca una celda para cambiar solo ese mes en la Opción {{ r.opcion.letra }}.</span>
         </div>
@@ -186,7 +186,8 @@ interface OpcionBase {
                 <tr class="border-b border-divisor" [class.italic]="f.tenue" [class.text-[#7A7D76]]="f.tenue">
                   <th scope="row" class="px-4 py-2.5 text-left font-sans text-[13px] font-normal">{{ f.nombre }}@if (f.detalle) {<span class="block text-[11px] not-italic">{{ f.detalle }}</span>}</th>
                   @for (v of f.valores; track $index; let i = $index) {
-                    <td class="px-1 py-2.5 text-right" [class.bg-[#F6E7C1]]="f.cambia[i]" [class.font-semibold]="f.cambia[i] || distintoDeA(f, i)" [class.shadow-[inset_0_0_0_2px_#3C64A8]]="distintoDeA(f, i)" [attr.data-cambia]="f.cambia[i] || null" [attr.data-distinto]="distintoDeA(f, i) || null">
+                    <td class="relative px-1 py-2.5 text-right" [class.bg-[#F6E7C1]]="f.cambia[i]" [class.font-semibold]="f.cambia[i] || distintoDeA(f, i)" [attr.data-cambia]="f.cambia[i] || null" [attr.data-distinto]="distintoDeA(f, i) || null">
+                      @if (distintoDeA(f, i)) {<span class="marca-distinto" aria-hidden="true"></span>}
                       @if (editable(f)) {
                         <button type="button" class="w-full text-right hover:text-acento" [attr.aria-label]="f.nombre + ' · ' + nombre(i + 1)" (click)="abrirCelda(f, i + 1, v)">{{ celda(v) }}</button>
                       } @else {
@@ -201,7 +202,8 @@ interface OpcionBase {
                 <tr class="border-b border-divisor" [class.text-secundario]="f.calculado">
                   <th scope="row" class="px-4 py-2.5 text-left font-sans text-[13px] font-normal">{{ f.nombre }}@if (f.detalle) {<span class="block text-[11px] text-secundario">{{ f.detalle }}</span>}</th>
                   @for (v of f.valores; track $index; let i = $index) {
-                    <td class="px-1 py-2.5 text-right" [class.bg-[#F6E7C1]]="f.cambia[i]" [class.font-semibold]="f.cambia[i] || distintoDeA(f, i)" [class.shadow-[inset_0_0_0_2px_#3C64A8]]="distintoDeA(f, i)" [attr.data-cambia]="f.cambia[i] || null" [attr.data-distinto]="distintoDeA(f, i) || null">
+                    <td class="relative px-1 py-2.5 text-right" [class.bg-[#F6E7C1]]="f.cambia[i]" [class.font-semibold]="f.cambia[i] || distintoDeA(f, i)" [attr.data-cambia]="f.cambia[i] || null" [attr.data-distinto]="distintoDeA(f, i) || null">
+                      @if (distintoDeA(f, i)) {<span class="marca-distinto" aria-hidden="true"></span>}
                       @if (editable(f)) {
                         <button type="button" class="w-full text-right hover:text-acento" [attr.aria-label]="f.nombre + ' · ' + nombre(i + 1)" (click)="abrirCelda(f, i + 1, v)">{{ celda(v) }}</button>
                       } @else {
@@ -353,7 +355,7 @@ export class AnualPage {
   protected readonly filasA = computed(() => {
     const a = this.resumenA.value();
     if (!a || !this.resumen.value() || this.resumen.value()!.opcion.id === a.opcion.id) return null;
-    return new Map([...a.ingresos, ...a.gastos, ...(a.eventos ? [a.eventos] : [])].map((f) => [f.clave, f.valores]));
+    return new Map([...a.ingresos, ...a.gastos, a.diezmo, ...(a.eventos ? [a.eventos] : [])].map((f) => [f.clave, f.valores]));
   });
   protected readonly hojaMeses = signal(false);
   /** "+ Nueva opción desde un mes base" (anual-mes-base-editable). */
