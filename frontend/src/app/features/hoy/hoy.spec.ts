@@ -32,10 +32,10 @@ describe('Hoy (steward-hoy)', () => {
     await conSesion();
     const a = await app('/hoy');
     const porPagar = () => [...a.raiz().querySelectorAll('section[aria-labelledby="por-pagar"] app-fila')].map((f) => f.querySelector('span')!.textContent!.trim());
-    expect(porPagar()).toEqual(['Compra a cuotas', 'Diezmo · Salario Daniel', 'Tarjeta Nu · Mercado']);
-    expect(a.raiz().querySelector('[data-testid="ver-mas"]')!.textContent!.replace(/\s+/g, ' ').trim()).toBe('Ver 1 más · 4 pendientes en total $1.500.000');
+    expect(porPagar()).toEqual(['Compra a cuotas', 'Tarjeta Nu · Mercado', 'Tarjeta Mastercard']);
+    expect(a.raiz().querySelector('[data-testid="ver-mas"]')!.textContent!.replace(/\s+/g, ' ').trim()).toBe('Ver 1 más · 4 pendientes en total $700.000');
     await a.tocar(/Ver 1 más/);
-    expect(porPagar()).toEqual(['Compra a cuotas', 'Diezmo · Salario Daniel', 'Tarjeta Nu · Mercado', 'Tarjeta Mastercard']);
+    expect(porPagar()).toEqual(['Compra a cuotas', 'Tarjeta Nu · Mercado', 'Tarjeta Mastercard', 'Diezmo · Salario Daniel']);
     expect(a.raiz().querySelector('[data-testid="ver-mas"]')).toBeNull();
   });
 
@@ -231,6 +231,8 @@ describe('Hoy (steward-hoy)', () => {
     const diezmo = (await p.movimientos.resumenMes(OCT)).porPagar.find((i) => i.item.tipo === 'DIEZMO')!;
     expect(diezmo.detalle).toMatch(/^Del /);
     const a = await app('/hoy');
+    // Va en "Durante el mes", despues de lo vencido y lo de esta semana (rediseno-libreta-clara).
+    await a.tocar(/Ver 1 más/);
     const fila = [...a.raiz().querySelectorAll('app-fila')].find((f) => f.textContent!.includes(diezmo.item.nombre))!;
     expect(fila.textContent).not.toContain('Venció');
     expect(fila.querySelector('.text-negativo')).toBeNull();

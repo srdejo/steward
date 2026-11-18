@@ -37,15 +37,15 @@ describe('Hoy detallado en escritorio (steward-hoy)', () => {
     await conSesion();
     const a = await app('/hoy');
     const filas = [...a.raiz().querySelectorAll('[data-testid="tabla-por-pagar"] tbody tr')];
-    expect(filas.map((f) => f.getAttribute('data-item'))).toEqual(['Compra a cuotas', 'Diezmo · Salario Daniel', 'Tarjeta Nu · Mercado', 'Tarjeta Mastercard']);
+    expect(filas.map((f) => f.getAttribute('data-item'))).toEqual(['Compra a cuotas', 'Tarjeta Nu · Mercado', 'Tarjeta Mastercard', 'Diezmo · Salario Daniel']);
     const cuotas = filas[0]!.querySelector('[data-col="vence"]')!;
     expect(limpio(cuotas)).toBe('Venció el 20');
     expect(cuotas.className).toContain('text-negativo');
-    expect(limpio(filas[3]!.querySelector('[data-col="vence"]'))).toBe('30 oct · en 4 días');
-    expect(filas[3]!.querySelector('[data-col="vence"]')!.className).toContain('text-aviso');
-    expect(limpio(filas[1]!.querySelector('[data-col="vence"]'))).toBe('Del Salario Daniel · día 25');
-    expect(limpio(filas[2]!.querySelector('[data-col="vence"]'))).toBe('28 oct · en 2 días');
-    expect(limpio(filas[2])).toContain('Corte 13 · valor del extracto');
+    expect(limpio(filas[2]!.querySelector('[data-col="vence"]'))).toBe('30 oct · en 4 días');
+    expect(filas[2]!.querySelector('[data-col="vence"]')!.className).toContain('text-aviso');
+    expect(limpio(filas[3]!.querySelector('[data-col="vence"]'))).toBe('Del Salario Daniel · día 25');
+    expect(limpio(filas[1]!.querySelector('[data-col="vence"]'))).toBe('28 oct · en 2 días');
+    expect(limpio(filas[1])).toContain('Corte 13 · valor del extracto');
     expect(limpio(filas[0])).toContain('Créditos');
   });
 

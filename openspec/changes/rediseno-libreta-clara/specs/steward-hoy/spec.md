@@ -49,11 +49,11 @@ En modo conectado:
 
 #### Scenario: Datos de ejemplo
 - **WHEN** se abre Hoy con los datos de prueba iniciales
-- **THEN** muestra "Te queda libre en octubre $3.436.000", "Falta pagar $2.715.000", "Pagado $2.613.000" y "Gastaron $62.000 menos que el plan", y el título "Por pagar" con "4 pendientes"
+- **THEN** muestra "Te queda libre en octubre $3.436.000", "Falta pagar $2.895.000", "Pagado $2.433.000" y "Gastaron $62.000 menos que el plan", y el título "Por pagar" con "4 pendientes"
 
 #### Scenario: Lista corta de Por pagar
 - **WHEN** se abre Hoy el 26 oct con los datos de prueba iniciales (4 ítems por pagar)
-- **THEN** Por pagar muestra Compra a cuotas bajo "Vencido", Tarjeta Mastercard bajo "Esta semana" y Diezmo · Salario Daniel bajo "Durante el mes", y la fila "Ver 1 más · 4 pendientes en total $140.000"; al tocarla aparece Mercado bajo "Durante el mes"
+- **THEN** Por pagar muestra Compra a cuotas bajo "Vencido", y Tarjeta Nu · Mercado y Tarjeta Mastercard bajo "Esta semana", con la fila "Ver 1 más · 4 pendientes en total $700.000"; al tocarla aparece Diezmo · Salario Daniel bajo "Durante el mes"
 
 #### Scenario: Grupo vacío
 - **WHEN** no hay ningún ítem vencido
@@ -61,7 +61,7 @@ En modo conectado:
 
 #### Scenario: Falta pagar baja al pagar
 - **WHEN** se marca pagada la Tarjeta Mastercard por $1.500.000
-- **THEN** Falta pagar pasa de $2.715.000 a $1.215.000, Pagado sube $1.500.000 y la barra de Pagado avanza
+- **THEN** Falta pagar pasa de $2.895.000 a $1.395.000, Pagado sube $1.500.000 y la barra de Pagado avanza
 
 #### Scenario: Nada pendiente
 - **WHEN** todos los ítems del plan del mes están pagados

@@ -6,7 +6,7 @@
 
 ## 2. Navegación y Agregar
 
-- [ ] 2.1 Dominio: `grupoPorPagar(item, hoy)` y el orden de Por pagar por grupo y fecha, con el tope de 3 después de ordenar, y sus pruebas (design D4).
+- [x] 2.1 Dominio: `grupoPorPagar(item, hoy)` y el orden de Por pagar por grupo y fecha, con el tope de 3 después de ordenar, y sus pruebas (design D4).
 - [ ] 2.2 PWA: shell con los destinos Hoy, Planear, Cuentas y Ajustes.
   - Móvil: barra de cinco espacios con el + central.
   - Web: menú lateral con el nombre del hogar y el botón Agregar.
