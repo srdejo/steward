@@ -35,12 +35,12 @@
 
 ## 3. PWA
 
-- [ ] 3.1 `shared/components/paleta-color.ts`: `radiogroup` de 10 colores con su nombre accesible y el elegido marcado (design D4).
-- [ ] 3.2 Ajustes, móvil y web:
+- [x] 3.1 `shared/components/paleta-color.ts`: `radiogroup` de 10 colores con su nombre accesible y el elegido marcado (design D4).
+- [x] 3.2 Ajustes, móvil y web:
   - la hoja de categoría con Nombre (salvo Diezmo) y la paleta;
   - "Editar" también en Diezmo, con la hoja "Color de Diezmo" (design D5);
   - Guardar envía nombre y color.
-- [ ] 3.3 Pruebas (`ajustes` y `conectado.spec.ts`):
+- [x] 3.3 Pruebas (`ajustes` y `conectado.spec.ts`):
   - cambiar Gastos fijos a #3F6E9E y verlo en el plan del mes y en Hoy;
   - Diezmo sin campo de nombre;
   - nueva con color;

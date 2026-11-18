@@ -20,12 +20,16 @@ describe('Ajustes (steward-ajustes)', () => {
     expect(a.texto()).toContain('Salario Daniel Fijo · diezmo 10% del bruto $6.288.000 ›');
   });
 
-  it('Diezmo aparece primero y sin Editar; la regla explica que sugiere el monto (diezmo-como-gasto)', async () => {
+  it('Diezmo aparece primero y su Editar es solo el color; la regla explica que sugiere el monto (diezmo-como-gasto, color-categorias)', async () => {
     await conSesion();
     const a = await app('/ajustes');
     const categorias = [...a.raiz().querySelectorAll('[data-testid="categoria"]')].map((c) => textoLegible(c));
-    expect(categorias[0]).toBe('Diezmo Del sistema');
-    expect(categorias.slice(1).every((c) => c.endsWith('Editar'))).toBe(true);
+    expect(categorias[0]).toBe('Diezmo Editar');
+    expect(categorias.every((c) => c.endsWith('Editar'))).toBe(true);
+    await a.tocar(/.*/, '[aria-label="Editar color de Diezmo"]');
+    expect(a.texto()).toContain('Color de Diezmo');
+    expect(a.raiz().querySelector('app-hoja input')).toBeNull();
+    expect(a.raiz().querySelector('[data-color="#2C7A70"]')!.getAttribute('aria-checked')).toBe('true');
     expect(a.texto()).not.toContain('Diezmo en Hoy');
     expect(a.raiz().querySelector('[data-testid="nota-regla"]')!.textContent).toContain('cambiarla no cambia los meses ya creados');
   });
@@ -43,6 +47,33 @@ describe('Ajustes (steward-ajustes)', () => {
     await a.ir('/hoy');
     expect(a.texto()).toContain('Prima');
     expect(a.texto()).toContain('llega el día 30');
+  });
+
+  it('cambiar el color de Gastos fijos se ve en Ajustes y en el plan del mes (color-categorias)', async () => {
+    const p = await conSesion();
+    const a = await app('/ajustes');
+    await a.tocar(/.*/, '[aria-label="Editar Gastos fijos"]');
+    expect(a.raiz().querySelectorAll('[role="radiogroup"][aria-label="Color"] [role="radio"]')).toHaveLength(10);
+    expect(a.raiz().querySelector('[data-color="#C2603A"]')!.getAttribute('aria-checked')).toBe('true');
+    await a.tocar(/.*/, '[aria-label="Azul"]');
+    expect(a.raiz().querySelector('[data-color="#3F6E9E"]')!.getAttribute('aria-checked')).toBe('true');
+    await a.tocar('Guardar');
+    expect((await p.hogar.categorias()).find((c) => c.nombre === 'Gastos fijos')!.color).toBe('#3F6E9E');
+    const fijos = [...a.raiz().querySelectorAll('[data-testid="categoria"]')].find((c) => c.textContent!.includes('Gastos fijos'))!;
+    expect((fijos.querySelector('span') as HTMLElement).style.background).toBe('rgb(63, 110, 158)');
+    await a.ir('/planear/2026-11');
+    expect(a.raiz().querySelector('[style*="rgb(63, 110, 158)"]')).not.toBeNull();
+  });
+
+  it('una categoría nueva empieza en gris y puede nacer con otro color (color-categorias)', async () => {
+    const p = await conSesion();
+    const a = await app('/ajustes');
+    await a.tocar('+ Nueva');
+    expect(a.raiz().querySelector('[data-color="#8A8D85"]')!.getAttribute('aria-checked')).toBe('true');
+    await a.escribir('Nombre', 'Mascotas');
+    await a.tocar(/.*/, '[aria-label="Ocre"]');
+    await a.tocar('Crear categoría');
+    expect((await p.hogar.categorias()).find((c) => c.nombre === 'Mascotas')!.color).toBe('#A87A1E');
   });
 
   it('una categoría nueva queda disponible al agregar gastos al plan', async () => {

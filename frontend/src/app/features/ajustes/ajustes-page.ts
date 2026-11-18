@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
-import { claveMes, formatFechaCorta, formatPorcentaje, mesDe, type BaseDiezmo, type Categoria, type IngresoFijo } from '@steward/domain';
+import { claveMes, COLOR_NUEVA, colorDePaleta, formatFechaCorta, formatPorcentaje, mesDe, type BaseDiezmo, type Categoria, type IngresoFijo } from '@steward/domain';
 
 import { consulta, mensajeDeError } from '../../core/datos/consulta';
 import { PUERTOS, puertosConectados } from '../../core/datos/puertos';
@@ -11,6 +11,7 @@ import { Avatar } from '../../shared/components/avatar';
 import { Hoja } from '../../shared/components/hoja';
 import { Interruptor } from '../../shared/components/interruptor';
 import { Monto } from '../../shared/components/monto';
+import { PaletaColor } from '../../shared/components/paleta-color';
 import { MontoInput } from '../../shared/components/monto-input';
 import { Segmentado, type Opcion } from '../../shared/components/segmentado';
 import { anchoEscritorio } from '../../shared/escritorio';
@@ -37,7 +38,7 @@ const CONFIRMACIONES = {
  */
 @Component({
   selector: 'app-ajustes-page',
-  imports: [NgTemplateOutlet, RouterLink, Avatar, Hoja, Interruptor, Monto, MontoInput, Segmentado],
+  imports: [NgTemplateOutlet, RouterLink, Avatar, Hoja, Interruptor, Monto, MontoInput, PaletaColor, Segmentado],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '[class]': "escritorio() ? 'flex flex-col gap-5 px-8 pt-7 pb-12' : 'flex flex-col gap-[22px] px-5 pt-6 pb-4'" },
   template: `
@@ -135,11 +136,7 @@ const CONFIRMACIONES = {
               <div class="flex items-center gap-3 border-t border-divisor py-2" data-testid="categoria">
                 <span class="h-3 w-3 shrink-0 rounded-[4px]" [style.background]="c.color" aria-hidden="true"></span>
                 <span class="grow text-sm font-medium">{{ c.nombre }}</span>
-                @if (c.tipo === 'DIEZMO') {
-                  <span class="text-xs text-secundario">Del sistema</span>
-                } @else {
-                  <button type="button" class="boton-texto font-normal text-secundario" [attr.aria-label]="'Editar ' + c.nombre" (click)="abrir({ tipo: 'categoria', categoria: c })">Editar</button>
-                }
+                <button type="button" class="boton-texto font-normal text-secundario" [attr.aria-label]="etiquetaEditar(c)" (click)="abrir({ tipo: 'categoria', categoria: c })">Editar</button>
               </div>
             }
           </div>
@@ -207,12 +204,8 @@ const CONFIRMACIONES = {
           <div class="flex items-center gap-2.5 py-3" data-testid="categoria">
             <span class="h-2.5 w-2.5 rounded-[3px]" [style.background]="c.color" aria-hidden="true"></span>
             <span class="grow text-[15px]">{{ c.nombre }}</span>
-            <!-- Diezmo es la categoria del sistema y no se renombra (diezmo-como-gasto). -->
-            @if (c.tipo === 'DIEZMO') {
-              <span class="text-xs text-secundario">Del sistema</span>
-            } @else {
-              <button type="button" class="boton-texto font-normal text-secundario" [attr.aria-label]="'Editar ' + c.nombre" (click)="abrir({ tipo: 'categoria', categoria: c })">Editar</button>
-            }
+            <!-- Diezmo no se renombra (diezmo-como-gasto), pero cambia de color (color-categorias). -->
+            <button type="button" class="boton-texto font-normal text-secundario" [attr.aria-label]="etiquetaEditar(c)" (click)="abrir({ tipo: 'categoria', categoria: c })">Editar</button>
           </div>
         }
       </div>
@@ -298,11 +291,14 @@ const CONFIRMACIONES = {
           </app-hoja>
         }
         @case ('categoria') {
-          <app-hoja [titulo]="d.categoria ? 'Editar categoría' : 'Nueva categoría'" (cerrar)="cerrar()">
-            <label class="flex flex-col gap-2">
-              <span class="rotulo">Nombre</span>
-              <input class="campo" placeholder="Ej: Educación" [value]="texto()" (input)="texto.set($any($event.target).value)" />
-            </label>
+          <app-hoja [titulo]="d.categoria?.tipo === 'DIEZMO' ? 'Color de Diezmo' : d.categoria ? 'Editar categoría' : 'Nueva categoría'" (cerrar)="cerrar()">
+            @if (d.categoria?.tipo !== 'DIEZMO') {
+              <label class="flex flex-col gap-2">
+                <span class="rotulo">Nombre</span>
+                <input class="campo" placeholder="Ej: Educación" [value]="texto()" (input)="texto.set($any($event.target).value)" />
+              </label>
+            }
+            <app-paleta-color [(valor)]="color" />
             <ng-container [ngTemplateOutlet]="pie" [ngTemplateOutletContext]="{ boton: d.categoria ? 'Guardar' : 'Crear categoría', listo: !!texto().trim() }" />
           </app-hoja>
         }
@@ -378,6 +374,8 @@ export class AjustesPage {
 
   protected readonly dialogo = signal<Dialogo | null>(null);
   protected readonly texto = signal('');
+  /** El color elegido en la hoja de categoria; null si el guardado no esta en la paleta (color-categorias). */
+  protected readonly color = signal<string | null>(null);
   protected readonly bruto = signal<number | null>(null);
   protected readonly neto = signal<number | null>(null);
   protected readonly dia = signal(1);
@@ -415,6 +413,10 @@ export class AjustesPage {
     }
   }
 
+  protected etiquetaEditar(c: Categoria): string {
+    return c.tipo === 'DIEZMO' ? 'Editar color de Diezmo' : `Editar ${c.nombre}`;
+  }
+
   protected abrir(d: Dialogo): void {
     this.error.set('');
     this.mensaje.set('');
@@ -425,7 +427,10 @@ export class AjustesPage {
       this.neto.set(d.ingreso?.neto ?? null);
       this.dia.set(d.ingreso?.diaPago ?? 1);
     }
-    if (d.tipo === 'categoria' && d.categoria) this.texto.set(d.categoria.nombre);
+    if (d.tipo === 'categoria') {
+      this.texto.set(d.categoria?.nombre ?? '');
+      this.color.set(d.categoria ? colorDePaleta(d.categoria.color) : COLOR_NUEVA);
+    }
     if (d.tipo === 'aportes') {
       const r = this.regla.value();
       this.reglaActiva.set(r?.activa ?? false);
@@ -467,7 +472,8 @@ export class AjustesPage {
           await this.puertos.ingresos.guardarRegla({ activa: this.reglaActiva(), porcentaje: this.porcentaje() || 10, base: this.base() ?? 'BRUTO', aplicaAportes: this.reglaActiva() && this.aplicaAportes() });
           break;
         case 'categoria':
-          await this.puertos.hogar.guardarCategoria({ id: d.categoria?.id, nombre: this.texto() });
+          // Un color guardado fuera de la paleta no se envia si no se eligio otro (design D1).
+          await this.puertos.hogar.guardarCategoria({ id: d.categoria?.id, nombre: this.texto(), ...(this.color() ? { color: this.color()! } : {}) });
           break;
         case 'confirmar':
           await this.ejecutarConfirmacion(d.accion);

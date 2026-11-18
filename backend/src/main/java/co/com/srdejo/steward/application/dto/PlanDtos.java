@@ -23,7 +23,8 @@ public final class PlanDtos {
     private PlanDtos() {
     }
 
-    public record NombreRequest(String nombre) {
+    /** Crear (nombre y color opcional) o editar (nombre, color o los dos) una categoria (color-categorias). */
+    public record CategoriaRequest(String nombre, String color) {
     }
 
     public record CrearPlanRequest(int anio, int mes, String modo) {

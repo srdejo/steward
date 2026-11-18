@@ -79,22 +79,45 @@ public class PlanUseCase implements IPlanServicePort {
     // --- Categorias -------------------------------------------------------------------------------------------------
 
     @Override
-    public Mono<Categoria> crearCategoria(String nombre) {
-        return Mono.fromCallable(() -> nombreCategoria(nombre)).flatMap(limpio -> contexto()
+    public Mono<Categoria> crearCategoria(String nombre, String color) {
+        return Mono.fromCallable(() -> {
+            colorCategoria(color);
+            return nombreCategoria(nombre);
+        }).flatMap(limpio -> contexto()
                 .flatMap(ctx -> categorias.delHogar(ctx.hogar().id())
                         // Despues de las del sistema y las anteriores, como guardarCategoria del dominio.
                         .map(Categoria::orden).filter(o -> o < 90).reduce(0, Math::max)
                         .flatMap(maximo -> categorias.crear(new Categoria(UUID.randomUUID(), ctx.hogar().id(), limpio,
-                                Categoria.COLOR_NUEVA, maximo + 1, Categoria.Tipo.OTRO, false)))));
+                                color == null ? Categoria.COLOR_NUEVA : colorCategoria(color), maximo + 1, Categoria.Tipo.OTRO, false)))));
     }
 
     @Override
-    public Mono<Categoria> renombrarCategoria(UUID id, String nombre) {
-        return Mono.fromCallable(() -> nombreCategoria(nombre)).flatMap(limpio -> contexto()
+    public Mono<Categoria> editarCategoria(UUID id, String nombre, String color) {
+        return Mono.fromCallable(() -> {
+            if (nombre == null && color == null) {
+                throw DomainException.datosInvalidos("Escribe el nombre o elige un color");
+            }
+            return color == null ? "" : colorCategoria(color);
+        }).flatMap(nuevoColor -> contexto()
                 .flatMap(ctx -> categorias.porIdEnHogar(id, ctx.hogar().id())
                         .switchIfEmpty(Mono.error(PlanUseCase::categoriaNoEncontrada))
-                        .flatMap(c -> c.tipo() == Categoria.Tipo.DIEZMO ? Mono.<Categoria>error(reservada("La categoría Diezmo no se renombra"))
-                                : categorias.renombrar(c, limpio))));
+                        .flatMap(c -> {
+                            boolean diezmo = c.tipo() == Categoria.Tipo.DIEZMO;
+                            // Diezmo cambia solo el color: su mismo nombre se acepta, otro no (design D2 de color-categorias).
+                            if (diezmo && nombre != null && !nombre.strip().equals(c.nombre())) {
+                                return Mono.<Categoria>error(reservada("La categoría Diezmo no se renombra"));
+                            }
+                            String nuevoNombre = nombre == null || diezmo ? c.nombre() : nombreCategoria(nombre);
+                            String colorFinal = nuevoColor.isEmpty() ? c.color() : nuevoColor;
+                            return categorias.actualizar(new Categoria(c.id(), c.hogarId(), nuevoNombre, colorFinal, c.orden(), c.tipo(), c.sistema()));
+                        })));
+    }
+
+    private static String colorCategoria(String color) {
+        if (color == null) {
+            return null;
+        }
+        return Categoria.deLaPaleta(color).orElseThrow(() -> new DomainException(DomainException.Tipo.DATOS_INVALIDOS, "COLOR_INVALIDO", "Elige un color de la paleta"));
     }
 
     private static String nombreCategoria(String nombre) {
