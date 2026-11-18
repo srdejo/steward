@@ -7,11 +7,11 @@
 ## 2. Navegación y Agregar
 
 - [x] 2.1 Dominio: `grupoPorPagar(item, hoy)` y el orden de Por pagar por grupo y fecha, con el tope de 3 después de ordenar, y sus pruebas (design D4).
-- [ ] 2.2 PWA: shell con los destinos Hoy, Planear, Cuentas y Ajustes.
+- [x] 2.2 PWA: shell con los destinos Hoy, Planear, Cuentas y Ajustes.
   - Móvil: barra de cinco espacios con el + central.
   - Web: menú lateral con el nombre del hogar y el botón Agregar.
   - Specs del shell actualizadas (spec `steward-ui-shell`, "Navegación principal").
-- [ ] 2.3 PWA: hoja Agregar con pestañas Gasto, Aporte y Pago, que monta el contenido actual de `gasto-hoja`, `aporte-hoja` y `pagar-hoja` (design D3).
+- [x] 2.3 PWA: hoja Agregar con pestañas Gasto, Aporte y Pago, que monta el contenido actual de `gasto-hoja`, `aporte-hoja` y `pagar-hoja` (design D3).
   - Se abre sobre la pantalla actual.
   - `/hoy/aporte` y `/hoy/gasto` redirigen a ella.
   - Pruebas de los escenarios de "Agregar desde un solo botón".

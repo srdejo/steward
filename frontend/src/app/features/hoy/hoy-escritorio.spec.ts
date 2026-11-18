@@ -56,7 +56,7 @@ describe('Hoy detallado en escritorio (steward-hoy)', () => {
     const mastercard = a.raiz().querySelector('[data-testid="tabla-por-pagar"] tr[data-item="Tarjeta Mastercard"]')!;
     (mastercard.querySelector('a:last-of-type') as HTMLElement).click();
     await a.estable();
-    expect(a.url()).toBe('/hoy/pagar/m0-mastercard');
+    expect(a.url()).toBe('/hoy?agregar=pago&item=m0-mastercard');
     await a.tocar('Davivienda');
     await a.tocar(/^Marcar pagado/, 'app-pagar-hoja button');
     expect(a.url()).toBe('/hoy');

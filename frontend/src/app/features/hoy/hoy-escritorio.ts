@@ -36,8 +36,6 @@ const TONO_VENCE: Record<TonoVence, string> = { alerta: 'font-semibold text-nega
           <!-- Spec "Cerrar el mes desde Hoy": solo el mes en curso y sin cerrar. -->
           <a [routerLink]="['/planear', claveActual(), 'cierre']" class="flex h-10 items-center rounded-[10px] px-3.5 text-sm font-semibold text-acento hover:bg-acento-suave" data-testid="cerrar-mes">Cerrar {{ nombre }}</a>
         }
-        <a routerLink="aporte" class="flex h-10 items-center rounded-[10px] border border-control bg-superficie px-4 text-sm font-semibold text-texto">+ Aporte</a>
-        <a routerLink="gasto" class="flex h-10 items-center rounded-[10px] bg-acento px-4 text-sm font-semibold text-white">+ Gasto</a>
       </div>
     </header>
 
@@ -192,7 +190,7 @@ const TONO_VENCE: Record<TonoVence, string> = { alerta: 'font-semibold text-nega
         <section class="tarjeta flex flex-col gap-1 px-[18px] py-4" aria-labelledby="ingresos-escritorio">
           <div class="flex items-center justify-between pb-1.5">
             <h2 id="ingresos-escritorio" class="text-[15px] font-semibold">Ingresos</h2>
-            <a routerLink="aporte" class="boton-texto">+ Aporte</a>
+            <a routerLink="." [queryParams]="{ agregar: 'aporte' }" class="boton-texto">+ Aporte</a>
           </div>
           <app-ingresos-hoy class="border-t border-divisor" [ingresos]="r.ingresos" />
         </section>
@@ -274,13 +272,13 @@ export class HoyEscritorio {
     if (clave) this.mesHoy.elegir(clave);
   }
 
-  /** La misma hoja que abre la fila en una columna: un variable registra un gasto, lo demas se marca pagado. */
-  protected rutaPagar(i: ItemEjecucion): string | string[] {
-    return i.item.tipo === 'VARIABLE' ? 'gasto' : ['pagar', i.item.id];
+  /** Agregar sobre Hoy: un variable registra un gasto, lo demas se marca pagado (rediseno-libreta-clara). */
+  protected rutaPagar(_i: ItemEjecucion): string {
+    return '.';
   }
 
-  protected paramsPagar(i: ItemEjecucion): Record<string, string> | null {
-    return i.item.tipo === 'VARIABLE' ? { item: i.item.id } : null;
+  protected paramsPagar(i: ItemEjecucion): Record<string, string> {
+    return { agregar: i.item.tipo === 'VARIABLE' ? 'gasto' : 'pago', item: i.item.id };
   }
 
   /** Debajo del nombre: el detalle del item, salvo cuando repite lo que ya dice la columna Vence. */

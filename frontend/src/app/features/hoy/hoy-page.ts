@@ -69,7 +69,7 @@ const LISTA_CORTA = 3;
       <section class="flex flex-col gap-1.5" aria-labelledby="ingresos">
         <div class="flex items-center justify-between">
           <h2 id="ingresos" class="text-base font-semibold">Ingresos</h2>
-          <a routerLink="aporte" class="boton-texto">+ Aporte</a>
+          <a routerLink="." [queryParams]="{ agregar: 'aporte' }" class="boton-texto">+ Aporte</a>
         </div>
         <app-ingresos-hoy [ingresos]="r.ingresos" />
       </section>
@@ -82,11 +82,10 @@ const LISTA_CORTA = 3;
               <app-monto class="ml-1 text-sm font-semibold text-negativo" [valor]="r.faltaPagar" />
             }
           </h2>
-          <a routerLink="gasto" class="boton-texto">+ Gasto</a>
         </div>
         <div class="flex flex-col divide-y divide-divisor">
           @for (i of visibles(r); track i.item.id) {
-            <a [routerLink]="i.item.tipo === 'VARIABLE' ? 'gasto' : ['pagar', i.item.id]" [queryParams]="i.item.tipo === 'VARIABLE' ? { item: i.item.id } : null" class="block hover:bg-superficie">
+            <a routerLink="." [queryParams]="{ agregar: i.item.tipo === 'VARIABLE' ? 'gasto' : 'pago', item: i.item.id }" class="block hover:bg-superficie">
               <app-fila [titulo]="i.item.nombre" [detalle]="i.detalle" [tonoDetalle]="urgente(i) ? 'text-negativo' : 'text-secundario'">
                 <app-monto class="text-sm" [valor]="i.pendiente" />
                 <span class="h-6 w-6 rounded-full border-2 border-control" aria-hidden="true"></span>

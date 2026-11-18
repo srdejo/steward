@@ -8,8 +8,8 @@ Cada pestaña MUST pedir el monto primero y aplicar las mismas reglas que el reg
 Los registros MUST guardarse en el mes en curso, salvo el aporte, que mantiene su "¿Para qué mes?". Si la hoja se abre desde otra pantalla, guardar MUST dejar al usuario en esa pantalla.
 
 #### Scenario: Gasto desde el +
-- **WHEN** en Planear a 390 px se toca + y se registra un gasto de $40.000 contra Mercado (llevaba $180.000 de $320.000)
-- **THEN** la hoja se cierra, se sigue en Planear y Hoy muestra Mercado con "llevas $220.000 de $320.000"
+- **WHEN** en Planear a 390 px se toca + y se registra un gasto de $40.000 contra Transporte (llevaba $250.000 de $250.000)
+- **THEN** la hoja se cierra, se sigue en Planear y Transporte queda con $290.000 gastados, "$40.000 sobre el plan"
 
 #### Scenario: Aporte desde Entró este mes
 - **WHEN** en Hoy se toca "+ Aporte"
