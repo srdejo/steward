@@ -65,7 +65,7 @@ export default function Cuadrar() {
       })}
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 }}>
         <Texto style={{ fontSize: 14, color: colors.textoSuave }}>Gastos sin registrar</Texto>
-        <Monto testID="sin-registrar" valor={sinRegistrar} siempreVisible style={{ fontSize: 15, fontFamily: fonts.monoSemibold }} />
+        <Monto testID="sin-registrar" valor={sinRegistrar} siempreVisible style={{ fontSize: 15, fontFamily: fonts.semibold }} />
       </View>
       <Aviso texto={accion.error} />
       <Boton titulo="Guardar saldos" deshabilitado={!Object.values(saldos).some((v) => v !== null) || accion.ocupado} onPress={guardar} />

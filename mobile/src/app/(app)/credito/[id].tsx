@@ -50,7 +50,7 @@ export default function Credito() {
     <Pantalla>
       <Encabezado titulo={c.nombre} rotulo={`Crédito · ${c.entidad}`} volver="/cuentas?pestana=creditos" volverTexto="Créditos" />
       <View style={{ gap: 6, marginTop: -12 }}>
-        <Monto testID="saldo-credito" valor={c.saldo} style={{ fontSize: 30, fontFamily: fonts.monoSemibold }} />
+        <Monto testID="saldo-credito" valor={c.saldo} style={{ fontSize: 30, fontFamily: fonts.semibold }} />
         <Texto v="pequeno">Saldo actualizado el {formatFechaCorta(c.saldoActualizadoEn)}</Texto>
       </View>
       <View testID="metodo" style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: 12, borderRadius: 12, backgroundColor: colors.acentoSuave }}>
@@ -78,11 +78,11 @@ export default function Credito() {
       </View>
       <View style={{ flexDirection: 'row', gap: 8 }}>
         {[
-          ['Cuota', <Monto key="c" valor={c.cuota} style={{ fontSize: 13, fontFamily: fonts.monoSemibold }} />],
-          ['Paga el', <Texto key="d" style={{ fontFamily: fonts.monoSemibold, fontSize: 13 }}>Día {c.diaPago}</Texto>],
-          ['Termina', <Texto key="t" testID="termina" style={{ fontFamily: fonts.monoSemibold, fontSize: 13 }}>{v.termina ? `${c.metodo === 'TASA' ? '≈ ' : ''}${mesCorto(v.termina)}` : '—'}</Texto>],
+          ['Cuota', <Monto key="c" valor={c.cuota} style={{ fontSize: 13, fontFamily: fonts.semibold }} />],
+          ['Paga el', <Texto key="d" style={{ fontFamily: fonts.semibold, fontSize: 13 }}>Día {c.diaPago}</Texto>],
+          ['Termina', <Texto key="t" testID="termina" style={{ fontFamily: fonts.semibold, fontSize: 13 }}>{v.termina ? `${c.metodo === 'TASA' ? '≈ ' : ''}${mesCorto(v.termina)}` : '—'}</Texto>],
         ].map(([etiqueta, valor]) => (
-          <View key={etiqueta as string} style={{ flex: 1, gap: 4, padding: 12, borderRadius: 12, backgroundColor: colors.superficie, borderWidth: 1, borderColor: colors.borde }}>
+          <View key={etiqueta as string} style={{ flex: 1, gap: 4, padding: 12, borderRadius: 12, backgroundColor: colors.superficie }}>
             <Texto style={{ fontSize: 11, color: colors.secundario }}>{etiqueta}</Texto>
             {valor}
           </View>
@@ -100,12 +100,12 @@ export default function Credito() {
               <Texto style={{ fontSize: 13, width: 80 }}>{q.k}{v.progreso ? ` / ${v.progreso.total}` : ''} {nombreMes(q.ref.mes).slice(0, 3)}</Texto>
               <Monto valor={q.interes} style={{ fontSize: 12 }} />
               <Monto valor={q.capital} style={{ fontSize: 12 }} />
-              <Monto valor={q.saldo} style={{ fontSize: 12, fontFamily: fonts.monoSemibold }} />
+              <Monto valor={q.saldo} style={{ fontSize: 12, fontFamily: fonts.semibold }} />
             </View>
           ))}
           {v.interesesAnioSiguiente > 0 && (
-            <Texto testID="intereses-anio" style={{ fontSize: 13, color: '#8A2A15', backgroundColor: '#FBEDE8', padding: 10, borderRadius: 8, overflow: 'hidden' }}>
-              En {mesDe(puertos.hoy()).anio + 1} pagarías <Monto valor={v.interesesAnioSiguiente} siempreVisible style={{ fontSize: 13, color: '#8A2A15' }} /> en intereses.
+            <Texto testID="intereses-anio" style={{ fontSize: 13, color: '#8C1D18', backgroundColor: '#FBE9E7', padding: 10, borderRadius: 8, overflow: 'hidden' }}>
+              En {mesDe(puertos.hoy()).anio + 1} pagarías <Monto valor={v.interesesAnioSiguiente} siempreVisible style={{ fontSize: 13, color: '#8C1D18' }} /> en intereses.
             </Texto>
           )}
         </View>

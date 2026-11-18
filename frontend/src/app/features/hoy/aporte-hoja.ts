@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
 import { mesDe, nombreMesCapital, sumarMeses, type Id, type MesRef } from '@steward/domain';
 
 import { consulta, mensajeDeError } from '../../core/datos/consulta';
@@ -15,12 +16,12 @@ import { SU_CUENTA, opcionesDeHoja } from './opciones-hoja';
 /** Aporte.dc.html: quien · cuanto · para que mes. Suma al "Te queda libre" del mes elegido al instante. */
 @Component({
   selector: 'app-aporte-hoja',
-  imports: [Hoja, Interruptor, Monto, MontoInput, Segmentado],
+  imports: [NgTemplateOutlet, Hoja, Interruptor, Monto, MontoInput, Segmentado],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <app-hoja titulo="Nuevo aporte" (cerrar)="hoja.cerrar()">
-      <app-segmentado etiqueta="¿Quién?" [opciones]="hoja.personas()" [(valor)]="quien" />
+    <ng-template #cuerpo>
       <app-monto-input etiqueta="¿Cuánto?" [grande]="true" [(valor)]="monto" />
+      <app-segmentado etiqueta="¿Quién?" [opciones]="hoja.personas()" [(valor)]="quien" />
       <app-segmentado etiqueta="¿Para qué mes?" [opciones]="meses" [(valor)]="mes" />
       <app-segmentado etiqueta="¿Dónde quedó? · Opcional" [chips]="true" [opcional]="true" [opciones]="hoja.desde()" [(valor)]="cuenta" />
       <div class="rounded-xl bg-nota px-4 py-3.5">
@@ -37,13 +38,22 @@ import { SU_CUENTA, opcionesDeHoja } from './opciones-hoja';
         }
         <button type="button" class="boton-grande" [disabled]="!quien() || !monto() || guardando()" (click)="guardar()">Guardar aporte</button>
       </div>
-    </app-hoja>
+    </ng-template>
+    @if (incrustada()) {
+      <div class="flex flex-col gap-[22px]"><ng-container [ngTemplateOutlet]="cuerpo" /></div>
+    } @else {
+      <app-hoja titulo="Nuevo aporte" (cerrar)="hoja.cerrar()">
+        <ng-container [ngTemplateOutlet]="cuerpo" />
+      </app-hoja>
+    }
   `,
 })
 export class AporteHoja {
   private readonly puertos = inject(PUERTOS);
   private readonly sesion = inject(SesionActual);
   protected readonly hoja = opcionesDeHoja();
+  /** Dentro de Agregar: sin su propio marco de hoja; Agregar la abre y la cierra (design D3 de rediseno-libreta-clara). */
+  readonly incrustada = input(false);
 
   private readonly actual = mesDe(this.puertos.hoy());
   private readonly siguiente = sumarMeses(this.actual, 1);

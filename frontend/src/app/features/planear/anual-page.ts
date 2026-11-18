@@ -41,7 +41,7 @@ interface OpcionBase {
       <a [routerLink]="resumen.value() ? ['/planear/anual', anio()] : '/planear'" class="boton-texto -my-2 self-start text-sm font-normal">{{ resumen.value() ? '‹ Lo que cambia' : '‹ Plan' }}</a>
       <div class="flex flex-col gap-1">
         <span class="rotulo">Paso 1 de 2 · Año {{ anio() }}</span>
-        <h1 class="text-[26px] font-bold lg:text-[28px]">¿De qué mes parte {{ anio() }}?</h1>
+        <h1 class="titular text-[26px] font-bold lg:text-[28px]">¿De qué mes parte {{ anio() }}?</h1>
         <p class="text-sm text-secundario">Ese mes se copia en cada mes del año. Después agregas solo lo que cambia.</p>
       </div>
       @if (!puedeCrear()) {
@@ -104,7 +104,7 @@ interface OpcionBase {
         <div class="flex flex-col gap-1">
           <a routerLink="/planear" class="boton-texto -my-2 self-start text-sm font-normal">‹ Plan</a>
           <span class="rotulo" [class.text-aviso]="r.estado === 'BORRADOR'">{{ rotulo(r) }}</span>
-          <h1 class="text-[26px] font-bold lg:text-[28px]">Plan {{ r.anio }}{{ r.opciones.length > 1 ? '' : ': lo que cambia' }}</h1>
+          <h1 class="titular text-[26px] font-bold lg:text-[28px]">Plan {{ r.anio }}{{ r.opciones.length > 1 ? '' : ': lo que cambia' }}</h1>
           <p class="text-sm text-secundario">{{ r.base ? 'La Opción ' + r.opcion.letra + ' es copia de ' + mesAnio(r.base) + '.' : 'Los montos de cada mes.' }} {{ escritorio() ? 'Agrega lo que es distinto en un mes.' : 'Toca un mes para agregar algo distinto.' }}</p>
         </div>
         <div class="flex flex-wrap gap-2">
@@ -170,7 +170,7 @@ interface OpcionBase {
           }
           <span>Toca una celda para cambiar solo ese mes en la Opción {{ r.opcion.letra }}.</span>
         </div>
-        <div class="overflow-x-auto rounded-[14px] border border-borde bg-superficie" tabindex="0" role="region" aria-label="Plan anual por mes">
+        <div class="overflow-x-auto rounded-tarjeta bg-superficie" tabindex="0" role="region" aria-label="Plan anual por mes">
           <table class="w-full min-w-[1100px] border-collapse font-mono text-xs" data-testid="tabla-anual">
             <thead>
               <tr class="border-b border-borde font-sans text-xs font-semibold text-secundario">
@@ -223,7 +223,7 @@ interface OpcionBase {
           </table>
         </div>
         @if (filasA()) {
-          <section aria-labelledby="mes-a-mes" class="overflow-hidden rounded-[14px] border border-borde bg-superficie" data-testid="mes-a-mes">
+          <section aria-labelledby="mes-a-mes" class="overflow-hidden rounded-tarjeta bg-superficie" data-testid="mes-a-mes">
             <div class="flex items-baseline justify-between gap-3 border-b border-divisor px-5 py-4">
               <h2 id="mes-a-mes" class="text-base font-semibold">Las dos opciones, mes a mes</h2>
               <span class="text-xs text-secundario">Lo que dejaría libre cada mes</span>
@@ -240,14 +240,14 @@ interface OpcionBase {
                   </tr>
                 </thead>
                 <tbody>
-                  <tr class="border-t border-[#F1F0EB]" data-fila="A">
+                  <tr class="border-t border-[#F0EEE9]" data-fila="A">
                     <th scope="row" class="px-5 py-2.5 text-left font-sans text-[13px] font-semibold">Opción A</th>
                     @for (v of r.libreA; track $index) {
                       <td class="px-1 py-2.5 text-right" [class.text-negativo]="v < 0">{{ celda(v) }}</td>
                     }
                     <td class="px-5 py-2.5 text-right font-semibold">{{ celda(suma(r.libreA)) }}</td>
                   </tr>
-                  <tr class="border-t border-[#F1F0EB]" [attr.data-fila]="r.opcion.letra">
+                  <tr class="border-t border-[#F0EEE9]" [attr.data-fila]="r.opcion.letra">
                     <th scope="row" class="px-5 py-2.5 text-left font-sans text-[13px] font-semibold">Opción {{ r.opcion.letra }}</th>
                     @for (v of r.libre; track $index; let i = $index) {
                       <td class="px-1 py-2.5 text-right" [class.font-semibold]="v !== r.libreA[i]" [class.text-negativo]="v < r.libreA[i]! || v < 0" [class.text-positivo]="v > r.libreA[i]!">{{ celda(v) }}</td>

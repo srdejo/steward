@@ -9,6 +9,7 @@ export default function AppLayout() {
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.fondo } }}>
       <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="agregar" options={hoja} />
       <Stack.Screen name="aporte" options={hoja} />
       <Stack.Screen name="pagar/[itemId]" options={hoja} />
       <Stack.Screen name="gasto" options={hoja} />

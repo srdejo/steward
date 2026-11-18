@@ -1,5 +1,6 @@
 import type { Escenario, EstadoHogar, Fecha, Id, ItemPlan, MesRef, Pesos, TipoItem } from '../model';
 import { formatCop, nombreMes } from '../format';
+import { COLOR_INGRESOS } from './colores';
 import { compararMes, diaDe, fechaEnMes, mesDe, mismoMes, sumar, sumarMeses } from './base';
 import { escenarioPrincipal, movimientosDe, planDe } from './consultas';
 import { cuentasDelHogar } from './cuentas';
@@ -179,7 +180,7 @@ export function vistaMesEscritorio(estado: EstadoHogar, ref: MesRef, hoy: Fecha,
     });
   }
   const grupoIngresos: GrupoMes = {
-    titulo: 'Ingresos', color: '#2E6B45', categoriaId: null, total: opcion.totalIngresos,
+    titulo: 'Ingresos', color: COLOR_INGRESOS, categoriaId: null, total: opcion.totalIngresos,
     diferencia: previa ? opcion.totalIngresos - previa.totalIngresos : null, filas: filasIngreso, ingresos: true,
   };
 

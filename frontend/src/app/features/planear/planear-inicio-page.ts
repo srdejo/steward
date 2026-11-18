@@ -21,7 +21,7 @@ import { anchoEscritorio } from '../../shared/escritorio';
       @if (escritorio()) {
         <span class="rotulo text-positivo">{{ enCurso() }} en curso</span>
       }
-      <h1 class="text-[26px] font-bold lg:text-[28px]">Plan</h1>
+      <h1 class="titular text-[28px] font-bold lg:text-[32px]">Planear</h1>
     </div>
 
     @if (inicio.value(); as i) {
@@ -80,11 +80,11 @@ import { anchoEscritorio } from '../../shared/escritorio';
           </div>
         </section>
       } @else {
-        <section class="flex flex-col gap-1" aria-labelledby="proximos">
+        <section class="flex flex-col gap-2" aria-labelledby="proximos">
           <h2 id="proximos" class="rotulo">Próximos meses</h2>
-          <div class="flex flex-col divide-y divide-divisor">
+          <div class="tarjeta flex flex-col divide-y divide-divisor px-4">
             @for (m of i.proximos; track clave(m)) {
-              <a [routerLink]="['/planear', clave(m)]" class="flex items-center justify-between gap-3 py-3 hover:bg-superficie">
+              <a [routerLink]="['/planear', clave(m)]" class="flex min-h-14 items-center justify-between gap-3 py-3 hover:bg-fondo">
                 <div class="flex flex-col gap-0.5">
                   <span class="text-[15px] font-medium">{{ nombre(m) }}</span>
                   <span class="text-xs" [class]="m.estado === 'BORRADOR' ? 'text-aviso' : 'text-secundario'">{{ m.detalle }}</span>
@@ -99,11 +99,11 @@ import { anchoEscritorio } from '../../shared/escritorio';
           </div>
         </section>
 
-        <section class="flex flex-col gap-1" aria-labelledby="recientes">
+        <section class="flex flex-col gap-2" aria-labelledby="recientes">
           <h2 id="recientes" class="rotulo">Este mes y anteriores</h2>
-          <div class="flex flex-col divide-y divide-divisor">
+          <div class="tarjeta flex flex-col divide-y divide-divisor px-4">
             @for (m of i.recientes; track clave(m)) {
-              <a [routerLink]="destinoReciente(m)" class="flex items-center justify-between gap-3 py-3 hover:bg-superficie">
+              <a [routerLink]="destinoReciente(m)" class="flex min-h-14 items-center justify-between gap-3 py-3 hover:bg-fondo">
                 <div class="flex flex-col gap-0.5">
                   <span class="text-[15px] font-medium">{{ nombre(m) }}</span>
                   <span class="text-xs" [class]="m.estado === 'ACTIVO' ? 'text-positivo' : 'text-secundario'">{{ m.detalle }}</span>

@@ -40,13 +40,17 @@ export default function Acceso() {
   }
 
   return (
-    <Pantalla demo={false} style={{ flexGrow: 1, paddingHorizontal: 24, paddingTop: 64, gap: 32 }}>
-      <View style={{ marginTop: 40, gap: 16 }}>
-        <View style={{ width: 56, height: 56, borderRadius: 16, backgroundColor: colors.acento, alignItems: 'center', justifyContent: 'center' }}>
-          <Icono nombre="casa" tamano={28} color="#FFFFFF" />
+    <Pantalla demo={false} style={{ flexGrow: 1, paddingHorizontal: 20, paddingTop: 28, gap: 28 }}>
+      {/* Artboard "Acceso y llave de acceso" (rediseno-libreta-clara). */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+        <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: colors.acento, alignItems: 'center', justifyContent: 'center' }}>
+          <Icono nombre="casa" tamano={20} color="#FFFFFF" />
         </View>
-        <Texto accessibilityRole="header" style={{ fontSize: 30, lineHeight: 35, fontFamily: fonts.bold }}>Presupuesto Hogar</Texto>
-        <Texto style={{ fontSize: 16, lineHeight: 23, color: colors.secundario }}>Planeen el mes juntos y lleven lo que de verdad pasa.</Texto>
+        <Texto style={{ fontSize: 15, fontFamily: fonts.bold }}>Presupuesto Hogar</Texto>
+      </View>
+      <View style={{ marginTop: 56, gap: 12 }}>
+        <Texto accessibilityRole="header" style={{ fontSize: 34, lineHeight: 37, fontFamily: fonts.display, letterSpacing: -0.68 }}>Planeen el mes juntos.</Texto>
+        <Texto style={{ fontSize: 16, lineHeight: 24, color: colors.textoSuave }}>Y lleven lo que de verdad pasa, sin cuadrar cada peso.</Texto>
       </View>
 
       <View style={{ marginTop: 'auto', gap: 10 }}>
@@ -55,7 +59,7 @@ export default function Acceso() {
           titulo="Continuar con Google"
           deshabilitado={entrando}
           onPress={() => entrar(entrarConGoogle)}
-          style={{ borderColor: '#D9D8D2' }}
+          style={{ borderColor: colors.bordeCampo }}
           icono={
             <Svg width={20} height={20} viewBox="0 0 24 24">
               <Path fill="#4285F4" d="M22.5 12.3c0-.8-.1-1.5-.2-2.2H12v4.2h5.9a5 5 0 0 1-2.2 3.3v2.7h3.5c2.1-1.9 3.3-4.7 3.3-8z" />

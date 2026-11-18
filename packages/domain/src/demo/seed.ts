@@ -9,12 +9,12 @@ export const DANIEL = 'u-daniel';
 export const ESPOSA = 'u-esposa';
 
 const CATEGORIAS: Categoria[] = [
-  { id: 'cat-diezmo', nombre: 'Diezmo', color: '#0F766E', orden: 0, tipo: 'DIEZMO', sistema: true },
-  { id: 'cat-fijos', nombre: 'Gastos fijos', color: '#E2551B', orden: 1, tipo: 'FIJO', sistema: true },
-  { id: 'cat-variables', nombre: 'Variables', color: '#8D8F88', orden: 2, tipo: 'VARIABLE', sistema: true },
+  { id: 'cat-diezmo', nombre: 'Diezmo', color: '#2C7A70', orden: 0, tipo: 'DIEZMO', sistema: true },
+  { id: 'cat-fijos', nombre: 'Gastos fijos', color: '#C2603A', orden: 1, tipo: 'FIJO', sistema: true },
+  { id: 'cat-variables', nombre: 'Variables', color: '#8A8D85', orden: 2, tipo: 'VARIABLE', sistema: true },
   // Las lineas de las tarjetas van en Tarjetas; las compras a cuotas y los prestamos, en Creditos (tarjetas-y-creditos).
-  { id: 'cat-tarjetas', nombre: 'Tarjetas', color: '#7C4DDB', orden: 3, tipo: 'TARJETA', sistema: true },
-  { id: 'cat-creditos', nombre: 'Créditos', color: '#2E6B45', orden: 4, tipo: 'CREDITO', sistema: true },
+  { id: 'cat-tarjetas', nombre: 'Tarjetas', color: '#6B5BA8', orden: 3, tipo: 'TARJETA', sistema: true },
+  { id: 'cat-creditos', nombre: 'Créditos', color: '#6B5BA8', orden: 4, tipo: 'CREDITO', sistema: true },
 ];
 
 interface DefItem {

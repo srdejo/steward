@@ -68,6 +68,15 @@ export function formatDiaSemana(fecha: Fecha): string {
   return `${DIAS[d.getUTCDay()]} ${dia}`;
 }
 
+const DIAS_LARGOS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
+/** `Lunes 26 · octubre`: el encabezado de Hoy (rediseno-libreta-clara). */
+export function formatDiaLargo(fecha: Fecha): string {
+  const { anio, mes, dia } = partes(fecha);
+  const d = new Date(Date.UTC(anio, mes - 1, dia));
+  return `${DIAS_LARGOS[d.getUTCDay()]} ${dia} · ${nombreMes(mes)}`;
+}
+
 /** `1,6% EM` */
 export function formatTasa(tasaEM: number): string {
   return `${tasaEM.toString().replace('.', ',')}% EM`;

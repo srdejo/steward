@@ -53,7 +53,7 @@ function numero(texto: string): number {
         @for (m of metodos; track m.valor) {
           <button type="button" role="radio" [attr.aria-checked]="metodo() === m.valor" (click)="metodo.set(m.valor)"
             class="flex items-start gap-3 rounded-xl p-3.5 text-left"
-            [class]="metodo() === m.valor ? 'border-2 border-acento bg-acento-suave' : 'border border-borde bg-superficie'">
+            [class]="metodo() === m.valor ? 'border-2 border-acento bg-acento-elegido' : 'border border-borde bg-superficie'">
             <span class="mt-0.5 h-[18px] w-[18px] shrink-0 rounded-full" [class]="metodo() === m.valor ? 'border-[5px] border-acento' : 'border-2 border-control'" aria-hidden="true"></span>
             <span class="flex flex-col gap-0.5"><span class="text-[15px] font-semibold">{{ m.titulo }}</span><span class="text-[13px] text-secundario">{{ m.desc }}</span></span>
           </button>

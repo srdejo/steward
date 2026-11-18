@@ -1,4 +1,4 @@
-import { computed, inject } from '@angular/core';
+import { InjectionToken, computed, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import type { Id, Origen } from '@steward/domain';
 
@@ -9,9 +9,13 @@ import type { Opcion } from '../../shared/components/segmentado';
 /** Valor de "Desde" / "¿Dónde quedó?": una cuenta del hogar o "Su cuenta" (fuera de la app). */
 export const SU_CUENTA = '__externa__';
 
+/** Como se cierra una hoja de Hoy dentro de Agregar: vuelve a la pantalla donde se abrio (design D3 de rediseno-libreta-clara). */
+export const CIERRE_HOJA = new InjectionToken<() => Promise<unknown>>('CIERRE_HOJA');
+
 /** Lo comun de las tres hojas de Hoy: miembros, cuentas como chips y cerrar volviendo a Hoy. */
 export function opcionesDeHoja() {
   const router = inject(Router);
+  const cierre = inject(CIERRE_HOJA, { optional: true });
   const miembros = inject(MiembrosHogar);
   const cuentas = consulta(() => null, (p) => p.cuentas.cuentas());
 
@@ -27,7 +31,7 @@ export function opcionesDeHoja() {
     personas,
     iniciales,
     desde,
-    cerrar: () => router.navigate(['/hoy']),
+    cerrar: () => (cierre ? cierre() : router.navigate(['/hoy'])),
     origen(valor: string | null): Origen {
       if (valor === SU_CUENTA) return { tipo: 'EXTERNA' };
       return valor ? { tipo: 'CUENTA', cuentaId: valor } : { tipo: 'NINGUNO' };

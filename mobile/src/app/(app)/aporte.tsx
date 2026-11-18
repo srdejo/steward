@@ -49,7 +49,7 @@ export default function Aporte() {
       <View style={{ gap: 10 }}>
         {monto ? (
           <Texto testID="efecto-aporte" style={{ fontSize: 13, color: colors.secundario, textAlign: 'center' }}>
-            {nombreMesCapital(ref.mes)} pasa a tener <Monto valor={monto} siempreVisible style={{ fontSize: 13, fontFamily: fonts.monoSemibold, color: colors.acento }} /> más en ingresos
+            {nombreMesCapital(ref.mes)} pasa a tener <Monto valor={monto} siempreVisible style={{ fontSize: 13, fontFamily: fonts.semibold, color: colors.acento }} /> más en ingresos
           </Texto>
         ) : null}
         <Boton titulo="Guardar aporte" deshabilitado={!quien || !monto || accion.ocupado} onPress={guardar} />

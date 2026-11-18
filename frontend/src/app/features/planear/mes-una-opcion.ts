@@ -47,7 +47,7 @@ const ETIQUETAS = { SOLO_MES: '', PROYECTADO: 'Proyectado', ULTIMO: 'Último' } 
         <a [routerLink]="['/planear', claveDe(-1)]" class="flecha-mes" [attr.aria-label]="tituloDe(-1)">‹</a>
         <div class="flex flex-col gap-0.5">
           <span class="text-xs font-semibold tracking-[0.08em] uppercase" [class]="estado() === 'BORRADOR' ? 'text-aviso' : 'text-secundario'" data-testid="estado-mes">{{ v()?.estadoTexto }}</span>
-          <h1 class="text-[28px] font-bold">{{ titulo() }}</h1>
+          <h1 class="titular text-[28px] font-bold">{{ titulo() }}</h1>
         </div>
         <a [routerLink]="['/planear', claveDe(1)]" class="flecha-mes" [attr.aria-label]="tituloDe(1)">›</a>
       </div>
@@ -70,12 +70,12 @@ const ETIQUETAS = { SOLO_MES: '', PROYECTADO: 'Proyectado', ULTIMO: 'Último' } 
 
     @if (v(); as v) {
       <div class="grid grid-cols-[repeat(auto-fit,minmax(190px,1fr))] gap-3" data-testid="indicadores">
-        <div class="flex flex-col gap-1 rounded-[14px] border border-borde bg-superficie px-[18px] py-4">
+        <div class="flex flex-col gap-1 rounded-tarjeta bg-superficie px-[18px] py-4">
           <span class="text-xs font-semibold tracking-[0.06em] text-positivo">ENTRA</span>
           <app-monto class="text-[22px] font-semibold" [valor]="v.entra" />
           <span class="text-xs text-secundario" data-testid="nota-entra">{{ v.notaEntra }}</span>
         </div>
-        <div class="flex flex-col gap-1 rounded-[14px] border border-borde bg-superficie px-[18px] py-4">
+        <div class="flex flex-col gap-1 rounded-tarjeta bg-superficie px-[18px] py-4">
           <span class="text-xs font-semibold tracking-[0.06em] text-negativo">SALE</span>
           <app-monto class="text-[22px] font-semibold" [valor]="v.sale" />
           <span class="text-xs text-secundario" data-testid="nota-sale">{{ v.notaSale }}</span>
@@ -87,7 +87,7 @@ const ETIQUETAS = { SOLO_MES: '', PROYECTADO: 'Proyectado', ULTIMO: 'Último' } 
             <span class="text-xs text-[#C9DACD]">Más el sobrante de {{ nombreAnterior() }}</span>
           }
         </div>
-        <div class="flex flex-col gap-1 rounded-[14px] bg-[#EAF2EE] px-[18px] py-4 text-[#1E5A4C]">
+        <div class="flex flex-col gap-1 rounded-[14px] bg-[#E3EFEC] px-[18px] py-4 text-[#1E5A4C]">
           <span class="text-xs font-semibold tracking-[0.06em]">DIEZMO</span>
           <app-monto class="text-[22px] font-semibold" [valor]="v.diezmo.total" />
           <span class="text-xs" data-testid="detalle-diezmo">{{ v.diezmo.detalle || 'Sin diezmo este mes' }}</span>
@@ -95,20 +95,20 @@ const ETIQUETAS = { SOLO_MES: '', PROYECTADO: 'Proyectado', ULTIMO: 'Último' } 
       </div>
 
       <div class="flex flex-wrap items-start gap-5">
-        <section [attr.aria-label]="'Plan de ' + mesMin()" class="min-w-0 flex-[3_1_600px] overflow-x-auto rounded-[14px] border border-borde bg-superficie">
+        <section [attr.aria-label]="'Plan de ' + mesMin()" class="min-w-0 flex-[3_1_600px] overflow-x-auto rounded-tarjeta bg-superficie">
           <div class="min-w-[600px]">
             <div class="fila-mes border-b border-borde bg-fondo py-2.5 text-[11px] font-semibold tracking-[0.06em] text-secundario">
               <span></span><span>DÍA</span><span class="text-right">{{ mesMay() }}</span><span class="text-right">{{ v.conAnterior ? 'VS ' + anteriorMay() : '' }}</span>
             </div>
             @for (g of v.grupos; track g.titulo) {
               <div class="fila-mes border-b border-divisor bg-[#FCFCFA] py-2.5" [attr.data-grupo]="g.titulo">
-                <span class="flex items-center gap-2 text-xs font-semibold tracking-[0.06em] text-[#3B3D39] uppercase"><span class="h-2 w-2 shrink-0 rounded-[2px]" [style.background]="g.color" aria-hidden="true"></span>{{ g.titulo }}</span>
+                <span class="flex items-center gap-2 text-xs font-semibold tracking-[0.06em] text-[#4A4E48] uppercase"><span class="h-2 w-2 shrink-0 rounded-[2px]" [style.background]="g.color" aria-hidden="true"></span>{{ g.titulo }}</span>
                 <span></span>
                 <app-monto class="text-right text-[13px] font-semibold" [valor]="g.total" />
                 <span class="monto text-right text-xs" [class]="claseDif(g.diferencia, g.ingresos)" data-testid="diferencia">{{ dif(g.diferencia) }}</span>
               </div>
               @for (f of g.filas; track f.clave) {
-                <div class="fila-mes border-b border-[#F1F0EB] py-[5px]" [class]="f.dia !== null && f.dia === dia() ? 'bg-[#F3F7F4] shadow-[inset_3px_0_0_var(--color-acento)]' : 'bg-superficie'"
+                <div class="fila-mes border-b border-[#F0EEE9] py-[5px]" [class]="f.dia !== null && f.dia === dia() ? 'bg-[#F3F7F4] shadow-[inset_3px_0_0_var(--color-acento)]' : 'bg-superficie'"
                   [attr.data-fila]="f.nombre" (click)="f.dia !== null && dia.set(f.dia)">
                   <span class="flex min-w-0 flex-col gap-0.5 pl-4">
                     <span class="flex items-center gap-1.5 text-sm">
@@ -123,7 +123,7 @@ const ETIQUETAS = { SOLO_MES: '', PROYECTADO: 'Proyectado', ULTIMO: 'Último' } 
                     </span>
                     <span class="truncate text-xs text-secundario">{{ f.detalle }}</span>
                   </span>
-                  <span class="text-[13px] text-[#3B3D39]">{{ f.dia ?? '' }}</span>
+                  <span class="text-[13px] text-[#4A4E48]">{{ f.dia ?? '' }}</span>
                   @if (f.monto === null) {
                     <span class="monto text-right text-[13px] text-secundario">—</span>
                   } @else if (editableEnCelda(f)) {
@@ -144,7 +144,7 @@ const ETIQUETAS = { SOLO_MES: '', PROYECTADO: 'Proyectado', ULTIMO: 'Último' } 
         </section>
 
         <aside class="flex min-w-0 flex-[2_1_380px] flex-col gap-4">
-          <section aria-labelledby="calendario-pagos" class="flex flex-col gap-2.5 rounded-[14px] border border-borde bg-superficie p-4">
+          <section aria-labelledby="calendario-pagos" class="flex flex-col gap-2.5 rounded-tarjeta bg-superficie p-4">
             <div class="flex items-baseline justify-between">
               <h2 id="calendario-pagos" class="text-[15px] font-semibold">Calendario de pagos</h2>
               <span class="text-xs text-secundario">Toca un día</span>
@@ -156,7 +156,7 @@ const ETIQUETAS = { SOLO_MES: '', PROYECTADO: 'Proyectado', ULTIMO: 'Último' } 
               @for (c of celdas(); track $index) {
                 @if (c) {
                   <button type="button" class="flex min-h-[58px] flex-col gap-0.5 rounded-lg px-1 py-1.5" [attr.aria-label]="c.aria" [attr.aria-pressed]="c.dia === dia()"
-                    [class]="c.dia === dia() ? 'border-2 border-acento bg-[#F3F7F4]' : c.entra || c.sale ? 'border border-borde bg-superficie' : 'border border-[#F1F0EB] bg-[#FCFCFA]'"
+                    [class]="c.dia === dia() ? 'border-2 border-acento bg-[#F3F7F4]' : c.entra || c.sale ? 'border border-borde bg-superficie' : 'border border-[#F0EEE9] bg-[#FCFCFA]'"
                     (click)="dia.set(c.dia)">
                     <span class="text-left text-xs" [class]="c.entra || c.sale ? 'font-bold text-texto' : 'text-secundario'">{{ c.dia }}</span>
                     @if (c.entra) {
@@ -189,7 +189,7 @@ const ETIQUETAS = { SOLO_MES: '', PROYECTADO: 'Proyectado', ULTIMO: 'Último' } 
           </section>
 
           @if (v.minimo; as min) {
-            <section aria-labelledby="plata-dia" class="flex flex-col gap-2.5 rounded-[14px] border border-borde bg-superficie p-4" data-testid="saldo-diario">
+            <section aria-labelledby="plata-dia" class="flex flex-col gap-2.5 rounded-tarjeta bg-superficie p-4" data-testid="saldo-diario">
               <div class="flex flex-col gap-0.5">
                 <h2 id="plata-dia" class="text-[15px] font-semibold">Plata en cuentas, día a día</h2>
                 <span class="text-xs text-secundario">{{ textoInicio() }}</span>
@@ -202,7 +202,7 @@ const ETIQUETAS = { SOLO_MES: '', PROYECTADO: 'Proyectado', ULTIMO: 'Último' } 
               <div class="flex justify-between text-[11px] text-secundario">
                 <span>1 {{ mesCorto() }}</span><span>15</span><span>{{ v.saldoDiario.length }} {{ mesCorto() }}</span>
               </div>
-              <div class="flex gap-2.5 rounded-[10px] bg-[#FBF4E2] px-3 py-2.5 text-xs leading-[1.45] text-[#6B4A00]" data-testid="punto-bajo">
+              <div class="flex gap-2.5 rounded-[10px] bg-[#FBF1DC] px-3 py-2.5 text-xs leading-[1.45] text-[#6B4A00]" data-testid="punto-bajo">
                 <span class="font-bold" aria-hidden="true">!</span>
                 <span>Punto más bajo el <b>{{ min.dia }} {{ mesCorto() }}</b>, con ≈ <b><app-monto [valor]="min.saldo" /></b>.</span>
               </div>
@@ -224,7 +224,7 @@ const ETIQUETAS = { SOLO_MES: '', PROYECTADO: 'Proyectado', ULTIMO: 'Último' } 
   `,
   styles: `
     .fila-mes { display: grid; grid-template-columns: minmax(230px, 2fr) 70px 130px 120px; gap: 12px; align-items: center; padding-inline: 20px; }
-    .flecha-mes { display: flex; height: 36px; width: 36px; align-items: center; justify-content: center; border-radius: 10px; border: 1px solid var(--color-borde-campo); background: var(--color-superficie); font-size: 16px; font-weight: 600; color: #3b3d39; }
+    .flecha-mes { display: flex; height: 36px; width: 36px; align-items: center; justify-content: center; border-radius: 10px; border: 1px solid var(--color-borde-campo); background: var(--color-superficie); font-size: 16px; font-weight: 600; color: #4A4E48; }
   `,
 })
 export class MesUnaOpcion {
@@ -336,7 +336,7 @@ export class MesUnaOpcion {
   protected claseEtiqueta(f: FilaMes): string {
     if (f.etiqueta === 'ULTIMO') return 'bg-acento-suave text-acento-oscuro';
     if (f.etiqueta === 'PROYECTADO') return 'bg-[#F3F2EE] text-secundario';
-    return 'bg-[#FBF4E2] text-[#6B4A00]';
+    return 'bg-[#FBF1DC] text-[#6B4A00]';
   }
 
   /** La linea de la opcion detras de una fila de ingreso (los aportes y el sobrante no tienen). */

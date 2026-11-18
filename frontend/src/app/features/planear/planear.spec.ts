@@ -158,7 +158,7 @@ describe('Planear (steward-planear)', () => {
     expect(a.raiz().querySelector('[data-testid="dejaria-libre"]')!.textContent!.trim()).toBe('$102.000');
     await a.tocar('Ver en Ejecución');
     expect(a.url()).toBe('/hoy');
-    expect(a.texto()).toContain('Noviembre 2026');
+    expect(a.texto()).toContain('Te queda libre en noviembre');
     localStorage.removeItem('steward/mes-hoy');
   });
 

@@ -30,7 +30,11 @@ describe('Hoy (steward-hoy)', () => {
     expect(r.plan).toBe(5_390_000);
     expect(r.pagado).toBe(2_433_000);
     expect(r.vsPlan).toBe(-62_000);
-    expect(r.porPagar.map((i) => i.item.nombre)).toEqual(['Compra a cuotas', 'Diezmo · Salario Daniel', 'Tarjeta Nu · Mercado', 'Tarjeta Mastercard']);
+    // Por grupo: vencido, esta semana (26 oct a 1 nov) y durante el mes (rediseno-libreta-clara).
+    expect(r.porPagar.map((i) => i.item.nombre)).toEqual(['Compra a cuotas', 'Tarjeta Nu · Mercado', 'Tarjeta Mastercard', 'Diezmo · Salario Daniel']);
+    expect(r.porPagar.map((i) => i.grupo)).toEqual(['VENCIDO', 'SEMANA', 'SEMANA', 'MES']);
+    expect(r.porPagar.map((i) => i.pendiente)).toEqual([375_000, 320_000, 1_500_000, 700_000]);
+    expect(r.faltaPagar).toBe(2_895_000);
     // La linea de una tarjeta dice su corte y como se paga (tarjetas-y-creditos).
     expect(r.porPagar.find((i) => i.item.nombre === 'Tarjeta Mastercard')?.detalle).toBe('Corte 15 · pago fijo');
     expect(r.porPagar.find((i) => i.item.nombre === 'Tarjeta Nu · Mercado')?.detalle).toBe('Corte 13 · valor del extracto');

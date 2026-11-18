@@ -31,7 +31,7 @@ function mismoOrigen(a: Origen, b: Origen): boolean {
       @if (vista.value(); as v) {
         @if (borrando()) {
           <p class="text-[15px] font-medium">¿Borrar este registro?</p>
-          <ul class="flex flex-col gap-1.5 rounded-xl bg-nota px-4 py-3.5 text-[13px] text-[#3B3D39]" data-testid="efecto-borrar">
+          <ul class="flex flex-col gap-1.5 rounded-xl bg-nota px-4 py-3.5 text-[13px] text-[#4A4E48]" data-testid="efecto-borrar">
             @for (a of v.avisos; track a) {
               <li>{{ a }}</li>
             }
@@ -42,7 +42,7 @@ function mismoOrigen(a: Origen, b: Origen): boolean {
           <button type="button" class="boton-grande bg-negativo" [disabled]="guardando()" (click)="borrar()">Sí, borrar</button>
         } @else {
           @if (v.esCuota) {
-            <p class="rounded-xl bg-nota px-4 py-3.5 text-[13px] text-[#3B3D39]" data-testid="aviso-cuota">Para cambiar el monto de una cuota, borra el pago y márcalo otra vez.</p>
+            <p class="rounded-xl bg-nota px-4 py-3.5 text-[13px] text-[#4A4E48]" data-testid="aviso-cuota">Para cambiar el monto de una cuota, borra el pago y márcalo otra vez.</p>
           } @else {
             <app-monto-input etiqueta="Monto" [grande]="true" [(valor)]="monto" />
           }

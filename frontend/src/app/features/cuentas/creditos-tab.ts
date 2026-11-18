@@ -10,7 +10,7 @@ import { MontoInput } from '../../shared/components/monto-input';
 import { MetodoHoja } from './metodo-hoja';
 
 const METODO: Record<Credito['metodo'], string> = { TASA: 'Con la tasa', PLAN: 'Plan de pagos', MANUAL: 'A mano' };
-const CHIP: Record<Credito['metodo'], string> = { TASA: 'bg-acento-suave text-[#1F3328]', PLAN: 'bg-[#EAF0F8] text-[#1F4470]', MANUAL: 'bg-[#F3F2EE] text-secundario' };
+const CHIP: Record<Credito['metodo'], string> = { TASA: 'bg-acento-suave text-[#163A2C]', PLAN: 'bg-[#EAF0F8] text-[#1F4470]', MANUAL: 'bg-[#F3F2EE] text-secundario' };
 
 /**
  * La pestaña Creditos de Cuentas (spec steward-cuentas, "Proyeccion de creditos"): lo que deben, lo que pagan al mes, los
@@ -33,7 +33,7 @@ const CHIP: Record<Credito['metodo'], string> = { TASA: 'bg-acento-suave text-[#
           @if (!escritorio()) {
             <div class="flex flex-col gap-1">
               <span class="rotulo">Pagan al mes</span>
-              <app-monto class="text-[30px] font-semibold text-[#3B3D39]" [valor]="r.pagan" data-testid="pagan-mes" />
+              <app-monto class="text-[30px] font-semibold text-[#4A4E48]" [valor]="r.pagan" data-testid="pagan-mes" />
             </div>
           }
         </div>
@@ -54,7 +54,7 @@ const CHIP: Record<Credito['metodo'], string> = { TASA: 'bg-acento-suave text-[#
             <app-monto class="text-xl font-semibold" [valor]="r.deberanAlCerrar" data-testid="deberan-cerrar" />
             <span class="text-xs text-positivo">−<app-monto [valor]="r.bajaAlCerrar" /> desde hoy</span>
           </div>
-          <div class="flex flex-col gap-1 rounded-[14px] bg-[#FBEDE8] px-[18px] py-4 text-[#8A2A15]">
+          <div class="flex flex-col gap-1 rounded-[14px] bg-[#FBE9E7] px-[18px] py-4 text-[#8C1D18]">
             <span class="text-xs">Intereses en {{ anio() + 1 }}</span>
             <app-monto class="text-xl font-semibold" [valor]="r.interesesAnioSiguiente" data-testid="intereses-anio" />
             <span class="text-xs">Proyectados con la tasa de cada crédito</span>
@@ -74,17 +74,17 @@ const CHIP: Record<Credito['metodo'], string> = { TASA: 'bg-acento-suave text-[#
                   </thead>
                   <tbody>
                     @for (v of r.creditos; track v.credito.id) {
-                      <tr class="cursor-pointer border-t border-divisor" [class]="v.credito.id === elegido()?.credito?.id ? 'bg-[#F6F3FD] shadow-[inset_3px_0_0_#7C4DDB]' : 'hover:bg-fondo'"
+                      <tr class="cursor-pointer border-t border-divisor" [class]="v.credito.id === elegido()?.credito?.id ? 'bg-[#F3F1F8] shadow-[inset_3px_0_0_#6B5BA8]' : 'hover:bg-fondo'"
                         (click)="elegir(v.credito.id)" [attr.data-credito]="v.credito.nombre">
                         <th scope="row" class="px-5 py-3 text-left font-semibold">
                           <button type="button" class="text-left" [attr.aria-pressed]="v.credito.id === elegido()?.credito?.id" (click)="elegir(v.credito.id)">{{ v.credito.nombre }}</button>
                           <span class="block text-xs font-normal text-secundario">{{ v.credito.entidad }}{{ v.credito.metodo === 'TASA' ? ' · ' + tasa(v.credito.tasaEM) : '' }}</span>
                         </th>
                         <td class="py-3 pr-3"><span class="rounded-[10px] px-2.5 py-0.5 text-[11px] font-semibold" [class]="chip[v.credito.metodo]">{{ metodo[v.credito.metodo] }}</span></td>
-                        <td class="py-3 pr-3 text-[13px] text-[#3B3D39]">Día {{ v.credito.diaPago }}</td>
+                        <td class="py-3 pr-3 text-[13px] text-[#4A4E48]">Día {{ v.credito.diaPago }}</td>
                         <td class="monto py-3 pr-3 text-right text-[13px]"><app-monto [valor]="v.credito.cuota" /></td>
                         <td class="monto py-3 pr-3 text-right text-[13px] font-semibold"><app-monto [valor]="v.credito.saldo" /></td>
-                        <td class="py-3 pr-5 text-[13px] text-[#3B3D39]">{{ termina(v) }}</td>
+                        <td class="py-3 pr-5 text-[13px] text-[#4A4E48]">{{ termina(v) }}</td>
                       </tr>
                     }
                   </tbody>
@@ -143,7 +143,7 @@ const CHIP: Record<Credito['metodo'], string> = { TASA: 'bg-acento-suave text-[#
               @if (v.proxima; as p) {
                 <div class="flex flex-col gap-1.5 rounded-[10px] bg-fondo p-3">
                   <span class="flex justify-between text-[13px]"><span>Próxima cuota · {{ mes(p.ref) }}</span><app-monto class="font-semibold" [valor]="p.interes + p.capital" /></span>
-                  <span class="flex h-1.5 overflow-hidden rounded-[3px] bg-[#EFEEEA]" aria-hidden="true">
+                  <span class="flex h-1.5 overflow-hidden rounded-[3px] bg-[#F0EEE9]" aria-hidden="true">
                     <span class="bg-cat-tarjetas" [style.width.%]="(100 * p.capital) / (p.capital + p.interes)"></span><span class="bg-[#E3A08A]" [style.width.%]="(100 * p.interes) / (p.capital + p.interes)"></span>
                   </span>
                   <span class="flex justify-between text-xs text-secundario"><span><app-monto [valor]="p.capital" /> a capital</span><span>@if (p.interes) {<app-monto [valor]="p.interes" /> intereses} @else {sin intereses}</span></span>
@@ -169,7 +169,7 @@ const CHIP: Record<Credito['metodo'], string> = { TASA: 'bg-acento-suave text-[#
             <span class="flex items-baseline justify-between"><app-monto class="text-[22px] font-semibold" [valor]="v.credito.saldo" />
               @if (v.progreso; as g) {<span class="text-xs text-secundario">Cuota {{ g.actual }} de {{ g.total }}</span>}</span>
             @if (v.progreso; as g) {
-              <span class="flex h-1.5 overflow-hidden rounded-[3px] bg-[#EFEEEA]" role="img" [attr.aria-label]="(g.actual - 1) + ' cuotas pagadas de ' + g.total">
+              <span class="flex h-1.5 overflow-hidden rounded-[3px] bg-[#F0EEE9]" role="img" [attr.aria-label]="(g.actual - 1) + ' cuotas pagadas de ' + g.total">
                 <span class="bg-cat-tarjetas" [style.width.%]="(100 * (g.actual - 1)) / g.total"></span>
               </span>
               <span class="flex justify-between text-xs text-secundario"><span>{{ g.actual - 1 }} pagadas</span><span>faltan {{ g.total - g.actual + 1 }}{{ v.termina ? ' · ' + mes(v.termina) : '' }}</span></span>

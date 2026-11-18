@@ -32,7 +32,7 @@ function tipoDe(c: Categoria | undefined): TipoItem {
       <div class="flex flex-wrap items-end justify-between gap-4">
         <div class="flex flex-col gap-1">
           <span class="rotulo text-aviso">Plan {{ anio() }} · Opción {{ v.opcion.letra }} · paso 1 de 2</span>
-          <h1 class="text-[26px] font-bold lg:text-[28px]">Mes base de la Opción {{ v.opcion.letra }}</h1>
+          <h1 class="titular text-[26px] font-bold lg:text-[28px]">Mes base de la Opción {{ v.opcion.letra }}</h1>
           <p class="text-sm text-secundario">{{ v.origen ? 'Copiado de ' + mesAnio(v.origen) + '.' : 'Empieza vacío.' }} Ajusta lo que va a ser igual todos los meses; lo que cambia en un mes va después.</p>
         </div>
         <div class="flex flex-wrap gap-2">
@@ -42,20 +42,20 @@ function tipoDe(c: Categoria | undefined): TipoItem {
       </div>
 
       <div class="flex flex-wrap items-start gap-5">
-        <section aria-label="Mes base" class="min-w-0 flex-[3_1_600px] overflow-x-auto rounded-[14px] border border-borde bg-superficie">
+        <section aria-label="Mes base" class="min-w-0 flex-[3_1_600px] overflow-x-auto rounded-tarjeta bg-superficie">
           <div class="min-w-[560px]">
             <div class="fila-base border-b border-borde bg-fondo py-2.5 text-[11px] font-semibold tracking-[0.06em] text-secundario">
               <span></span><span>DÍA</span><span class="text-right">CADA MES</span><span></span>
             </div>
             @for (g of v.grupos; track g.categoriaId) {
               <div class="fila-base border-b border-divisor bg-[#FCFCFA] py-2.5" [attr.data-grupo]="g.nombre">
-                <span class="flex items-center gap-2 text-xs font-semibold tracking-[0.06em] text-[#3B3D39] uppercase"><span class="h-2 w-2 rounded-[2px]" [style.background]="g.color" aria-hidden="true"></span>{{ g.nombre }}</span>
+                <span class="flex items-center gap-2 text-xs font-semibold tracking-[0.06em] text-[#4A4E48] uppercase"><span class="h-2 w-2 rounded-[2px]" [style.background]="g.color" aria-hidden="true"></span>{{ g.nombre }}</span>
                 <span></span>
                 <app-monto class="text-right text-[13px] font-semibold" [valor]="g.total" />
                 <span></span>
               </div>
               @for (f of g.filas; track f.item.id) {
-                <div class="fila-base border-b border-[#F1F0EB] py-1.5" [attr.data-fila]="f.item.nombre">
+                <div class="fila-base border-b border-[#F0EEE9] py-1.5" [attr.data-fila]="f.item.nombre">
                   <span class="flex min-w-0 flex-col gap-0.5 pl-4">
                     <span class="flex items-center gap-1.5 text-sm">{{ f.item.nombre }}
                       @if (f.terminaEn) {
@@ -64,7 +64,7 @@ function tipoDe(c: Categoria | undefined): TipoItem {
                     </span>
                     <span class="text-xs text-secundario">{{ f.detalle }}</span>
                   </span>
-                  <span class="text-[13px] text-[#3B3D39]">{{ f.item.diaVence ?? '' }}</span>
+                  <span class="text-[13px] text-[#4A4E48]">{{ f.item.diaVence ?? '' }}</span>
                   <app-monto-input [compacto]="true" [valor]="f.item.monto" [etiquetaAccesible]="f.item.nombre + ' cada mes'" (confirmado)="guardarMonto(v.opcion.id, f, $event)" />
                   <button type="button" class="size-8 rounded-lg text-lg text-[#7A7D76] hover:bg-fondo" [attr.aria-label]="'Quitar ' + f.item.nombre" (click)="quitar(v.opcion.id, f.item)">×</button>
                 </div>
@@ -77,7 +77,7 @@ function tipoDe(c: Categoria | undefined): TipoItem {
         </section>
 
         <aside class="flex min-w-0 flex-[2_1_340px] flex-col gap-4">
-          <section class="flex flex-col gap-2.5 rounded-[14px] border border-borde bg-superficie p-[18px]" data-testid="resumen-base">
+          <section class="flex flex-col gap-2.5 rounded-tarjeta bg-superficie p-[18px]" data-testid="resumen-base">
             <span class="rotulo">Con este mes base</span>
             <div class="flex justify-between text-sm"><span>Entra cada mes</span><app-monto class="text-positivo" [valor]="v.entra" /></div>
             <div class="flex justify-between text-sm"><span>Sale cada mes</span><app-monto [valor]="v.sale" /></div>
@@ -88,7 +88,7 @@ function tipoDe(c: Categoria | undefined): TipoItem {
             </div>
             <span class="text-xs leading-[1.45] text-secundario">En el año ≈ <app-monto [valor]="v.libreAnio" />{{ terminan(v.grupos) }}</span>
           </section>
-          <section class="flex flex-col gap-1.5 rounded-[14px] bg-nota p-4 text-[13px] leading-[1.45] text-[#3B3D39]">
+          <section class="flex flex-col gap-1.5 rounded-[14px] bg-nota p-4 text-[13px] leading-[1.45] text-[#4A4E48]">
             <span class="font-semibold">Cómo sigue</span>
             <span>1. Ajusta este mes: lo que vale igual todos los meses.</span>
             <span>2. "Usar este mes en los 12 meses" llena la Opción {{ v.opcion.letra }}.</span>

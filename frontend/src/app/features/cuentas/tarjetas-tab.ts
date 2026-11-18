@@ -7,7 +7,7 @@ import { Monto } from '../../shared/components/monto';
 import { TarjetaHoja } from './tarjeta-hoja';
 
 const TONO: Record<TonoVence, string> = { alerta: 'font-semibold text-negativo', aviso: 'font-semibold text-aviso', normal: 'text-secundario' };
-const FONDO: Record<TonoVence, string> = { alerta: 'bg-[#FBEDE8]', aviso: 'bg-[#FBF4E2]', normal: 'bg-fondo' };
+const FONDO: Record<TonoVence, string> = { alerta: 'bg-[#FBE9E7]', aviso: 'bg-[#FBF1DC]', normal: 'bg-fondo' };
 
 interface Dia {
   fecha: Fecha;
@@ -51,7 +51,7 @@ interface Dia {
             <div class="overflow-x-auto">
               <ol class="grid min-w-[860px] grid-cols-[repeat(35,minmax(0,1fr))] gap-0.5" data-testid="calendario">
                 @for (d of dias(); track d.fecha) {
-                  <li class="flex min-h-[74px] flex-col items-center gap-1.5 rounded-lg pt-2 pb-1.5" [class.bg-[#F6F3FD]]="tienePago(d)" [class.shadow-[inset_2px_0_0_#E2E1DC]]="d.primero"
+                  <li class="flex min-h-[74px] flex-col items-center gap-1.5 rounded-lg pt-2 pb-1.5" [class.bg-[#F6F3FD]]="tienePago(d)" [class.shadow-[inset_2px_0_0_#DAD7CF]]="d.primero"
                     [attr.aria-label]="etiquetaDia(d)">
                     <span class="text-[11px]" [class]="d.hoy ? 'rounded-[9px] bg-acento px-1.5 font-bold text-white' : d.primero ? 'font-bold' : 'text-secundario'">{{ d.numero }}</span>
                     @if (d.eventos[0]; as e) {
@@ -59,7 +59,7 @@ interface Dia {
                     } @else {
                       <span class="h-3 w-3" aria-hidden="true"></span>
                     }
-                    <span class="text-center text-[9px] leading-tight text-[#3B3D39]" aria-hidden="true">{{ textoDia(d) }}</span>
+                    <span class="text-center text-[9px] leading-tight text-[#4A4E48]" aria-hidden="true">{{ textoDia(d) }}</span>
                   </li>
                 }
               </ol>
@@ -106,7 +106,7 @@ interface Dia {
                 <span class="text-secundario">Corte día {{ t.tarjeta.diaCorte }} · pago día {{ t.tarjeta.diaPago }}</span>
                 <span class="font-semibold">{{ t.tarjeta.pago.tipo === 'FIJO' ? 'Pago fijo' : 'Se paga completa' }}</span>
               </span>
-              <span class="text-xs leading-normal" [class]="t.aviso ? 'rounded-lg bg-[#FBEDE8] px-2.5 py-2 text-[#8A2A15]' : 'text-[#3B3D39]'" data-testid="ayuda-tarjeta">{{ t.ayuda }}</span>
+              <span class="text-xs leading-normal" [class]="t.aviso ? 'rounded-lg bg-[#FBE9E7] px-2.5 py-2 text-[#8C1D18]' : 'text-[#4A4E48]'" data-testid="ayuda-tarjeta">{{ t.ayuda }}</span>
             </button>
           }
         </div>

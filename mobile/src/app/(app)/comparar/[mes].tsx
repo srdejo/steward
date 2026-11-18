@@ -46,7 +46,7 @@ export default function Comparar() {
       <Interruptor titulo="Mostrar solo lo que cambia" activo={soloCambios} onCambio={setSoloCambios} />
       {d && (
         <ScrollView horizontal testID="tabla-comparar" accessibilityLabel="Opciones lado a lado" contentContainerStyle={{ minWidth: COL_NOMBRE + COL_VALOR * d.vistas.length }}
-          style={{ borderRadius: 14, borderWidth: 1, borderColor: colors.borde, backgroundColor: colors.superficie }}>
+          style={{ borderRadius: 16, backgroundColor: colors.superficie }}>
           <View>
             <View style={{ flexDirection: 'row', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.borde }}>
               <View style={{ width: COL_NOMBRE }} />
@@ -64,14 +64,14 @@ export default function Comparar() {
                   {f.nota ? <Texto v="detalle">{f.nota}</Texto> : null}
                 </View>
                 {f.valores.map((v, i) => (
-                  <Texto key={i} style={{ width: COL_VALOR, paddingHorizontal: 12, textAlign: 'right', fontFamily: f.cambia && v !== null && v !== f.valores[0] ? fonts.monoSemibold : fonts.mono, fontSize: 14, color: f.cambia && v !== null ? colors.texto : colors.secundario }}>{celda(v)}</Texto>
+                  <Texto key={i} style={{ width: COL_VALOR, paddingHorizontal: 12, textAlign: 'right', fontFamily: f.cambia && v !== null && v !== f.valores[0] ? fonts.semibold : fonts.medium, fontSize: 14, color: f.cambia && v !== null ? colors.texto : colors.secundario }}>{celda(v)}</Texto>
                 ))}
               </View>
             ))}
             <View style={{ flexDirection: 'row', paddingVertical: 16 }}>
               <Texto style={{ width: COL_NOMBRE, paddingHorizontal: 16, fontFamily: fonts.semibold, fontSize: 16 }}>Queda libre</Texto>
               {d.libre.map((v, i) => (
-                <Texto key={i} style={{ width: COL_VALOR, paddingHorizontal: 12, textAlign: 'right', fontFamily: fonts.monoSemibold, fontSize: 18, color: v < 0 ? colors.negativo : colors.acento }}>{celda(v)}</Texto>
+                <Texto key={i} style={{ width: COL_VALOR, paddingHorizontal: 12, textAlign: 'right', fontFamily: fonts.semibold, fontSize: 18, color: v < 0 ? colors.negativo : colors.acento }}>{celda(v)}</Texto>
               ))}
             </View>
             <View style={{ flexDirection: 'row', paddingBottom: 16 }}>

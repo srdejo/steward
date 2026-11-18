@@ -161,7 +161,7 @@ export default function Mes() {
         <>
           <View style={{ gap: 12, padding: 18, borderRadius: 16, backgroundColor: colors.superficie, borderWidth: 1, borderStyle: editable ? 'dashed' : 'solid', borderColor: editable ? colors.control : colors.borde }}>
             <Texto v="rotulo">{!borrador ? `Opción ${o.escenario.letra} · el plan del mes` : negativo ? `Con la Opción ${o.escenario.letra} faltarían` : `Opción ${o.escenario.letra} dejaría libre`}</Texto>
-            <Monto testID="dejaria-libre" valor={negativo ? -o.libre : o.libre} style={{ fontSize: 30, fontFamily: fonts.monoSemibold, color: negativo ? colors.negativo : colors.textoSuave }} />
+            <Monto testID="dejaria-libre" valor={negativo ? -o.libre : o.libre} style={{ fontSize: 30, fontFamily: fonts.semibold, color: negativo ? colors.negativo : colors.textoSuave }} />
             <View style={{ flexDirection: 'row', gap: 8, borderTopWidth: 1, borderTopColor: colors.divisor, paddingTop: 12 }}>
               <Kpi etiqueta="Ingresos" valor={o.totalIngresos} />
               <Kpi etiqueta="Gastos" valor={o.totalGastos} />

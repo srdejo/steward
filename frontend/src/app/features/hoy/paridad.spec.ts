@@ -18,7 +18,7 @@ describe('paridad con la app (steward-mobile-app)', () => {
     await a.tocar('Guardar aporte');
     expect(a.raiz().querySelector('[data-testid="libre"]')!.textContent!.trim()).toBe('$3.436.000');
     expect(a.texto()).toMatch(/Pagado \$3\.933\.000/);
-    expect(a.texto()).toMatch(/Vs\. plan −\$62\.000/);
+    expect(a.texto()).toContain('Gastaron $62.000 menos que el plan');
     expect(a.texto()).toMatch(/Falta pagar \$1\.395\.000/);
     expect(a.raiz().querySelector('[data-testid="ver-mas"]')).toBeNull();
   });

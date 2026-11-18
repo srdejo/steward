@@ -14,13 +14,13 @@ describe('Hoy (steward-hoy)', () => {
   it('muestra el resumen de los datos de ejemplo', async () => {
     await conSesion();
     const a = await app('/hoy');
-    expect(a.texto()).toContain('Ejecución · LUN 26');
-    expect(a.texto()).toContain('Octubre 2026');
+    expect(a.texto()).toContain('Lunes 26 · octubre');
+    expect(a.texto()).toContain('Te queda libre en octubre');
     expect(libre(a)).toBe('$3.436.000');
     expect(a.texto()).toMatch(/Falta pagar\s*\$2\.895\.000/);
-    expect(a.texto()).toMatch(/Por pagar\s*\$2\.895\.000/);
+    expect(a.texto()).toMatch(/Por pagar\s*4 pendientes/);
     expect(a.texto()).toMatch(/Pagado\s*\$2\.433\.000/);
-    expect(a.texto()).toMatch(/Vs\. plan\s*−\$62\.000/);
+    expect(a.raiz().querySelector('[data-testid="vs-plan"]')!.textContent!.trim()).toBe('Gastaron $62.000 menos que el plan');
     expect(a.texto()).toContain('Aportes Esposa 2 aportes · 1 pago directo');
     // La linea de una tarjeta dice su corte y como se paga (tarjetas-y-creditos).
     expect(a.texto()).toContain('Tarjeta Nu · Mercado Corte 13 · valor del extracto');
@@ -32,10 +32,10 @@ describe('Hoy (steward-hoy)', () => {
     await conSesion();
     const a = await app('/hoy');
     const porPagar = () => [...a.raiz().querySelectorAll('section[aria-labelledby="por-pagar"] app-fila')].map((f) => f.querySelector('span')!.textContent!.trim());
-    expect(porPagar()).toEqual(['Compra a cuotas', 'Diezmo · Salario Daniel', 'Tarjeta Nu · Mercado']);
-    expect(a.raiz().querySelector('[data-testid="ver-mas"]')!.textContent!.replace(/\s+/g, ' ').trim()).toBe('Ver 1 más · 4 pendientes en total $1.500.000');
+    expect(porPagar()).toEqual(['Compra a cuotas', 'Tarjeta Nu · Mercado', 'Tarjeta Mastercard']);
+    expect(a.raiz().querySelector('[data-testid="ver-mas"]')!.textContent!.replace(/\s+/g, ' ').trim()).toBe('Ver 1 más · 4 pendientes en total $700.000');
     await a.tocar(/Ver 1 más/);
-    expect(porPagar()).toEqual(['Compra a cuotas', 'Diezmo · Salario Daniel', 'Tarjeta Nu · Mercado', 'Tarjeta Mastercard']);
+    expect(porPagar()).toEqual(['Compra a cuotas', 'Tarjeta Nu · Mercado', 'Tarjeta Mastercard', 'Diezmo · Salario Daniel']);
     expect(a.raiz().querySelector('[data-testid="ver-mas"]')).toBeNull();
   });
 
@@ -50,7 +50,7 @@ describe('Hoy (steward-hoy)', () => {
     const kpi = a.raiz().querySelector('[data-testid="falta-pagar"]')!;
     expect(kpi.textContent!.replace(/\s+/g, ' ')).toContain('Falta pagar $0');
     expect(kpi.innerHTML).not.toContain('text-negativo');
-    expect(a.texto()).toContain('Nada pendiente');
+    expect(a.texto()).toContain('Todo pagado este mes.');
   });
 
   it('muestra plan vs real en un pago', async () => {
@@ -59,7 +59,7 @@ describe('Hoy (steward-hoy)', () => {
     const luz = [...a.raiz().querySelectorAll('app-fila')].find((f) => f.textContent!.includes('Recibo Luz'))!;
     expect(luz.textContent!.replace(/\s+/g, ' ')).toContain('plan $50.000 · −$12.000');
     expect(luz.textContent).toContain('$38.000');
-    expect(luz.querySelector('app-avatar')?.getAttribute('aria-label')).toBe('Pagó Esposa');
+    expect(luz.closest('a')!.querySelector('app-avatar')?.getAttribute('aria-label')).toBe('Pagó Esposa');
   });
 
   it('el diezmo es un gasto por pagar: Recibí no crea tarjeta y se marca pagado (diezmo-como-gasto)', async () => {
@@ -121,7 +121,7 @@ describe('Hoy (steward-hoy)', () => {
     expect(a.texto()).toContain('Aportes Esposa 2 aportes · 2 pagos directos');
     expect(a.texto()).toContain('$4.038.000');
     const fila = [...a.raiz().querySelectorAll('#ya-pagado ~ div app-fila')].find((f) => f.textContent!.includes('Tarjeta Mastercard'))!;
-    expect(fila.querySelector('app-avatar')?.textContent?.trim()).toBe('E');
+    expect(fila.closest('a')!.querySelector('app-avatar')?.textContent?.trim()).toBe('E');
   });
 
   it('un fijo ya pagado avisa quién y cuándo en lugar de pagarlo otra vez', async () => {
@@ -136,7 +136,7 @@ describe('Hoy (steward-hoy)', () => {
     const a = await app('/hoy');
     const libreOct = libre(a);
     await a.tocar('Noviembre');
-    expect(a.texto()).toContain('Noviembre 2026');
+    expect(a.texto()).toContain('Te queda libre en noviembre');
     expect(a.raiz().querySelector('[data-testid="opcion-por-elegir"]')!.textContent).toContain('Opción A · elige otra en Plan');
 
     const linea = (await p.movimientos.resumenMes(NOV)).ingresos.find((l) => l.lineaId && !l.recibido)!;
@@ -163,7 +163,7 @@ describe('Hoy (steward-hoy)', () => {
     localStorage.setItem('steward/mes-hoy', '2026-09');
     await conSesion();
     const a = await app('/hoy');
-    expect(a.texto()).toContain('Octubre 2026');
+    expect(a.texto()).toContain('Te queda libre en octubre');
     localStorage.removeItem('steward/mes-hoy');
   });
 
@@ -172,7 +172,7 @@ describe('Hoy (steward-hoy)', () => {
     await p.movimientos.registrarGasto({ monto: 95_000, itemId: null, nota: 'Farmacia (error)', usuarioId: 'u-daniel', origen: { tipo: 'NINGUNO' }, ref: OCT });
     const a = await app('/hoy');
     const antes = libre(a);
-    await a.tocar(/^Farmacia \(error\)/);
+    await a.tocar(/Farmacia \(error\)/);
     expect(a.url()).toMatch(/^\/hoy\/registro\//);
     await a.tocar('Borrar este registro');
     expect(a.raiz().querySelector('[data-testid="efecto-borrar"]')!.textContent).toContain('Pagado baja $95.000');
@@ -186,7 +186,7 @@ describe('Hoy (steward-hoy)', () => {
   it('corregir un pago y deshacer un Recibí (usabilidad-plan)', async () => {
     const p = await conSesion();
     const a = await app('/hoy');
-    await a.tocar(/^Recibo Luz/);
+    await a.tocar(/Recibo Luz/);
     await a.escribir('Monto', '50000');
     await a.tocar('Guardar');
     expect(a.url()).toBe('/hoy');
@@ -209,7 +209,7 @@ describe('Hoy (steward-hoy)', () => {
     const item = (await p.movimientos.resumenMes(OCT)).porPagar.find((i) => i.item.creditoId === credito.id)!;
     await p.movimientos.marcarPago({ itemId: item.item.id, ref: OCT, monto: 500_000, usuarioId: 'u-daniel', origen: { tipo: 'NINGUNO' } });
     const a = await app('/hoy');
-    await a.tocar(new RegExp('^' + item.item.nombre));
+    await a.tocar(new RegExp(item.item.nombre));
     expect(a.raiz().querySelector('[data-testid="aviso-cuota"]')).not.toBeNull();
     await a.tocar('Borrar este registro');
     await a.tocar('Sí, borrar');
@@ -231,6 +231,8 @@ describe('Hoy (steward-hoy)', () => {
     const diezmo = (await p.movimientos.resumenMes(OCT)).porPagar.find((i) => i.item.tipo === 'DIEZMO')!;
     expect(diezmo.detalle).toMatch(/^Del /);
     const a = await app('/hoy');
+    // Va en "Durante el mes", despues de lo vencido y lo de esta semana (rediseno-libreta-clara).
+    await a.tocar(/Ver 1 más/);
     const fila = [...a.raiz().querySelectorAll('app-fila')].find((f) => f.textContent!.includes(diezmo.item.nombre))!;
     expect(fila.textContent).not.toContain('Venció');
     expect(fila.querySelector('.text-negativo')).toBeNull();
@@ -253,5 +255,46 @@ describe('Hoy (steward-hoy)', () => {
     await a.tocar('Guardar gasto');
     expect(libre(a)).toBe('$3.311.000');
     expect(a.texto()).toContain('Farmacia No estaba planeado');
+  });
+  it('Por pagar agrupado por cuándo, con el bloque de fecha (rediseno-libreta-clara)', async () => {
+    await conSesion();
+    const a = await app('/hoy');
+    const grupos = [...a.raiz().querySelectorAll('section[aria-labelledby="por-pagar"] h3')].map((h) => h.textContent!.trim());
+    expect(grupos).toEqual(['Vencido', 'Esta semana']);
+    expect(a.raiz().querySelector('[data-grupo="VENCIDO"]')!.className).toContain('text-negativo');
+    const bloque = (nombre: string) => [...a.raiz().querySelectorAll('section[aria-labelledby="por-pagar"] a')].find((x) => x.textContent!.includes(nombre))!.querySelector('span')!.textContent!.replace(/\s+/g, ' ').trim();
+    expect(bloque('Compra a cuotas')).toBe('20oct');
+    await a.tocar(/Ver 1 más/);
+    expect([...a.raiz().querySelectorAll('section[aria-labelledby="por-pagar"] h3')].map((h) => h.textContent!.trim())).toEqual(['Vencido', 'Esta semana', 'Durante el mes']);
+    expect(bloque('Diezmo · Salario Daniel')).toBe('—');
+  });
+
+  it('sin vencidos no se muestra el grupo Vencido', async () => {
+    const p = await conSesion();
+    const cuotas = (await p.movimientos.resumenMes(OCT)).porPagar.find((i) => i.item.nombre === 'Compra a cuotas')!;
+    await p.movimientos.marcarPago({ itemId: cuotas.item.id, ref: OCT, monto: cuotas.plan, usuarioId: 'u-daniel', origen: { tipo: 'NINGUNO' } });
+    const a = await app('/hoy');
+    expect(a.raiz().querySelector('[data-grupo="VENCIDO"]')).toBeNull();
+    expect(a.raiz().querySelector('[data-grupo="SEMANA"]')).not.toBeNull();
+  });
+
+  it('la tarjeta del mes: cifra principal, barra y Vs. plan como frase', async () => {
+    await conSesion();
+    const a = await app('/hoy');
+    const tarjeta = a.raiz().querySelector('[data-testid="resumen-mes"]')!;
+    expect(tarjeta.querySelector('h2')!.textContent!.trim()).toBe('Te queda libre en octubre');
+    expect(tarjeta.querySelector('[data-testid="libre"]')!.className).toContain('titular');
+    expect(tarjeta.querySelector<HTMLElement>('[aria-hidden="true"] span')!.style.width).toBe('46%');
+    expect(tarjeta.querySelector('[data-testid="falta-pagar"] app-monto')!.className).toContain('text-negativo-claro');
+    expect(a.raiz().querySelector('[data-testid="vs-plan"]')!.textContent!.trim()).toBe('Gastaron $62.000 menos que el plan');
+  });
+
+  it('Ya pagado se pliega', async () => {
+    await conSesion();
+    const a = await app('/hoy');
+    expect(a.raiz().querySelector('#ya-pagado ~ div')).not.toBeNull();
+    await a.tocar(/Ya pagado/);
+    expect(a.raiz().querySelector('#ya-pagado ~ div')).toBeNull();
+    expect(a.raiz().querySelector('#ya-pagado button')!.getAttribute('aria-expanded')).toBe('false');
   });
 });

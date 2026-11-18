@@ -1,6 +1,6 @@
 import type { Categoria, CierreMes, Credito, PlanAnual, Tarjeta, Cuenta, EstadoHogar, IngresoFijo, IngresoPlan, ItemPlan, Movimiento, Origen, PlanMes, ReglaDiezmo } from '../index';
 
-import { hastaDe } from '../index';
+import { colorCategoria, hastaDe } from '../index';
 import {
   usuarioDe,
   type AnualApi,
@@ -68,7 +68,7 @@ export function regla(r: ReglaDiezmoApi): ReglaDiezmo {
 }
 
 export function categoria(c: CategoriaApi): Categoria {
-  return { id: c.id, nombre: c.nombre, color: c.color, orden: c.orden, tipo: c.tipo, sistema: c.sistema };
+  return { id: c.id, nombre: c.nombre, color: colorCategoria(c), orden: c.orden, tipo: c.tipo, sistema: c.sistema };
 }
 
 /** Cada opcion del año, con sus celdas tocadas por categoria en filas de 12 montos (design D2 de anual-opciones-y-meses). */

@@ -28,6 +28,40 @@ export interface ItemEjecucion {
   vence: { texto: string; tono: TonoVence };
   /** De donde salio el ultimo pago: nombre de la cuenta o "Su cuenta" si fue externo. */
   desde: string | null;
+  /** Grupo de Por pagar por cuando (spec steward-hoy, "Resumen del mes en Hoy"; design D4 de rediseno-libreta-clara). */
+  grupo: GrupoPorPagar;
+}
+
+/** Vencido; vence de hoy a 6 dias; durante el mes (mas adelante, sin fecha, variables y diezmo). */
+export type GrupoPorPagar = 'VENCIDO' | 'SEMANA' | 'MES';
+
+export const TITULO_GRUPO: Record<GrupoPorPagar, string> = { VENCIDO: 'Vencido', SEMANA: 'Esta semana', MES: 'Durante el mes' };
+const ORDEN_GRUPO: Record<GrupoPorPagar, number> = { VENCIDO: 0, SEMANA: 1, MES: 2 };
+
+/** El grupo de un item pendiente segun su vencimiento y hoy. */
+export function grupoPorPagar(item: ItemPlan, vencido: boolean, ref: MesRef, hoy: Fecha): GrupoPorPagar {
+  if (vencido) return 'VENCIDO';
+  if (item.diaVence === null || item.tipo === 'VARIABLE' || item.tipo === 'DIEZMO' || !mismoMes(ref, mesDe(hoy))) return 'MES';
+  const dias = diasEntre(hoy, fechaEnMes(ref, item.diaVence));
+  return dias >= 0 && dias <= 6 ? 'SEMANA' : 'MES';
+}
+
+/** Vs. plan como frase de la tarjeta de Hoy: "Gastaron $62.000 menos que el plan". */
+export function fraseVsPlan(vsPlan: Pesos): string {
+  if (vsPlan < 0) return `Gastaron ${formatCop(-vsPlan)} menos que el plan`;
+  if (vsPlan > 0) return `Gastaron ${formatCop(vsPlan)} más que el plan`;
+  return 'Van igual que el plan';
+}
+
+/** El bloque de fecha de un pendiente: el dia de vencimiento, o "—" para variables y diezmo, que no vencen. */
+export function diaDelBloque(i: Pick<ItemEjecucion, 'item'>): string {
+  return i.item.diaVence === null || i.item.tipo === 'VARIABLE' || i.item.tipo === 'DIEZMO' ? '—' : String(i.item.diaVence);
+}
+
+/** Lo pagado frente a lo pagado mas lo que falta, en %, para la barra de la tarjeta de Hoy. */
+export function avancePagado(r: Pick<ResumenMes, 'pagado' | 'faltaPagar'>): number {
+  const total = r.pagado + r.faltaPagar;
+  return total > 0 ? Math.round((100 * r.pagado) / total) : 100;
 }
 
 export type TonoVence = 'alerta' | 'aviso' | 'normal';
@@ -145,7 +179,7 @@ export function ejecucionItem(estado: EstadoHogar, item: ItemPlan, ref: MesRef, 
       item, categoriaNombre, plan: item.monto, real, pagos, pagado, pendiente: Math.max(0, item.monto - real),
       detalle: pagado ? `Variable · ${real > item.monto ? `${formatCop(real - item.monto)} sobre el plan` : 'completo'}` : `Variable · llevas ${formatCop(real)} de ${formatCop(item.monto)}`,
       diferencia: pagado ? real - item.monto : null, pagadoPor: ultimo?.usuarioId ?? null,
-      vencido: false, vence: venceDe(estado, item, false, ref, hoy), desde,
+      vencido: false, vence: venceDe(estado, item, false, ref, hoy), desde, grupo: 'MES',
     };
   }
   const pagado = pagos.length > 0;
@@ -159,7 +193,7 @@ export function ejecucionItem(estado: EstadoHogar, item: ItemPlan, ref: MesRef, 
   return {
     item, categoriaNombre, plan: item.monto, real, pagos, pagado, pendiente: pagado ? 0 : item.monto, detalle,
     diferencia: pagado ? real - item.monto : null, pagadoPor: ultimo?.usuarioId ?? null,
-    vencido, vence: venceDe(estado, item, vencido, ref, hoy), desde,
+    vencido, vence: venceDe(estado, item, vencido, ref, hoy), desde, grupo: grupoPorPagar(item, vencido, ref, hoy),
   };
 }
 
@@ -193,7 +227,8 @@ export function resumenMes(estado: EstadoHogar, ref: MesRef, hoy: Fecha): Resume
   const comprometido = sumar(items.map((i) => Math.max(i.plan, i.real))) + noPlaneado;
   const total = totalIngresos(ingresos);
 
-  const porVencer = (i: ItemEjecucion) => i.item.diaVence ?? 99;
+  // Por grupo (vencido, esta semana, durante el mes) y dentro de el por dia (design D4 de rediseno-libreta-clara).
+  const porVencer = (i: ItemEjecucion) => ORDEN_GRUPO[i.grupo] * 100 + (i.item.diaVence ?? 99);
   const porPagar = items.filter((i) => !i.pagado).sort((a, b) => porVencer(a) - porVencer(b));
   return {
     ref,

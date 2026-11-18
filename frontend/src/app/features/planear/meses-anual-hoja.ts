@@ -24,10 +24,10 @@ interface GrupoMeses {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-hoja [titulo]="'Meses con la Opción ' + letra()" [antetitulo]="'Plan ' + anio()" (cerrar)="cerrar.emit()">
-      <p class="text-sm leading-normal text-[#3B3D39]">Los meses sin plan se crean con su columna. Los que ya tienen plan solo cambian si los marcas.</p>
+      <p class="text-sm leading-normal text-[#4A4E48]">Los meses sin plan se crean con su columna. Los que ya tienen plan solo cambian si los marcas.</p>
       <div class="flex flex-col overflow-hidden rounded-[14px] border border-borde" data-testid="meses-anual">
         @for (g of grupos(); track g.meses[0]) {
-          <label class="grid min-h-14 grid-cols-[24px_1fr_auto] items-center gap-3 border-t border-[#F1F0EB] px-3.5 py-2 first:border-t-0"
+          <label class="grid min-h-14 grid-cols-[24px_1fr_auto] items-center gap-3 border-t border-[#F0EEE9] px-3.5 py-2 first:border-t-0"
             [class.bg-fondo]="g.accion === 'BLOQUEADO'" [class.text-secundario]="g.accion === 'BLOQUEADO'" [attr.data-meses]="g.meses.join(',')">
             <input type="checkbox" class="size-5 accent-acento" [checked]="marcado(g)" [disabled]="g.accion !== 'ACTUALIZABLE'"
               [attr.aria-label]="'Actualizar ' + nombre(g)" (change)="alternar(g)" />
@@ -39,7 +39,7 @@ interface GrupoMeses {
           </label>
         }
       </div>
-      <div class="flex gap-2.5 rounded-[10px] bg-[#FBF4E2] px-3 py-2.5 text-xs leading-[1.45] text-[#6B4A00]">
+      <div class="flex gap-2.5 rounded-[10px] bg-[#FBF1DC] px-3 py-2.5 text-xs leading-[1.45] text-[#6B4A00]">
         <span class="font-bold" aria-hidden="true">!</span>
         <span>Actualizar reemplaza el plan de ese mes, con sus opciones, por la columna de la Opción {{ letra() }}. Los meses con pagos, gastos o un cierre no se tocan.</span>
       </div>

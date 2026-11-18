@@ -17,7 +17,7 @@ describe('Hoy detallado en escritorio (steward-hoy)', () => {
     window.matchMedia = original;
   });
 
-  it('a 1280 px monta solo la vista detallada, con las cuatro tarjetas', async () => {
+  it('a 1280 px monta solo la vista detallada, con la tarjeta del mes (rediseno-libreta-clara)', async () => {
     anchoDeVentana(1280);
     await conSesion();
     const a = await app('/hoy');
@@ -26,26 +26,30 @@ describe('Hoy detallado en escritorio (steward-hoy)', () => {
     expect(a.raiz().querySelector('[data-testid="ver-mas"]')).toBeNull();
     expect(a.raiz().querySelector('app-segmentado')).toBeNull();
 
-    expect(limpio(a.raiz().querySelector('[data-testid="tarjeta-libre"]'))).toBe('Te queda libre $3.436.000 de $8.826.000 que entran este mes');
-    expect(limpio(a.raiz().querySelector('[data-testid="tarjeta-falta"]'))).toBe('Falta pagar $2.895.000 4 pendientes · 1 vencido');
-    expect(limpio(a.raiz().querySelector('[data-testid="tarjeta-pagado"]'))).toBe('Pagado $2.433.000 10 pagos · 45% de lo planeado');
-    expect(limpio(a.raiz().querySelector('[data-testid="tarjeta-vs-plan"]'))).toBe('Vs. plan −$62.000 gastaste menos de lo planeado');
+    expect(limpio(a.raiz().querySelector('[data-testid="tarjeta-libre"]'))).toBe('Te queda libre en octubre $3.436.000 Gastaron $62.000 menos que el plan');
+    expect(limpio(a.raiz().querySelector('[data-testid="tarjeta-falta"]'))).toBe('Falta pagar $2.895.000');
+    expect(limpio(a.raiz().querySelector('[data-testid="tarjeta-pagado"]'))).toBe('Pagado $2.433.000');
+    expect(limpio(a.raiz().querySelector('[data-testid="tarjeta-entro"]'))).toBe('Entró $8.826.000');
+    expect(limpio(a.raiz().querySelector('[data-testid="fecha-hoy"]'))).toMatch(/^Lunes 26 de octubre/);
+    expect(a.texto()).toContain('4 pendientes · 1 vencido');
   });
 
   it('la tabla Por pagar tiene todos los pendientes y marca el vencido en rojo', async () => {
     anchoDeVentana(1280);
     await conSesion();
     const a = await app('/hoy');
-    const filas = [...a.raiz().querySelectorAll('[data-testid="tabla-por-pagar"] tbody tr')];
-    expect(filas.map((f) => f.getAttribute('data-item'))).toEqual(['Compra a cuotas', 'Diezmo · Salario Daniel', 'Tarjeta Nu · Mercado', 'Tarjeta Mastercard']);
+    const filas = [...a.raiz().querySelectorAll('[data-testid="tabla-por-pagar"] tbody tr[data-item]')];
+    const grupos = [...a.raiz().querySelectorAll('[data-testid="tabla-por-pagar"] tbody tr[data-grupo]')].map((g) => limpio(g));
+    expect(grupos).toEqual(['Vencido', 'Esta semana', 'Durante el mes']);
+    expect(filas.map((f) => f.getAttribute('data-item'))).toEqual(['Compra a cuotas', 'Tarjeta Nu · Mercado', 'Tarjeta Mastercard', 'Diezmo · Salario Daniel']);
     const cuotas = filas[0]!.querySelector('[data-col="vence"]')!;
     expect(limpio(cuotas)).toBe('Venció el 20');
     expect(cuotas.className).toContain('text-negativo');
-    expect(limpio(filas[3]!.querySelector('[data-col="vence"]'))).toBe('30 oct · en 4 días');
-    expect(filas[3]!.querySelector('[data-col="vence"]')!.className).toContain('text-aviso');
-    expect(limpio(filas[1]!.querySelector('[data-col="vence"]'))).toBe('Del Salario Daniel · día 25');
-    expect(limpio(filas[2]!.querySelector('[data-col="vence"]'))).toBe('28 oct · en 2 días');
-    expect(limpio(filas[2])).toContain('Corte 13 · valor del extracto');
+    expect(limpio(filas[2]!.querySelector('[data-col="vence"]'))).toBe('30 oct · en 4 días');
+    expect(filas[2]!.querySelector('[data-col="vence"]')!.className).toContain('text-aviso');
+    expect(limpio(filas[3]!.querySelector('[data-col="vence"]'))).toBe('Del Salario Daniel · día 25');
+    expect(limpio(filas[1]!.querySelector('[data-col="vence"]'))).toBe('28 oct · en 2 días');
+    expect(limpio(filas[1])).toContain('Corte 13 · valor del extracto');
     expect(limpio(filas[0])).toContain('Créditos');
   });
 
@@ -56,7 +60,7 @@ describe('Hoy detallado en escritorio (steward-hoy)', () => {
     const mastercard = a.raiz().querySelector('[data-testid="tabla-por-pagar"] tr[data-item="Tarjeta Mastercard"]')!;
     (mastercard.querySelector('a:last-of-type') as HTMLElement).click();
     await a.estable();
-    expect(a.url()).toBe('/hoy/pagar/m0-mastercard');
+    expect(a.url()).toBe('/hoy?agregar=pago&item=m0-mastercard');
     await a.tocar('Davivienda');
     await a.tocar(/^Marcar pagado/, 'app-pagar-hoja button');
     expect(a.url()).toBe('/hoy');

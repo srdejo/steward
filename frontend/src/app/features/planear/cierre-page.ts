@@ -49,7 +49,7 @@ const SIN_COLOR = '#C9C8C2';
       @if (vista.value(); as v) {
         <div class="flex flex-col gap-1">
           <span class="rotulo">Cierre de mes{{ v.cerrado ? ' · cerrado' : '' }}</span>
-          <h1 class="text-[28px] font-bold">{{ nombreCapital() }} {{ anio() }} terminó con
+          <h1 class="titular text-[28px] font-bold">{{ nombreCapital() }} {{ anio() }} terminó con
             <app-monto [class.text-acento]="v.sobrante >= 0" [class.text-negativo]="v.sobrante < 0" [valor]="v.sobrante" data-testid="sobrante" /></h1>
           <span class="text-sm text-secundario">El plan esperaba <app-monto [valor]="v.librePlaneado" /> libres ·
             @let mejor = v.sobrante - v.librePlaneado;
@@ -87,7 +87,7 @@ const SIN_COLOR = '#C9C8C2';
                           {{ f.diferencia === null || f.diferencia === 0 ? '—' : copSigno(f.diferencia) }}
                         </td>
                         <td class="py-[11px] pr-5">
-                          <div class="flex h-1.5 rounded-[3px] bg-[#EFEEEA]"><span class="rounded-[3px]" [style.width.%]="f.uso" [style.background]="f.tono === 'mal' ? 'var(--color-negativo)' : f.color"></span></div>
+                          <div class="flex h-1.5 rounded-[3px] bg-[#F0EEE9]"><span class="rounded-[3px]" [style.width.%]="f.uso" [style.background]="f.tono === 'mal' ? 'var(--color-negativo)' : f.color"></span></div>
                         </td>
                       </tr>
                     }
@@ -102,7 +102,7 @@ const SIN_COLOR = '#C9C8C2';
                   <h2 id="tener-en-cuenta" class="text-base font-semibold">Para tener en cuenta en {{ siguiente() }}</h2>
                   <div class="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(220px,1fr))]">
                     @for (a of lista; track a.titulo) {
-                      <div class="flex flex-col gap-1 rounded-xl p-3.5" [class]="a.bien ? 'bg-acento-suave text-[#1F3328]' : 'bg-[#FBF7EC] text-[#6B4A00]'">
+                      <div class="flex flex-col gap-1 rounded-xl p-3.5" [class]="a.bien ? 'bg-acento-suave text-[#163A2C]' : 'bg-[#FBF7EC] text-[#6B4A00]'">
                         <span class="text-[13px] font-semibold">{{ a.titulo }}</span>
                         <span class="text-xs leading-[1.45]">{{ a.texto }}</span>
                       </div>
@@ -126,15 +126,15 @@ const SIN_COLOR = '#C9C8C2';
                 <span class="text-[13px] text-secundario">Reparte los <app-monto [valor]="v.sobrante" /> como quieran.</span>
               </div>
               @let total = (aAhorro() ?? 0) + (aSiguiente() ?? 0);
-              <div class="flex h-3 overflow-hidden rounded-md bg-[#EFEEEA]" aria-hidden="true">
+              <div class="flex h-3 overflow-hidden rounded-md bg-[#F0EEE9]" aria-hidden="true">
                 <span class="bg-[#3B6EA8]" [style.width.%]="total ? (100 * (aAhorro() ?? 0)) / total : 0"></span>
                 <span class="bg-acento" [style.width.%]="total ? (100 * (aSiguiente() ?? 0)) / total : 0"></span>
               </div>
-              <div class="flex items-center justify-between gap-2.5 rounded-xl border border-[#E2E1DC] px-3.5 py-3">
+              <div class="flex items-center justify-between gap-2.5 rounded-xl border border-[#DAD7CF] px-3.5 py-3">
                 <span class="flex items-center gap-2 text-sm font-medium"><span class="h-2.5 w-2.5 rounded-[3px] bg-[#3B6EA8]" aria-hidden="true"></span>A ahorro</span>
                 <app-monto-input class="w-[130px] [&_input]:h-[38px] [&_input]:rounded-[9px] [&_input]:px-2.5 [&_input]:text-right [&_input]:text-[13px]" [(valor)]="aAhorro" etiquetaAccesible="A ahorro" />
               </div>
-              <div class="flex items-center justify-between gap-2.5 rounded-xl border border-[#E2E1DC] px-3.5 py-3">
+              <div class="flex items-center justify-between gap-2.5 rounded-xl border border-[#DAD7CF] px-3.5 py-3">
                 <span class="flex items-center gap-2 text-sm font-medium"><span class="h-2.5 w-2.5 rounded-[3px] bg-acento" aria-hidden="true"></span>Pasar a {{ siguiente() }}</span>
                 <app-monto-input class="w-[130px] [&_input]:h-[38px] [&_input]:rounded-[9px] [&_input]:px-2.5 [&_input]:text-right [&_input]:text-[13px]" [(valor)]="aSiguiente" [etiquetaAccesible]="'Pasar a ' + siguiente()" />
               </div>
@@ -163,12 +163,12 @@ const SIN_COLOR = '#C9C8C2';
     @if (vista.value(); as v) {
       <div class="flex flex-col gap-1.5">
         <span class="rotulo">Cierre de mes{{ v.cerrado ? ' · cerrado' : '' }}</span>
-        <h1 class="text-[26px] font-bold">{{ nombreCapital() }} terminó con</h1>
+        <h1 class="titular text-[26px] font-bold">{{ nombreCapital() }} terminó con</h1>
         <app-monto class="text-[34px] font-semibold" [class.text-acento]="v.sobrante >= 0" [class.text-negativo]="v.sobrante < 0" [valor]="v.sobrante" data-testid="sobrante" />
         <span class="text-sm text-secundario">El plan esperaba {{ cop(v.librePlaneado) }} libres.</span>
       </div>
 
-      <div class="rounded-[14px] border border-borde bg-superficie px-4 py-1.5">
+      <div class="rounded-tarjeta bg-superficie px-4 py-1.5">
         <table class="w-full border-collapse text-sm" data-testid="tabla-cierre">
           <thead>
             <tr class="border-b border-divisor text-[11px] font-semibold tracking-[0.06em] text-secundario">
@@ -205,11 +205,11 @@ const SIN_COLOR = '#C9C8C2';
       } @else {
         <div class="flex flex-col gap-2.5">
           <h2 class="text-base font-semibold">¿Qué hacemos con lo que sobró?</h2>
-          <div class="flex items-center justify-between gap-3 rounded-xl border-2 border-acento bg-acento-suave px-4 py-2.5">
+          <div class="flex items-center justify-between gap-3 rounded-xl border-2 border-acento bg-acento-elegido px-4 py-2.5">
             <span class="text-[15px] font-medium" id="a-ahorro">A ahorro</span>
             <app-monto-input class="w-40" [(valor)]="aAhorro" etiquetaAccesible="A ahorro" />
           </div>
-          <div class="flex items-center justify-between gap-3 rounded-xl border-2 border-acento bg-acento-suave px-4 py-2.5">
+          <div class="flex items-center justify-between gap-3 rounded-xl border-2 border-acento bg-acento-elegido px-4 py-2.5">
             <span class="text-[15px] font-medium" id="a-siguiente">Pasar a {{ siguiente() }}</span>
             <app-monto-input class="w-40" [(valor)]="aSiguiente" [etiquetaAccesible]="'Pasar a ' + siguiente()" />
           </div>

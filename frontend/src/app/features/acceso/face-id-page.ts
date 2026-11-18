@@ -16,13 +16,13 @@ import { Interruptor } from '../../shared/components/interruptor';
       <span class="flex h-[88px] w-[88px] items-center justify-center rounded-[24px] bg-acento-suave text-acento">
         <app-icono nombre="rostro" [tamano]="44" />
       </span>
-      <h1 class="text-[26px] leading-tight font-bold">Entra con tu cara la próxima vez</h1>
+      <h1 class="titular text-[26px] leading-tight font-bold">Entra con tu cara la próxima vez</h1>
       <p class="text-[15px] leading-normal text-secundario">
         Guardamos una llave de acceso en este dispositivo. Sin contraseñas que recordar, y en la web funciona igual con Touch ID o Windows Hello.
       </p>
     </div>
 
-    <div class="rounded-[14px] border border-borde bg-superficie p-4">
+    <div class="rounded-tarjeta bg-superficie p-4">
       <app-interruptor titulo="Pedir Face ID al abrir la app" detalle="Después de 5 min sin usarla" [(activo)]="alAbrir" />
     </div>
 

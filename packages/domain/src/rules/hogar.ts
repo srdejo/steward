@@ -143,7 +143,7 @@ export function guardarCategoria(estado: EstadoHogar, datos: { id?: Id; nombre: 
     if (datos.color) existente.color = datos.color;
   } else {
     const orden = Math.max(0, ...s.categorias.filter((c) => c.orden < 90).map((c) => c.orden)) + 1;
-    s.categorias.push({ id: nuevoId(s, 'cat'), nombre, color: datos.color ?? '#8D8F88', orden, tipo: datos.tipo ?? 'OTRO', sistema: false });
+    s.categorias.push({ id: nuevoId(s, 'cat'), nombre, color: datos.color ?? '#8A8D85', orden, tipo: datos.tipo ?? 'OTRO', sistema: false });
   }
   return s;
 }

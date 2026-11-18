@@ -24,12 +24,12 @@ import { MontoInput } from '../../shared/components/monto-input';
         <a [routerLink]="['/planear', claveDe(-1)]" class="flecha-mes" [attr.aria-label]="tituloDe(-1)">‹</a>
         <div class="flex flex-col gap-0.5">
           <span class="text-xs font-semibold tracking-[0.08em] text-aviso uppercase" data-testid="estado-mes">{{ tabla()?.estadoTexto }} · {{ tabla()?.vistas?.length }} opciones</span>
-          <h1 class="text-[28px] font-bold">{{ titulo() }}</h1>
+          <h1 class="titular text-[28px] font-bold">{{ titulo() }}</h1>
         </div>
         <a [routerLink]="['/planear', claveDe(1)]" class="flecha-mes" [attr.aria-label]="tituloDe(1)">›</a>
       </div>
       <div class="flex flex-wrap items-center gap-2">
-        <label class="flex min-h-11 items-center gap-2 px-2 text-sm text-[#3B3D39]">
+        <label class="flex min-h-11 items-center gap-2 px-2 text-sm text-[#4A4E48]">
           <input type="checkbox" class="h-[18px] w-[18px] accent-acento" [checked]="soloCambios()" (change)="soloCambios.set($any($event.target).checked)" />
           Solo lo que cambia
         </label>
@@ -40,7 +40,7 @@ import { MontoInput } from '../../shared/components/monto-input';
 
     @if (tabla(); as t) {
       <div class="flex flex-wrap items-start gap-5">
-        <section class="min-w-0 flex-[3_1_640px] overflow-x-auto rounded-[14px] border border-borde bg-superficie" aria-label="Opciones lado a lado" data-testid="tabla-opciones">
+        <section class="min-w-0 flex-[3_1_640px] overflow-x-auto rounded-tarjeta bg-superficie" aria-label="Opciones lado a lado" data-testid="tabla-opciones">
           <table class="w-full min-w-[640px] border-collapse text-sm">
             <thead>
               <tr class="border-b border-borde bg-fondo">
@@ -70,7 +70,7 @@ import { MontoInput } from '../../shared/components/monto-input';
               @for (s of t.secciones; track s.categoriaId) {
                 @if (filasDe(s.filas).length) {
                   <tr class="border-b border-divisor bg-[#FCFCFA]" [attr.data-grupo]="s.nombre">
-                    <th scope="rowgroup" class="px-5 py-2.5 text-left text-xs font-semibold tracking-[0.06em] text-[#3B3D39] uppercase">
+                    <th scope="rowgroup" class="px-5 py-2.5 text-left text-xs font-semibold tracking-[0.06em] text-[#4A4E48] uppercase">
                       <span class="flex items-center gap-2"><span class="h-2 w-2 rounded-[2px]" [style.background]="s.color" aria-hidden="true"></span>{{ s.nombre }}</span>
                     </th>
                     <td></td>
@@ -79,7 +79,7 @@ import { MontoInput } from '../../shared/components/monto-input';
                     }
                   </tr>
                   @for (f of filasDe(s.filas); track f.clave) {
-                    <tr class="border-b border-[#F1F0EB]" [attr.data-fila]="f.nombre" [attr.data-categoria]="f.categoriaId">
+                    <tr class="border-b border-[#F0EEE9]" [attr.data-fila]="f.nombre" [attr.data-categoria]="f.categoriaId">
                       <th scope="row" class="py-1.5 pr-3 pl-9 text-left font-normal">
                         <span class="flex flex-col gap-0.5">
                           @if (itemEditando(f); as item) {
@@ -90,7 +90,7 @@ import { MontoInput } from '../../shared/components/monto-input';
                           <span class="text-xs text-secundario">{{ f.detalle }}</span>
                         </span>
                       </th>
-                      <td class="px-2 text-[13px] text-[#3B3D39]">{{ f.dia ?? '' }}</td>
+                      <td class="px-2 text-[13px] text-[#4A4E48]">{{ f.dia ?? '' }}</td>
                       @for (c of f.celdas; track $index; let k = $index) {
                         <td class="px-2 py-1 text-right text-[13px]" [class]="claseCelda(c.cambia, k)" [attr.data-cambia]="c.cambia">
                           @if (k === indice() && f.tipo !== 'DIEZMO') {
@@ -141,7 +141,7 @@ import { MontoInput } from '../../shared/components/monto-input';
 
         <aside class="flex min-w-0 flex-[2_1_320px] flex-col gap-4">
           @if (t.vistas[indice()]; as v) {
-            <section class="flex flex-col gap-2 rounded-[14px] border border-borde bg-superficie p-4" data-testid="opcion-editando">
+            <section class="flex flex-col gap-2 rounded-tarjeta bg-superficie p-4" data-testid="opcion-editando">
               <span class="rotulo">Opción {{ v.escenario.letra }} dejaría libre</span>
               <app-monto class="text-[26px] font-semibold" [class.text-negativo]="v.libre < 0" [valor]="v.libre" />
               @if (indice() > 0) {
@@ -157,7 +157,7 @@ import { MontoInput } from '../../shared/components/monto-input';
                 <span class="text-[13px] text-secundario">La base con que se comparan las demás.</span>
               }
               @if (v.escenario.nota) {
-                <p class="rounded-lg bg-nota px-3 py-2 text-[13px] text-[#3B3D39]">{{ v.escenario.nota }}</p>
+                <p class="rounded-lg bg-nota px-3 py-2 text-[13px] text-[#4A4E48]">{{ v.escenario.nota }}</p>
               }
             </section>
           }
@@ -178,7 +178,7 @@ import { MontoInput } from '../../shared/components/monto-input';
               </section>
             }
           }
-          <section class="flex flex-col gap-2 rounded-[14px] border border-borde bg-superficie p-4 text-[13px]" aria-label="Atajos">
+          <section class="flex flex-col gap-2 rounded-tarjeta bg-superficie p-4 text-[13px]" aria-label="Atajos">
             <span class="rotulo">Atajos</span>
             <div class="flex justify-between"><span>Duplicar la opción</span><kbd class="rounded border border-borde px-1.5 font-sans text-xs">Ctrl + D</kbd></div>
             <div class="flex justify-between"><span>Agregar un gasto en la categoría</span><kbd class="rounded border border-borde px-1.5 font-sans text-xs">N</kbd></div>
@@ -191,7 +191,7 @@ import { MontoInput } from '../../shared/components/monto-input';
     }
   `,
   styles: `
-    .flecha-mes { display: flex; height: 36px; width: 36px; align-items: center; justify-content: center; border-radius: 10px; border: 1px solid var(--color-borde-campo); background: var(--color-superficie); font-size: 16px; font-weight: 600; color: #3b3d39; }
+    .flecha-mes { display: flex; height: 36px; width: 36px; align-items: center; justify-content: center; border-radius: 10px; border: 1px solid var(--color-borde-campo); background: var(--color-superficie); font-size: 16px; font-weight: 600; color: #4A4E48; }
   `,
 })
 export class MesOpciones {

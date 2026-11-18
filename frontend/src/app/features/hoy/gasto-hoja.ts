@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import type { Id } from '@steward/domain';
 
@@ -17,10 +18,10 @@ const NO_PLANEADO = '__no_planeado__';
 /** Gasto.dc.html: monto, a que gasto del plan (los variables acumulan) o "No estaba planeado", nota, quien y desde. */
 @Component({
   selector: 'app-gasto-hoja',
-  imports: [RouterLink, Hoja, Monto, MontoInput, Segmentado],
+  imports: [NgTemplateOutlet, RouterLink, Hoja, Monto, MontoInput, Segmentado],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <app-hoja titulo="Registrar gasto" (cerrar)="hoja.cerrar()">
+    <ng-template #cuerpo>
       @if (mesHoy.aviso(); as aviso) {
         <p class="rounded-xl bg-acento-suave px-4 py-2.5 text-[13px] font-medium text-acento" data-testid="aviso-mes">{{ aviso }}</p>
       }
@@ -54,13 +55,20 @@ const NO_PLANEADO = '__no_planeado__';
         </label>
       </div>
       @if (desde() === suCuenta) {
-        <p class="rounded-xl bg-nota px-4 py-3 text-[13px] text-[#3B3D39]">Desde su cuenta, el gasto cuenta como aporte de {{ hoja.miembros.nombreDe(quien()) }}.</p>
+        <p class="rounded-xl bg-nota px-4 py-3 text-[13px] text-[#4A4E48]">Desde su cuenta, el gasto cuenta como aporte de {{ hoja.miembros.nombreDe(quien()) }}.</p>
       }
       @if (error()) {
         <p role="alert" class="text-sm text-negativo">{{ error() }}</p>
       }
       <button type="button" class="boton-grande" [disabled]="!monto() || !quien() || !itemElegido() || guardando()" (click)="guardar()">Guardar gasto</button>
-    </app-hoja>
+    </ng-template>
+    @if (incrustada()) {
+      <div class="flex flex-col gap-[22px]"><ng-container [ngTemplateOutlet]="cuerpo" /></div>
+    } @else {
+      <app-hoja titulo="Registrar gasto" (cerrar)="hoja.cerrar()">
+        <ng-container [ngTemplateOutlet]="cuerpo" />
+      </app-hoja>
+    }
   `,
 })
 export class GastoHoja {
@@ -71,6 +79,8 @@ export class GastoHoja {
 
   /** Query param `?item=` (al tocar un variable en Por pagar). */
   readonly item = input<Id | undefined>();
+  /** Dentro de Agregar: sin su propio marco de hoja; Agregar la abre y la cierra (design D3 de rediseno-libreta-clara). */
+  readonly incrustada = input(false);
 
   protected readonly mesHoy = inject(MesDeHoy);
   private readonly ref = this.mesHoy.ref();

@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { fechaEnMes, formatFechaCorta, nombreMes, type Id } from '@steward/domain';
 
@@ -18,13 +19,10 @@ import { SU_CUENTA, opcionesDeHoja } from './opciones-hoja';
  */
 @Component({
   selector: 'app-pagar-hoja',
-  imports: [RouterLink, Hoja, Monto, MontoInput, Segmentado],
+  imports: [NgTemplateOutlet, RouterLink, Hoja, Monto, MontoInput, Segmentado],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <app-hoja [titulo]="ejecucion()?.item?.nombre ?? 'Marcar pago'" [antetitulo]="ejecucion()?.categoriaNombre ?? ''" [colorAntetitulo]="categoria()?.color ?? null" (cerrar)="hoja.cerrar()">
-      @if (ejecucion(); as e) {
-        <span subtitulo class="text-[13px] text-secundario">Plan <app-monto [valor]="e.plan" />{{ vence() }}</span>
-      }
+    <ng-template #cuerpo>
       @if (mesHoy.aviso(); as aviso) {
         <p class="rounded-xl bg-acento-suave px-4 py-2.5 text-[13px] font-medium text-acento" data-testid="aviso-mes">{{ aviso }}</p>
       }
@@ -39,7 +37,7 @@ import { SU_CUENTA, opcionesDeHoja } from './opciones-hoja';
           <app-segmentado etiqueta="Pagado por" [opciones]="hoja.personas()" [(valor)]="quien" />
           <app-segmentado etiqueta="Desde · Opcional" [chips]="true" [opcional]="true" [opciones]="hoja.desde()" [(valor)]="desde" />
           @if (desde() === suCuenta) {
-            <p class="flex gap-3 rounded-xl bg-nota px-4 py-3.5 text-[13px] leading-[1.45] text-[#3B3D39]" data-testid="aviso-su-cuenta">
+            <p class="flex gap-3 rounded-xl bg-nota px-4 py-3.5 text-[13px] leading-[1.45] text-[#4A4E48]" data-testid="aviso-su-cuenta">
               Su cuenta no está en la app, así que este pago cuenta como <b>aporte de {{ hoja.miembros.nombreDe(quien()) }}</b> en {{ mesNombre }}. No tiene que registrar nada más.
             </p>
           }
@@ -51,7 +49,25 @@ import { SU_CUENTA, opcionesDeHoja } from './opciones-hoja';
       } @else if (!resumen.isLoading()) {
         <p class="text-secundario">Ese gasto no está en el plan del mes.</p>
       }
-    </app-hoja>
+    </ng-template>
+    @if (incrustada()) {
+      <div class="flex flex-col gap-[22px]">
+        @if (ejecucion(); as e) {
+          <div class="flex flex-col gap-0.5" data-testid="pago-elegido">
+            <span class="text-[17px] font-semibold">{{ e.item.nombre }}</span>
+            <span class="text-[13px] text-secundario">{{ e.categoriaNombre }} · Plan <app-monto [valor]="e.plan" />{{ vence() }}</span>
+          </div>
+        }
+        <ng-container [ngTemplateOutlet]="cuerpo" />
+      </div>
+    } @else {
+      <app-hoja [titulo]="ejecucion()?.item?.nombre ?? 'Marcar pago'" [antetitulo]="ejecucion()?.categoriaNombre ?? ''" [colorAntetitulo]="categoria()?.color ?? null" (cerrar)="hoja.cerrar()">
+        @if (ejecucion(); as e) {
+          <span subtitulo class="text-[13px] text-secundario">Plan <app-monto [valor]="e.plan" />{{ vence() }}</span>
+        }
+        <ng-container [ngTemplateOutlet]="cuerpo" />
+      </app-hoja>
+    }
   `,
 })
 export class PagarHoja {
@@ -60,8 +76,10 @@ export class PagarHoja {
   protected readonly hoja = opcionesDeHoja();
   protected readonly suCuenta = SU_CUENTA;
 
-  /** Parametro de la ruta (`/hoy/pagar/:itemId`). */
+  /** Parametro de la ruta (`/hoy/pagar/:itemId`), o el item elegido en Agregar. */
   readonly itemId = input.required<Id>();
+  /** Dentro de Agregar: sin su propio marco de hoja; Agregar la abre y la cierra (design D3 de rediseno-libreta-clara). */
+  readonly incrustada = input(false);
 
   protected readonly mesHoy = inject(MesDeHoy);
   private readonly ref = this.mesHoy.ref();

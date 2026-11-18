@@ -7,7 +7,7 @@ import { MetodoCredito } from '@/components/metodo-credito';
 import { useConsulta } from '@/data/puertos';
 import { Boton, colors, fonts, Monto, Tarjeta as Caja, Texto } from '@/ui';
 
-const MORADO = '#7C4DDB';
+const MORADO = '#6B5BA8';
 export const METODO: Record<Credito['metodo'], string> = { TASA: 'Con la tasa', PLAN: 'Plan de pagos', MANUAL: 'A mano' };
 
 export function mesCorto(ref: MesRef): string {
@@ -28,11 +28,11 @@ export function CuentasCreditos() {
       <View style={{ flexDirection: 'row', gap: 24 }}>
         <View style={{ gap: 4 }}>
           <Texto v="rotulo">Deben en créditos</Texto>
-          <Monto testID="deben-creditos" valor={r.deben} style={{ fontSize: 26, fontFamily: fonts.monoSemibold }} />
+          <Monto testID="deben-creditos" valor={r.deben} style={{ fontSize: 26, fontFamily: fonts.semibold }} />
         </View>
         <View style={{ gap: 4 }}>
           <Texto v="rotulo">Pagan al mes</Texto>
-          <Monto testID="pagan-mes" valor={r.pagan} style={{ fontSize: 26, fontFamily: fonts.monoSemibold, color: colors.textoSuave }} />
+          <Monto testID="pagan-mes" valor={r.pagan} style={{ fontSize: 26, fontFamily: fonts.semibold, color: colors.textoSuave }} />
         </View>
       </View>
       {r.creditos.length === 0 && <Texto v="pequeno">Sin créditos.</Texto>}
@@ -50,7 +50,7 @@ export function CuentasCreditos() {
                 <Texto style={{ fontSize: 11, fontFamily: fonts.semibold, color: colors.acentoOscuro }}>{METODO[c.metodo]}{c.metodo === 'TASA' ? ` · ${formatTasa(c.tasaEM)}` : ''}</Texto>
               </View>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                <Monto valor={c.saldo} style={{ fontSize: 22, fontFamily: fonts.monoSemibold }} />
+                <Monto valor={c.saldo} style={{ fontSize: 22, fontFamily: fonts.semibold }} />
                 {g && <Texto v="detalle">Cuota {g.actual} de {g.total}</Texto>}
               </View>
               {g && (

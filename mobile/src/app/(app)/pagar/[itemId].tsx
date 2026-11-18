@@ -13,8 +13,9 @@ import { Aviso, Boton, cerrarHoja, colors, fonts, Hoja, Monto, MontoInput, Segme
  * Pagar.dc.html: valor prellenado con el plan, quien pago y desde donde. Desde "Su cuenta" el pago cuenta
  * ademas como aporte de quien pago. Si ya estaba pagado avisa "Ya lo pagó X el dd mmm" (spec steward-hoy).
  */
-export default function Pagar() {
-  const { itemId } = useLocalSearchParams<{ itemId: string }>();
+export default function Pagar({ elegido }: { elegido?: string } = {}) {
+  const params = useLocalSearchParams<{ itemId?: string }>();
+  const itemId = (elegido ?? params.itemId)!;
   const { sesion } = useSesion();
   const hoja = useOpcionesHoja();
   const accion = useAccion();
@@ -43,6 +44,7 @@ export default function Pagar() {
 
   return (
     <Hoja
+      tituloEnAgregar
       titulo={e.item.nombre}
       antetitulo={e.categoriaNombre}
       antetituloColor={categoria?.color}

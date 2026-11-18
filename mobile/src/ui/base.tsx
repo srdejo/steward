@@ -8,29 +8,32 @@ import { colors, fonts, radius, TOCABLE } from './tokens';
 type Variante = 'titulo' | 'tituloGrande' | 'subtitulo' | 'cuerpo' | 'detalle' | 'rotulo' | 'pequeno';
 
 const VARIANTES: Record<Variante, TextStyle> = {
-  tituloGrande: { fontFamily: fonts.bold, fontSize: 28, lineHeight: 34, color: colors.texto },
-  titulo: { fontFamily: fonts.bold, fontSize: 26, lineHeight: 32, color: colors.texto },
+  tituloGrande: { fontFamily: fonts.display, fontSize: 28, lineHeight: 34, color: colors.texto, letterSpacing: -0.28 },
+  titulo: { fontFamily: fonts.display, fontSize: 26, lineHeight: 32, color: colors.texto, letterSpacing: -0.26 },
   subtitulo: { fontFamily: fonts.semibold, fontSize: 16, color: colors.texto },
   cuerpo: { fontFamily: fonts.regular, fontSize: 15, color: colors.texto },
   detalle: { fontFamily: fonts.regular, fontSize: 12, color: colors.secundario },
-  rotulo: { fontFamily: fonts.semibold, fontSize: 12, letterSpacing: 0.96, color: colors.secundario, textTransform: 'uppercase' },
+  rotulo: { fontFamily: fonts.semibold, fontSize: 13, color: colors.textoSuave },
   pequeno: { fontFamily: fonts.regular, fontSize: 13, color: colors.secundario },
 };
 
+/** Cifras tabulares en todo el texto, como en el canvas. */
+const CIFRAS: TextStyle = { fontVariant: ['tabular-nums'] };
+
 /** Texto con las variantes de los artboards. */
 export function Texto({ v = 'cuerpo', style, ...props }: TextProps & { v?: Variante }) {
-  return <Text {...props} style={[VARIANTES[v], style]} />;
+  return <Text {...props} style={[VARIANTES[v], CIFRAS, style]} />;
 }
 
 /** Face ID y "Ocultar montos" llegan con passkeys: hasta entonces no se ofrecen ni aplican (spec steward-ajustes). */
 export const SEGURIDAD_DISPONIBLE = false as boolean;
 
-/** Monto en COP con JetBrains Mono. Con "Ocultar montos" se ve `$••••` hasta tocarlo. */
+/** Monto en COP con Inter y cifras tabulares. Con "Ocultar montos" se ve `$••••` hasta tocarlo. */
 export function Monto({ valor, signo, style, siempreVisible, testID }: { valor: Pesos; signo?: boolean; style?: StyleProp<TextStyle>; siempreVisible?: boolean; testID?: string }) {
   const { preferencias } = useSesion();
   const [revelado, setRevelado] = useState(false);
   const oculto = SEGURIDAD_DISPONIBLE && preferencias.ocultarMontos && !revelado && !siempreVisible;
-  const estilo = [{ fontFamily: fonts.mono, fontSize: 14, color: colors.texto }, style];
+  const estilo = [{ fontFamily: fonts.medium, fontSize: 14, color: colors.texto, fontVariant: ['tabular-nums'] as TextStyle['fontVariant'] }, style];
   if (oculto) {
     return (
       <Text testID={testID} style={estilo} onPress={() => setRevelado(true)} accessibilityRole="button" accessibilityLabel="Mostrar monto" suppressHighlighting>
@@ -70,8 +73,8 @@ export function MontoInput({ etiqueta, valor, onCambio, grande, ayuda, placehold
           onCambio(r.valor);
         }}
         style={{
-          height: grande ? 64 : 48, borderRadius: radius.boton, borderWidth: 1, borderColor: colors.borde, backgroundColor: colors.fondo,
-          paddingHorizontal: 16, fontFamily: fonts.monoSemibold, fontSize: grande ? 28 : 16, color: colors.texto,
+          height: grande ? 64 : 48, borderRadius: radius.boton, borderWidth: 1, borderColor: colors.bordeCampo, backgroundColor: colors.fondo,
+          paddingHorizontal: 16, fontFamily: fonts.semibold, fontSize: grande ? 28 : 16, color: colors.texto,
         }}
       />
       {teclado.barra}
@@ -152,9 +155,10 @@ export function Fila({ titulo, detalle, tonoDetalle, children, onPress, ultima, 
   );
 }
 
+/** Superficie blanca sin borde (Libreta clara); la punteada es para "agregar". */
 export function Tarjeta({ children, style, punteada }: { children: ReactNode; style?: StyleProp<ViewStyle>; punteada?: boolean }) {
   return (
-    <View style={[{ backgroundColor: colors.superficie, borderRadius: radius.panel, borderWidth: 1, borderColor: punteada ? colors.control : colors.borde, borderStyle: punteada ? 'dashed' : 'solid', padding: 18, gap: 12 }, style]}>
+    <View style={[{ backgroundColor: colors.superficie, borderRadius: radius.tarjeta, borderWidth: punteada ? 1 : 0, borderColor: colors.control, borderStyle: punteada ? 'dashed' : 'solid', padding: 16, gap: 12 }, style]}>
       {children}
     </View>
   );
@@ -177,7 +181,7 @@ export function Kpi({ etiqueta, valor, color, enfasis, testID }: { etiqueta: str
   return (
     <View style={{ flex: 1, gap: 2 }} testID={testID}>
       <Texto style={{ fontSize: 11, color: enfasis ? (color ?? colors.secundario) : colors.secundario, fontFamily: enfasis ? fonts.semibold : fonts.regular }}>{etiqueta}</Texto>
-      <Monto valor={valor} style={{ fontSize: enfasis ? 14 : 13, color: enfasis ? colors.texto : (color ?? colors.texto), fontFamily: enfasis ? fonts.monoSemibold : fonts.mono }} />
+      <Monto valor={valor} style={{ fontSize: enfasis ? 14 : 13, color: enfasis ? colors.texto : (color ?? colors.texto), fontFamily: enfasis ? fonts.semibold : fonts.medium }} />
     </View>
   );
 }

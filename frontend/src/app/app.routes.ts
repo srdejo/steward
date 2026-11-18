@@ -28,10 +28,11 @@ export const routes: Routes = [
         data: { ancho: 'escritorio' },
         loadComponent: () => import('./features/hoy/hoy-page').then((m) => m.HoyPage),
         children: [
-          { path: 'aporte', loadComponent: () => import('./features/hoy/aporte-hoja').then((m) => m.AporteHoja) },
-          { path: 'pagar/:itemId', loadComponent: () => import('./features/hoy/pagar-hoja').then((m) => m.PagarHoja) },
+          // Las hojas de siempre abren Agregar sobre Hoy (rediseno-libreta-clara, design D3).
+          { path: 'aporte', redirectTo: () => '/hoy?agregar=aporte' },
+          { path: 'pagar/:itemId', redirectTo: ({ params }) => `/hoy?agregar=pago&item=${encodeURIComponent(params['itemId'] ?? '')}` },
           { path: 'recibir/:clave', loadComponent: () => import('./features/hoy/recibir-hoja').then((m) => m.RecibirHoja) },
-          { path: 'gasto', loadComponent: () => import('./features/hoy/gasto-hoja').then((m) => m.GastoHoja) },
+          { path: 'gasto', redirectTo: ({ queryParams }) => `/hoy?agregar=gasto${queryParams['item'] ? `&item=${encodeURIComponent(queryParams['item'])}` : ''}` },
           { path: 'registro/:registroId', loadComponent: () => import('./features/hoy/registro-hoja').then((m) => m.RegistroHoja) },
           { path: 'registros', loadComponent: () => import('./features/hoy/registros-hoja').then((m) => m.RegistrosHoja) },
         ],

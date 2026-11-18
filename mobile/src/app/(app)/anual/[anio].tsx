@@ -76,7 +76,7 @@ function PasoBase({ anio, conPlan, tieneMontos }: { anio: number; conPlan: boole
         <View style={{ gap: 6 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
             <Texto v="pequeno">Queda libre cada mes</Texto>
-            <Monto testID="libre-mes-base" valor={vista.data.libreMes} style={{ fontFamily: fonts.monoSemibold, color: vista.data.libreMes >= 0 ? colors.acento : colors.negativo }} />
+            <Monto testID="libre-mes-base" valor={vista.data.libreMes} style={{ fontFamily: fonts.semibold, color: vista.data.libreMes >= 0 ? colors.acento : colors.negativo }} />
           </View>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
             <Texto v="pequeno">En el año, antes de lo que cambia</Texto>
@@ -134,10 +134,10 @@ function LoQueCambia({ anio, letra }: { anio: number; letra: string | null }) {
         </Pressable>
       </View>
 
-      <View style={{ flexDirection: 'row', gap: 12, padding: 16, borderRadius: 16, backgroundColor: colors.superficie, borderWidth: 1, borderColor: colors.borde }}>
+      <View style={{ flexDirection: 'row', gap: 12, padding: 16, borderRadius: 16, backgroundColor: colors.superficie }}>
         <View style={{ flex: 1, gap: 4 }}>
           <Texto v="detalle">Libre en el año</Texto>
-          <Monto testID="kpi-libre" valor={d.kpis.libreAnio} style={{ fontSize: 17, fontFamily: fonts.monoSemibold, color: colors.acento }} />
+          <Monto testID="kpi-libre" valor={d.kpis.libreAnio} style={{ fontSize: 17, fontFamily: fonts.semibold, color: colors.acento }} />
           {frenteA !== 0 && <Texto testID="frente-a" style={{ fontSize: 12, color: frenteA < 0 ? colors.negativo : colors.positivo }}>{`${formatCop(frenteA, { signo: true })} vs Opción A`}</Texto>}
         </View>
         <View style={{ flex: 1, gap: 4 }}>
@@ -157,9 +157,9 @@ function LoQueCambia({ anio, letra }: { anio: number; letra: string | null }) {
                 <Texto style={{ fontSize: 12, color: m.cambios.length ? colors.aviso : '#7A7D76' }}>{m.cambios.length ? m.cambios.join(' · ') : m.desde === m.hasta ? 'Igual al mes base' : `Igual al mes base · ${m.hasta - m.desde + 1} meses`}</Texto>
               </View>
               <View style={{ alignItems: 'flex-end', gap: 2 }}>
-                <Monto valor={m.libre} style={{ fontSize: 14, fontFamily: m.cambios.length ? fonts.monoSemibold : fonts.mono, color: enRojo ? colors.negativo : m.cambios.length ? colors.texto : colors.secundario }} />
+                <Monto valor={m.libre} style={{ fontSize: 14, fontFamily: m.cambios.length ? fonts.semibold : fonts.medium, color: enRojo ? colors.negativo : m.cambios.length ? colors.texto : colors.secundario }} />
                 {!esA && m.libre !== d.libreA[m.desde - 1] && (
-                  <Texto testID={`vs-a-${m.desde}`} style={{ fontSize: 11, fontFamily: fonts.mono, color: m.libre < d.libreA[m.desde - 1]! ? colors.negativo : colors.positivo }}>{`${formatCop(m.libre - d.libreA[m.desde - 1]!, { signo: true })} vs A`}</Texto>
+                  <Texto testID={`vs-a-${m.desde}`} style={{ fontSize: 11, fontFamily: fonts.medium, color: m.libre < d.libreA[m.desde - 1]! ? colors.negativo : colors.positivo }}>{`${formatCop(m.libre - d.libreA[m.desde - 1]!, { signo: true })} vs A`}</Texto>
                 )}
               </View>
             </Pressable>
@@ -177,7 +177,7 @@ function LoQueCambia({ anio, letra }: { anio: number; letra: string | null }) {
               <Texto style={{ fontSize: 14, fontFamily: fonts.medium }}>{c.evento.nombre}</Texto>
               <Texto v="detalle">{detalleCambio(c)}</Texto>
             </View>
-            <Texto style={{ fontFamily: fonts.mono, fontSize: 13, color: c.evento.tipo === 'INGRESO' ? colors.positivo : colors.texto }}>{c.evento.tipo === 'GASTO' ? formatCop(c.evento.monto) : formatCop(c.evento.monto, { signo: true })}</Texto>
+            <Texto style={{ fontFamily: fonts.medium, fontSize: 13, color: c.evento.tipo === 'INGRESO' ? colors.positivo : colors.texto }}>{c.evento.tipo === 'GASTO' ? formatCop(c.evento.monto) : formatCop(c.evento.monto, { signo: true })}</Texto>
           </Pressable>
         ))}
       </View>
@@ -252,7 +252,7 @@ function MesesHoja({ anio, opcionId, letra, onCerrar, onListo }: { anio: number;
   return (
     <HojaPlan titulo={`Meses con la Opción ${letra}`} antetitulo={`Plan ${anio}`} onCerrar={onCerrar}>
       <Texto v="pequeno">Los meses sin plan se crean con su columna. Los que ya tienen plan solo cambian si los marcas.</Texto>
-      <View testID="meses-anual" style={{ borderWidth: 1, borderColor: colors.borde, borderRadius: 14, overflow: 'hidden' }}>
+      <View testID="meses-anual" style={{ borderRadius: 16, overflow: 'hidden', backgroundColor: colors.superficie }}>
         {agrupar(lista).map((g, k) => {
           const bloqueado = g[0]!.accion !== 'ACTUALIZABLE';
           return (
@@ -269,7 +269,7 @@ function MesesHoja({ anio, opcionId, letra, onCerrar, onListo }: { anio: number;
           );
         })}
       </View>
-      <Texto style={{ fontSize: 12, lineHeight: 18, color: '#6B4A00', backgroundColor: '#FBF4E2', padding: 10, borderRadius: 10, overflow: 'hidden' }}>{`Actualizar reemplaza el plan de ese mes, con sus opciones, por la columna de la Opción ${letra}. Los meses con pagos, gastos o un cierre no se tocan.`}</Texto>
+      <Texto style={{ fontSize: 12, lineHeight: 18, color: '#6B4A00', backgroundColor: '#FBF1DC', padding: 10, borderRadius: 10, overflow: 'hidden' }}>{`Actualizar reemplaza el plan de ese mes, con sus opciones, por la columna de la Opción ${letra}. Los meses con pagos, gastos o un cierre no se tocan.`}</Texto>
       <Aviso texto={accion.error} />
       <Boton titulo={boton} deshabilitado={accion.ocupado || !(crear + actualizar.length)}
         onPress={() => void accion.ejecutar((p) => p.plan.crearOActualizarMeses(anio, opcionId, actualizar)).then((ok) => ok && onListo({ creados: crear, actualizados: actualizar.length }))} />

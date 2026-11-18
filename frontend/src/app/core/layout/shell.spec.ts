@@ -17,33 +17,49 @@ describe('Shell y navegación (steward-ui-shell)', () => {
     TestBed.configureTestingModule({ providers: provideAppPrueba() });
   });
 
-  it('móvil: barra inferior con Ejecución activo, Plan y Cuentas (oculta desde 1024 px)', async () => {
+  it('móvil: barra inferior con Hoy activo, Planear, el +, Cuentas y Ajustes (oculta desde 1024 px)', async () => {
     await conSesion();
     const { el } = await abrir('/');
     const barra = el.querySelector('[data-testid="barra-inferior"]')!;
     expect(barra.classList).toContain('lg:hidden');
-    const enlaces = [...barra.querySelectorAll('a')];
-    expect(enlaces.map((a) => a.textContent!.trim())).toEqual(['Ejecución', 'Plan', 'Cuentas']);
-    expect(enlaces[0]!.getAttribute('aria-current')).toBe('page');
+    const espacios = [...barra.children].map((c) => c.getAttribute('aria-label') ?? c.textContent!.trim());
+    expect(espacios).toEqual(['Hoy', 'Planear', 'Agregar gasto, aporte o pago', 'Cuentas', 'Ajustes']);
+    expect(barra.querySelector('a')!.getAttribute('aria-current')).toBe('page');
     expect(el.querySelector('[data-testid="aviso-demo"]')?.textContent).toContain('Datos de prueba');
   });
 
-  it('web: los mismos destinos más Ajustes en un menú lateral que solo se ve desde 1024 px', async () => {
+  it('web: menú lateral con el nombre del hogar, los cuatro destinos y Agregar, solo desde 1024 px', async () => {
     await conSesion();
     const { el } = await abrir('/hoy');
     const menu = el.querySelector('[data-testid="menu-lateral"]')!;
     expect(menu.classList).toContain('hidden');
     expect(menu.classList).toContain('lg:flex');
-    expect([...menu.querySelectorAll('nav a')].map((a) => a.textContent!.trim())).toEqual(['Ejecución', 'Plan', 'Cuentas', 'Ajustes']);
+    expect([...menu.querySelectorAll('nav a')].map((a) => a.textContent!.trim())).toEqual(['Hoy', 'Planear', 'Cuentas', 'Ajustes']);
+    expect(menu.querySelector('[data-testid="nombre-hogar"]')?.textContent).toBe('Nuestra casa');
+    expect(menu.querySelector('[data-testid="agregar-lateral"]')?.textContent!.trim()).toBe('Agregar');
   });
 
-  it('web: Ajustes queda activo en el menú lateral', async () => {
+  it('Ajustes queda activo en el menú lateral y en la barra inferior', async () => {
     await conSesion();
     const { el } = await abrir('/ajustes');
-    const menu = el.querySelector('[data-testid="menu-lateral"]')!;
-    const ajustes = [...menu.querySelectorAll('nav a')].find((a) => a.textContent!.trim() === 'Ajustes')!;
-    expect(ajustes.getAttribute('aria-current')).toBe('page');
-    expect([...el.querySelectorAll('[data-testid="barra-inferior"] a')].map((a) => a.textContent!.trim())).toEqual(['Ejecución', 'Plan', 'Cuentas']);
+    const activo = (sel: string) => [...el.querySelectorAll(sel)].find((a) => a.textContent!.trim() === 'Ajustes')!.getAttribute('aria-current');
+    expect(activo('[data-testid="menu-lateral"] nav a')).toBe('page');
+    expect(activo('[data-testid="barra-inferior"] a')).toBe('page');
+  });
+
+  it('el + abre Agregar sobre la pantalla actual y cerrarlo vuelve a ella', async () => {
+    await conSesion();
+    const { el, router, harness } = await abrir('/planear');
+    el.querySelector<HTMLButtonElement>('[data-testid="agregar"]')!.click();
+    await harness.fixture.whenStable();
+    harness.detectChanges();
+    expect(router.url).toBe('/planear?agregar=gasto');
+    expect(el.querySelector('app-agregar-hoja')).not.toBeNull();
+    [...el.querySelectorAll<HTMLButtonElement>('app-agregar-hoja button')].find((b) => b.textContent!.trim() === 'Cancelar')!.click();
+    await harness.fixture.whenStable();
+    harness.detectChanges();
+    expect(router.url).toBe('/planear');
+    expect(el.querySelector('app-agregar-hoja')).toBeNull();
   });
 
   it('los avatares del hogar abren Ajustes del hogar', async () => {
