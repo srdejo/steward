@@ -90,10 +90,10 @@ describe('Hoy (steward-hoy)', () => {
     renderRouter('./src/app', { initialUrl: '/hoy' });
     await waitFor(() => expect(screen.getByTestId('libre')).toHaveTextContent('$3.436.000'));
     expect(screen.getByTestId('por-pagar-Tarjeta Nu · Mercado')).toBeTruthy();
-    expect(screen.queryByTestId('por-pagar-Tarjeta Mastercard')).toBeNull();
-    expect(screen.getByTestId('ver-mas')).toHaveTextContent('Ver 1 más · 4 pendientes en total$1.500.000');
+    expect(screen.queryByTestId('por-pagar-Diezmo · Salario Daniel')).toBeNull();
+    expect(screen.getByTestId('ver-mas')).toHaveTextContent('Ver 1 más · 4 pendientes en total$700.000');
     fireEvent.press(screen.getByTestId('ver-mas'));
-    expect(await screen.findByTestId('por-pagar-Tarjeta Mastercard')).toBeTruthy();
+    expect(await screen.findByTestId('por-pagar-Diezmo · Salario Daniel')).toBeTruthy();
     expect(screen.queryByTestId('ver-mas')).toBeNull();
   });
 
