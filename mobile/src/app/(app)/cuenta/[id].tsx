@@ -44,7 +44,7 @@ export default function Cuenta() {
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: colors.divisor, paddingTop: 12 }}>
         <Texto v="rotulo">Saldo estimado</Texto>
-        <Text testID="saldo-cuenta" style={{ fontFamily: fonts.monoSemibold, fontSize: 18, color: colors.texto }}>≈ <Monto valor={c.saldo} style={{ fontSize: 18, fontFamily: fonts.monoSemibold }} /></Text>
+        <Text testID="saldo-cuenta" style={{ fontFamily: fonts.semibold, fontSize: 18, color: colors.texto }}>≈ <Monto valor={c.saldo} style={{ fontSize: 18, fontFamily: fonts.semibold }} /></Text>
       </View>
       {eliminable && (
         <Pressable accessibilityRole="button" onPress={() => { accion.limpiar(); setConfirmando(true); }} style={{ minHeight: 44, alignItems: 'center', justifyContent: 'center' }}>

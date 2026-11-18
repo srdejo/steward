@@ -39,7 +39,7 @@ import { SU_CUENTA, opcionesDeHoja } from './opciones-hoja';
           <app-segmentado etiqueta="Pagado por" [opciones]="hoja.personas()" [(valor)]="quien" />
           <app-segmentado etiqueta="Desde · Opcional" [chips]="true" [opcional]="true" [opciones]="hoja.desde()" [(valor)]="desde" />
           @if (desde() === suCuenta) {
-            <p class="flex gap-3 rounded-xl bg-nota px-4 py-3.5 text-[13px] leading-[1.45] text-[#3B3D39]" data-testid="aviso-su-cuenta">
+            <p class="flex gap-3 rounded-xl bg-nota px-4 py-3.5 text-[13px] leading-[1.45] text-[#4A4E48]" data-testid="aviso-su-cuenta">
               Su cuenta no está en la app, así que este pago cuenta como <b>aporte de {{ hoja.miembros.nombreDe(quien()) }}</b> en {{ mesNombre }}. No tiene que registrar nada más.
             </p>
           }

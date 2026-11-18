@@ -54,7 +54,7 @@ export default function Planear() {
                 {m.estado === 'SIN_PLAN' && !m.libre.length ? (
                   <Texto style={{ fontSize: 13, fontFamily: fonts.semibold, color: colors.acento }}>Planear ›</Texto>
                 ) : (
-                  <Texto style={{ fontFamily: fonts.mono, fontSize: 13, color: m.libre.some((v) => v < APRETADO) ? colors.negativo : colors.secundario }}>{m.libre.map((v) => formatCop(v)).join(' – ')}</Texto>
+                  <Texto style={{ fontFamily: fonts.medium, fontSize: 13, color: m.libre.some((v) => v < APRETADO) ? colors.negativo : colors.secundario }}>{m.libre.map((v) => formatCop(v)).join(' – ')}</Texto>
                 )}
               </Fila>
             ))}

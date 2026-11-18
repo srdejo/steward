@@ -102,13 +102,13 @@ import { IngresoHoja } from './ingreso-hoja';
                 }
               </button>
             }
-            <button type="button" class="flex h-9 items-center rounded-full border border-dashed border-control px-3.5 text-sm text-[#3B3D39]" (click)="duplicar()">+ Duplicar</button>
+            <button type="button" class="flex h-9 items-center rounded-full border border-dashed border-control px-3.5 text-sm text-[#4A4E48]" (click)="duplicar()">+ Duplicar</button>
           </div>
 
           @if (actual(); as o) {
             <section class="flex flex-col gap-3 rounded-panel border border-dashed border-control bg-superficie p-[18px]">
               <h2 class="rotulo">{{ o.libre < 0 ? 'Con la Opción ' + o.escenario.letra + ' faltarían' : 'Opción ' + o.escenario.letra + ' dejaría libre' }}</h2>
-              <app-monto class="text-[30px] font-semibold" [class.text-[#3B3D39]]="o.libre >= 0" [class.text-negativo]="o.libre < 0" [valor]="o.libre < 0 ? -o.libre : o.libre" data-testid="dejaria-libre" />
+              <app-monto class="text-[30px] font-semibold" [class.text-[#4A4E48]]="o.libre >= 0" [class.text-negativo]="o.libre < 0" [valor]="o.libre < 0 ? -o.libre : o.libre" data-testid="dejaria-libre" />
               <div class="grid grid-cols-2 gap-2 border-t border-divisor pt-3">
                 <app-kpi etiqueta="Ingresos" [valor]="o.totalIngresos" />
                 <app-kpi etiqueta="Gastos" [valor]="o.totalGastos" />
@@ -121,7 +121,7 @@ import { IngresoHoja } from './ingreso-hoja';
 
             @if (confirmarQuitar()) {
               <app-hoja [titulo]="'¿Quitar la Opción ' + o.escenario.letra + '?'" (cerrar)="confirmarQuitar.set(false)">
-                <p class="text-sm text-[#3B3D39]">Se borran sus gastos. Las demás opciones no cambian.</p>
+                <p class="text-sm text-[#4A4E48]">Se borran sus gastos. Las demás opciones no cambian.</p>
                 <button type="button" class="boton-grande bg-negativo" [disabled]="guardando()" (click)="quitar(o)">Quitar opción {{ o.escenario.letra }}</button>
               </app-hoja>
             }

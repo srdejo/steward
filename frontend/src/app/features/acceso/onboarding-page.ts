@@ -26,7 +26,7 @@ interface CuentaBorrador {
   sugerida: boolean;
 }
 
-const COLORES_CUENTA = ['#D93025', '#7C4DDB', '#8D8F88', '#2E6B45', '#E2551B', '#0F766E'];
+const COLORES_CUENTA = ['#C2603A', '#6B5BA8', '#8A8D85', '#2F7A4F', '#3F6E9E', '#2C7A70'];
 
 /**
  * Onb1–Onb5.dc.html: nombre y hogar, diezmo (opcional), ingreso fijo, cuentas (opcional) e invitar (opcional).
@@ -102,7 +102,7 @@ const COLORES_CUENTA = ['#D93025', '#7C4DDB', '#8D8F88', '#2E6B45', '#E2551B', '
             </label>
             <div class="flex flex-col gap-2">
               <span class="text-sm font-medium" id="calcular-sobre">Calcular sobre</span>
-              <div class="grid grid-cols-2 gap-1.5 rounded-xl bg-[#F1F0EB] p-1" role="radiogroup" aria-labelledby="calcular-sobre">
+              <div class="grid grid-cols-2 gap-1.5 rounded-xl bg-[#F0EEE9] p-1" role="radiogroup" aria-labelledby="calcular-sobre">
                 @for (b of bases; track b.valor) {
                   <button
                     type="button"
@@ -209,7 +209,7 @@ const COLORES_CUENTA = ['#D93025', '#7C4DDB', '#8D8F88', '#2E6B45', '#E2551B', '
         }
         <div class="nota">
           <span class="text-[13px] font-semibold">Los dos podrán</span>
-          <span class="text-[13px] leading-normal text-[#3B3D39]">Ver el mes y el año · marcar pagos · registrar aportes · crear y elegir opciones de presupuesto</span>
+          <span class="text-[13px] leading-normal text-[#4A4E48]">Ver el mes y el año · marcar pagos · registrar aportes · crear y elegir opciones de presupuesto</span>
         </div>
         @if (correoNoEnviado()) {
           <p role="status" class="nota text-[13px] leading-normal" data-testid="correo-no-enviado">No pudimos enviar el correo. Copia el enlace de invitación y compártelo tú.</p>

@@ -40,7 +40,7 @@ export default function Cuentas() {
               style={{ minHeight: 44, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 6, borderBottomWidth: 2, borderBottomColor: activa ? colors.acento : 'transparent' }}>
               <Texto style={{ fontSize: 14, fontFamily: activa ? fonts.semibold : fonts.regular, color: activa ? colors.texto : colors.secundario }}>{t.etiqueta}</Texto>
               {t.valor === 'tarjetas' && pronto && (
-                <Texto testID="pago-pronto" style={{ fontSize: 11, fontFamily: fonts.semibold, color: '#8A2A15', backgroundColor: '#FBEDE8', borderRadius: 10, paddingHorizontal: 6, paddingVertical: 1, overflow: 'hidden' }}>
+                <Texto testID="pago-pronto" style={{ fontSize: 11, fontFamily: fonts.semibold, color: '#8C1D18', backgroundColor: '#FBE9E7', borderRadius: 10, paddingHorizontal: 6, paddingVertical: 1, overflow: 'hidden' }}>
                   {pronto.dias === 0 ? 'Pago hoy' : `Pago en ${pronto.dias} ${pronto.dias === 1 ? 'día' : 'días'}`}
                 </Texto>
               )}
@@ -84,7 +84,7 @@ function PestanaCuentas() {
         <>
           <View style={{ gap: 6 }}>
             <Texto v="rotulo">Saldo del hogar · estimado</Texto>
-            <Text testID="saldo-hogar" style={{ fontFamily: fonts.monoSemibold, fontSize: 30, color: colors.texto }}>≈ <Monto valor={d.total} style={{ fontSize: 30, fontFamily: fonts.monoSemibold }} /></Text>
+            <Text testID="saldo-hogar" style={{ fontFamily: fonts.semibold, fontSize: 30, color: colors.texto }}>≈ <Monto valor={d.total} style={{ fontSize: 30, fontFamily: fonts.semibold }} /></Text>
           </View>
           <View style={{ flexDirection: 'row', gap: 8 }}>
             <Boton titulo="Cuadrar cuentas" onPress={() => router.push('/cuadrar')} style={{ flex: 1, minHeight: 46 }} />
@@ -99,7 +99,7 @@ function PestanaCuentas() {
             {d.cuentas.length === 0 && <Texto v="pequeno">No hay cuentas{filtro === 'TODAS' ? '' : ' con ese titular'}.</Texto>}
             {d.cuentas.map((c, i) => (
               <Fila key={c.cuenta.id} onPress={() => router.push(`/cuenta/${c.cuenta.id}`)} testID={`cuenta-${c.cuenta.nombre}`} titulo={c.cuenta.nombre} detalle={`${c.titular} · ${c.estadoCuadre}`} tonoDetalle={c.aviso ? colors.aviso : undefined} ultima={i === d.cuentas.length - 1}>
-                <Text style={{ fontFamily: fonts.mono, fontSize: 14, color: c.estimado ? colors.secundario : colors.texto }}>{c.estimado ? '≈ ' : ''}<Monto valor={c.saldo} style={{ color: c.estimado ? colors.secundario : colors.texto }} /></Text>
+                <Text style={{ fontFamily: fonts.medium, fontSize: 14, color: c.estimado ? colors.secundario : colors.texto }}>{c.estimado ? '≈ ' : ''}<Monto valor={c.saldo} style={{ color: c.estimado ? colors.secundario : colors.texto }} /></Text>
               </Fila>
             ))}
           </View>

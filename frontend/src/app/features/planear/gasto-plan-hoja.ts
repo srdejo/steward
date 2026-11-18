@@ -44,7 +44,7 @@ function tipoDe(c: Categoria | undefined, aCuotas: boolean, cambia: boolean): Ti
         <button type="button" class="boton-grande bg-negativo" [disabled]="guardando()" (click)="quitar()">Sí, quitar</button>
       } @else {
         @if (origen(); as texto) {
-          <p class="rounded-xl bg-nota px-4 py-3 text-[13px] text-[#3B3D39]" data-testid="origen-diezmo">{{ texto }}</p>
+          <p class="rounded-xl bg-nota px-4 py-3 text-[13px] text-[#4A4E48]" data-testid="origen-diezmo">{{ texto }}</p>
         }
         <label class="flex flex-col gap-2">
           <span class="rotulo">Nombre</span>

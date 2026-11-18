@@ -47,7 +47,7 @@ interface UnirmePendiente {
 
       <div class="nota">
         <span class="text-[13px] font-semibold">Lo que vas a hacer aquí</span>
-        <span class="text-[13px] leading-normal text-[#3B3D39]">Marcar lo que pagas · poner un aporte cuando quieras · ver cuánto queda libre en el mes</span>
+        <span class="text-[13px] leading-normal text-[#4A4E48]">Marcar lo que pagas · poner un aporte cuando quieras · ver cuánto queda libre en el mes</span>
       </div>
 
       @if (error()) {

@@ -61,7 +61,7 @@ import { FiltroTitularComponent } from './filtro-titular';
     }
 
     <div class="flex items-center justify-between px-0.5 py-1">
-      <span class="text-sm text-[#3B3D39]">Gastos sin registrar</span>
+      <span class="text-sm text-[#4A4E48]">Gastos sin registrar</span>
       <app-monto class="text-[15px] font-semibold" [valor]="cuadre.sinRegistrar()" [siempreVisible]="true" data-testid="sin-registrar" />
     </div>
     @if (cuadre.error()) {

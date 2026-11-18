@@ -104,7 +104,7 @@ const TONO_VENCE: Record<TonoVence, string> = { alerta: 'font-semibold text-nega
                         <span class="text-xs text-secundario">{{ detalleTabla(i) }}</span>
                       </a>
                     </td>
-                    <td class="px-3 py-3 text-[13px] text-[#3B3D39]">
+                    <td class="px-3 py-3 text-[13px] text-[#4A4E48]">
                       <span class="flex items-center gap-2"><span class="h-2 w-2 shrink-0 rounded-[2px]" [style.background]="colorDe(i)" aria-hidden="true"></span>{{ i.categoriaNombre }}</span>
                     </td>
                     <td class="px-3 py-3 text-[13px]" [class]="tonoVence(i)" data-col="vence">{{ i.vence.texto }}</td>

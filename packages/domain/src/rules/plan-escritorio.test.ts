@@ -43,7 +43,7 @@ describe('vistaMesEscritorio', () => {
 
   it('el calendario: lo que pasa el 20', () => {
     const v = vistaMesEscritorio(diciembre(), DIC, HOY)!;
-    expect(v.porDia[20]).toEqual([{ nombre: 'Compra a cuotas', monto: 375_000, ingreso: false, color: '#2E6B45' }]);
+    expect(v.porDia[20]).toEqual([{ nombre: 'Compra a cuotas', monto: 375_000, ingreso: false, color: '#6B5BA8' }]);
     expect(v.porDia[25]!.map((m) => [m.nombre, m.ingreso])).toEqual([['Salario Daniel', true], ['Diezmo · Salario Daniel', false]]);
   });
 
@@ -114,5 +114,14 @@ describe('tablaOpciones', () => {
     });
     const filas = tablaOpciones(s, NOV, HOY).secciones.flatMap((x) => x.filas).filter((f) => f.nombre.trim().toLowerCase() === 'transporte');
     expect(filas.map((f) => f.celdas.map((c) => c.monto))).toEqual([[250_000, 250_000, 250_000], [90_000, null, null]]);
+  });
+});
+
+describe('Colores de categoría (rediseno-libreta-clara)', () => {
+  it('las del sistema toman el color de su tipo; las propias conservan el suyo', async () => {
+    const { colorCategoria } = await import('./colores');
+    expect(colorCategoria({ tipo: 'FIJO', sistema: true, color: '#E2551B' })).toBe('#C2603A');
+    expect(colorCategoria({ tipo: 'CREDITO', sistema: true, color: '#2E6B45' })).toBe('#6B5BA8');
+    expect(colorCategoria({ tipo: 'OTRO', sistema: false, color: '#123456' })).toBe('#123456');
   });
 });

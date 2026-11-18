@@ -21,7 +21,7 @@ import { PUERTOS } from '../../core/datos/puertos';
         <span class="rotulo">{{ titulo() }} · Borrador</span>
         <h1 class="text-[28px] font-bold">Comparar opciones</h1>
       </div>
-      <label class="flex min-h-11 items-center gap-2 text-sm text-[#3B3D39]">
+      <label class="flex min-h-11 items-center gap-2 text-sm text-[#4A4E48]">
         <input type="checkbox" class="h-[18px] w-[18px] accent-acento" [checked]="soloCambios()" (change)="soloCambios.set($any($event.target).checked)" />
         Mostrar solo lo que cambia
       </label>

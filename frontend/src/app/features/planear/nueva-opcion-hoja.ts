@@ -23,10 +23,10 @@ interface Fuente {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-hoja [titulo]="titulo()" [antetitulo]="'Plan ' + anio()" (cerrar)="cerrar.emit()">
-      <p class="text-sm leading-normal text-[#3B3D39]">{{ explicacion() }}</p>
+      <p class="text-sm leading-normal text-[#4A4E48]">{{ explicacion() }}</p>
       <div role="radiogroup" aria-label="Mes base" class="flex flex-col overflow-hidden rounded-xl border border-borde" data-testid="fuentes-mes-base">
         @for (f of fuentes(); track f.clave) {
-          <label class="grid min-h-[52px] cursor-pointer grid-cols-[22px_1fr] items-center gap-3 border-t border-[#F1F0EB] px-3.5 py-2 first:border-t-0" [class.bg-[#F3F7F4]]="f.clave === elegida()">
+          <label class="grid min-h-[52px] cursor-pointer grid-cols-[22px_1fr] items-center gap-3 border-t border-[#F0EEE9] px-3.5 py-2 first:border-t-0" [class.bg-[#F3F7F4]]="f.clave === elegida()">
             <input type="radio" name="fuente-mes-base" class="size-[18px] accent-acento" [checked]="f.clave === elegida()" (change)="elegida.set(f.clave)" />
             <span class="flex flex-col gap-0.5"><span class="text-sm font-semibold">{{ f.titulo }}</span><span class="text-xs text-secundario">{{ f.detalle }}</span></span>
           </label>

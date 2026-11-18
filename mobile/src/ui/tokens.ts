@@ -1,31 +1,34 @@
 /**
- * Tokens de Presupuesto Hogar (HANDOFF.md, "Tokens visuales"): los mismos valores que `@theme` en
- * frontend/src/styles.css. Un solo acento, sin sombras; Inter en la UI y JetBrains Mono en los montos.
+ * Tokens de Presupuesto Hogar, sistema "Libreta clara" (canvas del rediseño): los mismos valores que `@theme` en
+ * frontend/src/styles.css. Papel claro, superficies sin bordes, un solo color de acción; Inter con cifras tabulares en la
+ * UI y los montos, Space Grotesk en títulos y la cifra principal (design D1 y D2 de rediseno-libreta-clara).
  */
 export const colors = {
-  fondo: '#FAFAF7',
+  fondo: '#F6F5F1',
   superficie: '#FFFFFF',
-  borde: '#E7E6E1',
-  bordeCampo: '#E2E1DC',
-  divisor: '#EFEEEA',
-  hueco: '#EFEEE9',
-  nota: '#F4F3EF',
-  control: '#C9C8C2',
-  texto: '#1B1C1A',
-  textoSuave: '#3B3D39',
-  secundario: '#5F625C',
-  acento: '#2E4A3B',
-  acentoOscuro: '#1F3328',
-  acentoSuave: '#EEF3EF',
-  avatarSuave: '#D8E3DA',
-  positivo: '#2E6B45',
-  negativo: '#A3361F',
-  aviso: '#8A5A00',
-  avisoSuave: '#FBF3E2',
-  diezmo: '#1E5A4C',
-  diezmoTexto: '#3D5A52',
-  diezmoSuave: '#EAF2EE',
-  velo: 'rgba(58, 59, 56, 0.8)',
+  borde: '#E9E7E1',
+  bordeCampo: '#DAD7CF',
+  divisor: '#F0EEE9',
+  hueco: '#EFEDE7',
+  nota: '#F3F2EE',
+  control: '#C9C6BD',
+  texto: '#1A1D1A',
+  textoSuave: '#4A4E48',
+  secundario: '#63675F',
+  acento: '#1F4D3B',
+  acentoOscuro: '#163A2C',
+  acentoSuave: '#EEF2EF',
+  acentoElegido: '#E6EFEA',
+  avatarSuave: '#DCE8E1',
+  positivo: '#2F7A4F',
+  negativo: '#B3261E',
+  negativoSuave: '#FBE9E7',
+  aviso: '#8A5200',
+  avisoSuave: '#FBF1DC',
+  diezmo: '#2C7A70',
+  diezmoTexto: '#1E5E55',
+  diezmoSuave: '#E3EFEC',
+  velo: 'rgba(26, 29, 26, 0.45)',
   destacado: '#FBF7EC',
 } as const;
 
@@ -37,15 +40,15 @@ export const fonts = {
   medium: 'Inter_500Medium',
   semibold: 'Inter_600SemiBold',
   bold: 'Inter_700Bold',
-  mono: 'JetBrainsMono_500Medium',
-  monoSemibold: 'JetBrainsMono_600SemiBold',
+  display: 'SpaceGrotesk_700Bold',
+  displaySemibold: 'SpaceGrotesk_600SemiBold',
 } as const;
 
 export const radius = {
-  control: 10,
+  control: 12,
   boton: 12,
-  tarjeta: 14,
-  panel: 16,
+  tarjeta: 16,
+  panel: 20,
   hoja: 22,
   pill: 999,
 } as const;

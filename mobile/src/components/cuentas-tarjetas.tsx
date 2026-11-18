@@ -5,7 +5,7 @@ import { Modal, Pressable, View } from 'react-native';
 import { useAccion, useConsulta } from '@/data/puertos';
 import { Aviso, Boton, Campo, colors, CuerpoModal, fonts, Monto, MontoInput, Segmentado, Tarjeta as Caja, Texto } from '@/ui';
 
-const MORADO = '#7C4DDB';
+const MORADO = '#6B5BA8';
 const TONO: Record<TonoVence, string> = { alerta: colors.negativo, aviso: colors.aviso, normal: colors.secundario };
 const NUEVA = '__nueva__';
 
@@ -27,7 +27,7 @@ export function CuentasTarjetas() {
       <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' }}>
         <View style={{ gap: 4 }}>
           <Texto v="rotulo">Por pagar este ciclo</Texto>
-          <Monto testID="por-pagar-ciclo" valor={v.porPagarCiclo} style={{ fontSize: 30, fontFamily: fonts.monoSemibold }} />
+          <Monto testID="por-pagar-ciclo" valor={v.porPagarCiclo} style={{ fontSize: 30, fontFamily: fonts.semibold }} />
         </View>
         <Boton tipo="texto" titulo="+ Tarjeta" onPress={() => setHoja({ tarjeta: null })} />
       </View>
@@ -58,7 +58,7 @@ export function CuentasTarjetas() {
                     <Texto style={{ fontSize: 16, fontFamily: fonts.semibold }}>{t.tarjeta.nombre}</Texto>
                     {!!t.tarjeta.uso && <Texto style={{ fontSize: 11, fontFamily: fonts.semibold, color: '#5B37B0', backgroundColor: '#F1EDFB', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2, overflow: 'hidden' }}>{t.tarjeta.uso}</Texto>}
                   </View>
-                  <Monto valor={t.monto} style={{ fontSize: 15, fontFamily: fonts.monoSemibold }} />
+                  <Monto valor={t.monto} style={{ fontSize: 15, fontFamily: fonts.semibold }} />
                 </View>
                 <View style={{ flexDirection: 'row', gap: 16 }}>
                   <Texto v="detalle">Corte <Texto style={{ fontSize: 12, fontFamily: fonts.semibold }}>Día {t.tarjeta.diaCorte}</Texto></Texto>
@@ -66,7 +66,7 @@ export function CuentasTarjetas() {
                   <Texto v="detalle">Se paga <Texto style={{ fontSize: 12, fontFamily: fonts.semibold }}>{t.tarjeta.pago.tipo === 'FIJO' ? <Monto valor={t.tarjeta.pago.monto} style={{ fontSize: 12 }} /> : 'Completa'}</Texto></Texto>
                 </View>
                 <Texto testID={`proximo-pago-${t.tarjeta.nombre}`} style={{ fontSize: 12, color: TONO[t.proximoPago.tono] }}>Próximo pago {formatFechaCorta(t.proximoPago.fecha)} · {t.proximoPago.dias === 0 ? 'hoy' : `en ${t.proximoPago.dias} ${t.proximoPago.dias === 1 ? 'día' : 'días'}`}</Texto>
-                <Texto testID={`ayuda-${t.tarjeta.nombre}`} style={{ fontSize: 12, lineHeight: 18, color: t.aviso ? '#8A2A15' : colors.textoSuave, backgroundColor: t.aviso ? '#FBEDE8' : 'transparent', padding: t.aviso ? 8 : 0, borderRadius: 8, overflow: 'hidden' }}>{t.ayuda}</Texto>
+                <Texto testID={`ayuda-${t.tarjeta.nombre}`} style={{ fontSize: 12, lineHeight: 18, color: t.aviso ? '#8C1D18' : colors.textoSuave, backgroundColor: t.aviso ? '#FBE9E7' : 'transparent', padding: t.aviso ? 8 : 0, borderRadius: 8, overflow: 'hidden' }}>{t.ayuda}</Texto>
               </Caja>
             </Pressable>
           ))}

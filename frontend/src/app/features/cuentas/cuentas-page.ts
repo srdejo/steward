@@ -44,7 +44,7 @@ interface MovimientoReciente extends MovimientoCuenta {
         <button type="button" role="tab" [attr.aria-selected]="pestana() === t.valor" class="flex min-h-11 items-center gap-2 px-3.5 text-sm"
           [class]="pestana() === t.valor ? 'font-semibold text-texto shadow-[inset_0_-2px_0_var(--color-acento)]' : 'text-secundario'" (click)="elegirPestana(t.valor)">{{ t.etiqueta }}
           @if (t.valor === 'tarjetas' && tarjetas.value()?.pagoPronto; as p) {
-            <span class="rounded-[10px] bg-[#FBEDE8] px-2 py-0.5 text-[11px] font-semibold text-[#8A2A15]" data-testid="pago-pronto">Pago {{ p.dias === 0 ? 'hoy' : 'en ' + p.dias + (p.dias === 1 ? ' día' : ' días') }}</span>
+            <span class="rounded-[10px] bg-[#FBE9E7] px-2 py-0.5 text-[11px] font-semibold text-[#8C1D18]" data-testid="pago-pronto">Pago {{ p.dias === 0 ? 'hoy' : 'en ' + p.dias + (p.dias === 1 ? ' día' : ' días') }}</span>
           }
         </button>
       }
@@ -97,7 +97,7 @@ interface MovimientoReciente extends MovimientoCuenta {
                     @for (c of datos.value()?.cuentas ?? []; track c.cuenta.id) {
                       <tr class="border-t border-divisor" [attr.data-cuenta]="c.cuenta.nombre">
                         <th scope="row" class="px-5 py-2.5 text-left font-medium"><a [routerLink]="['/cuentas/cuenta', c.cuenta.id]" class="hover:underline">{{ c.cuenta.nombre }}</a></th>
-                        <td class="py-2.5 pr-3 text-[13px] text-[#3B3D39]">{{ c.titular }}</td>
+                        <td class="py-2.5 pr-3 text-[13px] text-[#4A4E48]">{{ c.titular }}</td>
                         <td class="monto py-2.5 pr-3 text-right text-[13px] text-secundario">{{ c.estimado ? '≈ ' : '' }}<app-monto [valor]="c.saldo" /></td>
                         <td class="py-2 pr-3">
                           <app-monto-input class="[&_input]:h-[38px] [&_input]:rounded-[9px] [&_input]:px-2.5 [&_input]:text-[13px]" [etiquetaAccesible]="'Saldo en el banco de ' + c.cuenta.nombre"
@@ -122,7 +122,7 @@ interface MovimientoReciente extends MovimientoCuenta {
                 </table>
               </div>
               <div class="flex flex-wrap items-center justify-between gap-3 border-t border-borde bg-fondo px-5 py-3.5">
-                <span class="text-sm text-[#3B3D39]">Se guardan como <b>gastos sin registrar</b>: <app-monto class="font-semibold" [valor]="cuadre.sinRegistrar()" [siempreVisible]="true" data-testid="sin-registrar" /></span>
+                <span class="text-sm text-[#4A4E48]">Se guardan como <b>gastos sin registrar</b>: <app-monto class="font-semibold" [valor]="cuadre.sinRegistrar()" [siempreVisible]="true" data-testid="sin-registrar" /></span>
                 @if (cuadre.error()) {
                   <p role="alert" class="text-sm text-negativo">{{ cuadre.error() }}</p>
                 }

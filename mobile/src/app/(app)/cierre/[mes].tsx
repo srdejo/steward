@@ -33,8 +33,8 @@ export default function Cierre() {
         <Texto style={{ fontSize: 14, fontFamily: opciones.negrita ? fonts.semibold : fonts.regular }}>{nombre}</Texto>
         {opciones.detalle ? <Texto style={{ fontSize: 11, color: colors.secundario }}>{opciones.detalle}</Texto> : null}
       </View>
-      <Texto style={{ width: 84, textAlign: 'right', fontFamily: fonts.mono, fontSize: 12, color: colors.secundario }}>{plan === null ? '—' : formatNumero(plan)}</Texto>
-      <Texto style={{ width: 84, textAlign: 'right', fontFamily: fonts.mono, fontSize: 12, color: opciones.tono ?? colors.texto }}>{formatNumero(real)}</Texto>
+      <Texto style={{ width: 84, textAlign: 'right', fontFamily: fonts.medium, fontSize: 12, color: colors.secundario }}>{plan === null ? '—' : formatNumero(plan)}</Texto>
+      <Texto style={{ width: 84, textAlign: 'right', fontFamily: fonts.medium, fontSize: 12, color: opciones.tono ?? colors.texto }}>{formatNumero(real)}</Texto>
     </View>
   );
 
@@ -42,7 +42,7 @@ export default function Cierre() {
     <Pantalla>
       <Encabezado titulo={`${nombreMesCapital(ref.mes)} terminó con`} rotulo={`Cierre de mes${v.cerrado ? ' · cerrado' : ''}`} volver="/planear" volverTexto={nombreMesCapital(ref.mes)} />
       <View style={{ gap: 6, marginTop: -12 }}>
-        <Monto testID="sobrante" valor={v.sobrante} style={{ fontSize: 34, fontFamily: fonts.monoSemibold, color: v.sobrante >= 0 ? colors.acento : colors.negativo }} />
+        <Monto testID="sobrante" valor={v.sobrante} style={{ fontSize: 34, fontFamily: fonts.semibold, color: v.sobrante >= 0 ? colors.acento : colors.negativo }} />
         <Texto style={{ fontSize: 14, color: colors.secundario }}>El plan esperaba {formatCop(v.librePlaneado)} libres.</Texto>
       </View>
 

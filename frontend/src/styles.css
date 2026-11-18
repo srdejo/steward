@@ -1,51 +1,67 @@
 @import 'tailwindcss';
 
 /*
- * Tokens de Presupuesto Hogar (HANDOFF.md, "Tokens visuales"): un solo acento, sin sombras, Inter en la UI y
- * JetBrains Mono para los montos. Radios de 10 a 16 px; zonas tocables de al menos 44 px.
+ * Tokens de Presupuesto Hogar, sistema "Libreta clara" (canvas del rediseño, artboard Sistema visual; spec steward-ui-shell
+ * "Fidelidad al diseño"): papel claro, superficies blancas sin bordes, un solo color de acción y los de estado solo cuando
+ * algo pide atención. Inter con cifras tabulares en la UI y los montos; Space Grotesk en títulos y la cifra principal.
  */
 @theme {
   --font-sans: 'Inter', system-ui, 'Segoe UI', sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  /* Los montos ya no van en monoespaciada (design D2 de rediseno-libreta-clara): font-mono es Inter tabular. */
+  --font-mono: 'Inter', system-ui, 'Segoe UI', sans-serif;
+  --font-display: 'Space Grotesk', 'Inter', system-ui, sans-serif;
 
-  --color-fondo: #fafaf7;
+  --color-fondo: #f6f5f1;
   --color-superficie: #ffffff;
-  --color-borde: #e7e6e1;
-  --color-divisor: #efeeea;
-  --color-borde-campo: #e2e1dc;
-  --color-hueco: #efeee9;
-  --color-nota: #f4f3ef;
-  --color-control: #c9c8c2;
-  --color-texto: #1b1c1a;
-  --color-secundario: #5f625c;
+  --color-borde: #e9e7e1;
+  --color-divisor: #f0eee9;
+  --color-borde-campo: #dad7cf;
+  --color-hueco: #efede7;
+  --color-nota: #f3f2ee;
+  --color-control: #c9c6bd;
+  --color-texto: #1a1d1a;
+  --color-texto-medio: #4a4e48;
+  --color-secundario: #63675f;
 
-  --color-acento: #2e4a3b;
-  --color-acento-oscuro: #1f3328;
-  --color-acento-suave: #eef3ef;
-  --color-avatar-suave: #d8e3da;
-  --color-positivo: #2e6b45;
-  --color-negativo: #a3361f;
-  --color-aviso: #8a5a00;
-  --color-aviso-suave: #fbf3e2;
-  --color-diezmo: #1e5a4c;
-  --color-diezmo-texto: #3d5a52;
-  --color-diezmo-suave: #eaf2ee;
+  --color-acento: #1f4d3b;
+  --color-acento-oscuro: #163a2c;
+  --color-acento-suave: #eef2ef;
+  --color-acento-elegido: #e6efea;
+  --color-avatar-suave: #dce8e1;
+  --color-positivo: #2f7a4f;
+  --color-negativo: #b3261e;
+  --color-negativo-suave: #fbe9e7;
+  --color-aviso: #8a5200;
+  --color-aviso-suave: #fbf1dc;
+  --color-diezmo: #2c7a70;
+  --color-diezmo-texto: #1e5e55;
+  --color-diezmo-suave: #e3efec;
 
-  --color-cat-fijos: #e2551b;
-  --color-cat-tarjetas: #7c4ddb;
-  --color-cat-variables: #8d8f88;
-  --color-cat-creditos: #2e6b45;
-  --color-cat-diezmo: #0f766e;
+  /* Cada categoría con el mismo color en todas las pantallas. */
+  --color-cat-ingresos: #2f7a4f;
+  --color-cat-fijos: #c2603a;
+  --color-cat-variables: #8a8d85;
+  --color-cat-tarjetas: #6b5ba8;
+  --color-cat-creditos: #6b5ba8;
+  --color-cat-ahorro: #3f6e9e;
+  --color-cat-diezmo: #2c7a70;
 
-  --radius-control: 10px;
-  --radius-tarjeta: 14px;
-  --radius-panel: 16px;
+  --radius-control: 12px;
+  --radius-tarjeta: 16px;
+  --radius-panel: 20px;
 }
 
 html,
 body {
   @apply bg-fondo text-texto antialiased;
   font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Títulos de pantalla y cifra principal. */
+@utility titular {
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
 }
 
 /* Rotulos en mayusculas del diseño ("TE QUEDA LIBRE", "¿QUIÉN?"). */
@@ -53,9 +69,9 @@ body {
   @apply text-xs font-semibold tracking-[0.08em] text-secundario uppercase;
 }
 
-/* Montos: siempre monoespaciados y con cifras tabulares. */
+/* Montos: Inter con cifras tabulares (ya no monoespaciados). */
 @utility monto {
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-variant-numeric: tabular-nums;
 }
 
@@ -90,13 +106,13 @@ body {
 
 @layer components {
   .tarjeta {
-    @apply rounded-panel border border-borde bg-superficie;
+    @apply rounded-tarjeta bg-superficie;
   }
   .boton-primario {
     @apply boton bg-acento text-white hover:bg-acento-oscuro;
   }
   .boton-secundario {
-    @apply boton border border-borde bg-superficie text-texto hover:bg-fondo;
+    @apply boton bg-acento-suave text-acento hover:bg-acento-elegido;
   }
   /* Acciones principales de pantalla completa (52 px, radio 14): "Continuar", "Guardar aporte". */
   .boton-grande {

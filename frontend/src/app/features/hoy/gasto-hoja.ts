@@ -54,7 +54,7 @@ const NO_PLANEADO = '__no_planeado__';
         </label>
       </div>
       @if (desde() === suCuenta) {
-        <p class="rounded-xl bg-nota px-4 py-3 text-[13px] text-[#3B3D39]">Desde su cuenta, el gasto cuenta como aporte de {{ hoja.miembros.nombreDe(quien()) }}.</p>
+        <p class="rounded-xl bg-nota px-4 py-3 text-[13px] text-[#4A4E48]">Desde su cuenta, el gasto cuenta como aporte de {{ hoja.miembros.nombreDe(quien()) }}.</p>
       }
       @if (error()) {
         <p role="alert" class="text-sm text-negativo">{{ error() }}</p>

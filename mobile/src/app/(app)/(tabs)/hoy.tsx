@@ -64,7 +64,7 @@ export default function Hoy() {
 
           <Tarjeta style={{ gap: 14 }}>
             <Texto v="rotulo">Te queda libre</Texto>
-            <Monto testID="libre" valor={r.libre} style={{ fontSize: 32, fontFamily: fonts.monoSemibold, color: r.libre >= 0 ? colors.acento : colors.negativo }} />
+            <Monto testID="libre" valor={r.libre} style={{ fontSize: 32, fontFamily: fonts.semibold, color: r.libre >= 0 ? colors.acento : colors.negativo }} />
             <View style={{ flexDirection: 'row', gap: 8, borderTopWidth: 1, borderTopColor: colors.divisor, paddingTop: 12 }}>
               <Kpi testID="falta-pagar" etiqueta="Falta pagar" valor={r.faltaPagar} enfasis color={r.faltaPagar > 0 ? colors.negativo : undefined} />
               <Kpi etiqueta="Pagado" valor={r.pagado} />
@@ -93,7 +93,7 @@ export default function Hoy() {
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
               <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
                 <Texto v="subtitulo" accessibilityRole="header">Por pagar</Texto>
-                {r.faltaPagar > 0 && <Monto testID="por-pagar-total" valor={r.faltaPagar} style={{ fontFamily: fonts.monoSemibold, color: colors.negativo }} />}
+                {r.faltaPagar > 0 && <Monto testID="por-pagar-total" valor={r.faltaPagar} style={{ fontFamily: fonts.semibold, color: colors.negativo }} />}
               </View>
               <Boton tipo="texto" titulo="+ Gasto" onPress={() => router.push('/gasto')} />
             </View>

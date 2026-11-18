@@ -240,14 +240,14 @@ interface OpcionBase {
                   </tr>
                 </thead>
                 <tbody>
-                  <tr class="border-t border-[#F1F0EB]" data-fila="A">
+                  <tr class="border-t border-[#F0EEE9]" data-fila="A">
                     <th scope="row" class="px-5 py-2.5 text-left font-sans text-[13px] font-semibold">Opción A</th>
                     @for (v of r.libreA; track $index) {
                       <td class="px-1 py-2.5 text-right" [class.text-negativo]="v < 0">{{ celda(v) }}</td>
                     }
                     <td class="px-5 py-2.5 text-right font-semibold">{{ celda(suma(r.libreA)) }}</td>
                   </tr>
-                  <tr class="border-t border-[#F1F0EB]" [attr.data-fila]="r.opcion.letra">
+                  <tr class="border-t border-[#F0EEE9]" [attr.data-fila]="r.opcion.letra">
                     <th scope="row" class="px-5 py-2.5 text-left font-sans text-[13px] font-semibold">Opción {{ r.opcion.letra }}</th>
                     @for (v of r.libre; track $index; let i = $index) {
                       <td class="px-1 py-2.5 text-right" [class.font-semibold]="v !== r.libreA[i]" [class.text-negativo]="v < r.libreA[i]! || v < 0" [class.text-positivo]="v > r.libreA[i]!">{{ celda(v) }}</td>

@@ -1,4 +1,5 @@
 export * from './base';
+export * from './colores';
 export * from './consultas';
 export * from './ingresos';
 export * from './ejecucion';

@@ -155,7 +155,7 @@ export default function Ajustes() {
           {(fijos.data ?? []).map((f) => (
             <Pressable key={f.id} accessibilityRole="button" onPress={() => abrir({ tipo: 'ingreso', ingreso: f })} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.divisor }}>
               <View style={{ gap: 2 }}><Texto>{f.nombre}</Texto><Texto v="detalle" style={{ color: colors.diezmo }}>Fijo · {textoDiezmo}</Texto></View>
-              <Text style={{ fontFamily: fonts.mono, fontSize: 13 }}><Monto valor={f.neto} style={{ fontSize: 13 }} /> ›</Text>
+              <Text style={{ fontFamily: fonts.medium, fontSize: 13 }}><Monto valor={f.neto} style={{ fontSize: 13 }} /> ›</Text>
             </Pressable>
           ))}
           <Boton tipo="texto" titulo="+ Agregar ingreso fijo" onPress={() => abrir({ tipo: 'ingreso', ingreso: null })} />
@@ -232,7 +232,7 @@ export default function Ajustes() {
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                     <Texto style={{ fontSize: 14, fontFamily: fonts.medium }}>Porcentaje</Texto>
                     <TextInput accessibilityLabel="Porcentaje" keyboardType="number-pad" value={`${porcentaje}%`} onChangeText={(t) => setPorcentaje(Math.min(100, Number(t.replace(/\D/g, '')) || 0))}
-                      style={{ width: 80, height: 44, borderRadius: 10, borderWidth: 1, borderColor: colors.bordeCampo, backgroundColor: colors.fondo, textAlign: 'center', fontFamily: fonts.mono, fontSize: 16 }} />
+                      style={{ width: 80, height: 44, borderRadius: 10, borderWidth: 1, borderColor: colors.bordeCampo, backgroundColor: colors.fondo, textAlign: 'center', fontFamily: fonts.medium, fontSize: 16 }} />
                   </View>
                   <Segmentado etiqueta="Calcular sobre" opciones={[{ valor: 'BRUTO', etiqueta: 'Bruto' }, { valor: 'NETO', etiqueta: 'Neto' }]} valor={base} onCambio={setBase} />
                   <Interruptor titulo="También de mis aportes variables" detalle="Contratos, negocio" activo={aplicaAportes} onCambio={setAplicaAportes} />

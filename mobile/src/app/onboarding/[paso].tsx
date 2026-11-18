@@ -166,11 +166,11 @@ export default function Onboarding() {
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Texto style={{ fontSize: 14, fontFamily: fonts.medium }}>Porcentaje</Texto>
                 <TextInput accessibilityLabel="Porcentaje" keyboardType="number-pad" value={`${porcentaje}%`} onChangeText={(t) => setPorcentaje(Math.min(100, Number(t.replace(/\D/g, '')) || 0))}
-                  style={{ width: 80, height: 44, borderRadius: 10, borderWidth: 1, borderColor: colors.bordeCampo, backgroundColor: colors.fondo, textAlign: 'center', fontFamily: fonts.mono, fontSize: 16, color: colors.texto }} />
+                  style={{ width: 80, height: 44, borderRadius: 10, borderWidth: 1, borderColor: colors.bordeCampo, backgroundColor: colors.fondo, textAlign: 'center', fontFamily: fonts.medium, fontSize: 16, color: colors.texto }} />
               </View>
               <View style={{ gap: 8 }}>
                 <Texto style={{ fontSize: 14, fontFamily: fonts.medium }}>Calcular sobre</Texto>
-                <View accessibilityRole="radiogroup" style={{ flexDirection: 'row', gap: 6, padding: 4, borderRadius: 12, backgroundColor: '#F1F0EB' }}>
+                <View accessibilityRole="radiogroup" style={{ flexDirection: 'row', gap: 6, padding: 4, borderRadius: 12, backgroundColor: '#F0EEE9' }}>
                   {(['BRUTO', 'NETO'] as const).map((b) => (
                     <Pressable key={b} accessibilityRole="radio" accessibilityState={{ checked: base === b }} onPress={() => setBase(b)}
                       style={{ flex: 1, height: 40, borderRadius: 9, alignItems: 'center', justifyContent: 'center', backgroundColor: base === b ? colors.superficie : 'transparent' }}>
@@ -202,7 +202,7 @@ export default function Onboarding() {
                 {d !== null && (
                   <View testID="vista-previa-diezmo" style={{ flexDirection: 'row', justifyContent: 'space-between', paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.divisor }}>
                     <Texto style={{ fontSize: 13, color: colors.diezmo }}>Diezmo al recibir · {porcentaje}% del {base === 'BRUTO' ? 'bruto' : 'neto'}</Texto>
-                    <Monto valor={d} siempreVisible style={{ fontSize: 13, color: colors.diezmo, fontFamily: fonts.monoSemibold }} />
+                    <Monto valor={d} siempreVisible style={{ fontSize: 13, color: colors.diezmo, fontFamily: fonts.semibold }} />
                   </View>
                 )}
               </View>
