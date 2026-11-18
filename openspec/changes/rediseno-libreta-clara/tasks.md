@@ -19,7 +19,7 @@
 
 ## 3. Hoy
 
-- [ ] 3.1 PWA, Hoy a 390 px (artboard "Hoy"):
+- [x] 3.1 PWA, Hoy a 390 px (artboard "Hoy"):
   - la tarjeta verde con "Te queda libre en {mes}", la barra y "Gastaron $X menos que el plan";
   - Por pagar en Vencido, Esta semana y Durante el mes, con el bloque de fecha;
   - "Entró este mes" con "+ Aporte";

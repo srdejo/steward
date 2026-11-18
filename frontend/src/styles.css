@@ -31,6 +31,8 @@
   --color-positivo: #2f7a4f;
   --color-negativo: #b3261e;
   --color-negativo-suave: #fbe9e7;
+  /* Alerta sobre la tarjeta verde de Hoy. */
+  --color-negativo-claro: #ffc2bb;
   --color-aviso: #8a5200;
   --color-aviso-suave: #fbf1dc;
   --color-diezmo: #2c7a70;
