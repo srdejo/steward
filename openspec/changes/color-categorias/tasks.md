@@ -55,6 +55,6 @@
 ## 5. Entrega
 
 - [x] 5.1 Pruebas del dominio, la PWA (`ng build`) y la app (`tsc`); `openspec validate color-categorias --strict`.
-- [ ] 5.2 Con confirmación de Daniel: PR y despliegue con copia de seguridad, backend (V17) y PWA.
+- [x] 5.2 Con confirmación de Daniel: PR y despliegue con copia de seguridad, backend (V17) y PWA.
 - [ ] 5.3 Con confirmación de Daniel: la app en la próxima versión de TestFlight.
 - [ ] 5.4 Revisión de Daniel: elegir colores en web y en la app, y verlos en el plan y en Hoy.
