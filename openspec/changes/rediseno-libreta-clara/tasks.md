@@ -27,7 +27,7 @@
   - El diezmo sigue como ítem (design D5).
   - Pruebas de "Resumen del mes en Hoy".
 - [x] 3.2 PWA: Hoy en escritorio con el layout de "Hoy (web)".
-- [ ] 3.3 App: Hoy con el mismo layout, y las pruebas de paridad al día.
+- [x] 3.3 App: Hoy con el mismo layout, y las pruebas de paridad al día.
 
 ## 4. El resto de pantallas
 

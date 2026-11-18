@@ -77,11 +77,11 @@ describe('Hoy (steward-hoy)', () => {
     renderRouter('./src/app', { initialUrl: '/hoy' });
     await waitFor(() => expect(screen.getByTestId('libre')).toHaveTextContent('$3.436.000'));
     expect(screen.getByTestId('falta-pagar')).toHaveTextContent('Falta pagar$2.895.000');
-    expect(screen.getByTestId('por-pagar-total')).toHaveTextContent('$2.895.000');
+    expect(screen.getByTestId('pendientes')).toHaveTextContent('4 pendientes');
     expect(screen.getByText('$2.433.000')).toBeTruthy();
     // La linea de una tarjeta dice su corte y como se paga (tarjetas-y-creditos).
     expect(screen.getByText('Corte 13 · valor del extracto')).toBeTruthy();
-    expect(screen.getByText('−$62.000')).toBeTruthy();
+    expect(screen.getByTestId('vs-plan')).toHaveTextContent('Gastaron $62.000 menos que el plan');
     expect(screen.getByText('2 aportes · 1 pago directo')).toBeTruthy();
   });
 
@@ -252,7 +252,7 @@ describe('Ejecución y Plan (app-movil-conectada)', () => {
     renderRouter('./src/app', { initialUrl: '/hoy' });
     await waitFor(() => expect(screen.getByTestId('libre')).toHaveTextContent('$3.436.000'));
     await tocar('Noviembre');
-    await screen.findByText('Noviembre 2026');
+    await screen.findByText('Te queda libre en noviembre');
     await screen.findByText('Opción A · elige otra en Plan');
     const linea = (await p.movimientos.resumenMes(NOV)).ingresos.find((l) => l.lineaId && !l.recibido)!;
     await tocar('Recibí');
@@ -397,7 +397,7 @@ describe('paridad con la PWA (steward-mobile-app)', () => {
     // Mismas cifras que frontend/src/app/features/hoy/paridad.spec.ts.
     await waitFor(() => expect(screen.getByTestId('libre')).toHaveTextContent('$3.436.000'));
     expect(screen.getByText('$3.933.000')).toBeTruthy();
-    expect(screen.getByText('−$62.000')).toBeTruthy();
+    expect(screen.getByTestId('vs-plan')).toHaveTextContent('Gastaron $62.000 menos que el plan');
     expect(screen.getByTestId('falta-pagar')).toHaveTextContent('Falta pagar$1.395.000');
     expect(screen.queryByTestId('ver-mas')).toBeNull();
   });

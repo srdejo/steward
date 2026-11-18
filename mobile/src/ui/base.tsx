@@ -155,9 +155,10 @@ export function Fila({ titulo, detalle, tonoDetalle, children, onPress, ultima, 
   );
 }
 
+/** Superficie blanca sin borde (Libreta clara); la punteada es para "agregar". */
 export function Tarjeta({ children, style, punteada }: { children: ReactNode; style?: StyleProp<ViewStyle>; punteada?: boolean }) {
   return (
-    <View style={[{ backgroundColor: colors.superficie, borderRadius: radius.panel, borderWidth: 1, borderColor: punteada ? colors.control : colors.borde, borderStyle: punteada ? 'dashed' : 'solid', padding: 18, gap: 12 }, style]}>
+    <View style={[{ backgroundColor: colors.superficie, borderRadius: radius.tarjeta, borderWidth: punteada ? 1 : 0, borderColor: colors.control, borderStyle: punteada ? 'dashed' : 'solid', padding: 16, gap: 12 }, style]}>
       {children}
     </View>
   );

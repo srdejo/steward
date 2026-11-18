@@ -46,6 +46,24 @@ export function grupoPorPagar(item: ItemPlan, vencido: boolean, ref: MesRef, hoy
   return dias >= 0 && dias <= 6 ? 'SEMANA' : 'MES';
 }
 
+/** Vs. plan como frase de la tarjeta de Hoy: "Gastaron $62.000 menos que el plan". */
+export function fraseVsPlan(vsPlan: Pesos): string {
+  if (vsPlan < 0) return `Gastaron ${formatCop(-vsPlan)} menos que el plan`;
+  if (vsPlan > 0) return `Gastaron ${formatCop(vsPlan)} más que el plan`;
+  return 'Van igual que el plan';
+}
+
+/** El bloque de fecha de un pendiente: el dia de vencimiento, o "—" para variables y diezmo, que no vencen. */
+export function diaDelBloque(i: Pick<ItemEjecucion, 'item'>): string {
+  return i.item.diaVence === null || i.item.tipo === 'VARIABLE' || i.item.tipo === 'DIEZMO' ? '—' : String(i.item.diaVence);
+}
+
+/** Lo pagado frente a lo pagado mas lo que falta, en %, para la barra de la tarjeta de Hoy. */
+export function avancePagado(r: Pick<ResumenMes, 'pagado' | 'faltaPagar'>): number {
+  const total = r.pagado + r.faltaPagar;
+  return total > 0 ? Math.round((100 * r.pagado) / total) : 100;
+}
+
 export type TonoVence = 'alerta' | 'aviso' | 'normal';
 
 /** Avance de una categoria en el mes: lo pagado de sus items contra su plan. */

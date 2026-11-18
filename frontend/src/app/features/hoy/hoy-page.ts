@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, linkedSignal } from '@angular/core';
 import { RouterLink, RouterOutlet } from '@angular/router';
-import { TITULO_GRUPO, claveMes, formatCop, formatDiaLargo, formatDiaSemana, formatMesAnio, nombreMes, sumar, type GrupoPorPagar, type ItemEjecucion, type ResumenMes } from '@steward/domain';
+import { TITULO_GRUPO, diaDelBloque, fraseVsPlan, claveMes, formatCop, formatDiaLargo, formatDiaSemana, formatMesAnio, nombreMes, sumar, type GrupoPorPagar, type ItemEjecucion, type ResumenMes } from '@steward/domain';
 
 import { consulta } from '../../core/datos/consulta';
 import { PUERTOS } from '../../core/datos/puertos';
@@ -217,10 +217,7 @@ export class HoyPage {
     return grupos;
   }
 
-  /** El dia del bloque de fecha; "—" sin fecha (variables y diezmo). */
-  protected diaDe(i: ItemEjecucion): string {
-    return i.item.diaVence === null || i.item.tipo === 'VARIABLE' || i.item.tipo === 'DIEZMO' ? '—' : String(i.item.diaVence);
-  }
+  protected readonly diaDe = diaDelBloque;
 
   protected claseBloque(i: ItemEjecucion): string {
     return i.grupo === 'VENCIDO' ? 'bg-negativo-suave text-negativo' : i.grupo === 'SEMANA' ? 'bg-aviso-suave text-aviso' : 'bg-nota text-secundario';
@@ -232,12 +229,7 @@ export class HoyPage {
     return total > 0 ? Math.round((100 * r.pagado) / total) : 100;
   }
 
-  /** Vs. plan como frase (artboard "Hoy"). */
-  protected fraseVsPlan(vsPlan: number): string {
-    if (vsPlan < 0) return `Gastaron ${formatCop(-vsPlan)} menos que el plan`;
-    if (vsPlan > 0) return `Gastaron ${formatCop(vsPlan)} más que el plan`;
-    return 'Van igual que el plan';
-  }
+  protected readonly fraseVsPlan = fraseVsPlan;
 
   /** Desde 1024 px, Hoy detallado (spec "Hoy detallado en escritorio"); se monta una sola de las dos vistas (design D3). */
   protected readonly escritorio = anchoEscritorio();

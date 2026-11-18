@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { TITULO_GRUPO, claveMes, formatCop, formatDiaLargo, mesDe, nombreMes, type AvanceCategoria, type ItemEjecucion, type Movimiento, type ResumenMes, type TonoVence } from '@steward/domain';
+import { TITULO_GRUPO, diaDelBloque, fraseVsPlan, claveMes, formatCop, formatDiaLargo, mesDe, nombreMes, type AvanceCategoria, type ItemEjecucion, type Movimiento, type ResumenMes, type TonoVence } from '@steward/domain';
 
 import { consulta } from '../../core/datos/consulta';
 import { PUERTOS } from '../../core/datos/puertos';
@@ -294,15 +294,9 @@ export class HoyEscritorio {
     return r.plan > 0 ? `${pagos} · ${Math.floor((r.pagado / r.plan) * 100)}% de lo planeado` : pagos;
   });
 
-  protected fraseVsPlan(vsPlan: number): string {
-    if (vsPlan < 0) return `Gastaron ${formatCop(-vsPlan)} menos que el plan`;
-    if (vsPlan > 0) return `Gastaron ${formatCop(vsPlan)} más que el plan`;
-    return 'Van igual que el plan';
-  }
+  protected readonly fraseVsPlan = fraseVsPlan;
 
-  protected diaDe(i: ItemEjecucion): string {
-    return i.item.diaVence === null || i.item.tipo === 'VARIABLE' || i.item.tipo === 'DIEZMO' ? '—' : String(i.item.diaVence);
-  }
+  protected readonly diaDe = diaDelBloque;
 
   protected claseBloque(i: ItemEjecucion): string {
     return i.grupo === 'VENCIDO' ? 'bg-negativo-suave text-negativo' : i.grupo === 'SEMANA' ? 'bg-aviso-suave text-aviso' : 'bg-nota text-secundario';

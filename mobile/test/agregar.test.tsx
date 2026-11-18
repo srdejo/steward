@@ -41,4 +41,18 @@ describe('Barra y Agregar en la app', () => {
     expect(await screen.findByText('Guardar aporte')).toBeTruthy();
     expect(screen.getByTestId('pestana-aporte')).toHaveProp('accessibilityState', { selected: true });
   });
+
+  it('Hoy: Por pagar agrupado por cuándo y la tarjeta del mes (rediseno-libreta-clara)', async () => {
+    await conSesion();
+    renderRouter('./src/app', { initialUrl: '/hoy' });
+    expect(await screen.findByTestId('grupo-VENCIDO')).toHaveTextContent('Vencido');
+    expect(screen.getByTestId('grupo-SEMANA')).toHaveTextContent('Esta semana');
+    expect(screen.queryByTestId('grupo-MES')).toBeNull();
+    expect(screen.getByText('Te queda libre en octubre')).toBeTruthy();
+    expect(screen.getByTestId('fecha-hoy')).toHaveTextContent('Lunes 26 · octubre');
+    fireEvent.press(screen.getByTestId('ver-mas'));
+    expect(await screen.findByTestId('grupo-MES')).toHaveTextContent('Durante el mes');
+    fireEvent.press(screen.getByTestId('ya-pagado-titulo'));
+    await waitFor(() => expect(screen.queryByTestId('pagado-Transporte')).toBeNull());
+  });
 });
