@@ -41,7 +41,7 @@ const SIN_COLOR = '#C9C8C2';
   selector: 'app-cierre-page',
   imports: [RouterLink, Monto, MontoInput],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { '[class]': "escritorio() ? 'flex flex-col gap-[22px] px-9 pt-6 pb-10' : 'flex flex-col gap-[18px] px-5 pt-6 pb-4'" },
+  host: { '[class]': "escritorio() ? 'flex flex-col gap-5 px-8 pt-7 pb-12' : 'flex flex-col gap-[18px] px-5 pt-6 pb-4'" },
   template: `
     @if (escritorio()) {
       <!-- CierreWeb.dc.html: plan frente a lo real, "para tener en cuenta" y el reparto al lado (web-escritorio-completo). -->

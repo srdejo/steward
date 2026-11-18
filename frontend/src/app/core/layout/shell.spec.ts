@@ -28,22 +28,23 @@ describe('Shell y navegación (steward-ui-shell)', () => {
     expect(el.querySelector('[data-testid="aviso-demo"]')?.textContent).toContain('Datos de prueba');
   });
 
-  it('web: menú lateral con el nombre del hogar, los cuatro destinos y Agregar, solo desde 1024 px', async () => {
+  it('web: barra superior con el nombre del hogar, los cuatro destinos, Agregar y los avatares, solo desde 1024 px', async () => {
     await conSesion();
     const { el } = await abrir('/hoy');
-    const menu = el.querySelector('[data-testid="menu-lateral"]')!;
+    const menu = el.querySelector('[data-testid="barra-superior"]')!;
     expect(menu.classList).toContain('hidden');
     expect(menu.classList).toContain('lg:flex');
+    expect(menu.querySelector('[data-testid="avatares-hogar"]')).not.toBeNull();
     expect([...menu.querySelectorAll('nav a')].map((a) => a.textContent!.trim())).toEqual(['Hoy', 'Planear', 'Cuentas', 'Ajustes']);
     expect(menu.querySelector('[data-testid="nombre-hogar"]')?.textContent).toBe('Nuestra casa');
-    expect(menu.querySelector('[data-testid="agregar-lateral"]')?.textContent!.trim()).toBe('Agregar');
+    expect(menu.querySelector('[data-testid="agregar-superior"]')?.textContent!.trim()).toBe('Agregar');
   });
 
-  it('Ajustes queda activo en el menú lateral y en la barra inferior', async () => {
+  it('Ajustes queda activo en la barra superior y en la barra inferior', async () => {
     await conSesion();
     const { el } = await abrir('/ajustes');
     const activo = (sel: string) => [...el.querySelectorAll(sel)].find((a) => a.textContent!.trim() === 'Ajustes')!.getAttribute('aria-current');
-    expect(activo('[data-testid="menu-lateral"] nav a')).toBe('page');
+    expect(activo('[data-testid="barra-superior"] nav a')).toBe('page');
     expect(activo('[data-testid="barra-inferior"] a')).toBe('page');
   });
 

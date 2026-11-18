@@ -25,7 +25,7 @@ function tipoDe(c: Categoria | undefined): TipoItem {
   selector: 'app-anual-base-page',
   imports: [RouterLink, Hoja, Monto, MontoInput, NuevaOpcionHoja],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'flex flex-col gap-5 px-5 pt-6 pb-10 lg:mx-auto lg:w-full lg:max-w-[1360px] lg:px-9', 'data-testid': 'mes-base' },
+  host: { class: 'flex flex-col gap-5 px-5 pt-6 pb-10 lg:px-8 lg:pt-7 lg:pb-12', 'data-testid': 'mes-base' },
   template: `
     <a [routerLink]="['/planear/anual', anio()]" [queryParams]="{ opcion: opcion() ?? null }" class="boton-texto -my-2 self-start text-sm font-normal">‹ Plan {{ anio() }}</a>
     @if (vista.value(); as v) {

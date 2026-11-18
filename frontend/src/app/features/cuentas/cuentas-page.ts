@@ -37,7 +37,7 @@ interface MovimientoReciente extends MovimientoCuenta {
   selector: 'app-cuentas-page',
   imports: [RouterLink, Avatar, Fila, Hoja, Monto, MontoInput, Segmentado, FiltroTitularComponent, TarjetasTab, CreditosTab],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { '[class]': "escritorio() ? 'flex flex-col gap-[22px] px-9 pt-7 pb-10' : 'flex flex-col gap-5 px-5 pt-6 pb-4'" },
+  host: { '[class]': "escritorio() ? 'flex flex-col gap-5 px-8 pt-7 pb-12' : 'flex flex-col gap-5 px-5 pt-6 pb-4'" },
   template: `
     <h1 class="titular text-[28px] font-bold lg:text-[32px]">Cuentas</h1>
     <div role="tablist" aria-label="Cuentas, tarjetas y créditos" class="grid grid-cols-3 gap-1 self-stretch rounded-control bg-hueco p-1 lg:max-w-[480px]">
