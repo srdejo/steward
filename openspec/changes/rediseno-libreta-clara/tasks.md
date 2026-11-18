@@ -15,7 +15,7 @@
   - Se abre sobre la pantalla actual.
   - `/hoy/aporte` y `/hoy/gasto` redirigen a ella.
   - Pruebas de los escenarios de "Agregar desde un solo botón".
-- [ ] 2.4 App: pestañas con el + central como modal `/agregar` y la pestaña Ajustes, con las mismas tres pestañas y pruebas.
+- [x] 2.4 App: pestañas con el + central como modal `/agregar` y la pestaña Ajustes, con las mismas tres pestañas y pruebas.
 
 ## 3. Hoy
 

@@ -75,7 +75,7 @@ export default function Hoy() {
           <View style={{ gap: 6 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
               <Texto v="subtitulo" accessibilityRole="header">Ingresos</Texto>
-              <Boton tipo="texto" titulo="+ Aporte" onPress={() => router.push('/aporte')} />
+              <Boton tipo="texto" titulo="+ Aporte" onPress={() => router.push('/agregar?tipo=aporte')} />
             </View>
             {r.ingresos.map((l, i) => {
               // Lo recibido y los aportes se abren para corregirlos o borrarlos.
@@ -95,7 +95,6 @@ export default function Hoy() {
                 <Texto v="subtitulo" accessibilityRole="header">Por pagar</Texto>
                 {r.faltaPagar > 0 && <Monto testID="por-pagar-total" valor={r.faltaPagar} style={{ fontFamily: fonts.semibold, color: colors.negativo }} />}
               </View>
-              <Boton tipo="texto" titulo="+ Gasto" onPress={() => router.push('/gasto')} />
             </View>
             {r.porPagar.length === 0 && <Texto v="pequeno">Nada pendiente. Todo el plan del mes está pagado.</Texto>}
             {visibles.map((i, k) => (
@@ -106,7 +105,7 @@ export default function Hoy() {
                 detalle={i.detalle}
                 tonoDetalle={urgente(i) ? colors.negativo : undefined}
                 ultima={k === visibles.length - 1 && ocultos.length === 0}
-                onPress={() => router.push(i.item.tipo === 'VARIABLE' ? `/gasto?item=${i.item.id}` : `/pagar/${i.item.id}`)}
+                onPress={() => router.push(`/agregar?tipo=${i.item.tipo === 'VARIABLE' ? 'gasto' : 'pago'}&item=${i.item.id}`)}
               >
                 <Monto valor={i.pendiente} />
                 <View style={{ width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: colors.control }} />

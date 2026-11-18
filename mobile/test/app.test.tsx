@@ -102,7 +102,9 @@ describe('Hoy (steward-hoy)', () => {
     renderRouter('./src/app', { initialUrl: '/hoy' });
     fireEvent.press(await screen.findByTestId('ver-mas'));
     await tocar('Tarjeta Mastercard');
-    await enRuta('/pagar/m0-mastercard');
+    // Abre Agregar en la pestaña Pago con la tarjeta elegida (rediseno-libreta-clara).
+    await enRuta('/agregar');
+    expect(await screen.findByTestId('pago-elegido')).toHaveTextContent(/Tarjeta Mastercard/);
     expect(await screen.findByLabelText('Valor pagado')).toHaveDisplayValue('$1.500.000');
     await tocar('Esposa');
     await tocar('Su cuenta');

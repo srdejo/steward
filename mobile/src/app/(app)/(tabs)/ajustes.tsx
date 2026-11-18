@@ -138,7 +138,7 @@ export default function Ajustes() {
 
   return (
     <Pantalla>
-      <Encabezado titulo="Ajustes" volver="/hoy" volverTexto="Ejecución" />
+      <Encabezado titulo="Ajustes" />
       <Seccion titulo={`Hogar · ${m.hogar?.hogar.nombre ?? ''}`}>
         {m.miembros.map((x) => (
           <View key={x.usuario.id} testID="miembro" style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.divisor }}>

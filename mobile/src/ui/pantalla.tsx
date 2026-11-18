@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import type { ReactNode } from 'react';
+import { createContext, useContext, type ReactNode } from 'react';
 import { ScrollView, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -69,8 +69,28 @@ export function cerrarHoja(): void {
   volverA('/hoy');
 }
 
-/** Hoja de registro (formSheet): titulo, "Cancelar" y contenido, como Aporte/Pagar/Gasto.dc.html. */
-export function Hoja({ titulo, antetitulo, antetituloColor, subtitulo, children }: { titulo: string; antetitulo?: string; antetituloColor?: string; subtitulo?: ReactNode; children: ReactNode }) {
+/** Dentro de Agregar las hojas de gasto, aporte y pago van sin su marco (design D3 de rediseno-libreta-clara). */
+export const HojaIncrustada = createContext(false);
+
+/**
+ * Hoja de registro (formSheet): titulo, "Cancelar" y contenido, como Aporte/Pagar/Gasto.dc.html. Dentro de Agregar solo
+ * el contenido, y el titulo si `tituloEnAgregar` (el item elegido en Pago).
+ */
+export function Hoja({ titulo, antetitulo, antetituloColor, subtitulo, tituloEnAgregar, children }: { titulo: string; antetitulo?: string; antetituloColor?: string; subtitulo?: ReactNode; tituloEnAgregar?: boolean; children: ReactNode }) {
+  const incrustada = useContext(HojaIncrustada);
+  if (incrustada) {
+    return (
+      <View style={{ gap: 22 }}>
+        {tituloEnAgregar ? (
+          <View testID="pago-elegido" style={{ gap: 2 }}>
+            <Texto style={{ fontFamily: fonts.semibold, fontSize: 17 }}>{titulo}</Texto>
+            {subtitulo}
+          </View>
+        ) : null}
+        {children}
+      </View>
+    );
+  }
   return (
     <ScrollView style={{ backgroundColor: colors.superficie }} {...SCROLL_CON_TECLADO} contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 32, gap: 22 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>

@@ -61,6 +61,9 @@ const TRAZOS: Record<string, React.ReactNode> = {
   cuentas: [<Rect key="r" x="3" y="6" width="18" height="13" rx="2" />, <Path key="p" d="M3 10h18" />],
   candado: [<Rect key="r" x="5" y="11" width="14" height="9" rx="2" />, <Path key="p" d="M8 11V8a4 4 0 0 1 8 0v3" />],
   rostro: [<Path key="a" d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2" />, <Path key="b" d="M9 9v1M15 9v1M12 9v4h-1M9.5 16c1.5 1 3.5 1 5 0" />],
+  mas: [<Path key="p" d="M12 5v14M5 12h14" />],
+  ajustes: [<Circle key="c" cx="12" cy="12" r="3" />, <Path key="p" d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4L7 17M17 7l1.4-1.4" />],
+  cerrar: [<Path key="p" d="M6 6l12 12M18 6L6 18" />],
   casa: [<Path key="a" d="M4 11l8-6 8 6v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z" />, <Path key="b" d="M9 20v-5h6v5" />],
 };
 
