@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { claveMes, formatCop, mesDe, nombreMes, type AvanceCategoria, type ItemEjecucion, type Movimiento, type ResumenMes, type TonoVence } from '@steward/domain';
+import { TITULO_GRUPO, claveMes, formatCop, formatDiaLargo, mesDe, nombreMes, type AvanceCategoria, type ItemEjecucion, type Movimiento, type ResumenMes, type TonoVence } from '@steward/domain';
 
 import { consulta } from '../../core/datos/consulta';
 import { PUERTOS } from '../../core/datos/puertos';
@@ -26,15 +26,16 @@ const TONO_VENCE: Record<TonoVence, string> = { alerta: 'font-semibold text-nega
       <div class="flex items-center gap-3.5">
         <button type="button" class="h-9 w-9 rounded-[10px] border border-borde-campo bg-superficie font-semibold text-texto disabled:opacity-40" aria-label="Mes anterior" [disabled]="!anterior()" (click)="ir(anterior())">‹</button>
         <div class="flex flex-col gap-0.5">
-          <span class="rotulo text-positivo">{{ rotulo() }}</span>
-          <h1 class="text-[28px] font-bold">{{ titulo() }}</h1>
+          <span class="text-[13px] text-secundario" data-testid="fecha-hoy">{{ fechaYOpcion() }}</span>
+          <h1 class="titular text-[32px] font-bold">{{ titulo() }}</h1>
         </div>
         <button type="button" class="h-9 w-9 rounded-[10px] border border-borde-campo bg-superficie font-semibold text-texto disabled:opacity-40" aria-label="Mes siguiente" [disabled]="!siguiente()" (click)="ir(siguiente())">›</button>
       </div>
       <div class="flex flex-wrap gap-2">
+        <a [routerLink]="['/planear', claveActual()]" class="flex h-10 items-center rounded-control bg-acento-suave px-3.5 text-sm font-semibold text-acento hover:bg-acento-elegido">Ver el plan</a>
         @if (cerrarMes(); as nombre) {
           <!-- Spec "Cerrar el mes desde Hoy": solo el mes en curso y sin cerrar. -->
-          <a [routerLink]="['/planear', claveActual(), 'cierre']" class="flex h-10 items-center rounded-[10px] px-3.5 text-sm font-semibold text-acento hover:bg-acento-suave" data-testid="cerrar-mes">Cerrar {{ nombre }}</a>
+          <a [routerLink]="['/planear', claveActual(), 'cierre']" class="flex h-10 items-center rounded-control bg-acento-suave px-3.5 text-sm font-semibold text-acento hover:bg-acento-elegido" data-testid="cerrar-mes">Cerrar {{ nombre }}</a>
         }
       </div>
     </header>
@@ -52,41 +53,40 @@ const TONO_VENCE: Record<TonoVence, string> = { alerta: 'font-semibold text-nega
       </section>
     }
 
-    <div class="grid grid-cols-[repeat(auto-fit,minmax(190px,1fr))] gap-3">
-      <section class="flex flex-col gap-1.5 rounded-[14px] bg-acento px-5 py-[18px]" data-testid="tarjeta-libre">
-        <h2 class="text-xs font-semibold tracking-[0.06em] text-[#C9DACD] uppercase">Te queda libre</h2>
-        <app-monto class="text-[26px] font-semibold text-white" [valor]="r.libre" data-testid="libre" />
-        <span class="text-xs text-[#C9DACD]">de {{ formatCop(r.totalIngresos) }} que entran este mes</span>
-      </section>
-      <section class="tarjeta flex flex-col gap-1.5 px-5 py-[18px]" data-testid="tarjeta-falta">
-        <h2 class="text-xs font-semibold tracking-[0.06em] uppercase" [class]="r.faltaPagar > 0 ? 'text-negativo' : 'text-secundario'">Falta pagar</h2>
-        <app-monto class="text-[26px] font-semibold" [valor]="r.faltaPagar" />
-        <span class="text-xs text-secundario">{{ subtituloFalta() }}</span>
-      </section>
-      <section class="tarjeta flex flex-col gap-1.5 px-5 py-[18px]" data-testid="tarjeta-pagado">
-        <h2 class="text-xs font-semibold tracking-[0.06em] text-secundario uppercase">Pagado</h2>
-        <app-monto class="text-[26px] font-semibold" [valor]="r.pagado" />
-        <span class="text-xs text-secundario">{{ subtituloPagado() }}</span>
-      </section>
-      <section class="tarjeta flex flex-col gap-1.5 px-5 py-[18px]" data-testid="tarjeta-vs-plan">
-        <h2 class="text-xs font-semibold tracking-[0.06em] text-secundario uppercase">Vs. plan</h2>
-        <app-monto class="text-[26px] font-semibold" [class]="r.vsPlan <= 0 ? 'text-positivo' : 'text-negativo'" [valor]="r.vsPlan" />
-        <span class="text-xs text-secundario">{{ r.vsPlan < 0 ? 'gastaste menos de lo planeado' : r.vsPlan > 0 ? 'gastaste más de lo planeado' : 'igual al plan' }}</span>
-      </section>
-    </div>
+    <section class="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] items-end gap-7 rounded-[22px] bg-acento px-7 py-6 text-white" aria-label="Resumen del mes" data-testid="resumen-mes">
+      <div class="flex flex-col gap-1.5" data-testid="tarjeta-libre">
+        <h2 class="text-sm font-normal text-[#CFE0D6]">Te queda libre en {{ nombreMesRef() }}</h2>
+        <app-monto class="titular text-[52px] leading-none font-bold" [class.text-negativo-claro]="r.libre < 0" [valor]="r.libre" data-testid="libre" />
+        <span class="mt-2 self-start rounded-full bg-[#2C6250] px-2.5 py-[5px] text-xs font-semibold text-[#E7F1EB]" data-testid="tarjeta-vs-plan">{{ fraseVsPlan(r.vsPlan) }}</span>
+      </div>
+      <div class="flex flex-col gap-2.5">
+        <div class="flex h-2.5 overflow-hidden rounded-[5px] bg-[#3E6B58]" aria-hidden="true">
+          <span class="rounded-[5px] bg-white" [style.width.%]="avancePagado()"></span>
+        </div>
+        <div class="grid grid-cols-3 gap-2 text-[13px]">
+          <span class="flex flex-col gap-0.5" data-testid="tarjeta-pagado"><span class="text-[#CFE0D6]">Pagado</span><app-monto class="text-base font-semibold" [valor]="r.pagado" /></span>
+          <span class="flex flex-col gap-0.5" data-testid="tarjeta-falta">
+            <span class="text-[#CFE0D6]">Falta pagar</span>
+            <app-monto class="text-base font-semibold" [class.text-negativo-claro]="r.faltaPagar > 0" [valor]="r.faltaPagar" />
+          </span>
+          <span class="flex flex-col gap-0.5" data-testid="tarjeta-entro"><span class="text-[#CFE0D6]">Entró</span><app-monto class="text-base font-semibold" [valor]="r.totalIngresos" /></span>
+        </div>
+      </div>
+    </section>
 
     <div class="flex flex-wrap items-start gap-5">
       <div class="flex min-w-0 flex-[2_1_560px] flex-col gap-5">
         <section class="tarjeta overflow-hidden" aria-labelledby="tabla-por-pagar">
           <div class="flex items-center justify-between border-b border-divisor px-5 py-4">
-            <h2 id="tabla-por-pagar" class="text-base font-semibold">Por pagar</h2>
-            <app-monto class="text-sm font-semibold" [class.text-negativo]="r.faltaPagar > 0" [valor]="r.faltaPagar" />
+            <h2 id="tabla-por-pagar" class="text-[17px] font-semibold">Por pagar</h2>
+            <span class="text-sm text-secundario">{{ subtituloFalta() }}</span>
           </div>
           <div class="overflow-x-auto">
             <table class="w-full min-w-[620px] border-collapse text-sm" data-testid="tabla-por-pagar">
               <thead class="bg-fondo text-left text-[11px] font-semibold tracking-[0.06em] text-secundario uppercase">
                 <tr>
-                  <th scope="col" class="px-5 py-2.5 font-semibold">Gasto</th>
+                  <th scope="col" class="w-[72px] py-2.5 pl-5"><span class="sr-only">Fecha</span></th>
+                  <th scope="col" class="px-3 py-2.5 font-semibold">Gasto</th>
                   <th scope="col" class="px-3 py-2.5 font-semibold">Categoría</th>
                   <th scope="col" class="px-3 py-2.5 font-semibold">Vence</th>
                   <th scope="col" class="px-3 py-2.5 text-right font-semibold">Falta</th>
@@ -94,9 +94,20 @@ const TONO_VENCE: Record<TonoVence, string> = { alerta: 'font-semibold text-nega
                 </tr>
               </thead>
               <tbody>
-                @for (i of r.porPagar; track i.item.id) {
+                @for (i of r.porPagar; track i.item.id; let k = $index) {
+                  @if (k === 0 || r.porPagar[k - 1]!.grupo !== i.grupo) {
+                    <tr [attr.data-grupo]="i.grupo">
+                      <th colspan="6" scope="colgroup" class="px-5 pt-3 pb-1 text-left text-xs font-semibold" [class]="i.grupo === 'VENCIDO' ? 'text-negativo' : 'text-secundario'">{{ tituloGrupo[i.grupo] }}</th>
+                    </tr>
+                  }
                   <tr class="border-t border-divisor" [attr.data-item]="i.item.nombre">
-                    <td class="px-5 py-3">
+                    <td class="py-3 pl-5">
+                      <span class="flex size-12 flex-col items-center justify-center gap-0.5 rounded-control" [class]="claseBloque(i)" aria-hidden="true">
+                        <span class="text-base leading-none font-bold">{{ diaDe(i) }}</span>
+                        <span class="text-[10px] leading-none">{{ diaDe(i) === '—' ? '' : mesCorto() }}</span>
+                      </span>
+                    </td>
+                    <td class="px-3 py-3">
                       <a [routerLink]="rutaPagar(i)" [queryParams]="paramsPagar(i)" class="flex min-w-0 flex-col gap-0.5 hover:underline">
                         <span class="font-medium">{{ i.item.nombre }}</span>
                         <span class="text-xs text-secundario">{{ detalleTabla(i) }}</span>
@@ -112,7 +123,7 @@ const TONO_VENCE: Record<TonoVence, string> = { alerta: 'font-semibold text-nega
                     </td>
                   </tr>
                 } @empty {
-                  <tr><td colspan="5" class="px-5 py-4 text-secundario">Nada pendiente. Todo el plan del mes está pagado.</td></tr>
+                  <tr><td colspan="6" class="px-5 py-4 text-secundario">Todo pagado este mes.</td></tr>
                 }
               </tbody>
             </table>
@@ -121,7 +132,7 @@ const TONO_VENCE: Record<TonoVence, string> = { alerta: 'font-semibold text-nega
 
         <section class="tarjeta overflow-hidden" aria-labelledby="tabla-ya-pagado">
           <div class="flex items-center justify-between border-b border-divisor px-5 py-4">
-            <h2 id="tabla-ya-pagado" class="text-base font-semibold">Ya pagado</h2>
+            <h2 id="tabla-ya-pagado" class="text-[17px] font-semibold">Ya pagado · {{ r.yaPagado.length + r.noPlaneados.length }}</h2>
             <app-monto class="text-sm font-semibold" [valor]="r.pagado" />
           </div>
           <div class="overflow-x-auto">
@@ -189,7 +200,7 @@ const TONO_VENCE: Record<TonoVence, string> = { alerta: 'font-semibold text-nega
       <aside class="flex min-w-0 flex-[1_1_300px] flex-col gap-4">
         <section class="tarjeta flex flex-col gap-1 px-[18px] py-4" aria-labelledby="ingresos-escritorio">
           <div class="flex items-center justify-between pb-1.5">
-            <h2 id="ingresos-escritorio" class="text-[15px] font-semibold">Ingresos</h2>
+            <h2 id="ingresos-escritorio" class="text-[15px] font-semibold">Entró este mes</h2>
             <a routerLink="." [queryParams]="{ agregar: 'aporte' }" class="boton-texto">+ Aporte</a>
           </div>
           <app-ingresos-hoy class="border-t border-divisor" [ingresos]="r.ingresos" />
@@ -243,7 +254,22 @@ export class HoyEscritorio {
   readonly opcionPorElegir = input<string | null>(null);
 
   protected readonly cuentas = consulta(() => null, (p) => p.cuentas.cuentas());
-  private readonly enCurso = claveMes(mesDe(inject(PUERTOS).hoy()));
+  private readonly hoy = inject(PUERTOS).hoy();
+  private readonly enCurso = claveMes(mesDe(this.hoy));
+  protected readonly tituloGrupo = TITULO_GRUPO;
+  protected readonly nombreMesRef = computed(() => nombreMes(this.resumen().ref.mes));
+  protected readonly mesCorto = computed(() => nombreMes(this.resumen().ref.mes).slice(0, 3));
+  /** "Lunes 26 de octubre · plan activo: opción A" (artboard "Hoy (web)"). */
+  protected readonly fechaYOpcion = computed(() => {
+    const fecha = formatDiaLargo(this.hoy).replace(' · ', ' de ');
+    const opcion = this.mes.value()?.opciones.find((o) => o.escenario.id === this.mes.value()?.plan?.escenarioActivoId);
+    return opcion ? `${fecha} · plan activo: opción ${opcion.escenario.letra}` : fecha;
+  });
+  protected readonly avancePagado = computed(() => {
+    const r = this.resumen();
+    const total = r.pagado + r.faltaPagar;
+    return total > 0 ? Math.round((100 * r.pagado) / total) : 100;
+  });
   private readonly mes = consulta(() => this.resumen().ref, (p, ref) => p.plan.mes(ref));
   /** Nombre del mes si se puede cerrar desde aqui: el mes en curso, sin cerrar; si no, null. */
   protected readonly cerrarMes = computed(() => {
@@ -267,6 +293,20 @@ export class HoyEscritorio {
     const pagos = `${r.pagos} ${r.pagos === 1 ? 'pago' : 'pagos'}`;
     return r.plan > 0 ? `${pagos} · ${Math.floor((r.pagado / r.plan) * 100)}% de lo planeado` : pagos;
   });
+
+  protected fraseVsPlan(vsPlan: number): string {
+    if (vsPlan < 0) return `Gastaron ${formatCop(-vsPlan)} menos que el plan`;
+    if (vsPlan > 0) return `Gastaron ${formatCop(vsPlan)} más que el plan`;
+    return 'Van igual que el plan';
+  }
+
+  protected diaDe(i: ItemEjecucion): string {
+    return i.item.diaVence === null || i.item.tipo === 'VARIABLE' || i.item.tipo === 'DIEZMO' ? '—' : String(i.item.diaVence);
+  }
+
+  protected claseBloque(i: ItemEjecucion): string {
+    return i.grupo === 'VENCIDO' ? 'bg-negativo-suave text-negativo' : i.grupo === 'SEMANA' ? 'bg-aviso-suave text-aviso' : 'bg-nota text-secundario';
+  }
 
   protected ir(clave: string | null): void {
     if (clave) this.mesHoy.elegir(clave);

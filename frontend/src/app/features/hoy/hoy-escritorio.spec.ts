@@ -17,7 +17,7 @@ describe('Hoy detallado en escritorio (steward-hoy)', () => {
     window.matchMedia = original;
   });
 
-  it('a 1280 px monta solo la vista detallada, con las cuatro tarjetas', async () => {
+  it('a 1280 px monta solo la vista detallada, con la tarjeta del mes (rediseno-libreta-clara)', async () => {
     anchoDeVentana(1280);
     await conSesion();
     const a = await app('/hoy');
@@ -26,17 +26,21 @@ describe('Hoy detallado en escritorio (steward-hoy)', () => {
     expect(a.raiz().querySelector('[data-testid="ver-mas"]')).toBeNull();
     expect(a.raiz().querySelector('app-segmentado')).toBeNull();
 
-    expect(limpio(a.raiz().querySelector('[data-testid="tarjeta-libre"]'))).toBe('Te queda libre $3.436.000 de $8.826.000 que entran este mes');
-    expect(limpio(a.raiz().querySelector('[data-testid="tarjeta-falta"]'))).toBe('Falta pagar $2.895.000 4 pendientes · 1 vencido');
-    expect(limpio(a.raiz().querySelector('[data-testid="tarjeta-pagado"]'))).toBe('Pagado $2.433.000 10 pagos · 45% de lo planeado');
-    expect(limpio(a.raiz().querySelector('[data-testid="tarjeta-vs-plan"]'))).toBe('Vs. plan −$62.000 gastaste menos de lo planeado');
+    expect(limpio(a.raiz().querySelector('[data-testid="tarjeta-libre"]'))).toBe('Te queda libre en octubre $3.436.000 Gastaron $62.000 menos que el plan');
+    expect(limpio(a.raiz().querySelector('[data-testid="tarjeta-falta"]'))).toBe('Falta pagar $2.895.000');
+    expect(limpio(a.raiz().querySelector('[data-testid="tarjeta-pagado"]'))).toBe('Pagado $2.433.000');
+    expect(limpio(a.raiz().querySelector('[data-testid="tarjeta-entro"]'))).toBe('Entró $8.826.000');
+    expect(limpio(a.raiz().querySelector('[data-testid="fecha-hoy"]'))).toMatch(/^Lunes 26 de octubre/);
+    expect(a.texto()).toContain('4 pendientes · 1 vencido');
   });
 
   it('la tabla Por pagar tiene todos los pendientes y marca el vencido en rojo', async () => {
     anchoDeVentana(1280);
     await conSesion();
     const a = await app('/hoy');
-    const filas = [...a.raiz().querySelectorAll('[data-testid="tabla-por-pagar"] tbody tr')];
+    const filas = [...a.raiz().querySelectorAll('[data-testid="tabla-por-pagar"] tbody tr[data-item]')];
+    const grupos = [...a.raiz().querySelectorAll('[data-testid="tabla-por-pagar"] tbody tr[data-grupo]')].map((g) => limpio(g));
+    expect(grupos).toEqual(['Vencido', 'Esta semana', 'Durante el mes']);
     expect(filas.map((f) => f.getAttribute('data-item'))).toEqual(['Compra a cuotas', 'Tarjeta Nu · Mercado', 'Tarjeta Mastercard', 'Diezmo · Salario Daniel']);
     const cuotas = filas[0]!.querySelector('[data-col="vence"]')!;
     expect(limpio(cuotas)).toBe('Venció el 20');
