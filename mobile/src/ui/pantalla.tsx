@@ -96,7 +96,7 @@ export function Hoja({ titulo, antetitulo, antetituloColor, subtitulo, tituloEnA
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
         <View style={{ flexShrink: 1, gap: 4 }}>
           {antetitulo ? <Texto v="rotulo" style={antetituloColor ? { color: antetituloColor } : undefined}>{antetitulo}</Texto> : null}
-          <Texto accessibilityRole="header" style={{ fontFamily: fonts.bold, fontSize: 22 }}>{titulo}</Texto>
+          <Texto accessibilityRole="header" style={{ fontFamily: fonts.display, fontSize: 22 }}>{titulo}</Texto>
           {subtitulo}
         </View>
         <Boton tipo="enlace" titulo="Cancelar" onPress={cerrarHoja} />

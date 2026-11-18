@@ -66,9 +66,9 @@ body {
   letter-spacing: -0.01em;
 }
 
-/* Rotulos en mayusculas del diseño ("TE QUEDA LIBRE", "¿QUIÉN?"). */
+/* Etiquetas de campo y de seccion ("¿Quién?", "Desde · Opcional"): sin mayusculas en Libreta clara. */
 @utility rotulo {
-  @apply text-xs font-semibold tracking-[0.08em] text-secundario uppercase;
+  @apply text-[13px] font-semibold text-texto-medio;
 }
 
 /* Montos: Inter con cifras tabulares (ya no monoespaciados). */

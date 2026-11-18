@@ -13,7 +13,7 @@ const VARIANTES: Record<Variante, TextStyle> = {
   subtitulo: { fontFamily: fonts.semibold, fontSize: 16, color: colors.texto },
   cuerpo: { fontFamily: fonts.regular, fontSize: 15, color: colors.texto },
   detalle: { fontFamily: fonts.regular, fontSize: 12, color: colors.secundario },
-  rotulo: { fontFamily: fonts.semibold, fontSize: 12, letterSpacing: 0.96, color: colors.secundario, textTransform: 'uppercase' },
+  rotulo: { fontFamily: fonts.semibold, fontSize: 13, color: colors.textoSuave },
   pequeno: { fontFamily: fonts.regular, fontSize: 13, color: colors.secundario },
 };
 

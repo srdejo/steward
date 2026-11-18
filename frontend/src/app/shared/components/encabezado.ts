@@ -12,14 +12,14 @@ import { RouterLink } from '@angular/router';
   host: { class: 'flex flex-col gap-1' },
   template: `
     @if (volver()) {
-      <a [routerLink]="volver()" class="boton-texto -my-2 self-start text-sm font-normal">‹ {{ volverTexto() }}</a>
+      <a [routerLink]="volver()" class="boton-texto -my-2 self-start text-[15px] font-medium">‹ {{ volverTexto() }}</a>
     }
     <div class="flex items-center justify-between gap-3">
       <div class="flex min-w-0 flex-col gap-0.5">
         @if (rotulo()) {
-          <span class="rotulo">{{ rotulo() }}</span>
+          <span class="text-[13px] text-secundario">{{ rotulo() }}</span>
         }
-        <h1 class="text-[26px] leading-tight font-bold">{{ titulo() }}</h1>
+        <h1 class="titular text-[28px] leading-tight font-bold">{{ titulo() }}</h1>
       </div>
       <ng-content />
     </div>

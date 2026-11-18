@@ -34,10 +34,10 @@ export interface Opcion<T> {
           [class]="chips() ? 'h-10 rounded-full px-3.5 text-sm tocable' : 'h-12 rounded-xl'"
           [class.border-2]="o.valor === valor()"
           [class.border-acento]="o.valor === valor()"
-          [class.bg-acento-suave]="o.valor === valor()"
+          [class.bg-acento-elegido]="o.valor === valor()"
           [class.text-acento]="o.valor === valor()"
           [class.font-semibold]="o.valor === valor()"
-          [class.border-borde]="o.valor !== valor()"
+          [class.border-borde-campo]="o.valor !== valor()"
           [class.bg-superficie]="o.valor !== valor()"
           [class.font-medium]="o.valor !== valor()"
         >

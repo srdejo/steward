@@ -29,7 +29,7 @@ export function Segmentado<T extends string>({ etiqueta, opciones, valor, onCamb
               hitSlop={chips ? 4 : 0}
               style={{
                 flex: chips ? undefined : 1, height: chips ? 40 : 48, paddingHorizontal: chips ? 14 : 8, borderRadius: chips ? 20 : 12,
-                borderWidth: activa ? 2 : 1, borderColor: activa ? colors.acento : colors.borde, backgroundColor: activa ? colors.acentoSuave : colors.superficie,
+                borderWidth: activa ? 2 : 1, borderColor: activa ? colors.acento : colors.bordeCampo, backgroundColor: activa ? colors.acentoElegido : colors.superficie,
                 alignItems: 'center', justifyContent: 'center',
               }}
             >

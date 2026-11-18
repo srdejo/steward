@@ -12,22 +12,22 @@ const ENFOCABLES = 'a[href], button:not([disabled]), input:not([disabled]), sele
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'fixed inset-0 z-40 flex items-end justify-center lg:items-center', '(keydown)': 'teclado($event)' },
   template: `
-    <div class="absolute inset-0 bg-[#3A3B38]/80" (click)="cerrar.emit()" aria-hidden="true"></div>
+    <div class="absolute inset-0 bg-[#1A1D1A]/45" (click)="cerrar.emit()" aria-hidden="true"></div>
     <section
       #panel
       role="dialog"
       aria-modal="true"
       [attr.aria-labelledby]="id"
       tabindex="-1"
-      class="relative flex max-h-[92dvh] w-full max-w-[480px] flex-col gap-[22px] overflow-y-auto rounded-t-[22px] bg-superficie px-5 pt-3 pb-8 focus:outline-none lg:rounded-[22px] lg:pt-6"
+      class="relative flex max-h-[92dvh] w-full max-w-[480px] flex-col gap-[22px] overflow-y-auto rounded-t-[24px] bg-superficie px-5 pt-3 pb-8 focus:outline-none lg:rounded-[22px] lg:pt-6"
     >
-      <span class="h-1 w-10 self-center rounded-sm bg-[#D9D8D2] lg:hidden" aria-hidden="true"></span>
+      <span class="h-[5px] w-10 self-center rounded-[3px] bg-borde-campo lg:hidden" aria-hidden="true"></span>
       <header class="flex items-center justify-between gap-3">
         <div class="flex min-w-0 flex-col gap-1">
           @if (antetitulo()) {
             <span class="rotulo" [style.color]="colorAntetitulo()">{{ antetitulo() }}</span>
           }
-          <h2 [id]="id" class="text-[22px] font-bold">{{ titulo() }}</h2>
+          <h2 [id]="id" class="titular text-[22px] font-bold">{{ titulo() }}</h2>
           <ng-content select="[subtitulo]" />
         </div>
         <button type="button" class="boton-texto text-sm font-normal" (click)="cerrar.emit()">Cancelar</button>
