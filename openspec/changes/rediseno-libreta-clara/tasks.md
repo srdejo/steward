@@ -40,6 +40,6 @@
 
 ## 5. Entrega
 
-- [ ] 5.1 Con confirmación de Daniel: PR y despliegue de la PWA.
+- [x] 5.1 Con confirmación de Daniel: PR y despliegue de la PWA.
 - [ ] 5.2 Con confirmación de Daniel: app 2.3.0 a TestFlight.
 - [ ] 5.3 Revisión visual de Daniel contra el canvas a 390 px y 1280 px, y en la app.
