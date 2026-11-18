@@ -39,10 +39,11 @@ interface MovimientoReciente extends MovimientoCuenta {
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '[class]': "escritorio() ? 'flex flex-col gap-[22px] px-9 pt-7 pb-10' : 'flex flex-col gap-5 px-5 pt-6 pb-4'" },
   template: `
-    <div role="tablist" aria-label="Cuentas, tarjetas y créditos" class="flex gap-1 border-b border-borde">
+    <h1 class="titular text-[28px] font-bold lg:text-[32px]">Cuentas</h1>
+    <div role="tablist" aria-label="Cuentas, tarjetas y créditos" class="grid grid-cols-3 gap-1 self-stretch rounded-control bg-hueco p-1 lg:max-w-[480px]">
       @for (t of pestanas; track t.valor) {
-        <button type="button" role="tab" [attr.aria-selected]="pestana() === t.valor" class="flex min-h-11 items-center gap-2 px-3.5 text-sm"
-          [class]="pestana() === t.valor ? 'font-semibold text-texto shadow-[inset_0_-2px_0_var(--color-acento)]' : 'text-secundario'" (click)="elegirPestana(t.valor)">{{ t.etiqueta }}
+        <button type="button" role="tab" [attr.aria-selected]="pestana() === t.valor" class="flex h-10 items-center justify-center gap-1.5 rounded-[9px] text-[13px]"
+          [class]="pestana() === t.valor ? 'bg-superficie font-semibold text-texto' : 'font-medium text-texto-medio'" (click)="elegirPestana(t.valor)">{{ t.etiqueta }}
           @if (t.valor === 'tarjetas' && tarjetas.value()?.pagoPronto; as p) {
             <span class="rounded-[10px] bg-[#FBE9E7] px-2 py-0.5 text-[11px] font-semibold text-[#8C1D18]" data-testid="pago-pronto">Pago {{ p.dias === 0 ? 'hoy' : 'en ' + p.dias + (p.dias === 1 ? ' día' : ' días') }}</span>
           }

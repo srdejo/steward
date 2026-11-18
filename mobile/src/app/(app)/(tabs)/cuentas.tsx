@@ -32,13 +32,14 @@ export default function Cuentas() {
 
   return (
     <Pantalla>
-      <View accessibilityRole="tablist" style={{ flexDirection: 'row', gap: 4, borderBottomWidth: 1, borderBottomColor: colors.borde }}>
+      <Texto v="tituloGrande" accessibilityRole="header">Cuentas</Texto>
+      <View accessibilityRole="tablist" style={{ flexDirection: 'row', gap: 4, padding: 4, borderRadius: 12, backgroundColor: colors.hueco }}>
         {PESTANAS.map((t) => {
           const activa = pestana === t.valor;
           return (
             <Pressable key={t.valor} accessibilityRole="tab" accessibilityState={{ selected: activa }} onPress={() => setPestana(t.valor)}
-              style={{ minHeight: 44, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 6, borderBottomWidth: 2, borderBottomColor: activa ? colors.acento : 'transparent' }}>
-              <Texto style={{ fontSize: 14, fontFamily: activa ? fonts.semibold : fonts.regular, color: activa ? colors.texto : colors.secundario }}>{t.etiqueta}</Texto>
+              style={{ flex: 1, minHeight: 40, borderRadius: 9, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, backgroundColor: activa ? colors.superficie : 'transparent' }}>
+              <Texto style={{ fontSize: 13, fontFamily: activa ? fonts.semibold : fonts.medium, color: activa ? colors.texto : colors.textoSuave }}>{t.etiqueta}</Texto>
               {t.valor === 'tarjetas' && pronto && (
                 <Texto testID="pago-pronto" style={{ fontSize: 11, fontFamily: fonts.semibold, color: '#8C1D18', backgroundColor: '#FBE9E7', borderRadius: 10, paddingHorizontal: 6, paddingVertical: 1, overflow: 'hidden' }}>
                   {pronto.dias === 0 ? 'Pago hoy' : `Pago en ${pronto.dias} ${pronto.dias === 1 ? 'día' : 'días'}`}

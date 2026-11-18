@@ -33,9 +33,9 @@
 
 - [x] 4.1 Entrar: acceso, Face ID, onboarding de 5 pasos e invitación (artboards MAcceso, MOnboarding, MInvitado y WAcceso), en la PWA y en la app.
 - [x] 4.2 Planear: Planear, plan del mes con opciones y año (MPlanear, MMes, MAno, WPlanear, WMes y WAno), en la PWA y en la app.
-- [ ] 4.3 Cierre de mes (MCierre y WCierre), en la PWA y en la app.
-- [ ] 4.4 Cuentas: cuentas, tarjetas, créditos, cuadrar, detalle de crédito y cómo baja el saldo (MCuentas, MCuadrar, MCredito, MMetodo y WCuentas), en la PWA y en la app.
-- [ ] 4.5 Ajustes (MAjustes y WAjustes), en la PWA y en la app, sin la sección de avisos, que entra con `avisos-pagos`.
+- [x] 4.3 Cierre de mes (MCierre y WCierre), en la PWA y en la app.
+- [x] 4.4 Cuentas: cuentas, tarjetas, créditos, cuadrar, detalle de crédito y cómo baja el saldo (MCuentas, MCuadrar, MCredito, MMetodo y WCuentas), en la PWA y en la app.
+- [x] 4.5 Ajustes (MAjustes y WAjustes), en la PWA y en la app, sin la sección de avisos, que entra con `avisos-pagos`.
 - [ ] 4.6 Las pruebas de PWA y app al día, sin cambiar las cifras de los escenarios. Correr `ng build`, las pruebas del dominio, de la PWA y de la app. Actualizar los README que nombran los tokens o las fuentes.
 
 ## 5. Entrega
