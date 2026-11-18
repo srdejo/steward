@@ -26,7 +26,7 @@ src/
 │   ├── acceso.tsx, face-id.tsx, onboarding/[paso].tsx, invitacion/[token].tsx
 │   └── (app)/        (tabs)/hoy · planear · cuentas, hojas aporte · pagar/[itemId] · gasto, y detalle
 ├── data/             puertos (DatosProvider, useConsulta, useAccion), sesión, miembros
-└── ui/               tokens del HANDOFF y componentes (Monto, MontoInput, Segmentado, Hoja, …)
+└── ui/               tokens de "Libreta clara" (Inter tabular, Space Grotesk) y componentes (Monto, MontoInput, Segmentado, Hoja, HojaIncrustada, …)
 test/                 setup de Jest, adaptador de prueba con reloj fijo y pruebas de recorrido
 ```
 

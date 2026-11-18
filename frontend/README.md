@@ -1,6 +1,6 @@
 # Presupuesto Hogar · PWA
 
-PWA de Presupuesto Hogar en Angular 22 (standalone, signals, zoneless), con Tailwind 4 y service worker. Una sola base responsive: por debajo de 1024 px se ve como app móvil, con barra inferior Ejecución · Plan · Cuentas; desde 1024 px, con menú lateral, que suma Ajustes como cuarto destino.
+PWA de Presupuesto Hogar en Angular 22 (standalone, signals, zoneless), con Tailwind 4 y service worker. Una sola base responsive: por debajo de 1024 px se ve como app móvil, con barra inferior Hoy · Planear · + · Cuentas · Ajustes; desde 1024 px, con menú lateral con el nombre del hogar, los cuatro destinos y Agregar. El + y Agregar abren la hoja Agregar (gasto, aporte o pago) sobre la pantalla actual con `?agregar=`. Sistema visual "Libreta clara" (rediseno-libreta-clara): tokens en `src/styles.css`, Inter con cifras tabulares y Space Grotesk en títulos (`titular`).
 
 Las páginas con vista de escritorio leen el ancho con `anchoEscritorio()` (`shared/escritorio.ts`); en las pruebas se simula con `anchoDeVentana(px)` de `testing/harness.ts`. Desde 1024 px:
 - **Cuentas** (`CuentasWeb.dc.html`): el cuadre en tabla en la misma página (la lógica está en `features/cuentas/estado-cuadre.ts`, compartida con `/cuentas/cuadrar`), "Movimientos recientes" de todas las cuentas, armados con `movimientos(id)` de cada una, y los resúmenes de tarjetas y créditos.
@@ -87,7 +87,7 @@ src/app/
 ├── features/        acceso · hoy · planear · cuentas · ajustes (una pantalla por artboard)
 │                       (usabilidad-plan: en Planear, hojas con "Guardar" de ingreso y gasto, el mes en curso editable y "Borrar plan de {mes}";
 │                       en Hoy y en el detalle de una cuenta, la hoja de un registro para corregirlo o borrarlo; en Ajustes, "Empezar de nuevo")
-│                       (plan-mes-siguiente: los destinos se ven como Ejecución, Plan y Cuentas, con las rutas /hoy y /planear; en Hoy, MesDeHoy elige entre el mes en curso y el siguiente)
+│                       (rediseno-libreta-clara: los destinos son Hoy, Planear, Cuentas y Ajustes, con las rutas /hoy y /planear; en Hoy, MesDeHoy elige entre el mes en curso y el siguiente)
 └── shared/components/  monto, monto-input, segmentado, interruptor, hoja, encabezado, fila, kpi, icono, avatar
 ```
 
