@@ -64,6 +64,38 @@ class PlanContratoTest extends ContratoBase {
                 .jsonPath("$.categorias[0].nombre").isEqualTo("Diezmo");
     }
 
+    @Test
+    void colorDeCategoria() {
+        // Los colores de Libreta clara son el inicial de las del sistema (color-categorias).
+        get(daniel, "/api/finanzas").expectBody()
+                .jsonPath("$.categorias[*].color").isEqualTo(List.of("#2C7A70", "#C2603A", "#8A8D85", "#6B5BA8", "#6B5BA8"));
+        // Una nueva con color, y sin color en gris.
+        post(daniel, "/api/categorias", Map.of("nombre", "Mascotas", "color", "#a87a1e")).expectStatus().isCreated()
+                .expectBody().jsonPath("$.color").isEqualTo("#A87A1E");
+        post(daniel, "/api/categorias", Map.of("nombre", "Educación")).expectStatus().isCreated()
+                .expectBody().jsonPath("$.color").isEqualTo("#8A8D85");
+        // Cambiar solo el color; el nombre se queda.
+        patch(esposa, categoria(daniel, "Gastos fijos"), Map.of("color", "#3F6E9E")).expectStatus().isOk()
+                .expectBody().jsonPath("$.nombre").isEqualTo("Gastos fijos").jsonPath("$.color").isEqualTo("#3F6E9E");
+        get(esposa, "/api/finanzas").expectBody().jsonPath("$.categorias[1].color").isEqualTo("#3F6E9E");
+        // Diezmo: el color si, otro nombre no.
+        String diezmo = categoria(daniel, "Diezmo");
+        patch(daniel, diezmo, Map.of("nombre", "Diezmo", "color", "#9A4F7E")).expectStatus().isOk()
+                .expectBody().jsonPath("$.color").isEqualTo("#9A4F7E");
+        patch(daniel, diezmo, Map.of("nombre", "Ofrendas", "color", "#5E7D32")).expectStatus().isBadRequest()
+                .expectBody().jsonPath("$.codigo").isEqualTo("RESERVADA");
+        // Fuera de la paleta.
+        patch(daniel, categoria(daniel, "Variables"), Map.of("color", "#123456")).expectStatus().isBadRequest()
+                .expectBody().jsonPath("$.codigo").isEqualTo("COLOR_INVALIDO").jsonPath("$.mensaje").isEqualTo("Elige un color de la paleta");
+        get(daniel, "/api/finanzas").expectBody().jsonPath("$.categorias[0].color").isEqualTo("#9A4F7E")
+                .jsonPath("$.categorias[2].color").isEqualTo("#8A8D85");
+    }
+
+    private org.springframework.test.web.reactive.server.WebTestClient.ResponseSpec patch(String sesion, String id, Map<String, String> cuerpo) {
+        return client.patch().uri("/api/categorias/{id}", id).header("Authorization", "Bearer " + sesion)
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON).bodyValue(cuerpo).exchange();
+    }
+
     // --- Crear el plan de un mes ---
 
     @Test

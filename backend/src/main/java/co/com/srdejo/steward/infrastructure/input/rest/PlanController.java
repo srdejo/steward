@@ -8,7 +8,7 @@ import co.com.srdejo.steward.application.dto.PlanDtos.ItemRequest;
 import co.com.srdejo.steward.application.dto.PlanDtos.ItemResponse;
 import co.com.srdejo.steward.application.dto.PlanDtos.LineaRequest;
 import co.com.srdejo.steward.application.dto.PlanDtos.LineaResponse;
-import co.com.srdejo.steward.application.dto.PlanDtos.NombreRequest;
+import co.com.srdejo.steward.application.dto.PlanDtos.CategoriaRequest;
 import co.com.srdejo.steward.application.dto.PlanDtos.PlanResponse;
 import co.com.srdejo.steward.application.dto.PlanDtos.UsarRequest;
 import co.com.srdejo.steward.domain.api.IPlanServicePort;
@@ -47,13 +47,13 @@ public class PlanController {
 
     @PostMapping("/api/categorias")
     @ResponseStatus(HttpStatus.CREATED)
-    public Mono<CategoriaResponse> crearCategoria(@RequestBody NombreRequest r) {
-        return plan.crearCategoria(r.nombre()).map(CategoriaResponse::de);
+    public Mono<CategoriaResponse> crearCategoria(@RequestBody CategoriaRequest r) {
+        return plan.crearCategoria(r.nombre(), r.color()).map(CategoriaResponse::de);
     }
 
     @PatchMapping("/api/categorias/{id}")
-    public Mono<CategoriaResponse> renombrarCategoria(@PathVariable UUID id, @RequestBody NombreRequest r) {
-        return plan.renombrarCategoria(id, r.nombre()).map(CategoriaResponse::de);
+    public Mono<CategoriaResponse> editarCategoria(@PathVariable UUID id, @RequestBody CategoriaRequest r) {
+        return plan.editarCategoria(id, r.nombre(), r.color()).map(CategoriaResponse::de);
     }
 
     @PostMapping("/api/planes")

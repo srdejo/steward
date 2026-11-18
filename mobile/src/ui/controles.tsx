@@ -1,3 +1,4 @@
+import { PALETA_CATEGORIAS } from '@steward/domain';
 import { Pressable, Switch, Text, View, type ColorValue } from 'react-native';
 import Svg, { Path, Rect, Circle } from 'react-native-svg';
 
@@ -43,6 +44,33 @@ export function Segmentado<T extends string>({ etiqueta, opciones, valor, onCamb
 }
 
 /** Interruptor con su texto: "Aplicar diezmo", "Ocultar montos". */
+/**
+ * La paleta de colores de categoria (color-categorias, design D4): 10 opciones de 44 × 44 con un circulo de 28; el elegido
+ * lleva un anillo y un check.
+ */
+export function PaletaColor({ valor, onCambio }: { valor: string | null; onCambio: (color: string) => void }) {
+  return (
+    <View accessibilityRole="radiogroup" accessibilityLabel="Color" style={{ gap: 8 }}>
+      <Texto v="rotulo">Color</Texto>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 4 }}>
+        {PALETA_CATEGORIAS.map((p) => {
+          const elegido = valor === p.color;
+          return (
+            <Pressable key={p.color} testID={`color-${p.color}`} accessibilityRole="radio" accessibilityLabel={p.nombre} accessibilityState={{ selected: elegido, checked: elegido }}
+              onPress={() => onCambio(p.color)} style={{ width: '20%', height: 44, alignItems: 'center', justifyContent: 'center' }}>
+              <View style={{ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: elegido ? colors.acento : 'transparent' }}>
+                <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: p.color, alignItems: 'center', justifyContent: 'center' }}>
+                  {elegido && <Icono nombre="check" tamano={16} color="#FFFFFF" />}
+                </View>
+              </View>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
 export function Interruptor({ titulo, detalle, activo, onCambio }: { titulo: string; detalle?: string; activo: boolean; onCambio: (v: boolean) => void }) {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, minHeight: TOCABLE }}>

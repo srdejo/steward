@@ -12,9 +12,11 @@ import java.util.UUID;
 /** Categorias y plan del mes del hogar de la sesion (spec steward-plan-mes). */
 public interface IPlanServicePort {
 
-    Mono<Categoria> crearCategoria(String nombre);
+    /** {@code color}: uno de la paleta, o null para {@link Categoria#COLOR_NUEVA}. */
+    Mono<Categoria> crearCategoria(String nombre, String color);
 
-    Mono<Categoria> renombrarCategoria(UUID id, String nombre);
+    /** Nombre, color o los dos (null deja el que tiene). Diezmo solo cambia el color (color-categorias, design D2). */
+    Mono<Categoria> editarCategoria(UUID id, String nombre, String color);
 
     /** {@code modo}: COPIAR, FIJOS o CERO, como {@code crearMes} del dominio. */
     Mono<PlanMes> crearPlan(YearMonth ref, String modo);

@@ -293,7 +293,7 @@ export class PuertosConectados implements Puertos {
       },
       categorias: async () => [...(this.finanzas?.categorias ?? [])].sort((a, b) => a.orden - b.orden).map(categoria),
       guardarCategoria: async (datos) => {
-        await conFinanzas(datos.id ? api.renombrarCategoria(datos.id, datos.nombre) : api.crearCategoria(datos.nombre));
+        await conFinanzas(datos.id ? api.editarCategoria(datos.id, datos.color ? { nombre: datos.nombre, color: datos.color } : { nombre: datos.nombre }) : api.crearCategoria(datos.nombre, datos.color));
       },
       empezarDeNuevo: async () => {
         await conFinanzas(api.empezarDeNuevo());

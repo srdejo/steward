@@ -3,6 +3,7 @@ import { ReglaError, clonar, diasEntre, nuevoId } from './base';
 import { ingresoFijoAlMes, ingresoFijoEditado } from './ingresos';
 import { mesDe } from './base';
 import { saldoEstimado } from './cuentas';
+import { COLOR_NUEVA, colorDePaleta } from './colores';
 
 /** Dias de vigencia de una invitacion (HANDOFF: token de un solo uso, sugerido 7 dias). */
 export const DIAS_INVITACION = 7;
@@ -133,17 +134,21 @@ export function completarOnboarding(estado: EstadoHogar): EstadoHogar {
 export function guardarCategoria(estado: EstadoHogar, datos: { id?: Id; nombre: string; color?: string; tipo?: TipoCategoria }): EstadoHogar {
   const nombre = datos.nombre.trim();
   if (!nombre) throw new ReglaError('NOMBRE_REQUERIDO', 'La categoría necesita un nombre');
-  if (nombre.toLowerCase() === 'diezmo') throw new ReglaError('RESERVADA', 'Diezmo ya es una categoría del sistema');
-  if (estado.categorias.some((c) => c.id === datos.id && c.tipo === 'DIEZMO')) throw new ReglaError('RESERVADA', 'La categoría Diezmo no se renombra');
+  const color = datos.color === undefined ? undefined : colorDePaleta(datos.color);
+  if (color === null) throw new ReglaError('COLOR_INVALIDO', 'Elige un color de la paleta');
+  const diezmo = estado.categorias.find((c) => c.id === datos.id && c.tipo === 'DIEZMO');
+  // Diezmo cambia solo su color (color-categorias, design D2).
+  if (diezmo && nombre !== diezmo.nombre) throw new ReglaError('RESERVADA', 'La categoría Diezmo no se renombra');
+  if (!diezmo && nombre.toLowerCase() === 'diezmo') throw new ReglaError('RESERVADA', 'Diezmo ya es una categoría del sistema');
   const s = clonar(estado);
   if (s.categorias.some((c) => c.id !== datos.id && c.nombre.toLowerCase() === nombre.toLowerCase())) throw new ReglaError('DUPLICADA', 'Ya existe esa categoría');
   const existente = datos.id ? s.categorias.find((c) => c.id === datos.id) : undefined;
   if (existente) {
     existente.nombre = nombre;
-    if (datos.color) existente.color = datos.color;
+    if (color) existente.color = color;
   } else {
     const orden = Math.max(0, ...s.categorias.filter((c) => c.orden < 90).map((c) => c.orden)) + 1;
-    s.categorias.push({ id: nuevoId(s, 'cat'), nombre, color: datos.color ?? '#8A8D85', orden, tipo: datos.tipo ?? 'OTRO', sistema: false });
+    s.categorias.push({ id: nuevoId(s, 'cat'), nombre, color: color ?? COLOR_NUEVA, orden, tipo: datos.tipo ?? 'OTRO', sistema: false });
   }
   return s;
 }

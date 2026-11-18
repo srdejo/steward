@@ -669,6 +669,15 @@ describe('plan del mes y registros en el backend (steward-plan-mes, design D5)',
     const r4 = await responder('PATCH', '/api/categorias/cat-5', { id: 'cat-5' }, tick);
     await renombrar;
     expect(r4.request.body).toEqual({ nombre: 'Colegio' });
+    // El color va con el nombre al editar y al crear (color-categorias).
+    const color = p.hogar.guardarCategoria({ id: 'cat-5', nombre: 'Colegio', color: '#A87A1E' });
+    const r5 = await responder('PATCH', '/api/categorias/cat-5', { id: 'cat-5' }, tick);
+    await color;
+    expect(r5.request.body).toEqual({ nombre: 'Colegio', color: '#A87A1E' });
+    const conColor = p.hogar.guardarCategoria({ nombre: 'Mascotas', color: '#9A4F7E' });
+    const r6 = await responder('POST', '/api/categorias', { id: 'cat-6' }, tick, 201);
+    await conColor;
+    expect(r6.request.body).toEqual({ nombre: 'Mascotas', color: '#9A4F7E' });
   });
 
   it('el plan anual real: crear, celda, evento, aporte proyectado y crear meses (backend-plan-anual)', async () => {
@@ -1274,9 +1283,9 @@ describe('pantallas con el plan real (backend-plan-mes-hoy)', () => {
     await a.tocar('+ Nueva');
     await a.escribir('Nombre', 'Educación');
     a.porTexto('Crear categoría').click();
-    finanzasPrueba.valor = { ...finanzasPrueba.valor, categorias: [...finanzasPrueba.valor.categorias, { id: 'cat-5', nombre: 'Educación', color: '#8D8F88', orden: 5, tipo: 'OTRO', sistema: false }] };
+    finanzasPrueba.valor = { ...finanzasPrueba.valor, categorias: [...finanzasPrueba.valor.categorias, { id: 'cat-5', nombre: 'Educación', color: '#8A8D85', orden: 5, tipo: 'OTRO', sistema: false }] };
     const req = await responder('POST', '/api/categorias', { id: 'cat-5' }, a.estable, 201);
-    expect(req.request.body).toEqual({ nombre: 'Educación' });
+    expect(req.request.body).toEqual({ nombre: 'Educación', color: '#8A8D85' });
     await a.ir('/planear/2026-10');
     await atenderHogar(a);
     await a.tocar('+ Gasto');

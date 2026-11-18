@@ -108,7 +108,7 @@ export function Campo({ etiqueta, valor, onCambio, placeholder, teclado, testID 
 type TipoBoton = 'primario' | 'secundario' | 'atras' | 'enlace' | 'texto' | 'peligro';
 
 /** Botones de los artboards. Primario y secundario de 52 px; enlace y texto con zona tocable de 44 px. */
-export function Boton({ titulo, onPress, tipo = 'primario', deshabilitado, style, icono, testID }: { titulo: string; onPress: () => void; tipo?: TipoBoton; deshabilitado?: boolean; style?: StyleProp<ViewStyle>; icono?: ReactNode; testID?: string }) {
+export function Boton({ titulo, onPress, tipo = 'primario', deshabilitado, style, icono, testID, etiquetaAccesible }: { titulo: string; onPress: () => void; tipo?: TipoBoton; deshabilitado?: boolean; style?: StyleProp<ViewStyle>; icono?: ReactNode; testID?: string; etiquetaAccesible?: string }) {
   const fondo: Record<TipoBoton, string> = { primario: colors.acento, secundario: colors.superficie, atras: colors.hueco, enlace: 'transparent', texto: 'transparent', peligro: colors.negativo };
   const colorTexto = tipo === 'primario' || tipo === 'peligro' ? '#FFFFFF' : tipo === 'enlace' || tipo === 'texto' ? colors.acento : colors.texto;
   const conCaja = tipo === 'primario' || tipo === 'secundario' || tipo === 'atras' || tipo === 'peligro';
@@ -116,6 +116,7 @@ export function Boton({ titulo, onPress, tipo = 'primario', deshabilitado, style
     <Pressable
       testID={testID}
       accessibilityRole="button"
+      accessibilityLabel={etiquetaAccesible}
       accessibilityState={{ disabled: !!deshabilitado }}
       disabled={deshabilitado}
       onPress={onPress}

@@ -14,7 +14,8 @@ public interface ICategoriaPersistencePort {
 
     Mono<Categoria> crear(Categoria categoria);
 
-    Mono<Categoria> renombrar(Categoria categoria, String nombre);
+    /** Guarda el nombre y el color de la categoria. */
+    Mono<Categoria> actualizar(Categoria categoria);
 
     Mono<Categoria> porIdEnHogar(UUID id, UUID hogarId);
 

@@ -117,11 +117,22 @@ describe('tablaOpciones', () => {
   });
 });
 
-describe('Colores de categoría (rediseno-libreta-clara)', () => {
-  it('las del sistema toman el color de su tipo; las propias conservan el suyo', async () => {
-    const { colorCategoria } = await import('./colores');
-    expect(colorCategoria({ tipo: 'FIJO', sistema: true, color: '#E2551B' })).toBe('#C2603A');
-    expect(colorCategoria({ tipo: 'CREDITO', sistema: true, color: '#2E6B45' })).toBe('#6B5BA8');
-    expect(colorCategoria({ tipo: 'OTRO', sistema: false, color: '#123456' })).toBe('#123456');
+describe('Colores de categoría (color-categorias)', () => {
+  it('los colores del diseño anterior pasan a Libreta clara; los elegidos no cambian', async () => {
+    const { migrarColores } = await import('./colores');
+    expect(migrarColores([
+      { tipo: 'FIJO', sistema: true, color: '#E2551B' },
+      { tipo: 'CREDITO', sistema: true, color: '#2E6B45' },
+      { tipo: 'VARIABLE', sistema: true, color: '#9A4F7E' },
+      { tipo: 'OTRO', sistema: false, color: '#123456' },
+      { tipo: 'OTRO', sistema: false, color: '#8d8f88' },
+    ]).map((c) => c.color)).toEqual(['#C2603A', '#6B5BA8', '#9A4F7E', '#123456', '#8A8D85']);
+  });
+
+  it('la paleta tiene 10 colores y reconoce uno sin importar mayúsculas', async () => {
+    const { PALETA_CATEGORIAS, colorDePaleta } = await import('./colores');
+    expect(PALETA_CATEGORIAS).toHaveLength(10);
+    expect(colorDePaleta('#3f6e9e')).toBe('#3F6E9E');
+    expect(colorDePaleta('#123456')).toBeNull();
   });
 });

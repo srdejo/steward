@@ -43,14 +43,15 @@ public class CategoriaR2dbcAdapter implements ICategoriaPersistencePort {
     }
 
     @Override
-    public Mono<Categoria> renombrar(Categoria c, String nombre) {
-        return db.sql("UPDATE categoria SET nombre = :nombre WHERE id = :id AND hogar_id = :hogar")
+    public Mono<Categoria> actualizar(Categoria c) {
+        return db.sql("UPDATE categoria SET nombre = :nombre, color = :color WHERE id = :id AND hogar_id = :hogar")
                 .bind("id", c.id())
                 .bind("hogar", c.hogarId())
-                .bind("nombre", nombre)
+                .bind("nombre", c.nombre())
+                .bind("color", c.color())
                 .then()
                 .onErrorMap(ex -> Sql.violo(ex, "categoria_nombre_uq"), ex -> duplicada())
-                .thenReturn(new Categoria(c.id(), c.hogarId(), nombre, c.color(), c.orden(), c.tipo(), c.sistema()));
+                .thenReturn(c);
     }
 
     @Override

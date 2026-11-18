@@ -50,9 +50,9 @@ function tokenAleatorio(): string {
   return Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 10);
 }
 
-/** Un estado guardado antes de rediseno-libreta-clara trae los colores anteriores de las categorias del sistema. */
+/** Un estado guardado antes de rediseno-libreta-clara trae los colores anteriores; los que eligio el hogar no cambian (color-categorias). */
 function conColores(s: EstadoHogar): EstadoHogar {
-  s.categorias = R.conColoresDelSistema(s.categorias);
+  s.categorias = R.migrarColores(s.categorias);
   return s;
 }
 
