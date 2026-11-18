@@ -39,7 +39,7 @@ const CONFIRMACIONES = {
   selector: 'app-ajustes-page',
   imports: [NgTemplateOutlet, RouterLink, Avatar, Hoja, Interruptor, Monto, MontoInput, Segmentado],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { '[class]': "escritorio() ? 'flex flex-col gap-[22px] px-9 pt-7 pb-10' : 'flex flex-col gap-[22px] px-5 pt-6 pb-4'" },
+  host: { '[class]': "escritorio() ? 'flex flex-col gap-5 px-8 pt-7 pb-12' : 'flex flex-col gap-[22px] px-5 pt-6 pb-4'" },
   template: `
     @if (escritorio()) {
       <h1 class="titular text-[28px] font-bold">Ajustes</h1>

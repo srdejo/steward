@@ -368,6 +368,8 @@ export interface ResumenMesPlan {
   detalle: string;
   /** Libre de la opcion (o rango "min – max" si hay varias), sobrante si cerro, o el del plan anual. */
   libre: Pesos[];
+  /** Cada opcion del plan con lo que dejaria libre ("A · base $4.064.000"); vacio sin plan o cerrado. */
+  opciones: { letra: string; nota: string; libre: Pesos }[];
 }
 
 /** Planear inicio: proximos meses y este mes y anteriores. */
@@ -378,22 +380,23 @@ export function planInicio(estado: EstadoHogar, hoy: Fecha, meses = 3, anteriore
     if (!plan) {
       const anual = anualDe(estado, ref.anio);
       if (anual && anual.estado === 'BORRADOR' && opcionDe(anual).filas.length) {
-        return { ref, plan: null, estado: 'SIN_PLAN', detalle: 'Saldrá del plan anual', libre: [libreAnualDelMes(estado, ref)] };
+        return { ref, plan: null, estado: 'SIN_PLAN', detalle: 'Saldrá del plan anual', libre: [libreAnualDelMes(estado, ref)], opciones: [] };
       }
-      return { ref, plan: null, estado: 'SIN_PLAN', detalle: 'Sin plan', libre: [] };
+      return { ref, plan: null, estado: 'SIN_PLAN', detalle: 'Sin plan', libre: [], opciones: [] };
     }
     const est = estadoEfectivo(plan, hoy);
     if (est === 'CERRADO') {
       const cierre = cierreDe(estado, ref);
-      return { ref, plan, estado: est, detalle: `Cerrado · sobró ${formatCop(cierre?.sobrante ?? 0)}`, libre: [cierre?.sobrante ?? 0] };
+      return { ref, plan, estado: est, detalle: `Cerrado · sobró ${formatCop(cierre?.sobrante ?? 0)}`, libre: [cierre?.sobrante ?? 0], opciones: [] };
     }
     const vistas = vistasOpciones(estado, ref);
+    const opcionesVista = vistas.map((v) => ({ letra: v.escenario.letra, nota: v.escenario.nota, libre: v.libre }));
     if (est === 'ACTIVO') {
       const elegida = escenarioPrincipal(plan);
-      return { ref, plan, estado: est, detalle: `Activo · Opción ${elegida?.letra ?? 'A'}`, libre: vistas.filter((v) => v.escenario.id === elegida?.id).map((v) => v.libre) };
+      return { ref, plan, estado: est, detalle: `Activo · Opción ${elegida?.letra ?? 'A'}`, libre: vistas.filter((v) => v.escenario.id === elegida?.id).map((v) => v.libre), opciones: opcionesVista };
     }
     const libres = vistas.map((v) => v.libre);
-    return { ref, plan, estado: est, detalle: `Borrador · ${vistas.length} ${vistas.length === 1 ? 'opción' : 'opciones'}`, libre: libres.length > 1 ? [Math.min(...libres), Math.max(...libres)] : libres };
+    return { ref, plan, estado: est, detalle: `Borrador · ${vistas.length} ${vistas.length === 1 ? 'opción' : 'opciones'}`, libre: libres.length > 1 ? [Math.min(...libres), Math.max(...libres)] : libres, opciones: opcionesVista };
   };
   return {
     proximos: Array.from({ length: meses }, (_, i) => resumen(sumarMeses(actual, i + 1))),

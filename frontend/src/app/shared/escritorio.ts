@@ -1,6 +1,6 @@
 import { DestroyRef, inject, signal, type Signal } from '@angular/core';
 
-/** Desde aqui el shell pasa a menu lateral (spec steward-ui-shell) y las pantallas usan su vista de escritorio. */
+/** Desde aqui el shell pasa a barra superior (spec steward-ui-shell) y las pantallas usan su vista de escritorio. */
 export const ESCRITORIO = '(min-width: 1024px)';
 
 /**

@@ -34,7 +34,7 @@ const ABONO_INICIAL = 1_500_000;
   selector: 'app-credito-page',
   imports: [NgTemplateOutlet, RouterLink, Hoja, Monto, MontoInput, Segmentado, MetodoHoja],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { '[class]': "escritorio() ? 'flex flex-col gap-5 px-10 pt-7 pb-10' : 'flex flex-col gap-5 px-5 pt-6 pb-4'" },
+  host: { '[class]': "escritorio() ? 'flex flex-col gap-5 px-8 pt-7 pb-12' : 'flex flex-col gap-5 px-5 pt-6 pb-4'" },
   template: `
     <a routerLink="/cuentas" [queryParams]="{ pestana: 'creditos' }" class="boton-texto -my-2 self-start text-sm font-normal">‹ Créditos</a>
 

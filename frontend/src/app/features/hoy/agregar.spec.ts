@@ -70,11 +70,11 @@ describe('Agregar desde un solo botón', () => {
     expect(a.raiz().querySelector('[data-testid="pago-elegido"]')!.textContent).toContain('Tarjeta Nu · Mercado');
   });
 
-  it('en web, Agregar del menú lateral abre la misma hoja', async () => {
+  it('en web, Agregar de la barra superior abre la misma hoja', async () => {
     anchoDeVentana(1280);
     await conSesion();
     const a = await app('/cuentas');
-    a.raiz().querySelector<HTMLButtonElement>('[data-testid="agregar-lateral"]')!.click();
+    a.raiz().querySelector<HTMLButtonElement>('[data-testid="agregar-superior"]')!.click();
     await a.estable();
     expect(a.url()).toBe('/cuentas?agregar=gasto');
     expect([...a.raiz().querySelectorAll('[data-testid="pestanas-agregar"] [role="tab"]')].map((b) => b.textContent!.trim())).toEqual(['Gasto', 'Aporte', 'Pago']);

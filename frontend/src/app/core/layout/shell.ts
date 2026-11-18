@@ -26,10 +26,10 @@ export const DESTINOS: Destino[] = [
 
 /**
  * Una sola app responsive: por debajo de 1024 px, barra inferior de cinco espacios con el + en el centro; desde 1024 px,
- * menú lateral con el nombre del hogar, los cuatro destinos y Agregar. El + y Agregar abren la hoja Agregar sobre la
- * pantalla actual (`?agregar=` en la URL).
- * Las pantallas móviles se centran a 560 px; Comparar y Anual (data.ancho = 'completo') usan todo el ancho, y Hoy
- * (data.ancho = 'escritorio') lo usa desde 1024 px. El dato se hereda a las rutas hijas (las hojas de Hoy).
+ * barra superior con el hogar, los cuatro destinos, Agregar y los avatares (canvas Libreta clara). El + y Agregar abren
+ * la hoja Agregar sobre la pantalla actual (`?agregar=` en la URL).
+ * Desde 1024 px todas las pantallas con vista de escritorio comparten un contenedor de 1320 px; en móvil se centran a
+ * 560 px, salvo data.ancho = 'completo' (Mes, Comparar, Año), que usa todo el ancho. El dato se hereda a las rutas hijas.
  */
 @Component({
   selector: 'app-shell',
@@ -39,49 +39,44 @@ export const DESTINOS: Destino[] = [
     <a href="#contenido" class="sr-only-focusable absolute top-2 left-2 z-50 rounded-control bg-superficie px-3 py-2 font-semibold">
       Ir al contenido
     </a>
-    <div class="min-h-dvh lg:grid lg:grid-cols-[240px_1fr]">
-      <aside class="hidden bg-superficie lg:sticky lg:top-0 lg:flex lg:h-dvh lg:flex-col lg:gap-6 lg:px-4 lg:py-6" data-testid="menu-lateral">
-        <div class="flex items-center gap-2.5 px-3">
-          <span class="flex size-9 items-center justify-center rounded-[10px] bg-acento text-white"><app-icono nombre="casa" [tamano]="20" /></span>
-          <span class="flex min-w-0 flex-col">
-            <span class="text-[15px] font-bold">Presupuesto Hogar</span>
-            @if (nombreHogar(); as nombre) {
-              <span class="truncate text-xs text-secundario" data-testid="nombre-hogar">{{ nombre }}</span>
-            }
-          </span>
-        </div>
-        <nav aria-label="Navegación principal" class="flex flex-col gap-1">
-          @for (d of destinos; track d.ruta) {
-            <a
-              [routerLink]="d.ruta"
-              routerLinkActive="bg-acento-elegido text-acento font-semibold"
-              ariaCurrentWhenActive="page"
-              class="flex min-h-11 items-center gap-3 rounded-control px-3 text-[15px] text-texto-medio hover:bg-fondo"
-            >
-              <app-icono [nombre]="d.icono" />{{ d.etiqueta }}
-            </a>
+    <header class="hidden items-center gap-5 border-b border-borde bg-superficie px-8 py-3 lg:flex" data-testid="barra-superior">
+      <a routerLink="/hoy" class="flex items-center gap-2.5 pr-2">
+        <span class="flex size-8 items-center justify-center rounded-[9px] bg-acento text-white"><app-icono nombre="casa" [tamano]="18" /></span>
+        <span class="flex min-w-0 flex-col">
+          <span class="text-sm font-bold">Presupuesto Hogar</span>
+          @if (nombreHogar(); as nombre) {
+            <span class="truncate text-xs text-secundario" data-testid="nombre-hogar">{{ nombre }}</span>
           }
-        </nav>
-        <button type="button" class="boton-primario h-11 rounded-control" data-testid="agregar-lateral" (click)="agregar.abrir()">
-          <app-icono nombre="mas" [tamano]="18" />Agregar
-        </button>
-        <div class="mt-auto flex items-center justify-between gap-2 border-t border-divisor px-3 pt-4">
-          <app-avatares-hogar />
-          <span class="text-[13px] text-secundario">Hogar</span>
-        </div>
-      </aside>
-
-      <main id="contenido" class="min-w-0 pb-28 lg:pb-12">
-        @if (esDemo) {
-          <p class="bg-aviso-suave px-4 py-1.5 text-center text-xs font-medium text-aviso" role="note" data-testid="aviso-demo">
-            Datos de prueba · se guardan solo en este dispositivo
-          </p>
+        </span>
+      </a>
+      <nav aria-label="Navegación principal" class="flex gap-1">
+        @for (d of destinos; track d.ruta) {
+          <a
+            [routerLink]="d.ruta"
+            routerLinkActive="bg-acento-elegido !font-semibold !text-acento"
+            ariaCurrentWhenActive="page"
+            class="flex h-10 items-center rounded-[10px] px-3.5 text-sm font-medium text-texto-medio hover:bg-fondo"
+          >{{ d.etiqueta }}</a>
         }
-        <div class="mx-auto w-full" [class]="claseAncho()">
-          <router-outlet />
-        </div>
-      </main>
-    </div>
+      </nav>
+      <div class="ml-auto flex items-center gap-3">
+        <button type="button" class="boton-primario h-10 gap-2 rounded-control px-4 text-sm" data-testid="agregar-superior" (click)="agregar.abrir()">
+          <app-icono nombre="mas" [tamano]="16" />Agregar
+        </button>
+        <app-avatares-hogar />
+      </div>
+    </header>
+
+    <main id="contenido" class="min-h-dvh min-w-0 pb-28 lg:min-h-0 lg:pb-12">
+      @if (esDemo) {
+        <p class="bg-aviso-suave px-4 py-1.5 text-center text-xs font-medium text-aviso" role="note" data-testid="aviso-demo">
+          Datos de prueba · se guardan solo en este dispositivo
+        </p>
+      }
+      <div class="mx-auto w-full" [class]="claseAncho()">
+        <router-outlet />
+      </div>
+    </main>
 
     <nav
       aria-label="Navegación principal"
@@ -148,7 +143,7 @@ export class Shell {
 
   protected readonly claseAncho = computed(() => {
     const ancho = this.datosRuta()['ancho'];
-    return ancho === 'completo' ? '' : ancho === 'escritorio' ? 'max-w-[560px] lg:max-w-[1360px]' : 'max-w-[560px]';
+    return ancho === 'completo' ? 'lg:max-w-[1320px]' : ancho === 'escritorio' ? 'max-w-[560px] lg:max-w-[1320px]' : 'max-w-[560px]';
   });
 
   /** Datos de la ruta activa, de la raiz a la hoja: una ruta hija (una hoja de Hoy) conserva el ancho de su pantalla. */

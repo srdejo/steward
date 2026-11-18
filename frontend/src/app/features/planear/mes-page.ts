@@ -31,7 +31,7 @@ import { IngresoHoja } from './ingreso-hoja';
   selector: 'app-mes-page',
   imports: [NgTemplateOutlet, RouterLink, Encabezado, GastoPlanHoja, Hoja, IngresoHoja, Kpi, MesOpciones, MesUnaOpcion, Monto],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { '[class]': "escritorio() ? 'flex flex-col gap-5 px-8 pt-6 pb-10' : 'mx-auto flex w-full max-w-[560px] flex-col gap-[18px] px-5 pt-6 pb-4'" },
+  host: { '[class]': "escritorio() ? 'flex flex-col gap-5 px-8 pt-7 pb-12' : 'mx-auto flex w-full max-w-[560px] flex-col gap-[18px] px-5 pt-6 pb-4'" },
   template: `
     @if (!ref()) {
       <app-encabezado titulo="Mes no válido" volver="/planear" volverTexto="Plan" />

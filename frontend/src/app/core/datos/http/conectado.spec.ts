@@ -898,7 +898,7 @@ describe('pantallas con finanzas reales (backend-ingresos-diezmo)', () => {
     await a.tocar('Créditos', '[role="tab"]');
     expect(a.texto()).toContain('Sin créditos.');
     await a.tocar('Cuentas', '[role="tab"]');
-    await a.tocar('Cuadrar cuentas');
+    await a.tocar('Cuadrar');
     expect(a.url()).toBe('/cuentas/cuadrar');
     await atenderHogar(a);
     await a.escribir('[data-cuenta="Nu"] input', '250000');
@@ -1069,7 +1069,7 @@ describe('pantallas con el plan real (backend-plan-mes-hoy)', () => {
 
     // + Crédito, con la tasa: su cuota entra a la Opción A de octubre.
     await a.tocar('Créditos', '[role="tab"]');
-    await a.tocar('+ Crédito');
+    await a.tocar('+ Agregar crédito');
     await a.escribir('Nombre', 'Libre inversión');
     await a.escribir('Entidad', 'Bancolombia');
     await a.escribir('Día de pago', '15');
@@ -1082,7 +1082,7 @@ describe('pantallas con el plan real (backend-plan-mes-hoy)', () => {
     const crear = await responder('POST', '/api/creditos', CREDITO, a.estable, 201);
     expect(crear.request.body).toMatchObject({ nombre: 'Libre inversión', metodo: 'TASA', tasaEM: 1.6, diaPago: 15, totalOriginal: 20_000_000, saldo: 14_250_000, cuota: 500_000 });
     await atenderHogar(a);
-    expect(a.texto()).toContain('Libre inversión Bancolombia Con la tasa · 1,6% EM');
+    expect(a.texto()).toContain('Libre inversión Bancolombia · Con la tasa · 1,6% EM');
     await a.ir('/hoy');
     await atenderHogar(a);
     expect(a.texto()).toContain('Cuota libre inversión');

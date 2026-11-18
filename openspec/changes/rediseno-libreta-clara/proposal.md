@@ -12,7 +12,7 @@ El canvas "Presupuesto Hogar · Rediseño" (https://claude.ai/artifact/3L586EunT
 - **Navegación**:
   - los destinos pasan a llamarse **Hoy**, **Planear**, **Cuentas** y **Ajustes**; las rutas no cambian;
   - en móvil, la barra inferior tiene cinco espacios: Hoy, Planear, el botón central **+**, Cuentas y Ajustes;
-  - en web, el menú lateral tiene los cuatro destinos más el botón **Agregar**.
+  - en web, la barra superior tiene el hogar, los cuatro destinos, el botón **Agregar** y los avatares; todas las pantallas comparten un contenedor de 1320 px.
 - **Un solo botón + para todo**: una hoja "Agregar" con pestañas Gasto, Aporte y Pago, con el monto primero. Reemplaza los accesos separados "+ Gasto" y "+ Aporte" de Hoy. Sus reglas no cambian.
 - **Hoy**:
   - la tarjeta verde "Te queda libre en {mes}" con la barra Pagado / Falta pagar;
@@ -30,7 +30,7 @@ El canvas "Presupuesto Hogar · Rediseño" (https://claude.ai/artifact/3L586EunT
 <!-- ninguna -->
 
 ### Modified Capabilities
-- `steward-ui-shell`: "Navegación principal" (nombres, barra de cinco espacios con +, Agregar en el menú lateral) y "Fidelidad al diseño" (tokens, tipografías y canvas de referencia nuevos).
+- `steward-ui-shell`: "Navegación principal" (nombres, barra de cinco espacios con +, Agregar en la barra superior, un solo ancho en web) y "Fidelidad al diseño" (tokens, tipografías y canvas de referencia nuevos).
 - `steward-hoy`: "Resumen del mes en Hoy" (Por pagar agrupado por cuándo, la tarjeta del resumen) y un requisito nuevo, "Agregar desde un solo botón".
 
 ## Impact

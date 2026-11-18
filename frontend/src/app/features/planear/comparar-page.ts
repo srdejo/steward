@@ -13,7 +13,7 @@ import { PUERTOS } from '../../core/datos/puertos';
   selector: 'app-comparar-page',
   imports: [RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'flex flex-col gap-6 px-5 pt-6 pb-4 lg:px-10 lg:pt-8' },
+  host: { class: 'flex flex-col gap-6 px-5 pt-6 pb-4 lg:px-8 lg:pt-7 lg:pb-12' },
   template: `
     <div class="flex flex-wrap items-end justify-between gap-4">
       <div class="flex flex-col gap-1">

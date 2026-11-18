@@ -9,7 +9,7 @@
 - [x] 2.1 Dominio: `grupoPorPagar(item, hoy)` y el orden de Por pagar por grupo y fecha, con el tope de 3 después de ordenar, y sus pruebas (design D4).
 - [x] 2.2 PWA: shell con los destinos Hoy, Planear, Cuentas y Ajustes.
   - Móvil: barra de cinco espacios con el + central.
-  - Web: menú lateral con el nombre del hogar y el botón Agregar.
+  - Web: barra superior con el nombre del hogar, el botón Agregar y los avatares (corregido en 6.1).
   - Specs del shell actualizadas (spec `steward-ui-shell`, "Navegación principal").
 - [x] 2.3 PWA: hoja Agregar con pestañas Gasto, Aporte y Pago, que monta el contenido actual de `gasto-hoja`, `aporte-hoja` y `pagar-hoja` (design D3).
   - Se abre sobre la pantalla actual.
@@ -43,3 +43,10 @@
 - [x] 5.1 Con confirmación de Daniel: PR y despliegue de la PWA.
 - [ ] 5.2 Con confirmación de Daniel: app 2.3.0 a TestFlight.
 - [ ] 5.3 Revisión visual de Daniel contra el canvas a 390 px y 1280 px, y en la app.
+
+## 6. Ajustes tras la primera revisión
+
+- [x] 6.1 Web: barra superior como el canvas en lugar del menú lateral, y un solo contenedor de 1320 px para todas las pantallas (cada pestaña tenía su ancho).
+- [x] 6.2 Planear como MPlanear y WPlanear, en la PWA y en la app: en web, la fila de meses de los cerrados a los que vienen y el año con el libre de cada mes; en móvil, el mes activo, el borrador con el libre de cada opción, el primer mes sin plan con lo que ya trae y cómo crearlo ahí mismo, el año en tarjeta verde y los meses cerrados con lo que sobró. El dominio da el libre de cada opción en el resumen del mes.
+- [x] 6.3 Cuentas como MCuentas y WCuentas, en la PWA y en la app: en web, subtítulo y acción por pestaña, pestañas subrayadas, indicadores arriba (plata del hogar, después de pagar lo pendiente, sin registrar), el cuadre y los movimientos recientes lado a lado; en móvil, la tarjeta del saldo con Cuadrar y Mover dinero, las cuentas con su color y los movimientos recientes. Tarjetas y Créditos con sus indicadores y tarjetas del canvas.
+- [x] 6.4 Pruebas del dominio, la PWA y la app al día; `ng build`.

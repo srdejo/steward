@@ -35,7 +35,7 @@ interface OpcionBase {
   selector: 'app-anual-page',
   imports: [RouterLink, CambioHoja, Hoja, MesesAnualHoja, Monto, MontoInput, NuevaOpcionHoja],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'flex flex-col gap-6 px-5 pt-6 pb-4 lg:mx-auto lg:w-full lg:max-w-[1192px] lg:px-10 lg:pt-8' },
+  host: { class: 'flex flex-col gap-6 px-5 pt-6 pb-4 lg:px-8 lg:pt-7 lg:pb-12' },
   template: `
     @if (pasoBase()) {
       <a [routerLink]="resumen.value() ? ['/planear/anual', anio()] : '/planear'" class="boton-texto -my-2 self-start text-sm font-normal">{{ resumen.value() ? '‹ Lo que cambia' : '‹ Plan' }}</a>

@@ -11,27 +11,37 @@ describe('Planear (steward-planear)', () => {
     TestBed.configureTestingModule({ providers: provideAppPrueba() });
   });
 
-  it('planear inicio muestra el año y los meses con su estado', async () => {
+  it('planear inicio (390 px): el mes activo, el borrador con sus opciones, el mes sin plan, el año y los cerrados', async () => {
     await conSesion();
     const a = await app('/planear');
-    const t = a.texto();
-    expect(t).toContain('Año 2027 Libre proyectado $28.996.000');
-    expect(t).toContain('Noviembre 2026 Borrador · 3 opciones');
-    expect(t).toContain('Diciembre 2026 Sin plan Planear ›');
-    expect(t).toContain('Enero 2027 Saldrá del plan anual $598.000');
-    expect(t).toContain('Octubre 2026 Activo · Opción A Editar plan ›');
-    expect(t).toContain('Septiembre 2026 Cerrado · sobró $1.840.000 Ver cierre');
+    const mes = (clave: string) => a.raiz().querySelector(`[data-mes="${clave}"]`)!.textContent!.replace(/\s+/g, ' ').trim();
+    expect(mes('2026-10')).toBe('OctubreActivoOpción A · te queda libre $3.436.000Ver hoy ›');
+    expect(mes('2026-11')).toContain('NoviembreBorradorEmpieza en 6 díasA · Base del plan anual$2.898.000B · Navidad + viaje$1.298.000C · abono a crédito$1.398.000');
+    expect(mes('2026-11')).toContain('Comparar y elegir ›');
+    expect(a.raiz().querySelectorAll('[data-mes="2026-11"] .bg-fondo')).toHaveLength(3);
+    expect(mes('2026-12')).toContain('Ya trae prima de $3.500.000, diezmo de la prima de $350.000 y sobrante de noviembre al cerrar noviembre.');
+    expect(mes('2026-12')).toContain('Copiar noviembre · opción A');
+    expect(mes('2027-01')).toBe('Enero 2027Sin planPlanear ›');
+    expect(a.raiz().querySelector('[data-testid="tarjeta-anio"]')!.textContent!.replace(/\s+/g, ' ')).toContain('Año 2027 · borradorEl plan de 2027Libre proyectado $28.996.000');
+    expect(mes('2026-09')).toBe('SeptiembreSobró $1.840.000 ›');
   });
 
   it('abrir un mes sin plan y copiar el mes anterior', async () => {
     await conSesion();
-    const a = await app('/planear');
-    await a.tocar(/^Diciembre 2026/);
-    await a.estable();
-    expect(a.url()).toBe('/planear/2026-12');
+    let a = await app('/planear/2026-12');
     expect(a.texto()).toContain('Aún no tiene plan');
     expect(a.texto()).toContain('Diciembre ya trae Prima +$3.500.000 Diezmo de la prima $350.000 Sobrante de noviembre al cerrar noviembre');
     await a.tocar(/^Copiar noviembre/);
+    expect(a.texto()).toContain('Borrador');
+    expect([...a.raiz().querySelectorAll('[role="tab"]')].map((t) => t.textContent!.trim())).toEqual(['Opción A']);
+  });
+
+  it('desde Planear, el mes sin plan se crea ahí mismo y abre su plan', async () => {
+    await conSesion();
+    const a = await app('/planear');
+    await a.tocar(/^Copiar noviembre/);
+    await a.estable();
+    expect(a.url()).toBe('/planear/2026-12');
     expect(a.texto()).toContain('Borrador');
     expect([...a.raiz().querySelectorAll('[role="tab"]')].map((t) => t.textContent!.trim())).toEqual(['Opción A']);
   });
@@ -318,8 +328,8 @@ describe('Planear (steward-planear)', () => {
     const p = await conSesion();
     await p.hogar.empezarDeNuevo();
     const a = await app('/planear');
-    expect(a.texto()).toContain('Año 2027 · Sin plan');
-    expect(a.porTexto('Planear 2027 ›').getAttribute('href')).toBe('/planear/anual/2027');
+    expect(a.texto()).toContain('Año 2027 · sin plan');
+    expect(a.raiz().querySelector('[data-testid="tarjeta-anio"]')!.getAttribute('href')).toBe('/planear/anual/2027');
   });
 
   it('el año sin plan lleva al paso del mes base y replicar octubre llena los 12 meses', async () => {
@@ -425,7 +435,7 @@ describe('Planear (steward-planear)', () => {
     expect(a.texto()).toContain('Se borran los montos, 6 cambios y los aportes proyectados de 2027. Los meses ya creados no cambian.');
     await a.tocar('Sí, borrar plan de 2027');
     expect(a.url()).toBe('/planear');
-    expect(a.texto()).toContain('Año 2027 · Sin plan');
+    expect(a.texto()).toContain('Año 2027 · sin plan');
     expect(await p.plan.anual(2027)).toBeNull();
     expect((await p.plan.mes({ anio: 2027, mes: 2 })).plan).toEqual(febrero);
   });
@@ -455,9 +465,13 @@ describe('Planear (steward-planear)', () => {
     it('Planear muestra los meses en tarjetas', async () => {
       await conSesion();
       const a = await app('/planear');
-      expect(a.raiz().querySelector('[data-testid="cuadricula-proximos"]')!.children).toHaveLength(3);
-      expect(a.texto()).toContain('Octubre 2026 en curso');
-      expect(a.texto()).toContain('Noviembre 2026 Borrador Borrador · 3 opciones');
+      const meses = [...a.raiz().querySelector('[data-testid="meses"]')!.children].map((m) => m.getAttribute('data-mes'));
+      expect(meses).toEqual(['2026-08', '2026-09', '2026-10', '2026-11', '2026-12', '2027-01']);
+      expect(a.raiz().querySelector('[data-testid="planear-sub"]')!.textContent).toBe('Octubre en curso · noviembre empieza en 6 días');
+      const nov = a.raiz().querySelector('[data-mes="2026-11"]')!;
+      expect(nov.textContent!.replace(/\s+/g, ' ')).toContain('NoviembreBorrador3 opciones · dejarían$1.298.000 – $2.898.000Elijan antes del 1 de noviembreComparar y elegir ›');
+      expect(nov.getAttribute('href')).toBe('/planear/2026-11/comparar');
+      expect(a.raiz().querySelector('[data-testid="barras-anio"]')!.textContent).toContain('Libre en el año ≈ $28.996.000');
     });
 
     it('la tabla del año resalta las celdas que cambian y edita una celda', async () => {

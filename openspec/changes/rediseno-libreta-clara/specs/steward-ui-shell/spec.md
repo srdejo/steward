@@ -3,7 +3,7 @@
 ### Requirement: Navegación principal
 La UI SHALL tener cuatro destinos principales, con estos nombres visibles: **Hoy** (la pantalla Hoy), **Planear**, **Cuentas** y **Ajustes**, y un botón para agregar. Las rutas `/hoy` y `/planear` MUST NOT cambiar.
 
-Con un ancho menor a 1024 px, la navegación MUST mostrarse como barra inferior de cinco espacios: Hoy, Planear, un botón central **+** (spec `steward-hoy`, "Agregar desde un solo botón"), Cuentas y Ajustes. Desde 1024 px MUST mostrarse como menú lateral con el nombre del hogar, los cuatro destinos y el botón **Agregar**; no hay barra inferior.
+Con un ancho menor a 1024 px, la navegación MUST mostrarse como barra inferior de cinco espacios: Hoy, Planear, un botón central **+** (spec `steward-hoy`, "Agregar desde un solo botón"), Cuentas y Ajustes. Desde 1024 px MUST mostrarse como barra superior con el nombre del hogar, los cuatro destinos, el botón **Agregar** y los avatares del hogar; no hay barra inferior. Desde 1024 px todas las pantallas con vista de escritorio MUST usar el mismo contenedor de 1320 px de ancho máximo con 32 px de margen lateral, para que el ancho no cambie al pasar de una pestaña a otra.
 
 Los avatares del hogar en Hoy MUST seguir abriendo Ajustes. Al abrir la app con sesión, SHALL mostrarse siempre Hoy del mes en curso.
 
@@ -13,10 +13,14 @@ Los avatares del hogar en Hoy MUST seguir abriendo Ajustes. Al abrir la app con 
 
 #### Scenario: Web
 - **WHEN** la PWA se abre a 1280 px de ancho
-- **THEN** el menú lateral muestra el nombre del hogar, Hoy, Planear, Cuentas, Ajustes y el botón Agregar, y no hay barra inferior
+- **THEN** la barra superior muestra el nombre del hogar, Hoy, Planear, Cuentas, Ajustes, el botón Agregar y los avatares, y no hay barra inferior
+
+#### Scenario: El mismo ancho en todas las pestañas
+- **WHEN** a 1440 px se pasa de Hoy a Planear, a Cuentas y a Ajustes
+- **THEN** el contenido de las cuatro pantallas queda en el mismo contenedor de 1320 px, alineado con la barra superior
 
 #### Scenario: Ajustes desde el menú lateral
-- **WHEN** a 1280 px se toca Ajustes en el menú lateral
+- **WHEN** a 1280 px se toca Ajustes en la navegación de escritorio, que ahora es la barra superior
 - **THEN** se abre Ajustes y queda marcado como destino activo
 
 #### Scenario: Ajustes desde la barra inferior

@@ -1,4 +1,4 @@
-import { type FiltroTitular as Filtro, type Id } from '@steward/domain';
+import { formatCop, formatFechaCorta, type FiltroTitular as Filtro, type Id, type MovimientoCuenta } from '@steward/domain';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Modal, Pressable, Text, View } from 'react-native';
@@ -8,9 +8,13 @@ import { CuentasTarjetas } from '@/components/cuentas-tarjetas';
 import { FiltroTitular } from '@/components/filtro-titular';
 import { useMiembros } from '@/data/miembros';
 import { useAccion, useConsulta } from '@/data/puertos';
-import { Aviso, Boton, Campo, colors, Fila, fonts, Monto, MontoInput, Pantalla, Segmentado, Texto, CuerpoModal } from '@/ui';
+import { Avatar, Aviso, Boton, Campo, colors, fonts, Monto, MontoInput, Pantalla, Segmentado, Texto, CuerpoModal } from '@/ui';
 
 const CONJUNTA = '__conjunta__';
+/** Color de cada cuenta en la lista (canvas Libreta clara), en el orden en que se crearon. */
+const COLORES_CUENTA = ['#C2603A', '#6B5BA8', '#3F6E9E', '#8A8D85', '#2F7A4F', '#2C7A70'];
+/** Movimientos que se ven en "Movimientos recientes". */
+const RECIENTES = 4;
 type Pestana = 'cuentas' | 'tarjetas' | 'creditos';
 const PESTANAS: { valor: Pestana; etiqueta: string }[] = [
   { valor: 'cuentas', etiqueta: 'Cuentas' },
@@ -31,18 +35,18 @@ export default function Cuentas() {
   const pronto = tarjetas.data?.pagoPronto;
 
   return (
-    <Pantalla>
-      <Texto v="tituloGrande" accessibilityRole="header">Cuentas</Texto>
+    <Pantalla style={{ paddingHorizontal: 16, paddingTop: 20, gap: 14 }}>
+      <Texto v="tituloGrande" accessibilityRole="header" style={{ paddingHorizontal: 4 }}>Cuentas</Texto>
       <View accessibilityRole="tablist" style={{ flexDirection: 'row', gap: 4, padding: 4, borderRadius: 12, backgroundColor: colors.hueco }}>
         {PESTANAS.map((t) => {
           const activa = pestana === t.valor;
           return (
             <Pressable key={t.valor} accessibilityRole="tab" accessibilityState={{ selected: activa }} onPress={() => setPestana(t.valor)}
               style={{ flex: 1, minHeight: 40, borderRadius: 9, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, backgroundColor: activa ? colors.superficie : 'transparent' }}>
-              <Texto style={{ fontSize: 13, fontFamily: activa ? fonts.semibold : fonts.medium, color: activa ? colors.texto : colors.textoSuave }}>{t.etiqueta}</Texto>
+              <Texto style={{ fontSize: 14, fontFamily: activa ? fonts.semibold : fonts.medium, color: colors.texto }}>{t.etiqueta}</Texto>
               {t.valor === 'tarjetas' && pronto && (
-                <Texto testID="pago-pronto" style={{ fontSize: 11, fontFamily: fonts.semibold, color: '#8C1D18', backgroundColor: '#FBE9E7', borderRadius: 10, paddingHorizontal: 6, paddingVertical: 1, overflow: 'hidden' }}>
-                  {pronto.dias === 0 ? 'Pago hoy' : `Pago en ${pronto.dias} ${pronto.dias === 1 ? 'día' : 'días'}`}
+                <Texto testID="pago-pronto" style={{ fontSize: 10, fontFamily: fonts.bold, color: colors.negativo, backgroundColor: colors.negativoSuave, borderRadius: 999, paddingHorizontal: 6, paddingVertical: 2, overflow: 'hidden' }}>
+                  {pronto.dias === 0 ? 'hoy' : `${pronto.dias} ${pronto.dias === 1 ? 'día' : 'días'}`}
                 </Texto>
               )}
             </Pressable>
@@ -78,30 +82,69 @@ function PestanaCuentas() {
   };
   const opcionesCuenta = (todas.data?.cuentas ?? []).map((c) => ({ valor: c.cuenta.id, etiqueta: c.cuenta.nombre }));
   const d = datos.data;
+  const ids = (todas.data?.cuentas ?? []).map((c) => c.cuenta.id);
+  const color = (id: Id) => COLORES_CUENTA[Math.max(0, ids.indexOf(id)) % COLORES_CUENTA.length]!;
+  const nombreCuenta = (id: Id) => todas.data?.cuentas.find((c) => c.cuenta.id === id)?.cuenta.nombre ?? '';
+  // Los movimientos del hogar, del mas reciente al mas antiguo; una transferencia se ve una vez, con su cuenta de origen.
+  const movs = useConsulta(['movimientos-recientes', ids.join(',')], async (p) => {
+    const listas = await Promise.all(ids.map(async (id) => (await p.cuentas.movimientos(id)).map((x) => ({ ...x, cuentaId: id, transferencia: false }))));
+    const unicos = new Map<Id, MovimientoCuenta & { cuentaId: Id; transferencia: boolean }>();
+    for (const x of listas.flat()) {
+      const previo = unicos.get(x.movimiento.id);
+      if (!previo) unicos.set(x.movimiento.id, x);
+      else unicos.set(x.movimiento.id, { ...(previo.efecto < 0 ? previo : x), transferencia: true });
+    }
+    return [...unicos.values()].sort((a, b) => b.movimiento.seq - a.movimiento.seq).slice(0, RECIENTES);
+  });
 
   return (
     <>
       {d && (
         <>
-          <View style={{ gap: 6 }}>
-            <Texto v="rotulo">Saldo del hogar · estimado</Texto>
-            <Text testID="saldo-hogar" style={{ fontFamily: fonts.semibold, fontSize: 30, color: colors.texto }}>≈ <Monto valor={d.total} style={{ fontSize: 30, fontFamily: fonts.semibold }} /></Text>
-          </View>
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            <Boton titulo="Cuadrar cuentas" onPress={() => router.push('/cuadrar')} style={{ flex: 1, minHeight: 46 }} />
-            <Boton tipo="secundario" titulo="Mover dinero" onPress={() => setHoja('mover')} style={{ flex: 1, minHeight: 46 }} />
-          </View>
-          <View style={{ gap: 8 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Texto v="subtitulo" accessibilityRole="header">Cuentas</Texto>
-              <Boton tipo="texto" titulo="+ Agregar" onPress={() => setHoja('agregar')} />
+          <View style={{ backgroundColor: colors.superficie, borderRadius: 20, padding: 18, gap: 14 }}>
+            <View style={{ gap: 4 }}>
+              <Texto style={{ fontSize: 13, color: colors.secundario }}>Saldo del hogar · estimado</Texto>
+              <Text testID="saldo-hogar" style={{ fontFamily: fonts.display, fontSize: 34, letterSpacing: -0.68, color: colors.texto }}>{`≈ ${formatCop(todas.data?.total ?? d.total)}`}</Text>
             </View>
-            <FiltroTitular valor={filtro} onCambio={setFiltro} />
-            {d.cuentas.length === 0 && <Texto v="pequeno">No hay cuentas{filtro === 'TODAS' ? '' : ' con ese titular'}.</Texto>}
-            {d.cuentas.map((c, i) => (
-              <Fila key={c.cuenta.id} onPress={() => router.push(`/cuenta/${c.cuenta.id}`)} testID={`cuenta-${c.cuenta.nombre}`} titulo={c.cuenta.nombre} detalle={`${c.titular} · ${c.estadoCuadre}`} tonoDetalle={c.aviso ? colors.aviso : undefined} ultima={i === d.cuentas.length - 1}>
-                <Text style={{ fontFamily: fonts.medium, fontSize: 14, color: c.estimado ? colors.secundario : colors.texto }}>{c.estimado ? '≈ ' : ''}<Monto valor={c.saldo} style={{ color: c.estimado ? colors.secundario : colors.texto }} /></Text>
-              </Fila>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <Boton titulo="Cuadrar" onPress={() => router.push('/cuadrar')} style={{ flex: 1, minHeight: 46 }} />
+              <Boton tipo="secundario" titulo="Mover dinero" onPress={() => setHoja('mover')} style={{ flex: 1, minHeight: 46 }} />
+            </View>
+          </View>
+
+          <View style={{ backgroundColor: colors.superficie, borderRadius: 16, paddingHorizontal: 16, paddingVertical: 4 }}>
+            <View style={{ paddingTop: 12, paddingBottom: 4 }}><FiltroTitular valor={filtro} onCambio={setFiltro} /></View>
+            {d.cuentas.length === 0 && <Texto v="pequeno" style={{ paddingVertical: 10 }}>No hay cuentas{filtro === 'TODAS' ? '' : ' con ese titular'}.</Texto>}
+            {d.cuentas.map((c) => (
+              <Pressable key={c.cuenta.id} accessibilityRole="button" testID={`cuenta-${c.cuenta.nombre}`} onPress={() => router.push(`/cuenta/${c.cuenta.id}`)}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.divisor }}>
+                <View style={{ width: 10, height: 10, borderRadius: 3, backgroundColor: color(c.cuenta.id) }} />
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Texto style={{ fontSize: 15, fontFamily: fonts.medium }}>{c.cuenta.nombre}</Texto>
+                  <Texto style={{ fontSize: 12, color: c.aviso ? colors.aviso : colors.secundario }}>{`${c.titular} · ${c.estadoCuadre}`}</Texto>
+                </View>
+                <Text style={{ fontFamily: fonts.semibold, fontSize: 15, color: c.estimado ? colors.secundario : colors.texto }}>{c.estimado ? '≈ ' : ''}<Monto valor={c.saldo} style={{ fontFamily: fonts.semibold, fontSize: 15, color: c.estimado ? colors.secundario : colors.texto }} /></Text>
+              </Pressable>
+            ))}
+            <Boton tipo="texto" titulo="+ Cuenta" onPress={() => setHoja('agregar')} style={{ minHeight: 44 }} />
+          </View>
+
+          <View testID="movimientos-recientes" style={{ backgroundColor: colors.superficie, borderRadius: 16, paddingHorizontal: 16, paddingVertical: 4 }}>
+            <Texto accessibilityRole="header" style={{ paddingTop: 12, paddingBottom: 4, fontSize: 14, fontFamily: fonts.semibold, color: colors.textoSuave }}>Movimientos recientes</Texto>
+            {(movs.data ?? []).length === 0 && <Texto v="pequeno" style={{ paddingVertical: 10 }}>Sin movimientos desde el último cuadre.</Texto>}
+            {(movs.data ?? []).map((x) => (
+              <Pressable key={x.movimiento.id + x.cuentaId} accessibilityRole="button" testID="movimiento"
+                onPress={() => router.push(x.corregible ? `/registro/${x.movimiento.id}` : `/cuenta/${x.cuentaId}`)}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderTopWidth: 1, borderTopColor: colors.divisor }}>
+                <Avatar inicial={m.inicialDe(x.movimiento.usuarioId)} variante={m.varianteDe(x.movimiento.usuarioId)} tamano={30} nombre={m.nombreDe(x.movimiento.usuarioId)} />
+                <View style={{ flex: 1, minWidth: 0, gap: 1 }}>
+                  <Texto numberOfLines={1} style={{ fontSize: 14 }}>{x.descripcion}</Texto>
+                  <Texto numberOfLines={1} style={{ fontSize: 12, color: colors.secundario }}>{`${formatFechaCorta(x.movimiento.fecha)} · ${x.movimiento.nota && x.movimiento.nota !== x.descripcion ? x.movimiento.nota : nombreCuenta(x.cuentaId)}`}</Texto>
+                </View>
+                <Texto style={{ fontSize: 14, fontFamily: fonts.semibold, color: x.transferencia ? colors.secundario : x.efecto > 0 ? colors.positivo : colors.texto }}>
+                  {x.transferencia ? formatCop(Math.abs(x.efecto)) : formatCop(x.efecto, { signo: true })}
+                </Texto>
+              </Pressable>
             ))}
           </View>
         </>

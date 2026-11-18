@@ -4,7 +4,7 @@ import { RouterLink } from '@angular/router';
 import { Avatar } from '../../shared/components/avatar';
 import { MiembrosHogar } from './miembros';
 
-/** Grupo de avatares del hogar ("D E"): abre Ajustes del hogar. Va en Hoy y en la barra lateral. */
+/** Grupo de avatares del hogar ("D E"): abre Ajustes del hogar. Va en la barra superior. */
 @Component({
   selector: 'app-avatares-hogar',
   imports: [RouterLink, Avatar],

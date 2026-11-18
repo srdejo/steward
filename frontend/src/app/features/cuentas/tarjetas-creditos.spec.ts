@@ -12,7 +12,7 @@ describe('Tarjetas y créditos (tarjetas-y-creditos)', () => {
   it('tarjetas: por pagar este ciclo, próximas fechas, el pago de Nu en rojo y el aviso en la pestaña', async () => {
     await conSesion();
     const a = await app('/cuentas');
-    expect(texto(a, '[data-testid="pago-pronto"]')).toBe('Pago en 2 días');
+    expect(texto(a, '[data-testid="pago-pronto"]')).toBe('2 días');
     await a.tocar(/^Tarjetas/, '[role="tab"]');
     expect(a.url()).toBe('/cuentas?pestana=tarjetas');
     expect(texto(a, '[data-testid="por-pagar-ciclo"]')).toBe('$2.620.000');
@@ -20,7 +20,7 @@ describe('Tarjetas y créditos (tarjetas-y-creditos)', () => {
     expect(fechas[0]).toBe('28 oct Pagar Nu · Mercado En 2 días · valor del extracto $320.000');
     expect(fechas).toContain('13 nov Corte Nu Mejor día para una compra grande: 14 nov');
     const pago = a.raiz().querySelector('[data-tarjeta="Nu"] [data-testid="proximo-pago"]')!;
-    expect(textoLegible(pago)).toBe('PRÓXIMO PAGO 28 oct en 2 días');
+    expect(textoLegible(pago)).toBe('Pago 28 oct en 2 días');
     expect(pago.querySelector('.text-negativo')).not.toBeNull();
     expect(texto(a, '[data-tarjeta="Nu"] [data-testid="ayuda-tarjeta"]')).toBe('Lo que compres hasta el 13 nov se paga el 28 nov. Desde el 14 nov, el 28 dic.');
     expect(texto(a, '[data-tarjeta="Mastercard"] [data-testid="ayuda-tarjeta"]')).toBe('No se paga completa: el saldo que queda genera intereses.');
@@ -29,7 +29,7 @@ describe('Tarjetas y créditos (tarjetas-y-creditos)', () => {
   it('agregar una tarjeta: su línea entra al mes; quitarla deja la línea sin enlace', async () => {
     const p = await conSesion();
     const a = await app('/cuentas?pestana=tarjetas');
-    await a.tocar('+ Tarjeta');
+    await a.tocar('+ Agregar tarjeta');
     await a.escribir('Nombre', 'Éxito');
     await a.escribir('Uso · Opcional', 'Ropa');
     await a.escribir('Día de corte', '15');
@@ -57,14 +57,14 @@ describe('Tarjetas y créditos (tarjetas-y-creditos)', () => {
     const cuotas = texto(a, '[data-credito="Compra a cuotas"]');
     expect(cuotas).toContain('Plan de pagos');
     expect(cuotas).toContain('$3.375.000 Cuota 4 de 12');
-    expect(cuotas).toContain('3 pagadas faltan 9 · jun 2027');
+    expect(cuotas).toContain('3 pagadas · faltan 9 · jun 2027');
     expect(texto(a, '[data-credito="Libre inversión"]')).toContain('Cuota 23 de 60');
   });
 
   it('agregar un plan de pagos sin intereses, y la tasa efectiva anual se convierte', async () => {
     await conSesion();
     const a = await app('/cuentas?pestana=creditos');
-    await a.tocar('+ Crédito');
+    await a.tocar('+ Agregar crédito');
     await a.escribir('Nombre', 'Nevera');
     await a.escribir('Entidad', 'Almacén');
     await a.escribir('Día de pago', '20');
