@@ -18,14 +18,14 @@
 
 ## 2. Backend
 
-- [ ] 2.1 `Categoria`: `PALETA`, `COLOR_NUEVA = "#8A8D85"` y `delSistema` con los colores de Libreta clara.
-- [ ] 2.2 `CategoriaRequest(nombre, color)` en `PlanDtos`:
+- [x] 2.1 `Categoria`: `PALETA`, `COLOR_NUEVA = "#8A8D85"` y `delSistema` con los colores de Libreta clara.
+- [x] 2.2 `CategoriaRequest(nombre, color)` en `PlanDtos`:
   - `POST /api/categorias` acepta el color;
   - `PATCH /api/categorias/{id}` acepta nombre, color o los dos;
   - `PlanUseCase` valida la paleta y que Diezmo solo cambie el color (design D2);
   - `ICategoriaPersistencePort` y `CategoriaR2dbcAdapter` guardan el color.
-- [ ] 2.3 `V17__colores_libreta_clara.sql`: los colores viejos del sistema pasan a los nuevos, y las propias en #8D8F88 a #8A8D85, sin tocar los demás (design D3). Prueba de la migración, como `MigracionV3Test`.
-- [ ] 2.4 Pruebas de contrato (`PlanContratoTest`):
+- [x] 2.3 `V17__colores_libreta_clara.sql`: los colores viejos del sistema pasan a los nuevos, y las propias en #8D8F88 a #8A8D85, sin tocar los demás (design D3). Prueba de la migración, como `MigracionV3Test`.
+- [x] 2.4 Pruebas de contrato (`PlanContratoTest`):
   - cambiar el color;
   - color inválido (400);
   - Diezmo: el color sí, el nombre no;
@@ -48,13 +48,13 @@
 
 ## 4. App
 
-- [ ] 4.1 `PaletaColor` en `mobile/src/ui/controles.tsx`, con `accessibilityRole="radio"` y `accessibilityState.selected`.
-- [ ] 4.2 `(tabs)/ajustes.tsx`: la hoja de categoría con la paleta, "Editar" en Diezmo y Guardar con nombre y color.
-- [ ] 4.3 Pruebas de la app: cambiar un color y verlo en el plan del mes; Diezmo solo cambia el color.
+- [x] 4.1 `PaletaColor` en `mobile/src/ui/controles.tsx`, con `accessibilityRole="radio"` y `accessibilityState.selected`.
+- [x] 4.2 `(tabs)/ajustes.tsx`: la hoja de categoría con la paleta, "Editar" en Diezmo y Guardar con nombre y color.
+- [x] 4.3 Pruebas de la app: cambiar un color y verlo en el plan del mes; Diezmo solo cambia el color.
 
 ## 5. Entrega
 
-- [ ] 5.1 Pruebas del dominio, la PWA (`ng build`) y la app (`tsc`); `openspec validate color-categorias --strict`.
+- [x] 5.1 Pruebas del dominio, la PWA (`ng build`) y la app (`tsc`); `openspec validate color-categorias --strict`.
 - [ ] 5.2 Con confirmación de Daniel: PR y despliegue con copia de seguridad, backend (V17) y PWA.
 - [ ] 5.3 Con confirmación de Daniel: la app en la próxima versión de TestFlight.
 - [ ] 5.4 Revisión de Daniel: elegir colores en web y en la app, y verlos en el plan y en Hoy.

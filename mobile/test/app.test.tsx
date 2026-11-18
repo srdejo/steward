@@ -257,6 +257,24 @@ describe('Ajustes (steward-ajustes)', () => {
     fireEvent.press(screen.getAllByText('Eliminar mi cuenta').at(-1)!);
     await enRuta('/acceso');
   });
+
+  it('cambiar el color de Gastos fijos de la paleta, y Diezmo solo cambia el color (color-categorias)', async () => {
+    const p = await conSesion();
+    renderRouter('./src/app', { initialUrl: '/ajustes' });
+    fireEvent.press(await screen.findByLabelText('Editar Gastos fijos'));
+    expect(await screen.findByLabelText('Azul')).toBeTruthy();
+    expect(screen.getByTestId('color-#C2603A')).toHaveProp('accessibilityState', { selected: true, checked: true });
+    fireEvent.press(screen.getByLabelText('Azul'));
+    fireEvent.press(screen.getAllByText('Guardar').at(-1)!);
+    await waitFor(async () => expect((await p.hogar.categorias()).find((c) => c.nombre === 'Gastos fijos')!.color).toBe('#3F6E9E'));
+
+    fireEvent.press(await screen.findByLabelText('Editar color de Diezmo'));
+    expect(await screen.findByText('Color de Diezmo')).toBeTruthy();
+    expect(screen.queryByText('Nombre')).toBeNull();
+    fireEvent.press(screen.getByLabelText('Ciruela'));
+    fireEvent.press(screen.getAllByText('Guardar').at(-1)!);
+    await waitFor(async () => expect((await p.hogar.categorias()).find((c) => c.tipo === 'DIEZMO')!.color).toBe('#9A4F7E'));
+  });
 });
 
 describe('Ejecución y Plan (app-movil-conectada)', () => {

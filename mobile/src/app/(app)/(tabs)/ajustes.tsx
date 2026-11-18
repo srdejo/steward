@@ -1,4 +1,4 @@
-import { claveMes, formatFechaCorta, formatPorcentaje, mesDe, type BaseDiezmo, type Categoria, type IngresoFijo } from '@steward/domain';
+import { claveMes, COLOR_NUEVA, colorDePaleta, formatFechaCorta, formatPorcentaje, mesDe, type BaseDiezmo, type Categoria, type IngresoFijo } from '@steward/domain';
 import { router } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { useState, type ReactNode } from 'react';
@@ -8,7 +8,7 @@ import { codigoParaEliminar, URL_PRIVACIDAD } from '@/data/acceso-nativo';
 import { useMiembros } from '@/data/miembros';
 import { useAccion, useConsulta, usePuertos } from '@/data/puertos';
 import { useSesion } from '@/data/sesion';
-import { Avatar, Aviso, Boton, Campo, colors, Encabezado, fonts, Interruptor, Monto, MontoInput, Pantalla, SEGURIDAD_DISPONIBLE, Segmentado, Texto, CuerpoModal } from '@/ui';
+import { Avatar, Aviso, Boton, Campo, colors, Encabezado, fonts, Interruptor, Monto, MontoInput, PaletaColor, Pantalla, SEGURIDAD_DISPONIBLE, Segmentado, Texto, CuerpoModal } from '@/ui';
 
 type Dialogo =
   | { tipo: 'invitar' }
@@ -49,6 +49,8 @@ export default function Ajustes() {
   const accion = useAccion();
   const [dialogo, setDialogo] = useState<Dialogo | null>(null);
   const [texto, setTexto] = useState('');
+  /** El color elegido en la hoja de categoria; null si el guardado no esta en la paleta (color-categorias). */
+  const [color, setColor] = useState<string | null>(null);
   const [bruto, setBruto] = useState<number | null>(null);
   const [neto, setNeto] = useState<number | null>(null);
   const [dia, setDia] = useState(1);
@@ -66,6 +68,7 @@ export default function Ajustes() {
     accion.limpiar();
     setMensaje('');
     setTexto(d.tipo === 'ingreso' ? d.ingreso?.nombre ?? '' : d.tipo === 'categoria' && d.categoria ? d.categoria.nombre : '');
+    if (d.tipo === 'categoria') setColor(d.categoria ? colorDePaleta(d.categoria.color) : COLOR_NUEVA);
     if (d.tipo === 'ingreso') {
       setBruto(d.ingreso?.bruto ?? null);
       setNeto(d.ingreso?.neto ?? null);
@@ -124,7 +127,7 @@ export default function Ajustes() {
         case 'aportes':
           return p.ingresos.guardarRegla({ activa: reglaActiva, porcentaje: porcentaje || 10, base: base ?? 'BRUTO', aplicaAportes: reglaActiva && aplicaAportes });
         case 'categoria':
-          return p.hogar.guardarCategoria({ id: d.categoria?.id, nombre: texto });
+          return p.hogar.guardarCategoria({ id: d.categoria?.id, nombre: texto, ...(color ? { color } : {}) });
       }
     });
     if (ok) {
@@ -133,7 +136,7 @@ export default function Ajustes() {
     }
   }
 
-  const tituloDialogo = !dialogo ? '' : dialogo.tipo === 'invitar' ? 'Invitar al hogar' : dialogo.tipo === 'ingreso' ? (dialogo.ingreso ? `Editar ${dialogo.ingreso.nombre}` : 'Nuevo ingreso fijo') : dialogo.tipo === 'aportes' ? 'Mi diezmo' : dialogo.tipo === 'categoria' ? (dialogo.categoria ? 'Editar categoría' : 'Nueva categoría') : dialogo.tipo === 'empezar' ? 'Empezar de nuevo' : dialogo.tipo === 'eliminar' ? 'Eliminar mi cuenta' : CONFIRMACIONES[dialogo.accion].titulo;
+  const tituloDialogo = !dialogo ? '' : dialogo.tipo === 'invitar' ? 'Invitar al hogar' : dialogo.tipo === 'ingreso' ? (dialogo.ingreso ? `Editar ${dialogo.ingreso.nombre}` : 'Nuevo ingreso fijo') : dialogo.tipo === 'aportes' ? 'Mi diezmo' : dialogo.tipo === 'categoria' ? (dialogo.categoria?.tipo === 'DIEZMO' ? 'Color de Diezmo' : dialogo.categoria ? 'Editar categoría' : 'Nueva categoría') : dialogo.tipo === 'empezar' ? 'Empezar de nuevo' : dialogo.tipo === 'eliminar' ? 'Eliminar mi cuenta' : CONFIRMACIONES[dialogo.accion].titulo;
   const botonDialogo = !dialogo ? '' : dialogo.tipo === 'invitar' ? 'Invitar' : dialogo.tipo === 'categoria' && !dialogo.categoria ? 'Crear categoría' : dialogo.tipo === 'confirmar' ? CONFIRMACIONES[dialogo.accion].boton : dialogo.tipo === 'empezar' ? 'Empezar de nuevo' : dialogo.tipo === 'eliminar' ? 'Eliminar mi cuenta' : dialogo.tipo === 'ingreso' && !dialogo.ingreso ? 'Agregar ingreso' : 'Guardar';
 
   return (
@@ -172,7 +175,7 @@ export default function Ajustes() {
           <View key={c.id} testID="categoria" style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 4, borderBottomWidth: i === (categorias.data?.length ?? 0) - 1 ? 0 : 1, borderBottomColor: colors.divisor }}>
             <View style={{ width: 10, height: 10, borderRadius: 3, backgroundColor: c.color }} />
             <Texto style={{ flex: 1 }}>{c.nombre}</Texto>
-            <Boton tipo="enlace" titulo="Editar" onPress={() => abrir({ tipo: 'categoria', categoria: c })} />
+            <Boton tipo="enlace" titulo="Editar" etiquetaAccesible={c.tipo === 'DIEZMO' ? 'Editar color de Diezmo' : `Editar ${c.nombre}`} onPress={() => abrir({ tipo: 'categoria', categoria: c })} />
           </View>
         ))}
       </Seccion>
@@ -213,7 +216,8 @@ export default function Ajustes() {
             <Boton tipo="enlace" titulo="Cancelar" onPress={() => setDialogo(null)} />
           </View>
           {dialogo?.tipo === 'invitar' && <Campo etiqueta="Correo" teclado="email-address" valor={texto} onCambio={setTexto} placeholder="correo@ejemplo.com" />}
-          {dialogo?.tipo === 'categoria' && <Campo etiqueta="Nombre" valor={texto} onCambio={setTexto} placeholder="Ej: Educación" />}
+          {dialogo?.tipo === 'categoria' && dialogo.categoria?.tipo !== 'DIEZMO' && <Campo etiqueta="Nombre" valor={texto} onCambio={setTexto} placeholder="Ej: Educación" />}
+          {dialogo?.tipo === 'categoria' && <PaletaColor valor={color} onCambio={setColor} />}
           {dialogo?.tipo === 'ingreso' && (
             <>
               <Campo etiqueta="Nombre" valor={texto} onCambio={setTexto} />
