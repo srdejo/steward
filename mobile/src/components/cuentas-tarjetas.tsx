@@ -22,21 +22,27 @@ export function CuentasTarjetas() {
   const [hoja, setHoja] = useState<{ tarjeta: Tarjeta | null } | null>(null);
   const v = vista.data;
   if (!v) return null;
+  const proximo = [...v.tarjetas].sort((a, b) => a.proximoPago.dias - b.proximoPago.dias)[0] ?? null;
   return (
     <>
-      <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' }}>
-        <View style={{ gap: 4 }}>
-          <Texto v="rotulo">Por pagar este ciclo</Texto>
-          <Monto testID="por-pagar-ciclo" valor={v.porPagarCiclo} style={{ fontSize: 30, fontFamily: fonts.semibold }} />
+      <View style={{ flexDirection: 'row', gap: 12, padding: 18, borderRadius: 20, backgroundColor: colors.superficie }}>
+        <View style={{ flex: 1, gap: 4 }}>
+          <Texto style={{ fontSize: 12, color: colors.secundario }}>Por pagar este ciclo</Texto>
+          <Monto testID="por-pagar-ciclo" valor={v.porPagarCiclo} style={{ fontSize: 24, fontFamily: fonts.display }} />
         </View>
-        <Boton tipo="texto" titulo="+ Tarjeta" onPress={() => setHoja({ tarjeta: null })} />
+        {proximo && (
+          <View style={{ flex: 1, gap: 4 }}>
+            <Texto style={{ fontSize: 12, color: colors.secundario }}>Próximo pago</Texto>
+            <Texto style={{ fontSize: 24, fontFamily: fonts.display, color: colors.textoSuave }}>{formatFechaCorta(proximo.proximoPago.fecha)}</Texto>
+          </View>
+        )}
       </View>
       {v.tarjetas.length === 0 ? (
         <Texto v="pequeno">Sin tarjetas. Agrega una con sus días de corte y de pago, y su línea entra al plan del mes.</Texto>
       ) : (
         <>
-          <Caja style={{ paddingVertical: 4 }}>
-            <Texto v="rotulo" style={{ paddingVertical: 8 }}>Próximas fechas</Texto>
+          <Caja style={{ paddingTop: 4, paddingBottom: 10 }}>
+            <Texto accessibilityRole="header" style={{ paddingTop: 8, paddingBottom: 6, fontSize: 14, fontFamily: fonts.semibold, color: colors.textoSuave }}>Próximas fechas</Texto>
             {v.fechas.map((f) => (
               <View key={`${f.fecha}-${f.tarjetaId}-${f.tipo}`} testID="fecha-tarjeta" style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderTopWidth: 1, borderTopColor: colors.divisor }}>
                 <Texto style={{ width: 48, fontSize: 13, fontFamily: fonts.semibold }}>{formatFechaCorta(f.fecha)}</Texto>
@@ -49,29 +55,29 @@ export function CuentasTarjetas() {
               </View>
             ))}
           </Caja>
-          <Texto v="subtitulo" accessibilityRole="header">Mis tarjetas</Texto>
           {v.tarjetas.map((t) => (
             <Pressable key={t.tarjeta.id} testID={`tarjeta-${t.tarjeta.nombre}`} accessibilityRole="button" onPress={() => setHoja({ tarjeta: t.tarjeta })}>
               <Caja style={{ gap: 10 }}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                     <Texto style={{ fontSize: 16, fontFamily: fonts.semibold }}>{t.tarjeta.nombre}</Texto>
-                    {!!t.tarjeta.uso && <Texto style={{ fontSize: 11, fontFamily: fonts.semibold, color: '#5B37B0', backgroundColor: '#F1EDFB', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2, overflow: 'hidden' }}>{t.tarjeta.uso}</Texto>}
+                    {!!t.tarjeta.uso && <Texto style={{ fontSize: 11, fontFamily: fonts.semibold, color: colors.textoSuave, backgroundColor: colors.hueco, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3, overflow: 'hidden' }}>{t.tarjeta.uso}</Texto>}
                   </View>
                   <Monto valor={t.monto} style={{ fontSize: 15, fontFamily: fonts.semibold }} />
                 </View>
-                <View style={{ flexDirection: 'row', gap: 16 }}>
-                  <Texto v="detalle">Corte <Texto style={{ fontSize: 12, fontFamily: fonts.semibold }}>Día {t.tarjeta.diaCorte}</Texto></Texto>
-                  <Texto v="detalle">Pago <Texto style={{ fontSize: 12, fontFamily: fonts.semibold }}>Día {t.tarjeta.diaPago}</Texto></Texto>
-                  <Texto v="detalle">Se paga <Texto style={{ fontSize: 12, fontFamily: fonts.semibold }}>{t.tarjeta.pago.tipo === 'FIJO' ? <Monto valor={t.tarjeta.pago.monto} style={{ fontSize: 12 }} /> : 'Completa'}</Texto></Texto>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <View style={{ flex: 1, gap: 2 }}><Texto style={{ fontSize: 12, color: colors.secundario }}>Corte</Texto><Texto style={{ fontSize: 14, fontFamily: fonts.semibold }}>Día {t.tarjeta.diaCorte}</Texto></View>
+                  <View style={{ flex: 1, gap: 2 }}><Texto style={{ fontSize: 12, color: colors.secundario }}>Pago</Texto><Texto style={{ fontSize: 14, fontFamily: fonts.semibold }}>Día {t.tarjeta.diaPago}</Texto></View>
+                  <View style={{ flex: 1, gap: 2 }}><Texto style={{ fontSize: 12, color: colors.secundario }}>Se paga</Texto><Texto style={{ fontSize: 14, fontFamily: fonts.semibold }}>{t.tarjeta.pago.tipo === 'FIJO' ? <Monto valor={t.tarjeta.pago.monto} style={{ fontSize: 14, fontFamily: fonts.semibold }} /> : 'Completa'}</Texto></View>
                 </View>
                 <Texto testID={`proximo-pago-${t.tarjeta.nombre}`} style={{ fontSize: 12, color: TONO[t.proximoPago.tono] }}>Próximo pago {formatFechaCorta(t.proximoPago.fecha)} · {t.proximoPago.dias === 0 ? 'hoy' : `en ${t.proximoPago.dias} ${t.proximoPago.dias === 1 ? 'día' : 'días'}`}</Texto>
-                <Texto testID={`ayuda-${t.tarjeta.nombre}`} style={{ fontSize: 12, lineHeight: 18, color: t.aviso ? '#8C1D18' : colors.textoSuave, backgroundColor: t.aviso ? '#FBE9E7' : 'transparent', padding: t.aviso ? 8 : 0, borderRadius: 8, overflow: 'hidden' }}>{t.ayuda}</Texto>
+                <Texto testID={`ayuda-${t.tarjeta.nombre}`} style={{ fontSize: 12, lineHeight: 18, color: t.aviso ? '#8F1D16' : colors.textoSuave, backgroundColor: t.aviso ? colors.negativoSuave : 'transparent', paddingVertical: t.aviso ? 8 : 0, paddingHorizontal: t.aviso ? 10 : 0, borderRadius: 10, overflow: 'hidden' }}>{t.ayuda}</Texto>
               </Caja>
             </Pressable>
           ))}
         </>
       )}
+      <Boton tipo="texto" titulo="+ Agregar tarjeta" onPress={() => setHoja({ tarjeta: null })} />
       {hoja && <HojaTarjeta tarjeta={hoja.tarjeta} onCerrar={() => setHoja(null)} />}
     </>
   );

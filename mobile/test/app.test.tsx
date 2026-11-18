@@ -134,6 +134,19 @@ describe('Hoy (steward-hoy)', () => {
 });
 
 describe('Planear (steward-planear)', () => {
+  it('inicio (canvas Libreta clara): el mes activo, el borrador con sus opciones, el mes sin plan, el año y los cerrados', async () => {
+    await conSesion();
+    renderRouter('./src/app', { initialUrl: '/planear' });
+    expect(await screen.findByText('Opción A · te queda libre $3.436.000')).toBeTruthy();
+    expect(screen.getByText('Empieza en 6 días')).toBeTruthy();
+    expect(screen.getByText('B · Navidad + viaje')).toBeTruthy();
+    expect(await screen.findByText('Ya trae prima de $3.500.000, diezmo de la prima de $350.000 y sobrante de noviembre al cerrar noviembre.')).toBeTruthy();
+    expect(screen.getByText('Año 2027 · borrador')).toBeTruthy();
+    expect(screen.getByText('Sobró $1.840.000 ›')).toBeTruthy();
+    await tocar('Copiar noviembre · opción A');
+    await enRuta('/mes/2026-12');
+  });
+
   it('cerrar octubre reparte el sobrante y lo pasa a noviembre', async () => {
     const p = await conSesion();
     const OCT = { anio: 2026, mes: 10 };
@@ -346,7 +359,7 @@ describe('planear el año desde un mes (planear-anio-desde-un-mes)', () => {
     await p.hogar.empezarDeNuevo();
     await p.plan.crearMes({ anio: 2026, mes: 10 }, 'CERO');
     renderRouter('./src/app', { initialUrl: '/planear' });
-    await tocar('Planear 2027 ›');
+    await tocar('Empezar ›');
     await enRuta('/anual/2027');
     expect(await screen.findByText(/^Octubre 2026 · /)).toBeTruthy();
     await tocar('Replicar en los 12 meses');
@@ -374,7 +387,7 @@ describe('borrar el plan del año (planear-anio-desde-un-mes)', () => {
     expect(await screen.findByText('Se borran los montos, 6 cambios y los aportes proyectados de 2027. Los meses ya creados no cambian.')).toBeTruthy();
     await tocar('Sí, borrar plan de 2027');
     await enRuta('/planear');
-    expect(await screen.findByText('Año 2027 · Sin plan')).toBeTruthy();
+    expect(await screen.findByText('Año 2027 · sin plan')).toBeTruthy();
     expect(await p.plan.anual(2027)).toBeNull();
     expect((await p.plan.mes({ anio: 2027, mes: 2 })).plan).toEqual(febrero);
   });
@@ -405,7 +418,7 @@ describe('paridad con la PWA (steward-mobile-app)', () => {
   it('tarjetas y créditos dan las mismas cifras que la PWA (tarjetas-y-creditos)', async () => {
     await conSesion();
     renderRouter('./src/app', { initialUrl: '/cuentas' });
-    expect(await screen.findByTestId('pago-pronto')).toHaveTextContent('Pago en 2 días');
+    expect(await screen.findByTestId('pago-pronto')).toHaveTextContent('2 días');
     await tocar('Tarjetas');
     // Mismas cifras que frontend/src/app/features/cuentas/tarjetas-creditos.spec.ts.
     await waitFor(() => expect(screen.getByTestId('por-pagar-ciclo')).toHaveTextContent('$2.620.000'));

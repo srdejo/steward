@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Agregar desde un solo botón
-El botón **+** de la barra inferior (móvil) y el botón **Agregar** del menú lateral (web) SHALL abrir una sola hoja "Agregar" desde cualquier pantalla, con tres pestañas: **Gasto**, **Aporte** y **Pago**. Por defecto MUST abrirse en Gasto, salvo que se llegue desde "+ Aporte" (pestaña Aporte) o desde un ítem de Por pagar (pestaña Pago con ese ítem elegido).
+El botón **+** de la barra inferior (móvil) y el botón **Agregar** de la barra superior (web) SHALL abrir una sola hoja "Agregar" desde cualquier pantalla, con tres pestañas: **Gasto**, **Aporte** y **Pago**. Por defecto MUST abrirse en Gasto, salvo que se llegue desde "+ Aporte" (pestaña Aporte) o desde un ítem de Por pagar (pestaña Pago con ese ítem elegido).
 
 Cada pestaña MUST pedir el monto primero y aplicar las mismas reglas que el registro que reemplaza ("Registrar un gasto", "Registrar un aporte", "Marcar un pago"). La pestaña Pago MUST listar lo pendiente de Por pagar para elegir el ítem. Guardar MUST cerrar la hoja y dejar Hoy actualizado.
 
@@ -20,7 +20,7 @@ Los registros MUST guardarse en el mes en curso, salvo el aporte, que mantiene s
 - **THEN** se abre Agregar en la pestaña Pago con Mastercard elegida y el valor del plan prellenado
 
 #### Scenario: Agregar en web
-- **WHEN** a 1280 px se toca Agregar en el menú lateral
+- **WHEN** a 1280 px se toca Agregar en la barra superior
 - **THEN** se abre la misma hoja con las pestañas Gasto, Aporte y Pago
 
 ## MODIFIED Requirements
