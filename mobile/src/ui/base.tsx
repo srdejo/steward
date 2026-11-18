@@ -73,7 +73,7 @@ export function MontoInput({ etiqueta, valor, onCambio, grande, ayuda, placehold
           onCambio(r.valor);
         }}
         style={{
-          height: grande ? 64 : 48, borderRadius: radius.boton, borderWidth: 1, borderColor: colors.borde, backgroundColor: colors.fondo,
+          height: grande ? 64 : 48, borderRadius: radius.boton, borderWidth: 1, borderColor: colors.bordeCampo, backgroundColor: colors.fondo,
           paddingHorizontal: 16, fontFamily: fonts.semibold, fontSize: grande ? 28 : 16, color: colors.texto,
         }}
       />

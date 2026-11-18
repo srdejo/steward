@@ -82,7 +82,7 @@ export default function Credito() {
           ['Paga el', <Texto key="d" style={{ fontFamily: fonts.semibold, fontSize: 13 }}>Día {c.diaPago}</Texto>],
           ['Termina', <Texto key="t" testID="termina" style={{ fontFamily: fonts.semibold, fontSize: 13 }}>{v.termina ? `${c.metodo === 'TASA' ? '≈ ' : ''}${mesCorto(v.termina)}` : '—'}</Texto>],
         ].map(([etiqueta, valor]) => (
-          <View key={etiqueta as string} style={{ flex: 1, gap: 4, padding: 12, borderRadius: 12, backgroundColor: colors.superficie, borderWidth: 1, borderColor: colors.borde }}>
+          <View key={etiqueta as string} style={{ flex: 1, gap: 4, padding: 12, borderRadius: 12, backgroundColor: colors.superficie }}>
             <Texto style={{ fontSize: 11, color: colors.secundario }}>{etiqueta}</Texto>
             {valor}
           </View>

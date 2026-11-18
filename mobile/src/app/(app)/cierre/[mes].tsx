@@ -46,7 +46,7 @@ export default function Cierre() {
         <Texto style={{ fontSize: 14, color: colors.secundario }}>El plan esperaba {formatCop(v.librePlaneado)} libres.</Texto>
       </View>
 
-      <View style={{ borderRadius: 14, borderWidth: 1, borderColor: colors.borde, backgroundColor: colors.superficie, paddingHorizontal: 16, paddingVertical: 6 }}>
+      <View style={{ borderRadius: 16, backgroundColor: colors.superficie, paddingHorizontal: 16, paddingVertical: 6 }}>
         <View style={{ flexDirection: 'row', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.divisor }}>
           <View style={{ flex: 1 }} />
           <Texto style={{ width: 84, textAlign: 'right', fontSize: 11, fontFamily: fonts.semibold, color: colors.secundario }}>PLAN</Texto>

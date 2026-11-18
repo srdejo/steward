@@ -134,7 +134,7 @@ function LoQueCambia({ anio, letra }: { anio: number; letra: string | null }) {
         </Pressable>
       </View>
 
-      <View style={{ flexDirection: 'row', gap: 12, padding: 16, borderRadius: 16, backgroundColor: colors.superficie, borderWidth: 1, borderColor: colors.borde }}>
+      <View style={{ flexDirection: 'row', gap: 12, padding: 16, borderRadius: 16, backgroundColor: colors.superficie }}>
         <View style={{ flex: 1, gap: 4 }}>
           <Texto v="detalle">Libre en el año</Texto>
           <Monto testID="kpi-libre" valor={d.kpis.libreAnio} style={{ fontSize: 17, fontFamily: fonts.semibold, color: colors.acento }} />
@@ -252,7 +252,7 @@ function MesesHoja({ anio, opcionId, letra, onCerrar, onListo }: { anio: number;
   return (
     <HojaPlan titulo={`Meses con la Opción ${letra}`} antetitulo={`Plan ${anio}`} onCerrar={onCerrar}>
       <Texto v="pequeno">Los meses sin plan se crean con su columna. Los que ya tienen plan solo cambian si los marcas.</Texto>
-      <View testID="meses-anual" style={{ borderWidth: 1, borderColor: colors.borde, borderRadius: 14, overflow: 'hidden' }}>
+      <View testID="meses-anual" style={{ borderRadius: 16, overflow: 'hidden', backgroundColor: colors.superficie }}>
         {agrupar(lista).map((g, k) => {
           const bloqueado = g[0]!.accion !== 'ACTUALIZABLE';
           return (

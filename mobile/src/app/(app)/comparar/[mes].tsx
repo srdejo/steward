@@ -46,7 +46,7 @@ export default function Comparar() {
       <Interruptor titulo="Mostrar solo lo que cambia" activo={soloCambios} onCambio={setSoloCambios} />
       {d && (
         <ScrollView horizontal testID="tabla-comparar" accessibilityLabel="Opciones lado a lado" contentContainerStyle={{ minWidth: COL_NOMBRE + COL_VALOR * d.vistas.length }}
-          style={{ borderRadius: 14, borderWidth: 1, borderColor: colors.borde, backgroundColor: colors.superficie }}>
+          style={{ borderRadius: 16, backgroundColor: colors.superficie }}>
           <View>
             <View style={{ flexDirection: 'row', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.borde }}>
               <View style={{ width: COL_NOMBRE }} />

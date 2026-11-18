@@ -22,10 +22,10 @@ export default function Planear() {
 
   return (
     <Pantalla>
-      <Texto v="titulo" accessibilityRole="header">Plan</Texto>
+      <Texto v="tituloGrande" accessibilityRole="header">Planear</Texto>
       {i?.anual && (
         <Pressable accessibilityRole="button" onPress={() => router.push(`/anual/${i.anual!.anio}`)}
-          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: 16, borderRadius: 16, backgroundColor: colors.superficie, borderWidth: 1, borderColor: colors.borde }}>
+          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: 16, borderRadius: 16, backgroundColor: colors.superficie }}>
           <View style={{ gap: 4 }}>
             <Texto v="rotulo" style={i.anual.estado === 'BORRADOR' ? { color: colors.aviso } : undefined}>{i.anual.estado === 'BORRADOR' ? 'Borrador' : 'Meses creados'}</Texto>
             <Texto style={{ fontSize: 18, fontFamily: fonts.semibold }}>Año {i.anual.anio}</Texto>
@@ -37,7 +37,7 @@ export default function Planear() {
       {i && !i.anual && (
         // Sin plan del año siguiente: se planea desde un mes (spec steward-planear, "Planear inicio").
         <Pressable accessibilityRole="button" testID="planear-anio" onPress={() => router.push(`/anual/${anioSiguiente}`)}
-          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: 16, borderRadius: 16, backgroundColor: colors.superficie, borderWidth: 1, borderColor: colors.borde }}>
+          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: 16, borderRadius: 16, backgroundColor: colors.superficie }}>
           <View style={{ flexShrink: 1, gap: 4 }}>
             <Texto v="rotulo">{`Año ${anioSiguiente} · Sin plan`}</Texto>
             <Texto style={{ fontSize: 16, fontFamily: fonts.semibold }}>Parte de un mes y agrega lo que cambia</Texto>
@@ -47,8 +47,9 @@ export default function Planear() {
       )}
       {i && (
         <>
-          <View style={{ gap: 4 }}>
+          <View style={{ gap: 8 }}>
             <Texto v="rotulo">Próximos meses</Texto>
+            <View style={{ borderRadius: 16, backgroundColor: colors.superficie, paddingHorizontal: 16 }}>
             {i.proximos.map((m, k) => (
               <Fila key={claveMes(m.ref)} titulo={formatMesAnio(m.ref)} detalle={m.detalle} tonoDetalle={m.estado === 'BORRADOR' ? colors.aviso : undefined} ultima={k === i.proximos.length - 1} onPress={() => router.push(destino(m, false))}>
                 {m.estado === 'SIN_PLAN' && !m.libre.length ? (
@@ -58,9 +59,11 @@ export default function Planear() {
                 )}
               </Fila>
             ))}
+            </View>
           </View>
-          <View style={{ gap: 4 }}>
+          <View style={{ gap: 8 }}>
             <Texto v="rotulo">Este mes y anteriores</Texto>
+            <View style={{ borderRadius: 16, backgroundColor: colors.superficie, paddingHorizontal: 16 }}>
             {i.recientes.map((m, k) => (
               <Fila key={claveMes(m.ref)} titulo={formatMesAnio(m.ref)} detalle={m.detalle} tonoDetalle={m.estado === 'ACTIVO' ? colors.positivo : undefined} ultima={k === i.recientes.length - 1} onPress={() => router.push(destino(m, true))}>
                 <Texto style={{ fontSize: 13, fontFamily: m.estado === 'CERRADO' ? fonts.regular : fonts.semibold, color: m.estado === 'CERRADO' ? colors.secundario : colors.acento }}>
@@ -68,6 +71,7 @@ export default function Planear() {
                 </Texto>
               </Fila>
             ))}
+            </View>
           </View>
         </>
       )}

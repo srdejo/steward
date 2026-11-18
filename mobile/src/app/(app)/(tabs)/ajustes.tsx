@@ -33,7 +33,7 @@ function Seccion({ titulo, accion, children }: { titulo: string; accion?: ReactN
         <Texto v="rotulo" accessibilityRole="header">{titulo}</Texto>
         {accion}
       </View>
-      <View style={{ borderRadius: 14, borderWidth: 1, borderColor: colors.borde, backgroundColor: colors.superficie, paddingHorizontal: 16, paddingVertical: 4 }}>{children}</View>
+      <View style={{ borderRadius: 16, backgroundColor: colors.superficie, paddingHorizontal: 16, paddingVertical: 4 }}>{children}</View>
     </View>
   );
 }
