@@ -685,6 +685,16 @@ describe('Acceso y hogar (steward-acceso-onboarding, steward-ajustes)', () => {
     expect(() => guardarCategoria(semilla(), { id: 'cat-diezmo', nombre: 'Ofrendas' })).toThrow(expect.objectContaining({ codigo: 'RESERVADA' }));
     expect(crearHogarVacio().categorias.map((c) => c.nombre)).toEqual(['Diezmo', 'Gastos fijos', 'Variables', 'Tarjetas', 'Créditos']);
   });
+
+  it('color de categoría: de la paleta, Diezmo solo cambia el color y una nueva empieza en gris (color-categorias)', () => {
+    const color = (s: ReturnType<typeof semilla>, id: string) => s.categorias.find((c) => c.id === id)!.color;
+    expect(color(guardarCategoria(semilla(), { id: 'cat-fijos', nombre: 'Gastos fijos', color: '#3f6e9e' }), 'cat-fijos')).toBe('#3F6E9E');
+    expect(color(guardarCategoria(semilla(), { id: 'cat-diezmo', nombre: 'Diezmo', color: '#9A4F7E' }), 'cat-diezmo')).toBe('#9A4F7E');
+    expect(() => guardarCategoria(semilla(), { id: 'cat-fijos', nombre: 'Gastos fijos', color: '#123456' })).toThrow(expect.objectContaining({ codigo: 'COLOR_INVALIDO', message: 'Elige un color de la paleta' }));
+    const nueva = guardarCategoria(semilla(), { nombre: 'Educación' }).categorias.find((c) => c.nombre === 'Educación')!;
+    expect(nueva.color).toBe('#8A8D85');
+    expect(guardarCategoria(semilla(), { nombre: 'Mascotas', color: '#A87A1E' }).categorias.find((c) => c.nombre === 'Mascotas')!.color).toBe('#A87A1E');
+  });
 });
 
 describe('Falta pagar y Hoy detallado (hoy-falta-pagar-y-detalle-web)', () => {

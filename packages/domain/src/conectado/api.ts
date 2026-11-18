@@ -475,12 +475,13 @@ export class Api {
 
   // --- Plan del mes y registros de Hoy (spec steward-plan-mes y steward-finanzas) ---
 
-  crearCategoria(nombre: string): Promise<CategoriaApi> {
-    return this.t.pedir<CategoriaApi>('POST', '/api/categorias', { nombre });
+  crearCategoria(nombre: string, color?: string): Promise<CategoriaApi> {
+    return this.t.pedir<CategoriaApi>('POST', '/api/categorias', color ? { nombre, color } : { nombre });
   }
 
-  renombrarCategoria(id: string, nombre: string): Promise<CategoriaApi> {
-    return this.t.pedir<CategoriaApi>('PATCH', `/api/categorias/${encodeURIComponent(id)}`, { nombre });
+  /** Nombre, color o los dos (color-categorias, design D2). */
+  editarCategoria(id: string, datos: { nombre?: string; color?: string }): Promise<CategoriaApi> {
+    return this.t.pedir<CategoriaApi>('PATCH', `/api/categorias/${encodeURIComponent(id)}`, datos);
   }
 
   crearPlan(ref: MesApi, modo: 'COPIAR' | 'FIJOS' | 'CERO'): Promise<PlanApi> {

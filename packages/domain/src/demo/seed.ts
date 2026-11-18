@@ -181,7 +181,7 @@ export function crearSemilla(hoy: Fecha): EstadoHogar {
     ],
     creditos: creditos(M, ant1),
     tarjetas: TARJETAS.map((t) => ({ ...t, pago: { ...t.pago } })),
-    categorias: [...CATEGORIAS, { id: 'cat-ahorro', nombre: 'Ahorro', color: '#1E5A4C', orden: 5, tipo: 'OTRO', sistema: false }],
+    categorias: [...CATEGORIAS, { id: 'cat-ahorro', nombre: 'Ahorro', color: '#3F6E9E', orden: 5, tipo: 'OTRO', sistema: false }],
     planes: [
       { ...plan('plan-m-2', ant2, 'CERRADO', 'm-2', -2) },
       { ...plan('plan-m-1', ant1, 'CERRADO', 'm-1', -1) },
