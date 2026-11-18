@@ -61,7 +61,7 @@ describe('Cuentas (steward-cuentas)', () => {
   it('agregar una cuenta y mover dinero', async () => {
     const p = await conSesion();
     const a = await app('/cuentas');
-    await a.tocar('+ Agregar');
+    await a.tocar('+ Cuenta');
     await a.escribir('Nombre', 'Bancolombia');
     await a.escribir('Saldo aproximado', '500000');
     await a.tocar('Agregar cuenta');
@@ -137,7 +137,7 @@ describe('Cuentas (steward-cuentas)', () => {
   it('agregar un crédito: su cuota entra al plan del mes (Agregar crédito)', async () => {
     const p = await conSesion();
     const a = await app('/cuentas?pestana=creditos');
-    await a.tocar('+ Crédito');
+    await a.tocar('+ Agregar crédito');
     await a.escribir('Nombre', 'Moto');
     await a.escribir('Entidad', 'Bancolombia');
     await a.escribir('Día de pago', '15');
@@ -173,7 +173,7 @@ describe('Cuentas (steward-cuentas)', () => {
       expect(textoLegible(fila(a, 'Efectivo').querySelector('[data-testid="diferencia"]')!)).toBe('−$50.000');
       expect(a.raiz().querySelector('[data-testid="sin-registrar"]')!.textContent!.trim()).toBe('$220.000');
 
-      await a.tocar('Guardar saldos');
+      await a.tocar('Guardar cuadre');
       expect(a.url()).toBe('/cuentas');
       expect(textoLegible(fila(a, 'Davivienda'))).toContain('$3.980.000');
       expect(textoLegible(fila(a, 'Davivienda'))).toContain('cuadrada hoy');
@@ -205,18 +205,17 @@ describe('Cuentas (steward-cuentas)', () => {
       expect(a.url()).toMatch(new RegExp(`^/cuentas/cuenta/${davivienda}/registro/`));
     });
 
-    it('los resúmenes llevan a las pestañas Tarjetas y Créditos', async () => {
+    it('indicadores del hogar arriba y, en Tarjetas, el próximo pago y el calendario (canvas Libreta clara)', async () => {
       await conSesion();
       const a = await app('/cuentas');
-      expect(textoLegible(a.raiz().querySelector('[data-testid="resumen-tarjetas"]')!)).toContain('Pago Nu · Mercado el 28 oct, en 2 días');
-      await a.tocar(/Ver tarjetas/, '[data-testid="resumen-tarjetas"]');
+      expect(a.raiz().querySelector('[data-testid="cuentas-sub"]')!.textContent).toBe('Lo que hay, aproximado · cuadras cuando quieras');
+      expect(a.raiz().querySelector('[data-testid="saldo-hogar"]')!.textContent!.trim()).toMatch(/^≈ \$[\d.]+$/);
+      expect(a.raiz().querySelector('[data-testid="despues-de-pagar"]')!.textContent!.trim()).toMatch(/^≈ \$[\d.]+$/);
+      await a.tocar(/2 días/, '[role="tab"]');
       expect(a.url()).toBe('/cuentas?pestana=tarjetas');
+      expect(textoLegible(a.raiz().querySelector('[data-testid="kpi-proximo-pago"]')!)).toBe('Próximo pago 28 oct · $320.000 Nu · Mercado · en 2 días');
       expect(a.raiz().querySelectorAll('[data-testid="calendario"] li')).toHaveLength(35);
-      await a.tocar(/Pago en 2 días/, '[role="tab"]');
       expect(a.porTexto('Cuentas', '[role="tab"]').getAttribute('aria-selected')).toBe('false');
-      await a.ir('/cuentas');
-      await a.tocar(/Ver créditos/, '[data-testid="resumen-creditos"]');
-      expect(a.porTexto('Créditos', '[role="tab"]').getAttribute('aria-selected')).toBe('true');
     });
 
     it('créditos: indicadores, el elegido al lado y la proyección', async () => {

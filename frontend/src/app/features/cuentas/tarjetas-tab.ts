@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
-import { DIAS_FECHAS, formatFechaCorta, nombreMes, type Fecha, type FechaTarjeta, type Tarjeta, type TonoVence } from '@steward/domain';
+import { DIAS_FECHAS, formatCop, formatFechaCorta, nombreMes, type VistaTarjeta, type Fecha, type FechaTarjeta, type Tarjeta, type TonoVence } from '@steward/domain';
 
 import { consulta } from '../../core/datos/consulta';
 import { PUERTOS } from '../../core/datos/puertos';
@@ -28,16 +28,38 @@ interface Dia {
   host: { class: 'flex flex-col gap-5' },
   template: `
     @if (vista.value(); as v) {
-      <div class="flex flex-wrap items-end justify-between gap-4">
-        <div class="flex flex-col gap-1">
-          <span class="rotulo">Por pagar este ciclo</span>
-          <app-monto class="text-[30px] font-semibold" [valor]="v.porPagarCiclo" data-testid="por-pagar-ciclo" />
+      @if (escritorio()) {
+        <div class="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(200px,1fr))]">
+          <div class="flex flex-col gap-1 rounded-[18px] bg-superficie px-5 py-4">
+            <span class="text-[13px] text-secundario">Por pagar este ciclo</span>
+            <app-monto class="titular text-[26px] font-bold" [valor]="v.porPagarCiclo" [siempreVisible]="true" data-testid="por-pagar-ciclo" />
+            <span class="text-xs text-secundario">Valor de los extractos</span>
+          </div>
+          <div class="flex flex-col gap-1 rounded-[18px] bg-superficie px-5 py-4">
+            <span class="text-[13px] text-secundario">Tarjetas</span>
+            <span class="titular text-[26px] font-bold">{{ v.tarjetas.length }}</span>
+            <span class="text-xs text-secundario">{{ conUso(v.tarjetas) }}</span>
+          </div>
+          @if (proximo(); as p) {
+            <div class="flex flex-col gap-1 rounded-[18px] bg-aviso-suave px-5 py-4" data-testid="kpi-proximo-pago">
+              <span class="text-[13px] text-aviso">Próximo pago</span>
+              <span class="titular text-[26px] font-bold text-[#6B4200]">{{ corta(p.proximoPago.fecha) }} · {{ cop(p.monto) }}</span>
+              <span class="text-xs text-aviso">{{ p.linea.replace('Tarjeta ', '') }} · {{ enDias(p.proximoPago.dias) }}</span>
+            </div>
+          }
         </div>
-        <button type="button" class="boton h-10 rounded-[10px] bg-acento px-4 text-sm text-white" (click)="abrir(null)">+ Tarjeta</button>
-      </div>
+      } @else {
+        <section class="grid grid-cols-2 gap-3 rounded-panel bg-superficie p-[18px]">
+          <span class="flex flex-col gap-1"><span class="text-xs text-secundario">Por pagar este ciclo</span><app-monto class="titular text-2xl font-bold" [valor]="v.porPagarCiclo" [siempreVisible]="true" data-testid="por-pagar-ciclo" /></span>
+          @if (proximo(); as p) {
+            <span class="flex flex-col gap-1"><span class="text-xs text-secundario">Próximo pago</span><span class="titular text-2xl font-bold text-texto-medio">{{ corta(p.proximoPago.fecha) }}</span></span>
+          }
+        </section>
+      }
 
       @if (!v.tarjetas.length) {
         <p class="text-sm text-secundario">Sin tarjetas. Agrega una con sus días de corte y de pago, y su línea entra al plan del mes.</p>
+        <button type="button" class="boton-texto self-start font-semibold" (click)="abrir(null)">+ Agregar tarjeta</button>
       } @else {
         @if (escritorio()) {
           <section class="tarjeta flex flex-col gap-3 px-5 pt-4 pb-[18px]" aria-labelledby="calendario">
@@ -83,33 +105,44 @@ interface Dia {
 
         <div class="grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(280px,1fr))]">
           @for (t of v.tarjetas; track t.tarjeta.id) {
-            <button type="button" class="tarjeta flex flex-col gap-3.5 p-[18px] text-left hover:bg-fondo" (click)="abrir(t.tarjeta)" [attr.data-tarjeta]="t.tarjeta.nombre">
+            <button type="button" class="flex flex-col gap-3 bg-superficie text-left hover:bg-fondo" (click)="abrir(t.tarjeta)" [attr.data-tarjeta]="t.tarjeta.nombre"
+              [class]="escritorio() ? 'rounded-[18px] px-5 py-[18px]' : 'rounded-tarjeta px-4 py-3.5'" [class.shadow-[inset_0_0_0_1px_#E8A496]]="t.aviso && escritorio()">
               <span class="flex items-center justify-between gap-2">
-                <span class="flex items-center gap-2 text-base font-semibold">{{ t.tarjeta.nombre }}
-                  <span class="rounded-[10px] px-2.5 py-0.5 text-[11px] font-semibold" [class]="t.tarjeta.uso ? 'bg-[#F1EDFB] text-[#5B37B0]' : 'bg-[#F3F2EE] text-secundario'">{{ t.tarjeta.uso || 'Sin uso' }}</span>
+                <span class="flex items-center gap-2"><span class="font-semibold" [class]="escritorio() ? 'text-[17px]' : 'text-base'">{{ t.tarjeta.nombre }}</span>
+                  @if (t.tarjeta.uso) {
+                    <span class="rounded-lg bg-hueco px-2.5 py-[3px] text-xs font-semibold text-texto-medio">{{ t.tarjeta.uso }}</span>
+                  }
                 </span>
-                <app-monto class="text-[15px] font-semibold" [valor]="t.monto" />
+                @if (escritorio()) {
+                  <span class="text-xs text-secundario">{{ t.tarjeta.pago.tipo === 'FIJO' ? 'Pago parcial' : 'Pago completo' }}</span>
+                } @else {
+                  <app-monto class="text-base font-semibold" [valor]="t.monto" />
+                }
               </span>
-              <span class="grid grid-cols-2 gap-2">
-                <span class="flex flex-col gap-0.5 rounded-[10px] px-3 py-2.5" [class]="fondo[t.proximoPago.tono]" data-testid="proximo-pago">
-                  <span class="text-[11px] font-semibold tracking-[0.06em] text-secundario">PRÓXIMO PAGO</span>
-                  <span class="text-lg font-bold">{{ corta(t.proximoPago.fecha) }}</span>
+              <span class="grid gap-2" [class]="escritorio() ? 'grid-cols-2' : 'grid-cols-3'">
+                <span class="flex flex-col gap-0.5" [class]="escritorio() ? 'rounded-xl bg-fondo px-3 py-2.5' : ''">
+                  <span class="text-xs text-secundario">Corte</span>
+                  <span class="text-[15px] font-semibold">{{ corta(t.proximoCorte.fecha) }}</span>
+                </span>
+                <span class="flex flex-col gap-0.5" [class]="escritorio() ? 'rounded-xl px-3 py-2.5 ' + fondo[t.proximoPago.tono] : ''" data-testid="proximo-pago">
+                  <span class="text-xs text-secundario">Pago</span>
+                  <span class="text-[15px] font-semibold">{{ corta(t.proximoPago.fecha) }}</span>
                   <span class="text-xs" [class]="tono[t.proximoPago.tono]">{{ enDias(t.proximoPago.dias) }}</span>
                 </span>
-                <span class="flex flex-col gap-0.5 rounded-[10px] bg-fondo px-3 py-2.5">
-                  <span class="text-[11px] font-semibold tracking-[0.06em] text-secundario">PRÓXIMO CORTE</span>
-                  <span class="text-lg font-bold">{{ corta(t.proximoCorte.fecha) }}</span>
-                  <span class="text-xs text-secundario">{{ enDias(t.proximoCorte.dias) }}</span>
-                </span>
+                @if (!escritorio()) {
+                  <span class="flex flex-col gap-0.5"><span class="text-xs text-secundario">Se paga</span><span class="text-[15px] font-semibold">@if (t.tarjeta.pago.tipo === 'FIJO') {<app-monto [valor]="t.monto" />} @else {Completa}</span></span>
+                }
               </span>
-              <span class="flex justify-between border-t border-divisor pt-2.5 text-[13px]">
-                <span class="text-secundario">Corte día {{ t.tarjeta.diaCorte }} · pago día {{ t.tarjeta.diaPago }}</span>
-                <span class="font-semibold">{{ t.tarjeta.pago.tipo === 'FIJO' ? 'Pago fijo' : 'Se paga completa' }}</span>
-              </span>
-              <span class="text-xs leading-normal" [class]="t.aviso ? 'rounded-lg bg-[#FBE9E7] px-2.5 py-2 text-[#8C1D18]' : 'text-[#4A4E48]'" data-testid="ayuda-tarjeta">{{ t.ayuda }}</span>
+              @if (escritorio()) {
+                <span class="flex justify-between text-sm"><span class="text-texto-medio">Este extracto</span><app-monto class="font-bold" [valor]="t.monto" /></span>
+              }
+              <span class="leading-[1.45]" [class]="t.aviso ? 'rounded-[10px] bg-negativo-suave px-3 py-2.5 text-[13px] text-[#8C1D18]' : 'text-xs text-secundario'" data-testid="ayuda-tarjeta">{{ t.ayuda }}</span>
             </button>
           }
         </div>
+        @if (!escritorio()) {
+          <button type="button" class="boton-texto self-start font-semibold" (click)="abrir(null)">+ Agregar tarjeta</button>
+        }
         <p class="text-[13px] leading-normal text-secundario">La tarjeta con uso es la línea del plan: se paga con el valor del extracto y no hay que registrar compras. Para cambiar el uso o las fechas, toca la tarjeta.</p>
       }
     }
@@ -141,7 +174,20 @@ export class TarjetasTab {
     });
   });
 
-  protected abrir(tarjeta: Tarjeta | null): void {
+  /** La tarjeta que se paga mas pronto. */
+  protected readonly proximo = computed(() => [...(this.vista.value()?.tarjetas ?? [])].sort((a, b) => a.proximoPago.dias - b.proximoPago.dias)[0] ?? null);
+
+  protected cop(v: number): string {
+    return formatCop(v);
+  }
+
+  /** "2 con uso en el plan". */
+  protected conUso(tarjetas: VistaTarjeta[]): string {
+    const n = tarjetas.filter((t) => t.tarjeta.uso).length;
+    return n === 1 ? '1 con uso en el plan' : `${n} con uso en el plan`;
+  }
+
+  abrir(tarjeta: Tarjeta | null): void {
     this.hoja.set({ tarjeta });
   }
 
