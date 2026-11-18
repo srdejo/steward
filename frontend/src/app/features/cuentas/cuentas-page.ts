@@ -62,7 +62,7 @@ interface MovimientoReciente extends MovimientoCuenta {
       <!-- CuentasWeb.dc.html: encabezado, cuadre en tabla, movimientos recientes y los resumenes al lado (web-escritorio-completo). -->
       <div class="flex flex-wrap items-end justify-between gap-4">
         <div class="flex flex-col gap-1">
-          <h1 class="rotulo">Saldo del hogar · estimado</h1>
+          <h1 class="titular rotulo">Saldo del hogar · estimado</h1>
           <span class="monto text-[30px] font-semibold" data-testid="saldo-hogar">≈ <app-monto [valor]="todas.value()?.total ?? 0" /></span>
         </div>
         <div class="flex flex-wrap gap-2">
@@ -185,7 +185,7 @@ interface MovimientoReciente extends MovimientoCuenta {
     } @else {
     @if (datos.value(); as d) {
       <div class="flex flex-col gap-1.5">
-        <h1 class="rotulo">Saldo del hogar · estimado</h1>
+        <h1 class="titular rotulo">Saldo del hogar · estimado</h1>
         <span class="monto text-[30px] font-semibold" data-testid="saldo-hogar">≈ <app-monto [valor]="d.total" /></span>
       </div>
 

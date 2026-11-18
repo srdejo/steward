@@ -42,11 +42,11 @@ const CONFIRMACIONES = {
   host: { '[class]': "escritorio() ? 'flex flex-col gap-[22px] px-9 pt-7 pb-10' : 'flex flex-col gap-[22px] px-5 pt-6 pb-4'" },
   template: `
     @if (escritorio()) {
-      <h1 class="text-[28px] font-bold">Ajustes</h1>
+      <h1 class="titular text-[28px] font-bold">Ajustes</h1>
     } @else {
     <div class="grid grid-cols-[1fr_auto_1fr] items-center">
       <a routerLink="/hoy" class="boton-texto -my-2 self-start text-sm font-normal">‹ Ejecución</a>
-      <h1 class="text-[17px] font-semibold">Ajustes</h1>
+      <h1 class="titular text-[17px] font-semibold">Ajustes</h1>
     </div>
     }
 
@@ -158,7 +158,7 @@ const CONFIRMACIONES = {
     @if (hogar.value(); as h) {
       <section class="flex flex-col gap-2" aria-labelledby="ajustes-hogar">
         <h2 id="ajustes-hogar" class="rotulo">Hogar · {{ h.hogar.nombre }}</h2>
-        <div class="flex flex-col divide-y divide-divisor rounded-[14px] border border-borde bg-superficie px-4 py-1">
+        <div class="flex flex-col divide-y divide-divisor rounded-tarjeta bg-superficie px-4 py-1">
           @for (m of miembros.miembros(); track m.usuario.id) {
             <div class="flex items-center gap-3 py-3" data-testid="miembro">
               <app-avatar [inicial]="m.usuario.inicial" [variante]="m.variante" />
@@ -181,7 +181,7 @@ const CONFIRMACIONES = {
 
     <section class="flex flex-col gap-2" aria-labelledby="ajustes-ingresos">
       <h2 id="ajustes-ingresos" class="rotulo">Mis ingresos y diezmo</h2>
-      <div class="flex flex-col divide-y divide-divisor rounded-[14px] border border-borde bg-superficie px-4 py-1">
+      <div class="flex flex-col divide-y divide-divisor rounded-tarjeta bg-superficie px-4 py-1">
         @for (f of fijos.value() ?? []; track f.id) {
           <button type="button" class="flex items-center justify-between gap-3 py-3 text-left" (click)="abrir({ tipo: 'ingreso', ingreso: f })">
             <span class="flex flex-col gap-0.5"><span class="text-[15px]">{{ f.nombre }}</span><span class="text-xs text-diezmo">Fijo · {{ textoDiezmo() }}</span></span>
@@ -202,7 +202,7 @@ const CONFIRMACIONES = {
         <h2 id="ajustes-categorias" class="rotulo">Categorías</h2>
         <button type="button" class="boton-texto font-semibold" (click)="abrir({ tipo: 'categoria', categoria: null })">+ Nueva</button>
       </div>
-      <div class="flex flex-col divide-y divide-divisor rounded-[14px] border border-borde bg-superficie px-4 py-1">
+      <div class="flex flex-col divide-y divide-divisor rounded-tarjeta bg-superficie px-4 py-1">
         @for (c of categorias.value() ?? []; track c.id) {
           <div class="flex items-center gap-2.5 py-3" data-testid="categoria">
             <span class="h-2.5 w-2.5 rounded-[3px]" [style.background]="c.color" aria-hidden="true"></span>
@@ -221,7 +221,7 @@ const CONFIRMACIONES = {
     @if (seguridadDisponible) {
       <section class="flex flex-col gap-2" aria-labelledby="ajustes-seguridad">
         <h2 id="ajustes-seguridad" class="rotulo">Seguridad y privacidad</h2>
-        <div class="flex flex-col divide-y divide-divisor rounded-[14px] border border-borde bg-superficie px-4 py-1">
+        <div class="flex flex-col divide-y divide-divisor rounded-tarjeta bg-superficie px-4 py-1">
           <app-interruptor class="py-3" titulo="Face ID al abrir" detalle="Tras 5 min sin usar" [activo]="preferencias().faceIdAlAbrir" (activoChange)="preferir({ faceIdAlAbrir: $event })" />
           <app-interruptor class="py-3" titulo="Ocultar montos" detalle="Muestra $•••• hasta tocar" [activo]="preferencias().ocultarMontos" (activoChange)="preferir({ ocultarMontos: $event })" />
         </div>

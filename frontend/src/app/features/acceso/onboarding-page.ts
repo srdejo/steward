@@ -40,9 +40,10 @@ const COLORES_CUENTA = ['#C2603A', '#6B5BA8', '#8A8D85', '#2F7A4F', '#3F6E9E', '
   template: `
     <div class="grid grid-cols-5 gap-1.5" role="progressbar" aria-label="Avance del onboarding" [attr.aria-valuenow]="numero()" aria-valuemin="1" aria-valuemax="5">
       @for (i of [1, 2, 3, 4, 5]; track i) {
-        <span class="h-1 rounded-sm" [class.bg-acento]="i <= numero()" [class.bg-borde-campo]="i > numero()"></span>
+        <span class="h-[5px] rounded-[3px]" [class.bg-acento]="i <= numero()" [class.bg-borde-campo]="i > numero()"></span>
       }
     </div>
+    <span class="-mt-3 text-[13px] text-secundario" data-testid="paso">Paso {{ numero() }} de 5 · {{ etiquetaPaso() }}</span>
 
     @switch (numero()) {
       @case (1) {
@@ -54,7 +55,7 @@ const COLORES_CUENTA = ['#C2603A', '#6B5BA8', '#8A8D85', '#2F7A4F', '#3F6E9E', '
         }
         <div class="flex flex-col gap-2.5">
           <span class="text-xs font-semibold tracking-[0.1em] text-acento">BIENVENIDO</span>
-          <h1 class="text-[28px] leading-tight font-bold">¿Cómo te llamas?</h1>
+          <h1 class="titular text-[28px] leading-tight font-bold">¿Cómo te llamas?</h1>
           <p class="text-[15px] leading-normal text-secundario">Lo tomamos de tu cuenta de Google. Cámbialo si quieres.</p>
         </div>
         <label class="flex flex-col gap-2">
@@ -71,7 +72,7 @@ const COLORES_CUENTA = ['#C2603A', '#6B5BA8', '#8A8D85', '#2F7A4F', '#3F6E9E', '
       @case (2) {
         <div class="flex flex-col gap-2.5">
           <span class="text-xs font-semibold tracking-[0.1em] text-acento">APORTE · OPCIONAL</span>
-          <h1 class="text-[28px] leading-tight font-bold">¿Diezmas de tus ingresos?</h1>
+          <h1 class="titular text-[28px] leading-tight font-bold">¿Diezmas de tus ingresos?</h1>
           <p class="text-[15px] leading-normal text-secundario">Si lo activas, lo calculamos solo cuando entre cada ingreso. Nunca tendrás que escribirlo a mano.</p>
         </div>
         <div class="grid grid-cols-2 gap-2.5" role="radiogroup" aria-label="¿Diezmas de tus ingresos?">
@@ -82,7 +83,7 @@ const COLORES_CUENTA = ['#C2603A', '#6B5BA8', '#8A8D85', '#2F7A4F', '#3F6E9E', '
               [attr.aria-checked]="diezmo() === o.valor"
               (click)="diezmo.set(o.valor)"
               class="flex min-h-[76px] flex-col gap-1 rounded-[14px] p-3.5 text-left"
-              [class]="diezmo() === o.valor ? 'border-2 border-acento bg-acento-suave' : 'border border-borde-campo bg-superficie'"
+              [class]="diezmo() === o.valor ? 'border-2 border-acento bg-acento-elegido' : 'border border-borde-campo bg-superficie'"
             >
               <span class="text-base font-semibold">{{ o.titulo }}</span>
               <span class="text-xs text-secundario">{{ o.detalle }}</span>
@@ -90,7 +91,7 @@ const COLORES_CUENTA = ['#C2603A', '#6B5BA8', '#8A8D85', '#2F7A4F', '#3F6E9E', '
           }
         </div>
         @if (diezmo()) {
-          <div class="flex flex-col gap-4 rounded-[14px] border border-borde bg-superficie p-4">
+          <div class="flex flex-col gap-4 rounded-[16px] bg-superficie p-4">
             <label class="flex items-center justify-between gap-3">
               <span class="text-sm font-medium">Porcentaje</span>
               <input
@@ -125,11 +126,11 @@ const COLORES_CUENTA = ['#C2603A', '#6B5BA8', '#8A8D85', '#2F7A4F', '#3F6E9E', '
       @case (3) {
         <div class="flex flex-col gap-2.5">
           <span class="text-xs font-semibold tracking-[0.1em] text-acento">INGRESO FIJO</span>
-          <h1 class="text-[28px] leading-tight font-bold">Lo que entra cada mes</h1>
+          <h1 class="titular text-[28px] leading-tight font-bold">Lo que entra cada mes</h1>
           <p class="text-[15px] leading-normal text-secundario">Defínelo una vez y se repite en todos los meses del año.</p>
         </div>
         @for (ing of ingresos(); track $index; let i = $index) {
-          <fieldset class="flex flex-col gap-3.5 rounded-[14px] border border-borde bg-superficie p-4">
+          <fieldset class="flex flex-col gap-3.5 rounded-[16px] bg-superficie p-4">
             <legend class="sr-only">Ingreso fijo {{ i + 1 }}</legend>
             <label class="flex flex-col gap-1.5">
               <span class="text-[11px] font-semibold tracking-[0.08em] text-secundario">NOMBRE</span>
@@ -159,12 +160,12 @@ const COLORES_CUENTA = ['#C2603A', '#6B5BA8', '#8A8D85', '#2F7A4F', '#3F6E9E', '
       @case (4) {
         <div class="flex flex-col gap-2.5">
           <span class="text-xs font-semibold tracking-[0.1em] text-acento">CUENTAS · OPCIONAL</span>
-          <h1 class="text-[28px] leading-tight font-bold">¿Dónde tienes el dinero?</h1>
+          <h1 class="titular text-[28px] leading-tight font-bold">¿Dónde tienes el dinero?</h1>
           <p class="text-[15px] leading-normal text-secundario">Un saldo aproximado basta. Lo cuadras cuando quieras.</p>
         </div>
         <div class="flex flex-col gap-2.5">
           @for (c of cuentas(); track $index; let i = $index) {
-            <div class="flex items-center gap-3 rounded-[14px] border border-borde bg-superficie px-3.5 py-3">
+            <div class="flex items-center gap-3 rounded-[16px] bg-superficie px-3.5 py-3">
               <span class="h-2.5 w-2.5 shrink-0 rounded-[3px]" [style.background]="c.color" aria-hidden="true"></span>
               @if (c.sugerida) {
                 <span class="grow text-[15px] font-medium">{{ c.nombre }}</span>
@@ -185,7 +186,7 @@ const COLORES_CUENTA = ['#C2603A', '#6B5BA8', '#8A8D85', '#2F7A4F', '#3F6E9E', '
       @case (5) {
         <div class="flex flex-col gap-2.5">
           <span class="text-xs font-semibold tracking-[0.1em] text-acento">HOGAR</span>
-          <h1 class="text-[28px] leading-tight font-bold">¿Con quién compartes el presupuesto?</h1>
+          <h1 class="titular text-[28px] leading-tight font-bold">¿Con quién compartes el presupuesto?</h1>
           <p class="text-[15px] leading-normal text-secundario">Le llega un correo y entra con su propia cuenta. Nadie comparte contraseñas.</p>
         </div>
         <form class="flex flex-col gap-2" (submit)="$event.preventDefault(); invitar()">
@@ -198,7 +199,7 @@ const COLORES_CUENTA = ['#C2603A', '#6B5BA8', '#8A8D85', '#2F7A4F', '#3F6E9E', '
           </div>
         </form>
         @for (inv of invitaciones(); track inv.id) {
-          <div class="flex items-center gap-3 rounded-[14px] border border-borde bg-superficie px-3.5 py-3" data-testid="invitacion">
+          <div class="flex items-center gap-3 rounded-[16px] bg-superficie px-3.5 py-3" data-testid="invitacion">
             <app-avatar [inicial]="inv.email.charAt(0).toUpperCase()" variante="suave" [tamano]="36" />
             <div class="flex min-w-0 grow flex-col gap-0.5">
               <span class="truncate text-sm font-medium">{{ inv.email }}</span>
@@ -255,6 +256,8 @@ export class OnboardingPage implements OnInit {
   /** Parametro de la ruta (`/onboarding/:paso`). */
   readonly paso = input('1');
   protected readonly numero = computed(() => Math.min(5, Math.max(1, Number(this.paso()) || 1)));
+  /** "Paso 2 de 5 · Diezmo" (artboard "Onboarding · 5 pasos"). */
+  protected readonly etiquetaPaso = computed(() => ['Tu hogar', 'Diezmo', 'Ingreso fijo', 'Cuentas', 'Invitar'][this.numero() - 1]);
 
   protected readonly nombre = signal('');
   protected readonly hogar = signal('');

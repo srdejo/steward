@@ -46,7 +46,7 @@ import { IngresoHoja } from './ingreso-hoja';
             @for (o of formasDeEmpezar(); track o.modo; let primero = $first) {
               <button type="button" (click)="crear(o.modo)" [disabled]="guardando()"
                 class="flex items-center justify-between gap-3 rounded-[14px] p-4 text-left"
-                [class]="primero ? 'border-2 border-acento bg-acento-suave' : 'border border-borde-campo bg-superficie'">
+                [class]="primero ? 'border-2 border-acento bg-acento-elegido' : 'border border-borde-campo bg-superficie'">
                 <span class="flex flex-col gap-1">
                   <span class="text-base font-semibold">{{ o.titulo }}</span>
                   <span class="text-[13px] text-secundario">{{ o.detalle }}</span>

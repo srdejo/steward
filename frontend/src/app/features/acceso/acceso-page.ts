@@ -31,7 +31,7 @@ import { Icono } from '../../shared/components/icono';
         <span class="text-lg font-bold">Presupuesto Hogar</span>
       </div>
       <div class="flex max-w-[460px] flex-col gap-[18px]">
-        <p class="text-[40px] leading-[1.15] font-bold">Planeen el mes juntos y lleven lo que de verdad pasa.</p>
+        <p class="titular text-[40px] leading-[1.15] font-bold tracking-[-0.02em]">Planeen el mes juntos y lleven lo que de verdad pasa.</p>
         <ul class="flex flex-col gap-3 text-[15px] text-[#D7E3DA]">
           <li class="flex gap-2.5"><app-icono nombre="check" [tamano]="18" class="text-white" />Varias opciones por mes y el año completo en una tabla.</li>
           <li class="flex gap-2.5"><app-icono nombre="check" [tamano]="18" class="text-white" />Los dos marcan pagos; cada uno ve quién pagó qué.</li>
@@ -44,18 +44,23 @@ import { Icono } from '../../shared/components/icono';
     <div class="mx-auto flex min-h-dvh w-full max-w-[430px] flex-col gap-8 px-6 pt-16 pb-9 lg:min-h-0 lg:max-w-none lg:flex-[1_1_420px] lg:items-center lg:justify-center lg:px-8 lg:py-14">
     <div class="contents lg:flex lg:w-full lg:max-w-[400px] lg:flex-col lg:gap-[22px]">
     <div class="hidden flex-col gap-1.5 lg:flex">
-      <h2 class="text-[26px] font-bold">Entrar</h2>
+      <h2 class="titular text-[28px] font-bold">Entrar</h2>
       <p class="text-sm leading-normal text-secundario">Si es tu primera vez, se crea tu cuenta. Si te invitaron, usa el correo de la invitación.</p>
     </div>
 
-    <div class="mt-10 flex flex-col gap-4 lg:hidden">
-      <span class="flex h-14 w-14 items-center justify-center rounded-panel bg-acento text-white">
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-          <path d="M4 11l8-6 8 6v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z" /><path d="M9 20v-5h6v5" />
-        </svg>
-      </span>
-      <h1 class="text-[30px] leading-[1.15] font-bold">Presupuesto Hogar</h1>
-      <p class="text-base leading-[1.45] text-secundario">Planeen el mes juntos y lleven lo que de verdad pasa.</p>
+    <div class="flex flex-col gap-14 lg:hidden">
+      <div class="flex items-center gap-2.5">
+        <span class="flex size-9 items-center justify-center rounded-[10px] bg-acento text-white">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M4 11l8-6 8 6v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z" /><path d="M9 20v-5h6v5" />
+          </svg>
+        </span>
+        <span class="text-[15px] font-bold">Presupuesto Hogar</span>
+      </div>
+      <div class="flex flex-col gap-3">
+        <h1 class="titular text-[34px] leading-[1.1] font-bold tracking-[-0.02em]">Planeen el mes juntos.</h1>
+        <p class="text-base leading-normal text-texto-medio">Y lleven lo que de verdad pasa, sin cuadrar cada peso.</p>
+      </div>
     </div>
 
     <div class="mt-auto flex flex-col gap-2.5 lg:mt-0">
@@ -83,7 +88,7 @@ import { Icono } from '../../shared/components/icono';
           </form>
         }
       } @else {
-      <button type="button" class="boton h-[52px] rounded-[14px] border border-[#D9D8D2] bg-superficie text-base" [disabled]="entrando()" (click)="entrar('GOOGLE')">
+      <button type="button" class="boton h-[52px] rounded-[14px] border border-borde-campo bg-superficie text-[15px]" [disabled]="entrando()" (click)="entrar('GOOGLE')">
         <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
           <path fill="#4285F4" d="M22.5 12.3c0-.8-.1-1.5-.2-2.2H12v4.2h5.9a5 5 0 0 1-2.2 3.3v2.7h3.5c2.1-1.9 3.3-4.7 3.3-8z" />
           <path fill="#34A853" d="M12 23c3 0 5.5-1 7.2-2.7l-3.5-2.7c-1 .7-2.2 1.1-3.7 1.1-2.9 0-5.3-1.9-6.2-4.5H2.2v2.8A11 11 0 0 0 12 23z" />

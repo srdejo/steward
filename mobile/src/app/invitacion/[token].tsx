@@ -52,7 +52,7 @@ export default function Invitacion() {
         </Texto>
       </View>
       <Campo etiqueta="Tu nombre" valor={nombre} onCambio={setNombre} placeholder="Tu nombre" />
-      <View style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 14, backgroundColor: colors.superficie, borderWidth: 1, borderColor: colors.borde }}>
+      <View style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 16, backgroundColor: colors.superficie }}>
         <Interruptor titulo="Diezmar de mis aportes" detalle="Opcional · 10% al registrar cada aporte" activo={diezmo} onCambio={setDiezmo} />
       </View>
       <View style={{ gap: 10, padding: 16, borderRadius: 14, backgroundColor: colors.nota }}>

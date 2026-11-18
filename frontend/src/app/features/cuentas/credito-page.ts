@@ -43,7 +43,7 @@ const ABONO_INICIAL = 1_500_000;
         <div class="flex flex-wrap items-end justify-between gap-4">
           <div class="flex flex-col gap-1">
             <span class="rotulo">Crédito · {{ v.credito.entidad }}</span>
-            <h1 class="text-[28px] font-bold">{{ v.credito.nombre }}</h1>
+            <h1 class="titular text-[28px] font-bold">{{ v.credito.nombre }}</h1>
             <div class="flex flex-wrap items-baseline gap-3">
               <app-monto class="text-[32px] font-semibold" [valor]="v.credito.saldo" data-testid="saldo" />
               <span class="text-[13px] text-secundario">Saldo actualizado el {{ fecha(v.credito.saldoActualizadoEn) }}</span>
@@ -59,12 +59,12 @@ const ABONO_INICIAL = 1_500_000;
         }
 
         <div class="grid grid-cols-[repeat(auto-fit,minmax(190px,1fr))] gap-3" data-testid="indicadores">
-          <div class="flex flex-col gap-1 rounded-[14px] border border-borde bg-superficie px-[18px] py-4">
+          <div class="flex flex-col gap-1 rounded-tarjeta bg-superficie px-[18px] py-4">
             <span class="text-xs text-secundario">Cuota</span>
             <app-monto class="text-xl font-semibold" [valor]="v.credito.cuota" />
             <span class="text-xs text-secundario">Día {{ v.credito.diaPago }} de cada mes</span>
           </div>
-          <div class="flex flex-col gap-1.5 rounded-[14px] border border-borde bg-superficie px-[18px] py-4">
+          <div class="flex flex-col gap-1.5 rounded-tarjeta bg-superficie px-[18px] py-4">
             <span class="text-xs text-secundario">Pagado</span>
             <span class="monto text-xl font-semibold">{{ v.porcentajePagado }}%</span>
             <div class="flex h-1.5 rounded bg-divisor" role="progressbar" [attr.aria-valuenow]="v.porcentajePagado" aria-valuemin="0" aria-valuemax="100" aria-label="Pagado del crédito">
@@ -72,7 +72,7 @@ const ABONO_INICIAL = 1_500_000;
             </div>
             <span class="text-xs text-secundario">de <app-monto [valor]="v.credito.totalOriginal" />{{ v.progreso ? ' · cuota ' + v.progreso.actual + ' de ' + v.progreso.total : '' }}</span>
           </div>
-          <div class="flex flex-col gap-1 rounded-[14px] border border-borde bg-superficie px-[18px] py-4">
+          <div class="flex flex-col gap-1 rounded-tarjeta bg-superficie px-[18px] py-4">
             <span class="text-xs text-secundario">Termina</span>
             <span class="monto text-xl font-semibold" data-testid="termina">{{ v.termina ? (v.credito.metodo === 'TASA' ? '≈ ' : '') + mes(v.termina) : '—' }}</span>
             <span class="text-xs text-secundario">{{ v.cuotasRestantes !== null ? 'Faltan ' + v.cuotasRestantes + ' cuotas' : 'Lo actualizas con el extracto' }}</span>
@@ -89,7 +89,7 @@ const ABONO_INICIAL = 1_500_000;
         <div class="flex flex-wrap items-start gap-5">
           <div class="flex min-w-0 flex-[2_1_600px] flex-col gap-5">
             @if (v.proximasAnio.length) {
-              <section class="overflow-hidden rounded-[14px] border border-borde bg-superficie" aria-labelledby="proximas-web">
+              <section class="overflow-hidden rounded-tarjeta bg-superficie" aria-labelledby="proximas-web">
                 <div class="flex items-baseline justify-between gap-3 border-b border-divisor px-5 py-4">
                   <h2 id="proximas-web" class="text-base font-semibold">Próximas cuotas</h2>
                   <span class="flex gap-3.5 text-xs text-secundario">
@@ -131,7 +131,7 @@ const ABONO_INICIAL = 1_500_000;
                 </div>
               </section>
             }
-            <section class="overflow-hidden rounded-[14px] border border-borde bg-superficie" aria-labelledby="pagos-web">
+            <section class="overflow-hidden rounded-tarjeta bg-superficie" aria-labelledby="pagos-web">
               <h2 id="pagos-web" class="border-b border-divisor px-5 py-4 text-base font-semibold">Últimos pagos</h2>
               @for (p of v.pagos.slice(0, 8); track $index) {
                 <div class="grid grid-cols-[minmax(160px,1fr)_160px_130px] items-center gap-3 border-t border-[#F0EEE9] px-5 py-2.5 text-[13px] first-of-type:border-t-0" data-testid="pago">
@@ -153,7 +153,7 @@ const ABONO_INICIAL = 1_500_000;
               <button type="button" class="boton-texto self-start font-semibold" (click)="cambiando.set(true)">Cambiar</button>
             </section>
             <ng-container [ngTemplateOutlet]="simulador" />
-            <section class="flex flex-col gap-2 rounded-[14px] border border-borde bg-superficie p-4">
+            <section class="flex flex-col gap-2 rounded-tarjeta bg-superficie p-4">
               <span class="text-sm font-semibold">¿Ya no lo tienen?</span>
               <span class="text-[13px] leading-[1.45] text-secundario">Si lo pagaron completo, lo trasladaron o lo agregaron por error, elimínalo. Los pagos registrados se quedan en el historial.</span>
               <button type="button" class="boton h-10 self-start rounded-control border border-[#E3B6A8] bg-superficie px-3.5 text-[13px] text-negativo" (click)="eliminando.set(true)">Eliminar crédito</button>
@@ -166,7 +166,7 @@ const ABONO_INICIAL = 1_500_000;
       } @else {
       <div class="flex flex-col gap-1.5">
         <span class="rotulo">Crédito · {{ v.credito.entidad }}</span>
-        <h1 class="text-[26px] font-bold">{{ v.credito.nombre }}</h1>
+        <h1 class="titular text-[26px] font-bold">{{ v.credito.nombre }}</h1>
         <app-monto class="text-[30px] font-semibold" [valor]="v.credito.saldo" />
         <span class="text-[13px] text-secundario">Saldo actualizado el {{ fecha(v.credito.saldoActualizadoEn) }}</span>
       </div>

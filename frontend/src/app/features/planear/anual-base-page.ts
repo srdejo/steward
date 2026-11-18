@@ -32,7 +32,7 @@ function tipoDe(c: Categoria | undefined): TipoItem {
       <div class="flex flex-wrap items-end justify-between gap-4">
         <div class="flex flex-col gap-1">
           <span class="rotulo text-aviso">Plan {{ anio() }} · Opción {{ v.opcion.letra }} · paso 1 de 2</span>
-          <h1 class="text-[26px] font-bold lg:text-[28px]">Mes base de la Opción {{ v.opcion.letra }}</h1>
+          <h1 class="titular text-[26px] font-bold lg:text-[28px]">Mes base de la Opción {{ v.opcion.letra }}</h1>
           <p class="text-sm text-secundario">{{ v.origen ? 'Copiado de ' + mesAnio(v.origen) + '.' : 'Empieza vacío.' }} Ajusta lo que va a ser igual todos los meses; lo que cambia en un mes va después.</p>
         </div>
         <div class="flex flex-wrap gap-2">
@@ -42,7 +42,7 @@ function tipoDe(c: Categoria | undefined): TipoItem {
       </div>
 
       <div class="flex flex-wrap items-start gap-5">
-        <section aria-label="Mes base" class="min-w-0 flex-[3_1_600px] overflow-x-auto rounded-[14px] border border-borde bg-superficie">
+        <section aria-label="Mes base" class="min-w-0 flex-[3_1_600px] overflow-x-auto rounded-tarjeta bg-superficie">
           <div class="min-w-[560px]">
             <div class="fila-base border-b border-borde bg-fondo py-2.5 text-[11px] font-semibold tracking-[0.06em] text-secundario">
               <span></span><span>DÍA</span><span class="text-right">CADA MES</span><span></span>
@@ -77,7 +77,7 @@ function tipoDe(c: Categoria | undefined): TipoItem {
         </section>
 
         <aside class="flex min-w-0 flex-[2_1_340px] flex-col gap-4">
-          <section class="flex flex-col gap-2.5 rounded-[14px] border border-borde bg-superficie p-[18px]" data-testid="resumen-base">
+          <section class="flex flex-col gap-2.5 rounded-tarjeta bg-superficie p-[18px]" data-testid="resumen-base">
             <span class="rotulo">Con este mes base</span>
             <div class="flex justify-between text-sm"><span>Entra cada mes</span><app-monto class="text-positivo" [valor]="v.entra" /></div>
             <div class="flex justify-between text-sm"><span>Sale cada mes</span><app-monto [valor]="v.sale" /></div>

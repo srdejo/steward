@@ -32,7 +32,7 @@ interface UnirmePendiente {
           }
           <app-avatar [inicial]="inicialInvitado()" variante="suave" [tamano]="56" class="-ml-3.5 border-[3px] border-fondo" />
         </div>
-        <h1 class="text-[26px] leading-tight font-bold">{{ inv.invitadoPor.nombre }} te invitó a {{ inv.hogar }}</h1>
+        <h1 class="titular text-[26px] leading-tight font-bold">{{ inv.invitadoPor.nombre }} te invitó a {{ inv.hogar }}</h1>
         <p class="text-[15px] leading-normal text-secundario">Van a llevar juntos los gastos del hogar. Tus ingresos siguen siendo tuyos: aquí solo pones lo que aportas.</p>
       </div>
 
@@ -41,7 +41,7 @@ interface UnirmePendiente {
         <input class="campo-grande h-[52px] text-base" placeholder="Tu nombre" autocomplete="given-name" [value]="nombre()" (input)="nombre.set($any($event.target).value)" />
       </label>
 
-      <div class="rounded-[14px] border border-borde bg-superficie px-4 py-3.5">
+      <div class="rounded-tarjeta bg-superficie px-4 py-3.5">
         <app-interruptor titulo="Diezmar de mis aportes" detalle="Opcional · 10% al registrar cada aporte" [(activo)]="diezmo" />
       </div>
 
@@ -64,7 +64,7 @@ interface UnirmePendiente {
       </div>
     } @else {
       <div class="mt-24 flex flex-col items-center gap-4 text-center">
-        <h1 class="text-[26px] leading-tight font-bold">Esta invitación ya no es válida</h1>
+        <h1 class="titular text-[26px] leading-tight font-bold">Esta invitación ya no es válida</h1>
         <p class="text-[15px] text-secundario">Se usó o venció (duran 7 días). Pide a quien te invitó que la reenvíe.</p>
         <a routerLink="/acceso" class="boton-grande mt-4">Ir al acceso</a>
       </div>

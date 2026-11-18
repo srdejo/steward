@@ -49,7 +49,7 @@ const SIN_COLOR = '#C9C8C2';
       @if (vista.value(); as v) {
         <div class="flex flex-col gap-1">
           <span class="rotulo">Cierre de mes{{ v.cerrado ? ' · cerrado' : '' }}</span>
-          <h1 class="text-[28px] font-bold">{{ nombreCapital() }} {{ anio() }} terminó con
+          <h1 class="titular text-[28px] font-bold">{{ nombreCapital() }} {{ anio() }} terminó con
             <app-monto [class.text-acento]="v.sobrante >= 0" [class.text-negativo]="v.sobrante < 0" [valor]="v.sobrante" data-testid="sobrante" /></h1>
           <span class="text-sm text-secundario">El plan esperaba <app-monto [valor]="v.librePlaneado" /> libres ·
             @let mejor = v.sobrante - v.librePlaneado;
@@ -163,12 +163,12 @@ const SIN_COLOR = '#C9C8C2';
     @if (vista.value(); as v) {
       <div class="flex flex-col gap-1.5">
         <span class="rotulo">Cierre de mes{{ v.cerrado ? ' · cerrado' : '' }}</span>
-        <h1 class="text-[26px] font-bold">{{ nombreCapital() }} terminó con</h1>
+        <h1 class="titular text-[26px] font-bold">{{ nombreCapital() }} terminó con</h1>
         <app-monto class="text-[34px] font-semibold" [class.text-acento]="v.sobrante >= 0" [class.text-negativo]="v.sobrante < 0" [valor]="v.sobrante" data-testid="sobrante" />
         <span class="text-sm text-secundario">El plan esperaba {{ cop(v.librePlaneado) }} libres.</span>
       </div>
 
-      <div class="rounded-[14px] border border-borde bg-superficie px-4 py-1.5">
+      <div class="rounded-tarjeta bg-superficie px-4 py-1.5">
         <table class="w-full border-collapse text-sm" data-testid="tabla-cierre">
           <thead>
             <tr class="border-b border-divisor text-[11px] font-semibold tracking-[0.06em] text-secundario">
@@ -205,11 +205,11 @@ const SIN_COLOR = '#C9C8C2';
       } @else {
         <div class="flex flex-col gap-2.5">
           <h2 class="text-base font-semibold">¿Qué hacemos con lo que sobró?</h2>
-          <div class="flex items-center justify-between gap-3 rounded-xl border-2 border-acento bg-acento-suave px-4 py-2.5">
+          <div class="flex items-center justify-between gap-3 rounded-xl border-2 border-acento bg-acento-elegido px-4 py-2.5">
             <span class="text-[15px] font-medium" id="a-ahorro">A ahorro</span>
             <app-monto-input class="w-40" [(valor)]="aAhorro" etiquetaAccesible="A ahorro" />
           </div>
-          <div class="flex items-center justify-between gap-3 rounded-xl border-2 border-acento bg-acento-suave px-4 py-2.5">
+          <div class="flex items-center justify-between gap-3 rounded-xl border-2 border-acento bg-acento-elegido px-4 py-2.5">
             <span class="text-[15px] font-medium" id="a-siguiente">Pasar a {{ siguiente() }}</span>
             <app-monto-input class="w-40" [(valor)]="aSiguiente" [etiquetaAccesible]="'Pasar a ' + siguiente()" />
           </div>

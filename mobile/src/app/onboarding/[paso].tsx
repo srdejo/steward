@@ -113,12 +113,13 @@ export default function Onboarding() {
   const vistaPrevia = (i: IngresoBorrador) => (i.bruto || i.neto ? previsualizarDiezmo({ activa: diezmo, porcentaje, base }, i.bruto ?? i.neto ?? 0, i.neto ?? i.bruto ?? 0) : null);
 
   return (
-    <Pantalla demo={false} style={{ flexGrow: 1, paddingHorizontal: 24, paddingTop: 32, gap: 24 }}>
+    <Pantalla demo={false} style={{ flexGrow: 1, paddingHorizontal: 20, paddingTop: 24, gap: 22 }}>
       <View accessibilityRole="progressbar" accessibilityValue={{ min: 1, max: 5, now: n }} style={{ flexDirection: 'row', gap: 6 }}>
         {[1, 2, 3, 4, 5].map((i) => (
-          <View key={i} style={{ flex: 1, height: 4, borderRadius: 2, backgroundColor: i <= n ? colors.acento : colors.bordeCampo }} />
+          <View key={i} style={{ flex: 1, height: 5, borderRadius: 3, backgroundColor: i <= n ? colors.acento : colors.bordeCampo }} />
         ))}
       </View>
+      <Texto v="pequeno" testID="paso" style={{ marginTop: -14 }}>{`Paso ${n} de 5 · ${['Tu hogar', 'Diezmo', 'Ingreso fijo', 'Cuentas', 'Invitar'][n - 1]}`}</Texto>
 
       {n === 1 && (
         <>
@@ -162,7 +163,7 @@ export default function Onboarding() {
             ))}
           </View>
           {diezmo && (
-            <View style={{ gap: 16, padding: 16, borderRadius: 14, backgroundColor: colors.superficie, borderWidth: 1, borderColor: colors.borde }}>
+            <View style={{ gap: 16, padding: 16, borderRadius: 16, backgroundColor: colors.superficie }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Texto style={{ fontSize: 14, fontFamily: fonts.medium }}>Porcentaje</Texto>
                 <TextInput accessibilityLabel="Porcentaje" keyboardType="number-pad" value={`${porcentaje}%`} onChangeText={(t) => setPorcentaje(Math.min(100, Number(t.replace(/\D/g, '')) || 0))}
@@ -192,7 +193,7 @@ export default function Onboarding() {
             const editar = (cambios: Partial<IngresoBorrador>) => setIngresos((l) => l.map((x, j) => (j === i ? { ...x, ...cambios } : x)));
             const d = vistaPrevia(ing);
             return (
-              <View key={i} style={{ gap: 14, padding: 16, borderRadius: 14, backgroundColor: colors.superficie, borderWidth: 1, borderColor: colors.borde }}>
+              <View key={i} style={{ gap: 14, padding: 16, borderRadius: 16, backgroundColor: colors.superficie }}>
                 <Campo etiqueta="Nombre" valor={ing.nombre} onCambio={(t) => editar({ nombre: t })} />
                 <View style={{ flexDirection: 'row', gap: 10 }}>
                   <View style={{ flex: 1 }}><MontoInput etiqueta="Bruto" valor={ing.bruto} onCambio={(v) => editar({ bruto: v })} /></View>
@@ -236,7 +237,7 @@ export default function Onboarding() {
             <Boton titulo="Invitar" onPress={invitar} deshabilitado={!correo.trim() || guardando} />
           </View>
           {invitaciones.map((inv) => (
-            <View key={inv.id} testID="invitacion" style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 14, backgroundColor: colors.superficie, borderWidth: 1, borderColor: colors.borde }}>
+            <View key={inv.id} testID="invitacion" style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 16, backgroundColor: colors.superficie }}>
               <Avatar inicial={inv.email.charAt(0).toUpperCase()} variante="suave" tamano={36} />
               <View style={{ flex: 1, gap: 2 }}>
                 <Texto numberOfLines={1} style={{ fontSize: 14, fontFamily: fonts.medium }}>{inv.email}</Texto>

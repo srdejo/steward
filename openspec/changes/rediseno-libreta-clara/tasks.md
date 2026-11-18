@@ -31,7 +31,7 @@
 
 ## 4. El resto de pantallas
 
-- [ ] 4.1 Entrar: acceso, Face ID, onboarding de 5 pasos e invitación (artboards MAcceso, MOnboarding, MInvitado y WAcceso), en la PWA y en la app.
+- [x] 4.1 Entrar: acceso, Face ID, onboarding de 5 pasos e invitación (artboards MAcceso, MOnboarding, MInvitado y WAcceso), en la PWA y en la app.
 - [ ] 4.2 Planear: Planear, plan del mes con opciones y año (MPlanear, MMes, MAno, WPlanear, WMes y WAno), en la PWA y en la app.
 - [ ] 4.3 Cierre de mes (MCierre y WCierre), en la PWA y en la app.
 - [ ] 4.4 Cuentas: cuentas, tarjetas, créditos, cuadrar, detalle de crédito y cómo baja el saldo (MCuentas, MCuadrar, MCredito, MMetodo y WCuentas), en la PWA y en la app.

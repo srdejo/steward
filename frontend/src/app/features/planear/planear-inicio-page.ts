@@ -21,7 +21,7 @@ import { anchoEscritorio } from '../../shared/escritorio';
       @if (escritorio()) {
         <span class="rotulo text-positivo">{{ enCurso() }} en curso</span>
       }
-      <h1 class="text-[26px] font-bold lg:text-[28px]">Plan</h1>
+      <h1 class="titular text-[26px] font-bold lg:text-[28px]">Plan</h1>
     </div>
 
     @if (inicio.value(); as i) {

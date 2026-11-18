@@ -24,7 +24,7 @@ import { FiltroTitularComponent } from './filtro-titular';
       <span class="text-[13px] text-secundario">Hogar · {{ total() }} {{ total() === 1 ? 'cuenta' : 'cuentas' }}</span>
     </div>
     <div class="flex flex-col gap-1.5">
-      <h1 class="text-[26px] font-bold">Cuadrar cuentas</h1>
+      <h1 class="titular text-[26px] font-bold">Cuadrar cuentas</h1>
       <p class="text-sm leading-[1.45] text-secundario">Escribe lo que dice cada banco. La diferencia se guarda sola, sin explicarla.</p>
     </div>
     <app-filtro-titular [(valor)]="filtro" />

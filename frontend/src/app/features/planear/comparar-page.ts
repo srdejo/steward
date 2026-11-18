@@ -19,7 +19,7 @@ import { PUERTOS } from '../../core/datos/puertos';
       <div class="flex flex-col gap-1">
         <a [routerLink]="['/planear', mes()]" class="boton-texto -my-2 self-start text-sm font-normal">‹ {{ titulo() }}</a>
         <span class="rotulo">{{ titulo() }} · Borrador</span>
-        <h1 class="text-[28px] font-bold">Comparar opciones</h1>
+        <h1 class="titular text-[28px] font-bold">Comparar opciones</h1>
       </div>
       <label class="flex min-h-11 items-center gap-2 text-sm text-[#4A4E48]">
         <input type="checkbox" class="h-[18px] w-[18px] accent-acento" [checked]="soloCambios()" (change)="soloCambios.set($any($event.target).checked)" />
@@ -28,7 +28,7 @@ import { PUERTOS } from '../../core/datos/puertos';
     </div>
 
     @if (comparacion.value(); as c) {
-      <div class="overflow-x-auto rounded-[14px] border border-borde bg-superficie" data-testid="tabla-comparar" tabindex="0" role="region" aria-label="Opciones lado a lado">
+      <div class="overflow-x-auto rounded-tarjeta bg-superficie" data-testid="tabla-comparar" tabindex="0" role="region" aria-label="Opciones lado a lado">
         <table class="w-full min-w-[720px] border-collapse text-sm">
           <thead>
             <tr class="border-b border-borde">
