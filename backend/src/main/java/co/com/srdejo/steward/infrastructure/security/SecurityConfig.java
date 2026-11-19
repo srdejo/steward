@@ -47,6 +47,9 @@ public class SecurityConfig {
                         // Acceso de desarrollo: si esta apagado, el endpoint responde 404 (design D5).
                         .pathMatchers(HttpMethod.POST, "/api/auth/dev").permitAll()
                         .pathMatchers(HttpMethod.GET, "/api/invitaciones/*").permitAll()
+                        // Las acciones de un aviso llegan sin sesion, con su identificador firmado (design D5 de avisos-pagos).
+                        .pathMatchers(HttpMethod.POST, "/api/avisos/accion").permitAll()
+                        .pathMatchers(HttpMethod.GET, "/api/avisos/accion").permitAll()
                         .anyExchange().authenticated())
                 .oauth2ResourceServer(oauth -> oauth
                         .jwt(jwt -> jwt.jwtDecoder(sessionJwtDecoder))

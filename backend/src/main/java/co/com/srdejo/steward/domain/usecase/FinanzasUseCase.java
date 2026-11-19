@@ -11,6 +11,7 @@ import co.com.srdejo.steward.domain.model.PlanMes.IngresoPlan;
 import co.com.srdejo.steward.domain.model.Movimiento;
 import co.com.srdejo.steward.domain.model.PlanMes;
 import co.com.srdejo.steward.domain.model.ReglaDiezmo;
+import co.com.srdejo.steward.domain.spi.IActividadPort;
 import co.com.srdejo.steward.domain.spi.ICategoriaPersistencePort;
 import co.com.srdejo.steward.domain.spi.IAnualPersistencePort;
 import co.com.srdejo.steward.domain.spi.ICierrePersistencePort;
@@ -67,6 +68,12 @@ public class FinanzasUseCase implements IFinanzasServicePort {
     private final Registro registro;
     private final NacimientoMes nacimiento;
     private final ITarjetaPersistencePort tarjetas;
+    /** Avisa al otro miembro de lo que se registra (design D7 de avisos-pagos); se conecta despues de crear los dos. */
+    private IActividadPort actividad = IActividadPort.NINGUNA;
+
+    public void conActividad(IActividadPort actividad) {
+        this.actividad = actividad == null ? IActividadPort.NINGUNA : actividad;
+    }
 
     public FinanzasUseCase(IHogarPersistencePort hogares, IReglaDiezmoPersistencePort reglas,
                            IIngresoFijoPersistencePort ingresos, ICuentaPersistencePort cuentas,
@@ -101,23 +108,31 @@ public class FinanzasUseCase implements IFinanzasServicePort {
      */
     @Override
     public Mono<Finanzas> leer() {
+        return contexto().flatMap(ctx -> leerHogar(ctx.hogar().id()));
+    }
+
+    /** Las finanzas de un hogar sin sesion: las lee el programador de avisos (avisos-pagos, design D1). */
+    public Mono<Finanzas> leerHogar(UUID hogarId) {
         YearMonth mes = mesEnCurso();
         YearMonth desde = mes.minusMonths(2);
-        return contexto().flatMap(ctx -> Mono.zip(
-                        ingresos.delHogar(ctx.hogar().id()).filter(IngresoFijo::activo).collectList(),
-                        cuentas.delHogar(ctx.hogar().id()).collectList(),
-                        movimientos.desde(ctx.hogar().id(), desde).collectList(),
-                        hogares.miembros(ctx.hogar().id()).map(m -> m.usuario().id()).collectList(),
-                        categorias.delHogar(ctx.hogar().id()).collectList(),
+        record Ctx(UUID id) {
+        }
+        Ctx ctxHogar = new Ctx(hogarId);
+        return Mono.just(ctxHogar).flatMap(h -> Mono.zip(
+                        ingresos.delHogar(h.id()).filter(IngresoFijo::activo).collectList(),
+                        cuentas.delHogar(h.id()).collectList(),
+                        movimientos.desde(h.id(), desde).collectList(),
+                        hogares.miembros(h.id()).map(m -> m.usuario().id()).collectList(),
+                        categorias.delHogar(h.id()).collectList(),
                         // El estado que se lee es el efectivo: un Borrador elegido pasa a Activo al llegar su mes.
-                        planes.desde(ctx.hogar().id(), desde)
+                        planes.desde(h.id(), desde)
                                 .map(p -> new PlanMes(p.id(), p.hogarId(), p.ref(), p.estadoEn(clock.hoy()),
                                         p.escenarioActivoId(), p.escenarios()))
                                 .collectList())
-                .zipWith(Mono.zip(creditosConPagos(ctx.hogar().id()), cierres.desde(ctx.hogar().id(), desde.minusMonths(1)).collectList(),
-                        anuales.desde(ctx.hogar().id(), desde.getYear()).collectList(),
-                        anuales.proyeccionesDesde(ctx.hogar().id(), desde.getYear()).collectList(),
-                        tarjetas.delHogar(ctx.hogar().id()).collectList()))
+                .zipWith(Mono.zip(creditosConPagos(h.id()), cierres.desde(h.id(), desde.minusMonths(1)).collectList(),
+                        anuales.desde(h.id(), desde.getYear()).collectList(),
+                        anuales.proyeccionesDesde(h.id(), desde.getYear()).collectList(),
+                        tarjetas.delHogar(h.id()).collectList()))
                 .flatMap(tc -> {
                     var t = tc.getT1();
                     List<CierreMes> cierresLeidos = tc.getT2().getT2();
@@ -172,6 +187,7 @@ public class FinanzasUseCase implements IFinanzasServicePort {
                                             : transaccion.enTransaccion(creditos.pagarCuota(credito, m)
                                             .flatMap(capital -> movimientos.registrar(pago.conCredito(credito).conCapital(capital)))))
                                             .flatMap(mov -> tarjeta == null ? Mono.just(mov) : tarjetas.pagada(tarjeta, m).thenReturn(mov))
+                                            .doOnNext(actividad::registrado)
                                             .onErrorResume(DomainException.class, ex -> "YA_PAGADO".equals(ex.codigo())
                                                     ? yaPagado(item.id(), mes) : Mono.error(ex));
                                     return variable ? registrar : movimientos.pagoDe(item.id(), mes)
@@ -222,7 +238,8 @@ public class FinanzasUseCase implements IFinanzasServicePort {
                             return aplicaDiezmo
                                     ? transaccion.enTransaccion(movimientos.registrar(aporte).flatMap(g -> diezmoDelAporte(ctx, g).thenReturn(g)))
                                     : movimientos.registrar(aporte);
-                        })));
+                        })))
+                .doOnNext(actividad::registrado);
     }
 
     /** registrarAporte del dominio: el item "Diezmo · aporte {dd mmm}" en la opcion principal del plan abierto del mes. */

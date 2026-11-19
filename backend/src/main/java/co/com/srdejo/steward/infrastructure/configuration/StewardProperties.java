@@ -10,7 +10,19 @@ import java.time.Duration;
  * imagen nativa congela las condiciones de los beans al compilar (design D2).
  */
 @ConfigurationProperties("steward")
-public record StewardProperties(String zone, String publicUrl, String contactApiUrl, Mail mail, Security security) {
+public record StewardProperties(String zone, String publicUrl, String contactApiUrl, Mail mail, Security security, Avisos avisos) {
+
+    /**
+     * Avisos de pagos (avisos-pagos). {@code envio}: real (Expo y Web Push) o log (dev y tests). {@code secreto}: firma las
+     * acciones del aviso (design D5). VAPID: claves P-256 en base64url (publica sin comprimir, privada de 32 bytes).
+     */
+    public record Avisos(boolean habilitados, String envio, String secreto, String vapidPublica, String vapidPrivada,
+                         String vapidSujeto, String expoToken) {
+
+        public boolean real() {
+            return !"log".equalsIgnoreCase(envio);
+        }
+    }
 
     /** {@code contact}: los correos salen por la API contact. {@code log}: el enlace queda en el log (dev y tests). */
     public record Mail(String modo) {

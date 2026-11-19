@@ -23,4 +23,11 @@ public class LoggingMailAdapter implements IMailPort {
         log.info("[correo] Invitacion de {} a {} para {}: {}", quienInvita, hogar, para, enlace);
         return Mono.empty();
     }
+
+    @Override
+    public Mono<Void> enviarResumenAvisos(String para, String nombre, java.util.List<co.com.srdejo.steward.domain.model.FilaResumenAviso> filas,
+                                          long total, String enlace) {
+        log.info("[correo] Resumen de avisos para {}: {} pagos, total {}", para, filas.size(), total);
+        return Mono.empty();
+    }
 }

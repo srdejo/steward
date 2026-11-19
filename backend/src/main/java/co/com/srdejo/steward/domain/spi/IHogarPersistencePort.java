@@ -33,6 +33,9 @@ public interface IHogarPersistencePort {
 
     Flux<Miembro> miembros(UUID hogarId);
 
+    /** Los ids de todos los hogares: el programador de avisos los recorre (avisos-pagos). */
+    Flux<UUID> todos();
+
     Mono<Boolean> tieneMiembroConEmail(UUID hogarId, String email);
 
     /** Une al usuario; si ya pertenece a un hogar, falla con {@code YA_TIENE_HOGAR}. */

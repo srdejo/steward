@@ -60,6 +60,23 @@ class ContactMailAdapterTest {
     }
 
     @Test
+    void resumenDeAvisosConLaPlantillaLibretaClara() {
+        StepVerifier.create(adapter().enviarResumenAvisos("daniel@ejemplo.com", "Daniel", java.util.List.of(
+                        new co.com.srdejo.steward.domain.model.FilaResumenAviso("20 oct", "Compra a cuotas", "Cuota 4 de 12 · hace 6 días", 375_000, true),
+                        new co.com.srdejo.steward.domain.model.FilaResumenAviso("28 oct", "Nu · Mercado", "En 2 días", 320_000, false),
+                        new co.com.srdejo.steward.domain.model.FilaResumenAviso("30 oct", "Mastercard", "En 4 días", 1_500_000, false)),
+                2_195_000, "https://steward.test/avisos"))
+                .verifyComplete();
+        String body = recibido.get();
+        for (String esperado : new String[]{"Esta semana: 3 pagos · $2.195.000", "Pagos de la semana", "Compra a cuotas", "$1.500.000",
+                "#F6F5F1", "#1F4D3B", "Space Grotesk", "https://steward.test/avisos", "Uno ya se venció"}) {
+            if (!body.contains(esperado)) {
+                throw new AssertionError("Falta " + esperado + " en " + body);
+            }
+        }
+    }
+
+    @Test
     void escapaElHtml() {
         adapter().enviarInvitacion("x@ejemplo.com", "<b>Dani</b>", "Casa", "http://steward.test/invitacion/abc").block();
         // El asunto es texto plano (una aparicion literal); en el cuerpo HTML el nombre llega escapado.

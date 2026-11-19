@@ -1,6 +1,6 @@
 ## 1. Reglas de los avisos
 
-- [ ] 1.1 Backend: `AvisosUseCase.proximos(hogar, hoy, dias)` con los tipos y las exclusiones de "Qué se avisa" (fijos, tarjetas pago y corte, cuotas, ingresos, plan del mes, cuadrar). Usa el último día del mes para los días 29–31. Pruebas unitarias con los casos del canvas al 26 oct.
+- [x] 1.1 Backend: `AvisosUseCase.proximos(hogar, hoy, dias)` con los tipos y las exclusiones de "Qué se avisa" (fijos, tarjetas pago y corte, cuotas, ingresos, plan del mes, cuadrar). Usa el último día del mes para los días 29–31. Pruebas unitarias con los casos del canvas al 26 oct.
 - [x] 1.2 Dominio: la misma regla en TS (`proximosAvisos`) para el modo demo y un `AvisosPort` con la implementación demo y la conectada, con pruebas sobre los mismos casos (design D1).
 
 ## 2. Backend: datos, API y envío

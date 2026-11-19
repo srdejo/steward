@@ -29,6 +29,14 @@ El primer build descarga el JDK 25 si no está instalado (foojay).
 | `STEWARD_PUBLIC_URL` | `http://steward.test` | origen de los enlaces de invitación |
 | `STEWARD_DEV_LOGIN` | `false` (`true` en `dev`) | acceso de desarrollo sin Google; nunca en el VPS |
 | `STEWARD_MAIL_MODO` | `contact` (`log` en `dev`) | `log` escribe el enlace de invitación en el log en vez de enviarlo |
+| `AVISOS_HABILITADOS` | `true` (`false` en `dev`) | el programador de avisos (cada 15 min, hora de Colombia). `false` lo apaga sin desplegar de nuevo |
+| `STEWARD_AVISOS_ENVIO` | `real` (`log` en `dev`) | `log` deja los push en el log en lugar de enviarlos |
+| `AVISOS_SECRET` | vacío | firma las acciones del aviso ("Ya lo pagué", "Recordar mañana"); 32+ caracteres. Vacío = avisos sin acciones |
+| `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | vacío | claves P-256 de Web Push en base64url (pública sin comprimir, privada de 32 bytes). Vacío = sin push en el navegador |
+| `VAPID_SUBJECT` | `STEWARD_PUBLIC_URL` | el contacto de VAPID (una URL https o `mailto:`) |
+| `EXPO_ACCESS_TOKEN` | vacío | solo si el proyecto de Expo activa la seguridad del push |
+
+Las claves VAPID se generan una vez (por ejemplo, `npx web-push generate-vapid-keys`) y se guardan en el entorno del VPS; nunca en el repo.
 
 Nada se decide con `@Profile` en los beans: la imagen nativa congela esas condiciones al compilar. Los perfiles solo cambian propiedades (`docs/DECISIONS.md`).
 
@@ -183,6 +191,20 @@ En un mes Cerrado no se registra nada: 409 `MES_CERRADO`. **El backend no calcul
 | `POST /api/anuales/{anio}/opciones/{id}/base/usar` | "Usar este mes en los 12 meses" → 200 con el anual: las celdas de la opción desde su mes base, sin los créditos que ya no pagan ese mes. Los eventos y las proyecciones no cambian. Con mes base, `POST .../meses` toma de ahí sus ítems (V15, `anual_base_item`) |
 | `DELETE /api/anuales/{anio}/opciones/{id}` | "Quitar opción" → 204. 409 `OPCION_EN_USO` si es la última o la que está en uso |
 | `POST /api/anuales/{anio}/meses` | "Meses con la Opción X": `{"opcionId"?, "actualizar": [3, 4, ...]}` → 200 con `[{anio, mes, accion: CREADO \| ACTUALIZADO}]`, en una transacción. Crea los meses sin plan ni cierre y reemplaza el plan de los de `actualizar`, conservando su estado; uno con pagos, gastos, ingresos recibidos o cierre da 409 `MES_CON_REGISTROS`. Cada mes nace con sus líneas de ingreso y su diezmo como `POST /api/planes`; sus ítems salen del mes base de la opción (o, sin base, del último plan antes del año), ajustados a cada categoría con celdas, más las categorías sin celdas tal cual (si hay base), los eventos de gasto, la línea de cada tarjeta y la cuota de los créditos que pagan ese mes. La opción queda en uso y el anual, `CREADO` |
+
+### Avisos (cambio `avisos-pagos`)
+
+| Endpoint | Qué hace |
+|---|---|
+| `GET /api/avisos/proximos` | Lo vencido y lo de los próximos 30 días del hogar, en el orden de Avisos, con la forma de `Aviso` del dominio (`clave`, `tipo`, `fecha`, `nombre`, `detalle`, `monto`, `corte`, `grupo`, `pago`, `destino`) |
+| `GET`, `PUT /api/avisos/preferencias` | La configuración de quien tiene la sesión: `{tiposApagados, correo, noMolestar}`; sin guardar, todo activo, correo y no molestar. 400 con un tipo que no existe |
+| `POST /api/avisos/dispositivos` | `{"tipo": "EXPO", "token"}` o `{"tipo": "WEB", "endpoint", "p256dh", "auth"}` → 204. Un token pasa a quien lo registra |
+| `POST /api/avisos/dispositivos/quitar` | `{"token"}` (el de Expo o el endpoint) → 204, al cerrar sesión |
+| `POST /api/avisos/prueba` | Un aviso de prueba a los dispositivos de la persona → 204; 400 si no tiene ninguno |
+| `GET /api/avisos/clave-web` | `{"clave"}`: la pública VAPID, o null |
+| `POST /api/avisos/accion` (y `GET` con `?accion=&que=` para el service worker) | **Sin sesión**: `{"accion": <identificador firmado>, "que": "PAGADO" \| "MANANA"}` → 204. "Ya lo pagué" paga con el valor del plan y sin cuenta (si ya estaba pagado, nada); "Recordar mañana" lo pospone al día siguiente a las 8:00. 404 `AVISO_NO_ENCONTRADO` si el identificador está alterado o venció (7 días) |
+
+El programador avisa cada pago el **lunes** de su semana, el **día anterior** y el **mismo día** si no se ha pagado, a las 8:00 y en un solo aviso por persona; nunca lo repite (`aviso_enviado`, V18). Lo que marca un miembro le llega al otro al momento, o a las 7:00 si estaba en no molestar. El lunes a las 7:30 sale el resumen por correo, con la plantilla Libreta clara.
 
 `GET /api/finanzas` trae `anuales` (solo las celdas tocadas; las demás valen 0) y `proyecciones` desde el año del primer mes que lee.
 
