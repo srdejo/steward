@@ -5,8 +5,8 @@
 
 ## 2. Backend: datos, API y envío
 
-- [ ] 2.1 V18: `dispositivo_aviso`, `preferencia_aviso` y `aviso_enviado` (con su restricción única), y su `MigracionV18Test`.
-- [ ] 2.2 Endpoints `/api/avisos`:
+- [x] 2.1 V18: `dispositivo_aviso`, `preferencia_aviso` y `aviso_enviado` (con su restricción única), y su `MigracionV18Test`.
+- [x] 2.2 Endpoints `/api/avisos`:
   - dispositivos (POST y DELETE);
   - preferencias (GET y PUT, con los valores por defecto de D6);
   - `proximos`;
@@ -14,13 +14,15 @@
   - `accion`, con el identificador firmado de D5.
 
   Agregarlos a la superficie pública del contrato y escribir pruebas de contrato, incluidas la de identificador alterado y la de vencido.
-- [ ] 2.3 Envío:
+- [x] 2.3 Envío:
   - `EnvioPushPort` con el cliente de Expo (envío y recibos; un token inválido quita el dispositivo);
   - el cliente Web Push con VAPID y `aes128gcm`, solo con el JDK y probado con los vectores de RFC 8291 (design D3 y D4);
   - el correo semanal por `contact`.
-- [ ] 2.4 Programador cada 15 minutos (`America/Bogota`) con los momentos LUNES (pagos de la semana), ANTES (día anterior), DIA (mismo día sin pagar) y POSPUESTO, sin aviso de vencido, el agrupado por persona, no molestar, la tabla de enviados y `steward.avisos.habilitados`; y el resumen del lunes a las 7:30 (design D2).
-- [ ] 2.5 Avisos de lo que marca el otro miembro, enviados al registrar un pago o un aporte (design D7).
-- [ ] 2.6 `gradlew check` con el contrato en AOT y las pistas de la imagen nativa si hacen falta; README del backend con las variables nuevas.
+- [x] 2.4 Programador cada 15 minutos (`America/Bogota`) con los momentos LUNES (pagos de la semana), ANTES (día anterior), DIA (mismo día sin pagar) y POSPUESTO, sin aviso de vencido, el agrupado por persona, no molestar, la tabla de enviados y `steward.avisos.habilitados`; y el resumen del lunes a las 7:30 (design D2).
+- [x] 2.5 Avisos de lo que marca el otro miembro, enviados al registrar un pago o un aporte (design D7).
+- [x] 2.6 `gradlew check` con el contrato en AOT y las pistas de la imagen nativa si hacen falta; README del backend con las variables nuevas.
+
+- [ ] 2.7 Revisar los recibos de Expo (`/getReceipts`) en la corrida siguiente. Hoy solo se quita un token cuando el ticket del envío ya dice `DeviceNotRegistered` (design D3).
 
 ## 3. PWA
 
@@ -29,16 +31,16 @@
   - Marcar pagado abre Marcar pago.
   - Las filas que no son pagos llevan a su pantalla.
 - [x] 3.2 La campana con su insignia en Hoy (móvil) y en la barra superior (web), y la fila "Avisos" en Ajustes.
-- [ ] 3.3 Web Push (design D9):
+- [x] 3.3 Web Push (design D9):
   - `SwPush`, con registro y baja de la suscripción al cerrar sesión;
   - el service worker con las acciones y el clic;
   - el texto de iPhone sin instalar;
   - el botón "Probar".
-- [ ] 3.4 Pruebas de los escenarios de Próximos, Configurar y la campana, y `ng build`.
+- [x] 3.4 Pruebas de los escenarios de Próximos, Configurar y la campana, y `ng build`.
 
 ## 4. App
 
-- [ ] 4.1 Leer la documentación de Expo SDK 57. Instalar `expo-notifications` con:
+- [x] 4.1 Leer la documentación de Expo SDK 57. Instalar `expo-notifications` con:
   - la categoría `pago` y sus acciones;
   - el permiso al activar;
   - el registro y la baja del token;

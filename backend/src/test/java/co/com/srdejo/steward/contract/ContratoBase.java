@@ -134,7 +134,23 @@ public abstract class ContratoBase {
         }
     }
 
+    /**
+     * Los avisos de lo que marca el otro miembro se envian aparte y leen la base (design D7 de avisos-pagos): si uno de
+     * la prueba anterior coincide con el TRUNCATE, Postgres corta uno de los dos por deadlock y se reintenta.
+     */
     private static void limpiarBase() throws Exception {
+        for (int intento = 1; ; intento++) {
+            try {
+                truncar();
+                return;
+            } catch (java.sql.SQLException ex) {
+                if (!"40P01".equals(ex.getSQLState()) || intento >= 5) throw ex;
+                Thread.sleep(200L * intento);
+            }
+        }
+    }
+
+    private static void truncar() throws Exception {
         try (Connection c = DriverManager.getConnection(DB_URL, "postgres", "postgres");
              Statement s = c.createStatement()) {
             // Puede correr antes de que la app aplique Flyway (modo externo con la base vacia).
