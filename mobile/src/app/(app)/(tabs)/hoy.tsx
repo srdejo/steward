@@ -1,4 +1,4 @@
-import { TITULO_GRUPO, avancePagado, claveMes, diaDelBloque, formatDiaLargo, formatMesAnio, fraseVsPlan, nombreMes, sumar, type ItemEjecucion, type LineaIngreso } from '@steward/domain';
+import { TITULO_GRUPO, avancePagado, pendientesAvisos, claveMes, diaDelBloque, formatDiaLargo, formatMesAnio, fraseVsPlan, nombreMes, sumar, type ItemEjecucion, type LineaIngreso } from '@steward/domain';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, View } from 'react-native';
@@ -15,6 +15,23 @@ const LISTA_CORTA = 3;
  * Main.dc.html: el mes elegido, el en curso o el siguiente (spec steward-hoy). Las hojas se abren encima (formSheet). El
  * diezmo es un item del plan, sin tarjeta aparte, y lo registrado se abre para corregirlo o borrarlo.
  */
+/** La campana (spec steward-avisos, "Campana en Hoy"): abre Avisos y muestra lo vencido y lo de 7 días. */
+function Campana() {
+  const avisos = useConsulta(['avisos'], (p) => p.avisos.proximos());
+  const n = pendientesAvisos(avisos.data ?? []);
+  return (
+    <Pressable testID="campana" accessibilityRole="button" accessibilityLabel={n ? `Avisos · ${n} pendientes` : 'Avisos'} onPress={() => router.push('/avisos')}
+      style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}>
+      <Icono nombre="campana" tamano={22} />
+      {n > 0 && (
+        <View testID="insignia-avisos" style={{ position: 'absolute', top: 4, right: 2, minWidth: 18, height: 18, paddingHorizontal: 4, borderRadius: 9, borderWidth: 2, borderColor: colors.fondo, backgroundColor: colors.negativo, alignItems: 'center', justifyContent: 'center' }}>
+          <Texto style={{ fontSize: 11, lineHeight: 13, fontFamily: fonts.bold, color: '#FFFFFF' }}>{n}</Texto>
+        </View>
+      )}
+    </Pressable>
+  );
+}
+
 export default function Hoy() {
   const puertos = usePuertos();
   const hoy = puertos.hoy();
@@ -47,11 +64,14 @@ export default function Hoy() {
           <Texto v="pequeno" testID="fecha-hoy">{formatDiaLargo(hoy)}</Texto>
           <Texto v="tituloGrande" accessibilityRole="header">Hoy</Texto>
         </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+        <Campana />
         <Pressable accessibilityRole="button" accessibilityLabel="Ajustes del hogar" onPress={() => router.push('/ajustes')} style={{ flexDirection: 'row', paddingVertical: 6 }}>
           {m.miembros.map((x, i) => (
             <Avatar key={x.usuario.id} inicial={x.usuario.inicial} variante={x.variante} style={i ? { marginLeft: -10, borderWidth: 2, borderColor: colors.fondo } : undefined} />
           ))}
         </Pressable>
+        </View>
       </View>
 
       <Segmentado opciones={mesHoy.opciones} valor={mesHoy.clave} onCambio={(c) => c && mesHoy.elegir(c)} />

@@ -93,6 +93,7 @@ const TRAZOS: Record<string, React.ReactNode> = {
   mas: [<Path key="p" d="M12 5v14M5 12h14" />],
   ajustes: [<Circle key="c" cx="12" cy="12" r="3" />, <Path key="p" d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4L7 17M17 7l1.4-1.4" />],
   cerrar: [<Path key="p" d="M6 6l12 12M18 6L6 18" />],
+  campana: [<Path key="a" d="M6 8a6 6 0 0 1 12 0c0 7 3 8 3 8H3s3-1 3-8" />, <Path key="b" d="M10 20a2 2 0 0 0 4 0" />],
   casa: [<Path key="a" d="M4 11l8-6 8 6v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z" />, <Path key="b" d="M9 20v-5h6v5" />],
 };
 

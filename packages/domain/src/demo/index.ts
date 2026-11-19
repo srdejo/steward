@@ -18,6 +18,8 @@ export interface StorageLike {
 /** Claves propias del modo demo. La app v1 usa `@steward/budget_v3` y nunca se toca. */
 export const CLAVE_ESTADO = 'steward-demo/v1';
 export const CLAVE_SESION = 'steward-demo/session';
+/** La configuracion de avisos de cada persona en el modo de prueba (avisos-pagos). */
+export const CLAVE_AVISOS = 'steward-demo/avisos';
 
 interface SesionGuardada {
   usuarioId: Id | null;
@@ -570,6 +572,31 @@ export function crearAdaptadorDemo(opciones: OpcionesDemo): Puertos {
         await cambiar((s) => R.cerrarMes(s, { ref, ...reparto, cerradoPor, fecha: hoy() }));
         return R.cierreDe(estado!, ref)!;
       },
+    },
+
+    // Sin servidor no hay push ni correo: solo la lista y la configuracion (avisos-pagos, design D1).
+    avisos: {
+      async proximos() {
+        return R.proximosAvisos(await leerEstado(), hoy());
+      },
+      async preferencias() {
+        const u = await usuarioActual();
+        const todas = (await leer<Record<string, R.PreferenciasAviso>>(CLAVE_AVISOS)) ?? {};
+        return { ...R.PREFERENCIAS_AVISO, ...todas[u] };
+      },
+      async guardarPreferencias(p) {
+        const u = await usuarioActual();
+        const todas = (await leer<Record<string, R.PreferenciasAviso>>(CLAVE_AVISOS)) ?? {};
+        await escribir(CLAVE_AVISOS, { ...todas, [u]: p });
+        avisar();
+      },
+      async registrarDispositivo() {},
+      async quitarDispositivo() {},
+      async probar() {},
+      async clavePushWeb() {
+        return null;
+      },
+      async responderAccion() {},
     },
 
     demo: {

@@ -76,6 +76,11 @@ public class HogarR2dbcAdapter implements IHogarPersistencePort {
     }
 
     @Override
+    public Flux<UUID> todos() {
+        return db.sql("SELECT id FROM hogar ORDER BY id").map(r -> r.get("id", UUID.class)).all();
+    }
+
+    @Override
     public Flux<Miembro> miembros(UUID hogarId) {
         return db.sql("SELECT u.id, u.email, u.nombre, u.creado_en, m.unido_en FROM miembro m "
                         + "JOIN usuario u ON u.id = m.usuario_id WHERE m.hogar_id = :hogar ORDER BY m.unido_en, u.creado_en")

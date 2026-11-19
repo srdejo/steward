@@ -11,7 +11,7 @@
   - no hay tareas programadas.
 - **PWA**: tiene service worker de Angular (`core/actualizacion.ts` usa `SwUpdate`).
 - **App**: no tiene `expo-notifications`.
-- **Rediseño**: este cambio va después de `rediseno-libreta-clara` y usa sus tokens y su shell (la campana en Hoy y Agregar en el menú lateral).
+- **Rediseño**: este cambio va después de `rediseno-libreta-clara` y usa sus tokens y su shell (la campana en Hoy y en la barra superior de la web).
 
 ## Goals / Non-Goals
 
@@ -35,7 +35,7 @@
 - **D2 · Programador cada 15 minutos con registro de enviados.**
   - Un `@Scheduled(cron = "0 */15 * * * *", zone = "America/Bogota")` busca a las personas a las que les toca un momento, sea a las 8:00 o al terminar su no molestar.
   - Reúne sus avisos de ese momento en un mensaje y lo envía por cada canal activo.
-  - Para no repetir, guarda cada aviso en `aviso_enviado (usuario_id, clave, momento)` con restricción única, donde `clave = tipo:item:mes` y `momento = ANTES|DIA|VENCIDO|POSPUESTO|SEMANAL`. Inserta antes de enviar y se salta lo que ya existe.
+  - Para no repetir, guarda cada aviso en `aviso_enviado (usuario_id, clave, momento)` con restricción única, donde `clave = tipo:item:mes` y `momento = LUNES|ANTES|DIA|POSPUESTO|CORREO|ACTIVIDAD` (lunes de la semana, día anterior, mismo día sin pagar; sin aviso de vencido). Inserta antes de enviar y se salta lo que ya existe.
   - El VPS corre una sola instancia, así que no hace falta un lock distribuido.
   - *Alternativa:* una cola con tareas por aviso. Sobra para dos usuarios.
 - **D3 · Push de la app por la API de Expo.**
@@ -53,7 +53,7 @@
   - "Ya lo pagué" llama al mismo caso de uso que Marcar pago, con el valor del plan, sin cuenta y con la persona del identificador. El aviso de duplicado se vuelve un no-op.
   - *Alternativa:* exigir sesión. En segundo plano la app y el service worker no siempre tienen el token.
 - **D6 · Preferencias con valores por defecto en código.**
-  - La tabla `preferencia_aviso (usuario_id PK, dias_antes, tipos_apagados text[], correo, no_molestar)` solo tiene fila cuando la persona guarda algo.
+  - La tabla `preferencia_aviso (usuario_id PK, tipos_apagados text[], correo, no_molestar)` (los momentos son fijos: el lunes, el día anterior y el mismo día) solo tiene fila cuando la persona guarda algo.
   - Sin fila, rigen los valores por defecto del requisito "Avisos · Configurar".
 - **D7 · Aviso de lo que marca el otro.**
   - Al registrarse un pago o un aporte, el caso de uso publica un evento en memoria (`Sinks.Many`).
@@ -79,7 +79,7 @@
 
 ## Migration Plan
 
-1. V17 crea `dispositivo_aviso`, `preferencia_aviso` y `aviso_enviado`, sin tocar datos existentes.
+1. V18 crea `dispositivo_aviso`, `preferencia_aviso` y `aviso_enviado`, sin tocar datos existentes.
 2. Variables nuevas en el VPS: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `AVISOS_SECRET` y, si hace falta, `EXPO_ACCESS_TOKEN`. Las genera Daniel; no se leen ni se imprimen desde aquí.
 3. Respaldo, backend, PWA y app (versión siguiente a la del rediseño), cada paso con confirmación de Daniel.
 4. Rollback:

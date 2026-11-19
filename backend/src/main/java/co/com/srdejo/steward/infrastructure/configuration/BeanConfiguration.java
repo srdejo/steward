@@ -68,6 +68,16 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.ImportRuntimeHints;
 import org.springframework.core.io.ResourceLoader;
+import co.com.srdejo.steward.domain.api.IAvisosServicePort;
+import co.com.srdejo.steward.domain.spi.IAvisoPersistencePort;
+import co.com.srdejo.steward.domain.spi.IEnvioPushPort;
+import co.com.srdejo.steward.domain.usecase.AvisosUseCase;
+import co.com.srdejo.steward.domain.usecase.FirmaAviso;
+import co.com.srdejo.steward.infrastructure.input.programador.ProgramadorAvisos;
+import co.com.srdejo.steward.infrastructure.out.push.EnvioPushAdapter;
+import co.com.srdejo.steward.infrastructure.out.push.LoggingEnvioPush;
+import co.com.srdejo.steward.infrastructure.out.r2dbc.AvisoR2dbcAdapter;
+import co.com.srdejo.steward.infrastructure.security.ComoUsuarioAdapter;
 import org.springframework.r2dbc.core.DatabaseClient;
 import org.springframework.transaction.reactive.TransactionalOperator;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -201,7 +211,7 @@ public class BeanConfiguration {
     @Bean
     IMailPort mailPort(WebClient.Builder builder, StewardProperties properties) {
         return properties.mail().porContact()
-                ? new ContactMailAdapter(builder, properties.contactApiUrl())
+                ? new ContactMailAdapter(builder, properties.contactApiUrl(), properties.publicUrl())
                 : new LoggingMailAdapter();
     }
 
@@ -294,5 +304,38 @@ public class BeanConfiguration {
             log.warn("Acceso de desarrollo ENCENDIDO (steward.security.dev-login): se entra sin Google. Nunca en el VPS.");
         }
         return new AuthUseCase(google, apple, usuarios, hogares, ingresos, cuentas, tokens, usuarioActual, transaccion, clock, devLogin);
+    }
+
+    // --- Avisos de pagos (avisos-pagos) --------------------------------------------------------------------------
+
+    @Bean
+    IAvisoPersistencePort avisoPersistencePort(DatabaseClient db) {
+        return new AvisoR2dbcAdapter(db);
+    }
+
+    /** Push real (Expo y Web Push) o al log en dev y tests, decidido en ejecucion como el correo (design D2). */
+    @Bean
+    IEnvioPushPort envioPushPort(WebClient.Builder builder, StewardProperties properties) {
+        StewardProperties.Avisos a = properties.avisos();
+        if (a == null || !a.real()) return new LoggingEnvioPush(a == null ? null : a.vapidPublica());
+        return new EnvioPushAdapter(builder, a.expoToken(), a.vapidPublica(), a.vapidPrivada(),
+                a.vapidSujeto() == null || a.vapidSujeto().isBlank() ? properties.publicUrl() : a.vapidSujeto());
+    }
+
+    @Bean
+    IAvisosServicePort avisosServicePort(IHogarPersistencePort hogares, IAvisoPersistencePort avisos, IFinanzasServicePort finanzas,
+                                         IEnvioPushPort push, IMailPort correo, ICurrentUserPort usuarioActual, IClockPort clock,
+                                         StewardProperties properties) {
+        FinanzasUseCase f = (FinanzasUseCase) finanzas;
+        AvisosUseCase uso = new AvisosUseCase(hogares, avisos, f, push, correo, usuarioActual, new ComoUsuarioAdapter(), clock,
+                new FirmaAviso(properties.avisos() == null ? null : properties.avisos().secreto()), properties.zone(), properties.publicUrl());
+        // Lo que se registra le llega al otro miembro (design D7).
+        f.conActividad(uso);
+        return uso;
+    }
+
+    @Bean
+    ProgramadorAvisos programadorAvisos(IAvisosServicePort avisos, StewardProperties properties) {
+        return new ProgramadorAvisos(avisos, properties.avisos() != null && properties.avisos().habilitados());
     }
 }

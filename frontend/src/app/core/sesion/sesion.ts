@@ -1,6 +1,7 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { Injectable, Injector, computed, inject, signal } from '@angular/core';
 import type { MetodoAcceso, Preferencias, Sesion } from '@steward/domain';
 
+import { PushWeb } from '../avisos/push-web';
 import { PUERTOS } from '../datos/puertos';
 
 /** Sesion actual de la app (en modo demo, la del adaptador de prueba). */
@@ -10,6 +11,7 @@ export const SEGURIDAD_DISPONIBLE = false as boolean;
 @Injectable({ providedIn: 'root' })
 export class SesionActual {
   private readonly puertos = inject(PUERTOS);
+  private readonly injector = inject(Injector);
   private readonly estado = signal<Sesion | null>(null);
   private carga: Promise<Sesion | null> | null = null;
 
@@ -45,6 +47,8 @@ export class SesionActual {
   }
 
   async cerrar(): Promise<void> {
+    // Este navegador deja de recibir los avisos de la persona (spec steward-avisos, "Push en la PWA").
+    await this.injector.get(PushWeb).desactivar().catch(() => undefined);
     await this.puertos.sesion.cerrar();
     this.establecer(null);
   }

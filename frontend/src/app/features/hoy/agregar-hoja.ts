@@ -52,7 +52,7 @@ const PESTANAS: { tipo: TipoAgregar; etiqueta: string }[] = [
         }
         @case ('pago') {
           @if (itemActual(); as id) {
-            <app-pagar-hoja [incrustada]="true" [itemId]="id" />
+            <app-pagar-hoja [incrustada]="true" [itemId]="id" [mes]="id === item() ? mes() : null" />
             <button type="button" class="boton-texto self-start text-sm" (click)="elegido.set(null); itemDeUrl.set(null)">Elegir otro pago</button>
           } @else {
             <div class="flex flex-col gap-2" data-testid="pendientes-agregar">
@@ -82,6 +82,8 @@ export class AgregarHoja {
   /** Desde la URL (`?agregar=` y `?item=`). */
   readonly tipo = input<TipoAgregar>('gasto');
   readonly item = input<Id | null>(null);
+  /** El mes del pago, si viene de Avisos y no es el de Hoy. */
+  readonly mes = input<string | null>(null);
 
   private readonly tipoElegido = signal<TipoAgregar | null>(null);
   protected readonly elegido = signal<Id | null>(null);

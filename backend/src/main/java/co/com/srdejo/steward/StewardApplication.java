@@ -7,6 +7,7 @@ import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 import java.util.TimeZone;
 
 @SpringBootApplication
+@org.springframework.scheduling.annotation.EnableScheduling
 @ConfigurationPropertiesScan
 public class StewardApplication {
 

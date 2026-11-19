@@ -1,4 +1,5 @@
-import { ReglaError, type Usuario } from '../index';
+import { ReglaError, type Aviso, type PreferenciasAviso, type Usuario } from '../index';
+import type { DispositivoAviso } from '../ports';
 
 export type MetodoHttp = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
@@ -482,6 +483,40 @@ export class Api {
   /** Nombre, color o los dos (color-categorias, design D2). */
   editarCategoria(id: string, datos: { nombre?: string; color?: string }): Promise<CategoriaApi> {
     return this.t.pedir<CategoriaApi>('PATCH', `/api/categorias/${encodeURIComponent(id)}`, datos);
+  }
+
+  // --- Avisos (spec steward-avisos, "API de avisos") ---
+
+  avisosProximos(): Promise<Aviso[]> {
+    return this.t.pedir<Aviso[]>('GET', '/api/avisos/proximos');
+  }
+
+  avisosPreferencias(): Promise<PreferenciasAviso> {
+    return this.t.pedir<PreferenciasAviso>('GET', '/api/avisos/preferencias');
+  }
+
+  guardarAvisosPreferencias(p: PreferenciasAviso): Promise<PreferenciasAviso> {
+    return this.t.pedir<PreferenciasAviso>('PUT', '/api/avisos/preferencias', p);
+  }
+
+  registrarDispositivo(d: DispositivoAviso): Promise<void> {
+    return this.t.pedir<void>('POST', '/api/avisos/dispositivos', d);
+  }
+
+  quitarDispositivo(token: string): Promise<void> {
+    return this.t.pedir<void>('POST', '/api/avisos/dispositivos/quitar', { token });
+  }
+
+  probarAviso(): Promise<void> {
+    return this.t.pedir<void>('POST', '/api/avisos/prueba');
+  }
+
+  responderAccionAviso(accion: string, que: 'PAGADO' | 'MANANA'): Promise<void> {
+    return this.t.pedir<void>('POST', '/api/avisos/accion', { accion, que });
+  }
+
+  clavePushWeb(): Promise<{ clave: string | null }> {
+    return this.t.pedir<{ clave: string | null }>('GET', '/api/avisos/clave-web');
   }
 
   crearPlan(ref: MesApi, modo: 'COPIAR' | 'FIJOS' | 'CERO'): Promise<PlanApi> {

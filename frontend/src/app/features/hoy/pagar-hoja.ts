@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { fechaEnMes, formatFechaCorta, nombreMes, type Id } from '@steward/domain';
+import { fechaEnMes, formatFechaCorta, nombreMes, parseClaveMes, type Id } from '@steward/domain';
 
 import { consulta, mensajeDeError } from '../../core/datos/consulta';
 import { PUERTOS } from '../../core/datos/puertos';
@@ -38,7 +38,7 @@ import { SU_CUENTA, opcionesDeHoja } from './opciones-hoja';
           <app-segmentado etiqueta="Desde · Opcional" [chips]="true" [opcional]="true" [opciones]="hoja.desde()" [(valor)]="desde" />
           @if (desde() === suCuenta) {
             <p class="flex gap-3 rounded-xl bg-nota px-4 py-3.5 text-[13px] leading-[1.45] text-[#4A4E48]" data-testid="aviso-su-cuenta">
-              Su cuenta no está en la app, así que este pago cuenta como <b>aporte de {{ hoja.miembros.nombreDe(quien()) }}</b> en {{ mesNombre }}. No tiene que registrar nada más.
+              Su cuenta no está en la app, así que este pago cuenta como <b>aporte de {{ hoja.miembros.nombreDe(quien()) }}</b> en {{ mesNombre() }}. No tiene que registrar nada más.
             </p>
           }
           @if (error()) {
@@ -80,11 +80,13 @@ export class PagarHoja {
   readonly itemId = input.required<Id>();
   /** Dentro de Agregar: sin su propio marco de hoja; Agregar la abre y la cierra (design D3 de rediseno-libreta-clara). */
   readonly incrustada = input(false);
+  /** El mes del pago (`2026-11`), cuando se marca desde Avisos un pago de otro mes que el de Hoy (avisos-pagos). */
+  readonly mes = input<string | null>(null);
 
   protected readonly mesHoy = inject(MesDeHoy);
-  private readonly ref = this.mesHoy.ref();
-  protected readonly mesNombre = nombreMes(this.ref.mes);
-  protected readonly resumen = consulta(() => this.ref, (p, ref) => p.movimientos.resumenMes(ref));
+  private readonly ref = computed(() => parseClaveMes(this.mes() ?? '') ?? this.mesHoy.ref());
+  protected readonly mesNombre = computed(() => nombreMes(this.ref().mes));
+  protected readonly resumen = consulta(() => this.ref(), (p, ref) => p.movimientos.resumenMes(ref));
   private readonly categorias = consulta(() => null, (p) => p.hogar.categorias());
 
   protected readonly ejecucion = computed(() => {
@@ -94,7 +96,7 @@ export class PagarHoja {
   protected readonly categoria = computed(() => this.categorias.value()?.find((c) => c.id === this.ejecucion()?.item.categoriaId) ?? null);
   protected readonly vence = computed(() => {
     const dia = this.ejecucion()?.item.diaVence;
-    return dia ? ` · vence ${formatFechaCorta(fechaEnMes(this.ref, dia))}` : '';
+    return dia ? ` · vence ${formatFechaCorta(fechaEnMes(this.ref(), dia))}` : '';
   });
   protected readonly yaPagado = computed(() => {
     const e = this.ejecucion();
@@ -121,7 +123,7 @@ export class PagarHoja {
     this.guardando.set(true);
     this.error.set('');
     try {
-      await this.puertos.movimientos.marcarPago({ itemId, ref: this.ref, monto: this.monto()!, usuarioId: this.quien()!, origen: this.hoja.origen(this.desde()) });
+      await this.puertos.movimientos.marcarPago({ itemId, ref: this.ref(), monto: this.monto()!, usuarioId: this.quien()!, origen: this.hoja.origen(this.desde()) });
       await this.hoja.cerrar();
     } catch (e) {
       this.error.set(mensajeDeError(e));

@@ -15,7 +15,7 @@ Hoy el hogar solo se entera de un pago que vence si abre la app. El canvas del r
 
     Los pagos se marcan pagados ahí mismo con las reglas de "Marcar un pago", y el resto lleva a su pantalla.
   - **Configurar**:
-    - cuántos días antes avisar (1, 3, 5 o 7), además del mismo día a las 8:00 y el día siguiente si no se marcó;
+    - cuándo avisa (fijo): el lunes con los pagos de la semana, el día anterior y el mismo día si no se ha pagado, a las 8:00;
     - un interruptor por tipo de aviso (pagos y recibos, tarjetas, cuotas, ingresos esperados, plan del mes, cuadrar cuentas, lo que marque el otro miembro);
     - las notificaciones en este dispositivo, con "Probar";
     - el resumen por correo (lunes 7:30);
@@ -47,7 +47,7 @@ Hoy el hogar solo se entera de un pago que vence si abre la app. El canvas del r
 
 - **Dominio** (`packages/domain`): las fechas próximas (`proximosAvisos(estado, hoy, dias)`) para la pantalla Avisos y la campana, con las reglas de vencimiento que ya existen.
 - **Backend**:
-  - migración V17 con `dispositivo_aviso`, `preferencia_aviso` y `aviso_enviado`;
+  - migración V18 con `dispositivo_aviso`, `preferencia_aviso` y `aviso_enviado`;
   - un caso de uso que calcula los avisos;
   - un programador (`@Scheduled`, zona `America/Bogota`);
   - clientes de salida para el push de Expo, para Web Push (VAPID) y para la API `contact`;

@@ -12,3 +12,4 @@ export * from './anual';
 export * from './cierre';
 export * from './hogar';
 export * from './plan-escritorio';
+export * from './avisos';

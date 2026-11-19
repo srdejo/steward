@@ -519,3 +519,35 @@ describe('paridad con la PWA (steward-mobile-app)', () => {
 });
 
 export { conSesion };
+
+describe('Avisos (steward-avisos)', () => {
+  it('la campana de Hoy muestra 5 pendientes y abre Avisos con sus grupos', async () => {
+    await conSesion();
+    renderRouter('./src/app', { initialUrl: '/hoy' });
+    const campana = await screen.findByLabelText('Avisos · 5 pendientes');
+    expect(screen.getByTestId('insignia-avisos')).toHaveTextContent('5');
+    fireEvent.press(campana);
+    await enRuta('/avisos');
+    expect(await screen.findByTestId('grupo-avisos-VENCIDO')).toHaveTextContent(/Compra a cuotas/);
+    expect(screen.getByTestId('grupo-avisos-SEMANA')).toHaveTextContent(/Nu · Mercado.*Mastercard.*Cerrar octubre.*Elegir opción de noviembre/);
+    expect(screen.getByTestId('grupo-avisos-NO_OLVIDAR')).toHaveTextContent(/Cuadrar Ahorros Esposa/);
+  });
+
+  it('marcar pagado un pago de noviembre desde Avisos lo paga en noviembre', async () => {
+    const p = await conSesion();
+    renderRouter('./src/app', { initialUrl: '/avisos' });
+    fireEvent.press(await screen.findByLabelText('Marcar pagado Pensión'));
+    fireEvent.press(await screen.findByText('Marcar pagado'));
+    await waitFor(async () => expect((await p.movimientos.resumenMes(NOV)).yaPagado.map((i) => i.item.nombre)).toContain('Pensión'));
+  });
+
+  it('Configurar dice cuándo avisa y guarda los tipos de quien lo abre; Ajustes tiene la fila Avisos', async () => {
+    const p = await conSesion();
+    renderRouter('./src/app', { initialUrl: '/ajustes' });
+    fireEvent.press(await screen.findByTestId('fila-avisos'));
+    expect(await screen.findByTestId('cuando-avisa')).toHaveTextContent('Te aviso el lunes con los pagos de la semana, el día anterior y el mismo día si no se ha pagado, a las 8:00.');
+    expect(screen.getByText('Lo que marque Esposa')).toBeTruthy();
+    fireEvent(screen.getByLabelText('Tarjetas'), 'valueChange', false);
+    await waitFor(async () => expect((await p.avisos.preferencias()).tiposApagados).toEqual(['TARJETA']));
+  });
+});

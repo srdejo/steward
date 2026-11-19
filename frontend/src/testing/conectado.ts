@@ -54,14 +54,18 @@ export function finanzasVacias(): FinanzasApi {
  */
 export const finanzasPrueba: { valor: FinanzasApi } = { valor: finanzasVacias() };
 
-const finanzasDePrueba: HttpInterceptorFn = (req, next) =>
-  req.method === 'GET' && req.url === '/api/finanzas'
-    ? of(new HttpResponse({ status: 200, body: structuredClone(finanzasPrueba.valor) }))
-    : next(req);
+/** Lo que responden las lecturas de avisos (la campana las hace en cada pantalla con Hoy o la barra superior). */
+export const avisosPrueba: { proximos: unknown[] } = { proximos: [] };
+const finanzasDePrueba: HttpInterceptorFn = (req, next) => {
+  if (req.method === 'GET' && req.url === '/api/finanzas') return of(new HttpResponse({ status: 200, body: structuredClone(finanzasPrueba.valor) }));
+  if (req.method === 'GET' && req.url === '/api/avisos/proximos') return of(new HttpResponse({ status: 200, body: structuredClone(avisosPrueba.proximos) }));
+  return next(req);
+};
 
 /** La app en modo conectado: HTTP de prueba, Google de prueba y los datos de prueba en memoria. */
 export function provideConectadoPrueba(google = new GoogleDePrueba()): (EnvironmentProviders | Provider)[] {
   finanzasPrueba.valor = finanzasVacias();
+  avisosPrueba.proximos = [];
   return [
     provideRouter(routes, withComponentInputBinding()),
     provideHttpClient(withInterceptors([authInterceptor, finanzasDePrueba])),

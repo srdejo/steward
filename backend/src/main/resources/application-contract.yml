@@ -11,6 +11,12 @@ spring:
 steward:
   mail:
     modo: log
+  # El programador lo corren los tests (POST de prueba no existe: lo llaman desde el caso de uso); el push va al log.
+  avisos:
+    habilitados: false
+    envio: log
+    secreto: contract-only-avisos-secret-0123456789abcdef
+    vapid-publica: BCVxsr7N_eNgVRqvHtD0zTZsEc6-VV-JvLexhqUzORcxaOzi6-AYWXvTBHm4bjyPjs7Vd8pZGH6SRpkNtoIAiw4
   security:
     jwt-secret: contract-only-secret-steward-0123456789abcdef0123456789abcdef0123456789
     google-client-id: contract-client-id

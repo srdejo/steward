@@ -42,6 +42,16 @@ steward:
   mail:
     # contact | log. Se decide en ejecucion, no con @Profile, para que la imagen nativa no lo congele (design D2).
     modo: ${STEWARD_MAIL_MODO:contact}
+  # Avisos de pagos (avisos-pagos): el programador se apaga con AVISOS_HABILITADOS=false. Las claves las genera Daniel
+  # en el VPS; sin AVISOS_SECRET no hay acciones en el aviso, y sin VAPID no hay push en el navegador.
+  avisos:
+    habilitados: ${AVISOS_HABILITADOS:true}
+    envio: ${STEWARD_AVISOS_ENVIO:real}
+    secreto: ${AVISOS_SECRET:}
+    vapid-publica: ${VAPID_PUBLIC_KEY:}
+    vapid-privada: ${VAPID_PRIVATE_KEY:}
+    vapid-sujeto: ${VAPID_SUBJECT:}
+    expo-token: ${EXPO_ACCESS_TOKEN:}
   security:
     jwt-secret: ${JWT_SECRET:}
     jwt-ttl: 7d
@@ -67,6 +77,10 @@ steward:
   # En local contact no suele correr: el enlace de invitacion queda en el log. Con STEWARD_MAIL_MODO=contact, sale por contact.
   mail:
     modo: ${STEWARD_MAIL_MODO:log}
+  avisos:
+    habilitados: ${AVISOS_HABILITADOS:false}
+    envio: ${STEWARD_AVISOS_ENVIO:log}
+    secreto: ${AVISOS_SECRET:dev-only-avisos-secret-0123456789abcdef}
   security:
     # En local Google no acepta steward.test como origen: se entra con el acceso de desarrollo.
     dev-login: ${STEWARD_DEV_LOGIN:true}
