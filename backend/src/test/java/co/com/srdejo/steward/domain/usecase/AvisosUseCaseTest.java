@@ -71,10 +71,11 @@ class AvisosUseCaseTest {
         final Set<String> enviados = new HashSet<>();
         final Map<String, LocalDate> pospuestos = new HashMap<>();
         final Map<UUID, PreferenciasAviso> prefs = new HashMap<>();
+        final List<String> quitados = new ArrayList<>();
 
         public Mono<Void> guardarDispositivo(DispositivoAviso d) { return Mono.empty(); }
         public Mono<Void> quitarDispositivo(UUID u, String t) { return Mono.empty(); }
-        public Mono<Void> quitarToken(String t) { return Mono.empty(); }
+        public Mono<Void> quitarToken(String t) { quitados.add(t); return Mono.empty(); }
         public Flux<DispositivoAviso> dispositivos(UUID u) {
             return Flux.just(new DispositivoAviso(UUID.randomUUID(), u, DispositivoAviso.Tipo.EXPO, "ExponentPushToken[" + u + "]", null, null));
         }
@@ -96,6 +97,8 @@ class AvisosUseCaseTest {
     final List<String> push = new ArrayList<>();
     final List<String> correos = new ArrayList<>();
     final List<Movimiento> movimientos = new ArrayList<>();
+    /** Lo que devuelven los recibos de Expo en la proxima corrida. */
+    List<String> invalidosPorRecibos = List.of();
 
     @SuppressWarnings("unchecked")
     private static <T> T sinUso(Class<T> tipo) {
@@ -138,6 +141,7 @@ class AvisosUseCaseTest {
                 return Mono.just(false);
             }
             public String clavePublicaWeb() { return null; }
+            public Mono<List<String>> tokensInvalidosPorRecibos() { return Mono.just(invalidosPorRecibos); }
         };
         IMailPort mail = new IMailPort() {
             public Mono<Void> enviarInvitacion(String para, String q, String h, String e) { return Mono.empty(); }
@@ -185,6 +189,14 @@ class AvisosUseCaseTest {
         reloj.ahora = LocalDateTime.of(2026, 10, 31, 8, 0);
         uso.correr().block();
         assertTrue(push.stream().noneMatch(p -> p.contains("Mastercard")));
+    }
+
+    @Test
+    void losRecibosDeExpoQuitanElIphoneQueYaNoRecibe() {
+        invalidosPorRecibos = List.of("ExponentPushToken[viejo]");
+        reloj.ahora = LocalDateTime.of(2026, 10, 28, 9, 0);
+        uso().correr().block();
+        assertEquals(List.of("ExponentPushToken[viejo]"), memoria.quitados);
     }
 
     @Test

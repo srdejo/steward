@@ -22,7 +22,7 @@
 - [x] 2.5 Avisos de lo que marca el otro miembro, enviados al registrar un pago o un aporte (design D7).
 - [x] 2.6 `gradlew check` con el contrato en AOT y las pistas de la imagen nativa si hacen falta; README del backend con las variables nuevas.
 
-- [ ] 2.7 Revisar los recibos de Expo (`/getReceipts`) en la corrida siguiente. Hoy solo se quita un token cuando el ticket del envío ya dice `DeviceNotRegistered` (design D3).
+- [x] 2.7 Revisar los recibos de Expo (`/getReceipts`) en la corrida siguiente, 15 minutos después o más; `DeviceNotRegistered` quita el iPhone. Los tickets pendientes viven en memoria (Expo borra los recibos a las 24 horas).
 
 ## 3. PWA
 
