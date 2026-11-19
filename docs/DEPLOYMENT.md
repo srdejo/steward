@@ -129,6 +129,9 @@ La unit `steward.service` ejecuta `~/apps/steward/steward -Xmx64m --spring.profi
 | `GOOGLE_CLIENT_ID` | el de beauty (ya puesto el 2026-10-26) |
 | `CONTACT_API_URL` | `http://127.0.0.1:3000` (reemplaza a `CONTACT_URL`) |
 | `STEWARD_PUBLIC_URL` | `https://steward.srdejo.com.co` |
+| `AVISOS_SECRET` | firma de las acciones de los avisos, 64 caracteres (puesto el 2026-11-18; cambio `avisos-pagos`) |
+| `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | claves P-256 de Web Push en base64url, generadas en el VPS con `openssl` (2026-11-18). Cambiarlas obliga a cada navegador a volver a activar las notificaciones |
+| `AVISOS_HABILITADOS` | opcional: `false` apaga el programador de avisos sin desplegar |
 
 ### Qué hace `deploy.ps1 -Projects steward` con el backend encendido
 
