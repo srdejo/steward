@@ -88,7 +88,7 @@ export function cuandoAviso(dias: number): string {
 
 function tipoDeItem(i: ItemPlan): TipoAviso {
   if (i.tarjetaId) return 'TARJETA';
-  if (i.tipo === 'CREDITO') return 'CUOTA';
+  if (i.tipo === 'CREDITO' || i.tipo === 'CUOTA') return 'CUOTA';
   return 'PAGO';
 }
 
