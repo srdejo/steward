@@ -596,6 +596,7 @@ export function crearAdaptadorDemo(opciones: OpcionesDemo): Puertos {
       async clavePushWeb() {
         return null;
       },
+      async responderAccion() {},
     },
 
     demo: {

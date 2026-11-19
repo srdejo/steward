@@ -1,3 +1,4 @@
+import { quitarEsteCelular } from './notificaciones';
 import type { MetodoAcceso, Preferencias, Sesion } from '@steward/domain';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
@@ -55,6 +56,8 @@ export function SesionProvider({ children }: { children: ReactNode }) {
       establecer: setSesion,
       recargar,
       async cerrar() {
+        // Este celular deja de recibir los avisos de la persona (spec steward-avisos, "Push en la app").
+        await quitarEsteCelular(puertos);
         await puertos.sesion.cerrar();
         setSesion(null);
       },

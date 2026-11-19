@@ -237,6 +237,8 @@ export interface AvisosPort {
   probar(): Promise<void>;
   /** La clave publica VAPID para suscribir el navegador; null si el push web no esta disponible. */
   clavePushWeb(): Promise<string | null>;
+  /** "Ya lo pagué" o "Recordar mañana" desde un aviso, con su identificador firmado; no pide sesion (design D5). */
+  responderAccion(accion: string, que: 'PAGADO' | 'MANANA'): Promise<void>;
 }
 
 export interface CierrePort {

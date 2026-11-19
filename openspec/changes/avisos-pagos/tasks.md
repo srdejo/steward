@@ -45,7 +45,7 @@
   - el manejo del toque y de las acciones con `/api/avisos/accion`.
 
   Configurar la capacidad de push en `app.json` y EAS (design D8).
-- [ ] 4.2 La pantalla Avisos (Próximos y Configurar) y la campana en Hoy, con pruebas.
+- [x] 4.2 La pantalla Avisos (Próximos y Configurar) y la campana en Hoy, con pruebas.
 
 ## 5. Entrega
 

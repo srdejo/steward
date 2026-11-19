@@ -511,6 +511,10 @@ export class Api {
     return this.t.pedir<void>('POST', '/api/avisos/prueba');
   }
 
+  responderAccionAviso(accion: string, que: 'PAGADO' | 'MANANA'): Promise<void> {
+    return this.t.pedir<void>('POST', '/api/avisos/accion', { accion, que });
+  }
+
   clavePushWeb(): Promise<{ clave: string | null }> {
     return this.t.pedir<{ clave: string | null }>('GET', '/api/avisos/clave-web');
   }

@@ -476,6 +476,10 @@ export class PuertosConectados implements Puertos {
       quitarDispositivo: (token) => api.quitarDispositivo(token),
       probar: () => api.probarAviso(),
       clavePushWeb: async () => (await api.clavePushWeb()).clave,
+      responderAccion: async (accion, que) => {
+        await api.responderAccionAviso(accion, que);
+        if (this.finanzas) await this.recargarFinanzas().catch(() => undefined);
+      },
     };
   }
 

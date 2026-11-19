@@ -1,4 +1,4 @@
-import { claveMes, COLOR_NUEVA, colorDePaleta, formatFechaCorta, formatPorcentaje, mesDe, type BaseDiezmo, type Categoria, type IngresoFijo } from '@steward/domain';
+import { claveMes, COLOR_NUEVA, RESUMEN_CUANDO_AVISA, colorDePaleta, formatFechaCorta, formatPorcentaje, mesDe, type BaseDiezmo, type Categoria, type IngresoFijo } from '@steward/domain';
 import { router } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { useState, type ReactNode } from 'react';
@@ -7,6 +7,7 @@ import { Modal, Pressable, Text, TextInput, View } from 'react-native';
 import { codigoParaEliminar, URL_PRIVACIDAD } from '@/data/acceso-nativo';
 import { useMiembros } from '@/data/miembros';
 import { useAccion, useConsulta, usePuertos } from '@/data/puertos';
+import { quitarEsteCelular } from '@/data/notificaciones';
 import { useSesion } from '@/data/sesion';
 import { Avatar, Aviso, Boton, Campo, colors, Encabezado, fonts, Interruptor, Monto, MontoInput, PaletaColor, Pantalla, SEGURIDAD_DISPONIBLE, Segmentado, Texto, CuerpoModal } from '@/ui';
 
@@ -95,6 +96,7 @@ export default function Ajustes() {
     if (d.tipo === 'eliminar') {
       const apple = await codigoParaEliminar();
       if (apple.cancelado) return;
+      await quitarEsteCelular(puertos);
       if (await accion.ejecutar((p) => p.sesion.eliminarCuenta(apple.codigo))) {
         setDialogo(null);
         sesion.establecer(null);
@@ -169,6 +171,12 @@ export default function Ajustes() {
         </Seccion>
         <Texto v="detalle">Cada persona configura su propio diezmo. La regla sugiere el monto de los ítems de diezmo de cada mes nuevo; cambiarla no cambia los meses ya creados.</Texto>
       </View>
+
+      <Pressable testID="fila-avisos" accessibilityRole="button" onPress={() => router.push('/avisos?pestana=configurar')}
+        style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 16, backgroundColor: colors.superficie }}>
+        <View style={{ flex: 1, gap: 2 }}><Texto style={{ fontSize: 15, fontFamily: fonts.medium }}>Avisos</Texto><Texto v="detalle">{RESUMEN_CUANDO_AVISA}</Texto></View>
+        <Texto style={{ color: colors.secundario }}>›</Texto>
+      </Pressable>
 
       <Seccion titulo="Categorías" accion={<Boton tipo="texto" titulo="+ Nueva" onPress={() => abrir({ tipo: 'categoria', categoria: null })} />}>
         {(categorias.data ?? []).map((c, i) => (

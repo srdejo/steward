@@ -1,4 +1,4 @@
-import { fechaEnMes, formatFechaCorta, nombreMes, type Id } from '@steward/domain';
+import { fechaEnMes, formatFechaCorta, nombreMes, parseClaveMes, type Id } from '@steward/domain';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
@@ -14,12 +14,14 @@ import { Aviso, Boton, cerrarHoja, colors, fonts, Hoja, Monto, MontoInput, Segme
  * ademas como aporte de quien pago. Si ya estaba pagado avisa "Ya lo pagó X el dd mmm" (spec steward-hoy).
  */
 export default function Pagar({ elegido }: { elegido?: string } = {}) {
-  const params = useLocalSearchParams<{ itemId?: string }>();
+  const params = useLocalSearchParams<{ itemId?: string; mes?: string }>();
   const itemId = (elegido ?? params.itemId)!;
   const { sesion } = useSesion();
   const hoja = useOpcionesHoja();
   const accion = useAccion();
-  const { ref } = useMesDeHoy();
+  const mesHoy = useMesDeHoy();
+  // Desde Avisos, un pago de otro mes que el de Hoy (avisos-pagos).
+  const ref = (params.mes ? parseClaveMes(params.mes) : null) ?? mesHoy.ref;
   const resumen = useConsulta(['resumen', ref], (p) => p.movimientos.resumenMes(ref));
   const categorias = useConsulta(['categorias'], (p) => p.hogar.categorias());
   const e = [...(resumen.data?.porPagar ?? []), ...(resumen.data?.yaPagado ?? [])].find((i) => i.item.id === itemId);
