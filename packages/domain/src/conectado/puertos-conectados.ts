@@ -16,6 +16,7 @@ import type {
   Sesion,
   SesionPort,
   TarjetasPort,
+  AvisosPort,
   Usuario,
   VistaHogar,
 } from '../index';
@@ -90,6 +91,7 @@ export class PuertosConectados implements Puertos {
   readonly plan: PlanPort;
   readonly cierre: CierrePort;
   readonly tarjetas: TarjetasPort;
+  readonly avisos: AvisosPort;
 
   constructor(private readonly d: Dependencias) {
     this.demoActual = this.nuevoDemo(null);
@@ -102,6 +104,7 @@ export class PuertosConectados implements Puertos {
     this.plan = this.crearPlan();
     this.cierre = this.crearCierre();
     this.tarjetas = this.crearTarjetas();
+    this.avisos = this.crearAvisos();
   }
   /** Ya nada es de prueba en modo conectado: sin aviso ni "Restablecer" (design D6 de backend-plan-anual). */
   get demo() {
@@ -459,6 +462,23 @@ export class PuertosConectados implements Puertos {
   }
 
   /** Tarjetas reales (design D6 de tarjetas-y-creditos): se escriben en el backend; la vista la calcula el dominio. */
+  /** Los avisos los calcula y los envia el backend (avisos-pagos, design D1). */
+  private crearAvisos(): AvisosPort {
+    const api = this.d.api;
+    return {
+      proximos: () => api.avisosProximos(),
+      preferencias: () => api.avisosPreferencias(),
+      guardarPreferencias: async (p) => {
+        await api.guardarAvisosPreferencias(p);
+        this.avisar();
+      },
+      registrarDispositivo: (d) => api.registrarDispositivo(d),
+      quitarDispositivo: (token) => api.quitarDispositivo(token),
+      probar: () => api.probarAviso(),
+      clavePushWeb: async () => (await api.clavePushWeb()).clave,
+    };
+  }
+
   private crearTarjetas(): TarjetasPort {
     const api = this.d.api;
     const escribir = async (accion: Promise<unknown>): Promise<void> => {

@@ -10,6 +10,7 @@ import type {
   ConteoBorrado, MesDesdeAnual, VistaMesBase, DatosCredito, DatosMetodo, DatosTarjeta, ItemEnlazable, ResumenCreditos, VistaCredito, VistaTarjetas, DatosEvento, VistaBase, FiltroTitular, ModoNuevoMes, MovimientoCuenta, ResumenAnual, ResumenMes, ResumenMesPlan, TablaOpciones, VistaCierre, VistaMesEscritorio, VistaCuenta, VistaOpcion, VistaRegistro,
 } from '../rules';
 import type { compararOpciones, loQueTraeElMes } from '../rules';
+import type { Aviso, PreferenciasAviso } from '../rules';
 
 export type MetodoAcceso = 'GOOGLE' | 'FACE_ID' | 'CORREO';
 
@@ -217,6 +218,27 @@ export interface TarjetasPort {
   enlazables(): Promise<ItemEnlazable[]>;
 }
 
+/** Un dispositivo que recibe avisos: el token de push de Expo o una suscripcion Web Push (spec "API de avisos"). */
+export type DispositivoAviso =
+  | { tipo: 'EXPO'; token: string }
+  | { tipo: 'WEB'; endpoint: string; p256dh: string; auth: string };
+
+/** Avisos de pagos (spec steward-avisos). */
+export interface AvisosPort {
+  /** Lo vencido y lo de los proximos 30 dias, en el orden de Avisos. */
+  proximos(): Promise<Aviso[]>;
+  /** La configuracion de quien tiene la sesion. */
+  preferencias(): Promise<PreferenciasAviso>;
+  guardarPreferencias(p: PreferenciasAviso): Promise<void>;
+  registrarDispositivo(d: DispositivoAviso): Promise<void>;
+  /** `token`: el de Expo o el endpoint de la suscripcion. */
+  quitarDispositivo(token: string): Promise<void>;
+  /** Envia un aviso de prueba a los dispositivos de quien tiene la sesion. */
+  probar(): Promise<void>;
+  /** La clave publica VAPID para suscribir el navegador; null si el push web no esta disponible. */
+  clavePushWeb(): Promise<string | null>;
+}
+
 export interface CierrePort {
   vista(ref: MesRef): Promise<VistaCierre>;
   cerrar(ref: MesRef, reparto: { aAhorro: Pesos; aSiguiente: Pesos }): Promise<CierreMes>;
@@ -238,6 +260,7 @@ export interface Puertos {
   cuentas: CuentasPort;
   tarjetas: TarjetasPort;
   cierre: CierrePort;
+  avisos: AvisosPort;
   demo: DemoPort | null;
   /** Fecha de hoy segun el reloj de la app. */
   hoy(): Fecha;
