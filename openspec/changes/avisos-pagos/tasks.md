@@ -52,8 +52,8 @@
 ## 5. Entrega
 
 - [x] 5.1 Daniel genera las claves VAPID y `AVISOS_SECRET` en el VPS (y `EXPO_ACCESS_TOKEN` si hace falta), sin que se lean desde aquí.
-- [ ] 5.2 Con confirmación de Daniel: PR, respaldo, despliegue del backend (V18) y de la PWA.
-- [ ] 5.3 Con confirmación de Daniel: la versión nueva de la app, con push, a TestFlight.
+- [x] 5.2 Con confirmación de Daniel: PR, respaldo, despliegue del backend (V18) y de la PWA.
+- [x] 5.3 Con confirmación de Daniel: la versión nueva de la app, con push, a TestFlight.
 - [ ] 5.4 Prueba real con Daniel y su esposa:
   - un aviso de prueba en cada dispositivo;
   - "Ya lo pagué" desde el iPhone;
