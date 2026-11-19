@@ -165,8 +165,11 @@ public class AvisosUseCase implements IAvisosServicePort, IActividadPort {
     public Mono<Void> correr() {
         LocalTime hora = clock.ahora().atZone(zona).toLocalTime();
         LocalDate hoy = clock.hoy();
-        return hogares.todos().concatMap(h -> correrHogar(h, hoy, hora)
-                .onErrorResume(ex -> Mono.empty())).then();
+        // Primero se quitan los iPhone que, segun los recibos de Expo, ya no reciben push (design D3).
+        Mono<Void> recibos = push.tokensInvalidosPorRecibos().onErrorReturn(List.of())
+                .flatMapMany(Flux::fromIterable).concatMap(avisos::quitarToken).then();
+        return recibos.then(hogares.todos().concatMap(h -> correrHogar(h, hoy, hora)
+                .onErrorResume(ex -> Mono.empty())).then());
     }
 
     private Mono<Void> correrHogar(UUID hogarId, LocalDate hoy, LocalTime hora) {
