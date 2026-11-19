@@ -5,6 +5,7 @@ import { TITULO_GRUPO, diaDelBloque, fraseVsPlan, claveMes, formatCop, formatDia
 import { consulta } from '../../core/datos/consulta';
 import { PUERTOS } from '../../core/datos/puertos';
 import { AvataresHogar } from '../../core/layout/avatares-hogar';
+import { Campana } from '../../shared/components/campana';
 import { MiembrosHogar } from '../../core/layout/miembros';
 import { Avatar } from '../../shared/components/avatar';
 import { Fila } from '../../shared/components/fila';
@@ -25,7 +26,7 @@ const LISTA_CORTA = 3;
  */
 @Component({
   selector: 'app-hoy-page',
-  imports: [RouterLink, RouterOutlet, AvataresHogar, Avatar, Fila, HoyEscritorio, Icono, IngresosHoy, Monto, Segmentado],
+  imports: [Campana, RouterLink, RouterOutlet, AvataresHogar, Avatar, Fila, HoyEscritorio, Icono, IngresosHoy, Monto, Segmentado],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '[class]': "escritorio() ? 'block px-8 pt-7 pb-12' : 'flex flex-col gap-5 px-5 pt-6 pb-4'" },
   template: `
@@ -41,7 +42,10 @@ const LISTA_CORTA = 3;
         <span class="text-[13px] text-secundario" data-testid="fecha-hoy">{{ fechaLarga }}</span>
         <h1 class="titular text-[28px] font-bold">Hoy</h1>
       </div>
-      <app-avatares-hogar />
+      <div class="flex items-center gap-1">
+        <app-campana />
+        <app-avatares-hogar />
+      </div>
     </header>
 
     <app-segmentado etiquetaAccesible="Mes que se ejecuta" [opciones]="mesHoy.opciones" [valor]="mesHoy.clave()" (valorChange)="$event && mesHoy.elegir($event)" />

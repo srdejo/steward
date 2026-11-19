@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
-import { claveMes, COLOR_NUEVA, colorDePaleta, formatFechaCorta, formatPorcentaje, mesDe, type BaseDiezmo, type Categoria, type IngresoFijo } from '@steward/domain';
+import { claveMes, COLOR_NUEVA, RESUMEN_CUANDO_AVISA, colorDePaleta, formatFechaCorta, formatPorcentaje, mesDe, type BaseDiezmo, type Categoria, type IngresoFijo } from '@steward/domain';
 
 import { consulta, mensajeDeError } from '../../core/datos/consulta';
 import { PUERTOS, puertosConectados } from '../../core/datos/puertos';
@@ -126,6 +126,11 @@ const CONFIRMACIONES = {
           <button type="button" class="boton-texto self-start font-semibold" (click)="abrir({ tipo: 'ingreso', ingreso: null })">+ Agregar ingreso fijo</button>
         </section>
 
+        <a routerLink="/avisos" [queryParams]="{ pestana: 'configurar' }" class="tarjeta flex items-center gap-3 p-5 hover:bg-fondo" data-testid="fila-avisos">
+          <span class="flex min-w-0 grow flex-col gap-0.5"><span class="text-[15px] font-medium">Avisos</span><span class="text-xs text-secundario">{{ resumenAvisos }}</span></span>
+          <span class="text-secundario" aria-hidden="true">›</span>
+        </a>
+
         <section class="tarjeta flex flex-col gap-3 p-5" aria-labelledby="ajustes-categorias">
           <div class="flex items-center justify-between">
             <h2 id="ajustes-categorias" class="text-base font-semibold">Categorías</h2>
@@ -193,6 +198,11 @@ const CONFIRMACIONES = {
       </div>
       <p class="text-xs text-secundario" data-testid="nota-regla">Cada persona configura su propio diezmo. La regla sugiere el monto de los ítems de diezmo de cada mes nuevo; cambiarla no cambia los meses ya creados.</p>
     </section>
+
+    <a routerLink="/avisos" [queryParams]="{ pestana: 'configurar' }" class="flex min-h-14 items-center gap-3 rounded-tarjeta bg-superficie px-4 py-3" data-testid="fila-avisos">
+          <span class="flex min-w-0 grow flex-col gap-0.5"><span class="text-[15px] font-medium">Avisos</span><span class="text-xs text-secundario">{{ resumenAvisos }}</span></span>
+          <span class="text-secundario" aria-hidden="true">›</span>
+        </a>
 
     <section class="flex flex-col gap-2" aria-labelledby="ajustes-categorias">
       <div class="flex items-center justify-between">
@@ -373,6 +383,8 @@ export class AjustesPage {
   ];
 
   protected readonly dialogo = signal<Dialogo | null>(null);
+  /** "El lunes, el día anterior y el mismo día" (spec steward-avisos, "Avisos · Configurar"). */
+  protected readonly resumenAvisos = RESUMEN_CUANDO_AVISA;
   protected readonly texto = signal('');
   /** El color elegido en la hoja de categoria; null si el guardado no esta en la paleta (color-categorias). */
   protected readonly color = signal<string | null>(null);

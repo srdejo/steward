@@ -24,11 +24,11 @@
 
 ## 3. PWA
 
-- [ ] 3.1 Ruta `/avisos` con Próximos y Configurar.
+- [x] 3.1 Ruta `/avisos` con Próximos y Configurar.
   - Pantallas: artboards "Avisos (web)" y "Avisos · próximos y configurar" a 390 px.
   - Marcar pagado abre Marcar pago.
   - Las filas que no son pagos llevan a su pantalla.
-- [ ] 3.2 La campana con su insignia en Hoy (móvil) y en la barra superior (web), y la fila "Avisos" en Ajustes.
+- [x] 3.2 La campana con su insignia en Hoy (móvil) y en la barra superior (web), y la fila "Avisos" en Ajustes.
 - [ ] 3.3 Web Push (design D9):
   - `SwPush`, con registro y baja de la suscripción al cerrar sesión;
   - el service worker con las acciones y el clic;

@@ -5,9 +5,10 @@ import { filter, map } from 'rxjs';
 
 import { PUERTOS } from '../datos/puertos';
 import { Icono, type NombreIcono } from '../../shared/components/icono';
-import { Agregar, PARAM_AGREGAR, PARAM_ITEM, tipoAgregar } from '../../features/hoy/agregar';
+import { Agregar, PARAM_AGREGAR, PARAM_ITEM, PARAM_MES, tipoAgregar } from '../../features/hoy/agregar';
 import { AgregarHoja } from '../../features/hoy/agregar-hoja';
 import { AvataresHogar } from './avatares-hogar';
+import { Campana } from '../../shared/components/campana';
 import { MiembrosHogar } from './miembros';
 
 interface Destino {
@@ -33,7 +34,7 @@ export const DESTINOS: Destino[] = [
  */
 @Component({
   selector: 'app-shell',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, Icono, AvataresHogar, AgregarHoja],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, Icono, AvataresHogar, AgregarHoja, Campana],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <a href="#contenido" class="sr-only-focusable absolute top-2 left-2 z-50 rounded-control bg-superficie px-3 py-2 font-semibold">
@@ -60,6 +61,7 @@ export const DESTINOS: Destino[] = [
         }
       </nav>
       <div class="ml-auto flex items-center gap-3">
+        <app-campana />
         <button type="button" class="boton-primario h-10 gap-2 rounded-control px-4 text-sm" data-testid="agregar-superior" (click)="agregar.abrir()">
           <app-icono nombre="mas" [tamano]="16" />Agregar
         </button>
@@ -107,7 +109,7 @@ export const DESTINOS: Destino[] = [
     </nav>
 
     @if (hojaAgregar(); as h) {
-      <app-agregar-hoja [tipo]="h.tipo" [item]="h.item" />
+      <app-agregar-hoja [tipo]="h.tipo" [item]="h.item" [mes]="h.mes" />
     }
   `,
 })
@@ -138,7 +140,7 @@ export class Shell {
   protected readonly hojaAgregar = computed(() => {
     const params = this.router.parseUrl(this.url()).queryParams;
     const tipo = tipoAgregar(params[PARAM_AGREGAR]);
-    return tipo ? { tipo, item: (params[PARAM_ITEM] as string | undefined) ?? null } : null;
+    return tipo ? { tipo, item: (params[PARAM_ITEM] as string | undefined) ?? null, mes: (params[PARAM_MES] as string | undefined) ?? null } : null;
   });
 
   protected readonly claseAncho = computed(() => {

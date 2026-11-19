@@ -12,6 +12,7 @@ const TRAZOS = {
   derecha: '<path d="M9 5l7 7-7 7"/>',
   cerrar: '<path d="M6 6l12 12M18 6L6 18"/>',
   mas: '<path d="M12 5v14M5 12h14"/>',
+  campana: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 8 3 8H3s3-1 3-8"/><path d="M10 20a2 2 0 0 0 4 0"/>',
   check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
   candado: '<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
   ojo: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
