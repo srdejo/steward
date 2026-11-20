@@ -650,11 +650,13 @@ describe('plan del mes y registros en el backend (steward-plan-mes, design D5)',
     const agregar = p.plan.guardarItem('plan-oct', 'esc-a', item);
     const r2 = await responder('POST', '/api/planes/plan-oct/escenarios/esc-a/items', { ...item, id: 'it-luz' }, tick, 201);
     await agregar;
-    expect(r2.request.body).toEqual({ categoriaId: 'cat-1', nombre: 'Luz', monto: 50_000, diaVence: 10, tipo: 'FIJO', cuota: null, creditoId: null });
+    expect(r2.request.body).toEqual({ categoriaId: 'cat-1', nombre: 'Luz', monto: 50_000, diaVence: 10, tipo: 'FIJO', cuota: null, creditoId: null, aplicarAMeses: false });
 
-    const editar = p.plan.guardarItem('plan-oct', 'esc-a', { ...item, id: 'it-luz', monto: 60_000 });
-    await responder('PUT', '/api/planes/plan-oct/escenarios/esc-a/items/it-luz', item, tick);
+    // Datos de pago (gastos-datos-pago): se envian si se indican; null va vacio para quitarlo.
+    const editar = p.plan.guardarItem('plan-oct', 'esc-a', { ...item, id: 'it-luz', monto: 60_000, enlacePago: 'https://pagos.ejemplo.com', codigoPago: null }, { aplicarAMeses: true });
+    const rEditar = await responder('PUT', '/api/planes/plan-oct/escenarios/esc-a/items/it-luz', item, tick);
     await editar;
+    expect(rEditar.request.body).toMatchObject({ monto: 60_000, enlacePago: 'https://pagos.ejemplo.com', codigoPago: '', aplicarAMeses: true });
     const quitar = p.plan.quitarItem('plan-oct', 'esc-a', 'it-luz');
     await responder('DELETE', '/api/planes/plan-oct/escenarios/esc-a/items/it-luz', null, tick, 204);
     await quitar;

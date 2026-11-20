@@ -70,7 +70,8 @@ public class AnualR2dbcAdapter implements IAnualPersistencePort {
 
     private Mono<Opcion> conCeldasYEventos(Opcion o) {
         Mono<java.util.Optional<PlanAnual.MesBase>> mesBase = o.mesBase() == null ? Mono.just(java.util.Optional.empty())
-                : db.sql("SELECT id, categoria_id, nombre, monto, dia_vence, tipo, cuota_actual, cuota_total, credito_id, tarjeta_id, orden "
+                : db.sql("SELECT id, categoria_id, nombre, monto, dia_vence, tipo, cuota_actual, cuota_total, credito_id, tarjeta_id, orden, "
+                                + "enlace_pago, codigo_pago "
                                 + "FROM anual_base_item WHERE opcion_id = :id ORDER BY orden, id")
                         .bind("id", o.id())
                         .map(r -> itemBase(r, o.id()))
@@ -205,10 +206,11 @@ public class AnualR2dbcAdapter implements IAnualPersistencePort {
     @Override
     public Mono<Void> guardarItemBase(UUID opcionId, co.com.srdejo.steward.domain.model.PlanMes.ItemPlan i) {
         var spec = db.sql("INSERT INTO anual_base_item (id, opcion_id, categoria_id, nombre, monto, dia_vence, tipo, cuota_actual, cuota_total, "
-                        + "credito_id, tarjeta_id, orden) VALUES (:id, :opcion, :categoria, :nombre, :monto, :dia, :tipo, :actual, :total, :credito, "
-                        + ":tarjeta, :orden) ON CONFLICT (id) DO UPDATE SET categoria_id = excluded.categoria_id, nombre = excluded.nombre, "
-                        + "monto = excluded.monto, dia_vence = excluded.dia_vence, tipo = excluded.tipo, cuota_actual = excluded.cuota_actual, "
-                        + "cuota_total = excluded.cuota_total, credito_id = excluded.credito_id, tarjeta_id = excluded.tarjeta_id")
+                        + "credito_id, tarjeta_id, orden, enlace_pago, codigo_pago) VALUES (:id, :opcion, :categoria, :nombre, :monto, :dia, :tipo, :actual, "
+                        + ":total, :credito, :tarjeta, :orden, :enlace, :codigo) ON CONFLICT (id) DO UPDATE SET categoria_id = excluded.categoria_id, "
+                        + "nombre = excluded.nombre, monto = excluded.monto, dia_vence = excluded.dia_vence, tipo = excluded.tipo, "
+                        + "cuota_actual = excluded.cuota_actual, cuota_total = excluded.cuota_total, credito_id = excluded.credito_id, "
+                        + "tarjeta_id = excluded.tarjeta_id, enlace_pago = excluded.enlace_pago, codigo_pago = excluded.codigo_pago")
                 .bind("id", i.id())
                 .bind("opcion", opcionId)
                 .bind("categoria", i.categoriaId())
@@ -221,6 +223,8 @@ public class AnualR2dbcAdapter implements IAnualPersistencePort {
         spec = Sql.opcional(spec, "total", i.cuotaTotal() == null ? null : i.cuotaTotal().shortValue(), Short.class);
         spec = Sql.opcional(spec, "credito", i.creditoId(), UUID.class);
         spec = Sql.opcional(spec, "tarjeta", i.tarjetaId(), UUID.class);
+        spec = Sql.opcional(spec, "enlace", i.enlacePago(), String.class);
+        spec = Sql.opcional(spec, "codigo", i.codigoPago(), String.class);
         return spec.then()
                 .then(db.sql("UPDATE anual_opcion SET con_mes_base = true WHERE id = :id").bind("id", opcionId).then());
     }
@@ -241,7 +245,8 @@ public class AnualR2dbcAdapter implements IAnualPersistencePort {
                 r.get("nombre", String.class), r.get("monto", Long.class), dia == null ? null : dia.intValue(),
                 co.com.srdejo.steward.domain.model.PlanMes.ItemPlan.Tipo.valueOf(r.get("tipo", String.class)),
                 actual == null ? null : actual.intValue(), total == null ? null : total.intValue(), r.get("orden", Integer.class),
-                r.get("credito_id", UUID.class), null, null, null, false, r.get("tarjeta_id", UUID.class));
+                r.get("credito_id", UUID.class), null, null, null, false, r.get("tarjeta_id", UUID.class),
+                r.get("enlace_pago", String.class), r.get("codigo_pago", String.class));
     }
 
     @Override

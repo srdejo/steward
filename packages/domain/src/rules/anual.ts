@@ -5,6 +5,7 @@ import { anualDe, categoria, cierreDe, escenarioPrincipal, eventosDelMes, movimi
 import { cuotasDeCreditos, pagaEnMes } from './credito';
 import { calcularDiezmo, diezmosDelMes, ingresosNuevos } from './ingresos';
 import { lineasDeTarjetas } from './tarjetas';
+import { datosPagoValidos } from './datos-pago';
 
 const MESES = Array.from({ length: 12 }, (_, i) => i + 1);
 export const CATEGORIA_EVENTOS = 'Eventos del año';
@@ -734,13 +735,17 @@ export function guardarItemBase(estado: EstadoHogar, datos: { anio: number; opci
   if (categoria(s, datos.item.categoriaId).tipo === 'DIEZMO') throw new ReglaError('DATOS_INVALIDOS', 'El diezmo se calcula con las reglas');
   const op = opcionOError(anualOError(s, datos.anio), datos.opcionId);
   const base = mesBaseDe(s, datos.anio, op);
-  const item = { ...datos.item, nombre: datos.item.nombre.trim(), ingresoPlanId: null, aporteId: null, ingresoFijoId: null, ajustadoAMano: false };
+  // Datos de pago (gastos-datos-pago): sin indicar se conservan al editar.
+  const pago = datosPagoValidos(datos.item);
+  const { enlacePago: _e, codigoPago: _c, ...resto } = datos.item;
+  const item = { ...resto, ...pago, nombre: datos.item.nombre.trim(), ingresoPlanId: null, aporteId: null, ingresoFijoId: null, ajustadoAMano: false };
   if (datos.item.id) {
     const i = base.items.findIndex((x) => x.id === datos.item.id);
     if (i < 0) throw new ReglaError('NO_EXISTE', 'Ese gasto ya no está en el mes base');
-    base.items[i] = { ...item, id: datos.item.id } as ItemPlan;
+    const previo = base.items[i]!;
+    base.items[i] = { enlacePago: previo.enlacePago ?? null, codigoPago: previo.codigoPago ?? null, ...item, id: datos.item.id } as ItemPlan;
   } else {
-    base.items.push({ ...item, id: nuevoId(s, 'itb') } as ItemPlan);
+    base.items.push({ enlacePago: null, codigoPago: null, ...item, id: nuevoId(s, 'itb') } as ItemPlan);
   }
   return s;
 }

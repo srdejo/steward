@@ -7,6 +7,7 @@ import { lineasDeTarjetas } from './tarjetas';
 import { anualDe, opcionDe, categoria, cierreDe, escenario, escenarioPrincipal, eventosDelMes, nombreUsuario, opciones, planDe, planPorId } from './consultas';
 import { diezmoDeLineaNueva, diezmoSugerido, diezmosDelMes, ingresosDelMes, ingresosNuevos, itemConPagos, recibeLinea, seguirLinea, totalIngresos, type LineaIngreso } from './ingresos';
 import { devolverCapital } from './credito';
+import { datosPagoValidos, tieneDatosPago } from './datos-pago';
 
 /** Un mes BORRADOR con opcion elegida pasa a ACTIVO cuando llega ("al iniciar el mes"). */
 export function estadoEfectivo(plan: PlanMes, hoy: Fecha): EstadoMes {
@@ -147,22 +148,54 @@ function escenarioEditable(s: EstadoHogar, planId: Id, escenarioId: Id): Escenar
   return escenario(plan, escenarioId);
 }
 
-export function guardarItem(estado: EstadoHogar, datos: { planId: Id; escenarioId: Id; item: Omit<ItemPlan, 'id'> & { id?: Id } }): EstadoHogar {
+const mismoGasto = (a: Pick<ItemPlan, 'nombre' | 'categoriaId'>, b: Pick<ItemPlan, 'nombre' | 'categoriaId' | 'tipo'>) =>
+  b.tipo !== 'DIEZMO' && a.categoriaId === b.categoriaId && a.nombre.trim().toLowerCase() === b.nombre.trim().toLowerCase();
+
+/**
+ * "Aplicar también a los meses ya planeados" (design D2 de gastos-datos-pago): los gastos con el mismo nombre y
+ * categoria de las otras opciones del mes y de los meses posteriores no cerrados, y los mes base del año en adelante.
+ */
+function aplicarDatosPago(s: EstadoHogar, plan: PlanMes, item: ItemPlan): void {
+  const datos = { enlacePago: item.enlacePago ?? null, codigoPago: item.codigoPago ?? null };
+  for (const p of s.planes) {
+    if (p.estado === 'CERRADO' || compararMes(p.ref, plan.ref) < 0) continue;
+    for (const e of p.escenarios) for (const i of e.items) if (i.id !== item.id && mismoGasto(item, i)) Object.assign(i, datos);
+  }
+  for (const a of s.anuales ?? []) {
+    if (a.anio < plan.ref.anio) continue;
+    for (const op of a.opciones) for (const i of op.mesBase?.items ?? []) if (mismoGasto(item, i)) Object.assign(i, datos);
+  }
+}
+
+export function guardarItem(
+  estado: EstadoHogar,
+  datos: { planId: Id; escenarioId: Id; item: Omit<ItemPlan, 'id'> & { id?: Id }; aplicarAMeses?: boolean },
+): EstadoHogar {
   if (datos.item.monto < 0) throw new ReglaError('MONTO_INVALIDO', 'El monto no puede ser negativo');
   if (!datos.item.nombre.trim()) throw new ReglaError('NOMBRE_REQUERIDO', 'El gasto necesita un nombre');
+  const pago = datos.item.tipo === 'DIEZMO' ? { enlacePago: null, codigoPago: null } : datosPagoValidos(datos.item);
+  const { enlacePago: _e, codigoPago: _c, ...resto } = datos.item;
   const s = clonar(estado);
   categoria(s, datos.item.categoriaId);
   const esc = escenarioEditable(s, datos.planId, datos.escenarioId);
   const existente = datos.item.id ? esc.items.find((i) => i.id === datos.item.id) : undefined;
+  let guardado: ItemPlan;
+  let cambioPago: boolean;
   if (existente) {
     // Los enlaces del diezmo no cambian al editar; cambiar su monto lo deja "ajustado a mano" (design D1 de usabilidad-plan).
     const { ingresoFijoId, aporteId, ingresoPlanId } = existente;
     const linea = ingresoPlanId ? esc.ingresos.find((l) => l.id === ingresoPlanId) : undefined;
     const ajustado = linea && datos.item.monto !== existente.monto ? datos.item.monto !== diezmoSugerido(s, linea) : existente.ajustadoAMano;
-    Object.assign(existente, datos.item, { ingresoFijoId, aporteId, ingresoPlanId, ajustadoAMano: ajustado });
+    const antes = `${existente.enlacePago ?? ''}|${existente.codigoPago ?? ''}`;
+    Object.assign(existente, resto, pago, { ingresoFijoId, aporteId, ingresoPlanId, ajustadoAMano: ajustado });
+    cambioPago = antes !== `${existente.enlacePago ?? ''}|${existente.codigoPago ?? ''}`;
+    guardado = existente;
   } else {
-    esc.items.push({ ...datos.item, ingresoPlanId: null, ajustadoAMano: false, id: nuevoId(s, 'item') } as ItemPlan);
+    guardado = { ...resto, enlacePago: pago.enlacePago ?? null, codigoPago: pago.codigoPago ?? null, ingresoPlanId: null, ajustadoAMano: false, id: nuevoId(s, 'item') } as ItemPlan;
+    esc.items.push(guardado);
+    cambioPago = tieneDatosPago(guardado);
   }
+  if (datos.aplicarAMeses && cambioPago && guardado.tipo !== 'DIEZMO') aplicarDatosPago(s, planPorId(s, datos.planId), guardado);
   return s;
 }
 

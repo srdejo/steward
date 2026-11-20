@@ -23,6 +23,14 @@ import type {
 import { ReglaError, claveMes, hastaDe, mesDe, sumarMeses } from '../index';
 import { crearAdaptadorDemo, type StorageLike } from '../demo';
 
+/** Datos de pago al backend (design D3 de gastos-datos-pago): sin indicar no se envian (se conservan); null se envia vacio (se quitan). */
+function pagoApi(item: { enlacePago?: string | null; codigoPago?: string | null }): { enlacePago?: string; codigoPago?: string } {
+  const fuera: { enlacePago?: string; codigoPago?: string } = {};
+  if (item.enlacePago !== undefined) fuera.enlacePago = item.enlacePago ?? '';
+  if (item.codigoPago !== undefined) fuera.codigoPago = item.codigoPago ?? '';
+  return fuera;
+}
+
 import {
   usuarioDe,
   type Api,
@@ -426,7 +434,7 @@ export class PuertosConectados implements Puertos {
       },
       copiarMesBase: (anio, opcionId, desde) => escribir(api.copiarMesBase(anio, opcionId, fuenteApi(desde))),
       guardarItemBase: (anio, opcionId, item) => {
-        const cuerpo = { categoriaId: item.categoriaId, nombre: item.nombre, monto: item.monto, diaVence: item.diaVence, tipo: item.tipo, cuota: item.cuota, creditoId: item.creditoId, tarjetaId: item.tarjetaId ?? null };
+        const cuerpo = { categoriaId: item.categoriaId, nombre: item.nombre, monto: item.monto, diaVence: item.diaVence, tipo: item.tipo, cuota: item.cuota, creditoId: item.creditoId, tarjetaId: item.tarjetaId ?? null, ...pagoApi(item) };
         return escribir(item.id ? api.editarItemBase(anio, opcionId, item.id, cuerpo) : api.crearItemBase(anio, opcionId, cuerpo));
       },
       quitarItemBase: (anio, opcionId, itemId) => escribir(api.quitarItemBase(anio, opcionId, itemId)),
@@ -435,8 +443,8 @@ export class PuertosConectados implements Puertos {
       crearAnual: (anio) => escribir(api.crearAnual(anio)),
       editarProyeccion: (usuarioId, ref, monto) => escribir(api.ponerProyeccion(ref.anio, usuarioId, ref.mes, monto)),
       crearMes: (ref, modo) => escribir(api.crearPlan(ref, modo)),
-      guardarItem: (planId, escenarioId, item) => {
-        const cuerpo = { categoriaId: item.categoriaId, nombre: item.nombre, monto: item.monto, diaVence: item.diaVence, tipo: item.tipo, cuota: item.cuota, creditoId: item.creditoId };
+      guardarItem: (planId, escenarioId, item, opciones) => {
+        const cuerpo = { categoriaId: item.categoriaId, nombre: item.nombre, monto: item.monto, diaVence: item.diaVence, tipo: item.tipo, cuota: item.cuota, creditoId: item.creditoId, ...pagoApi(item), aplicarAMeses: Boolean(opciones?.aplicarAMeses) };
         return escribir(item.id ? api.editarItem(planId, escenarioId, item.id, cuerpo) : api.crearItem(planId, escenarioId, cuerpo));
       },
       quitarItem: (planId, escenarioId, itemId) => escribir(api.quitarItem(planId, escenarioId, itemId)),

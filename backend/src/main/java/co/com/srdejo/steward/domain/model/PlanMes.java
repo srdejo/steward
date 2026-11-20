@@ -90,12 +90,31 @@ public record PlanMes(UUID id, UUID hogarId, YearMonth ref, Estado estado, UUID 
      *                      usabilidad-plan).
      * @param ajustadoAMano DIEZMO: su monto se cambio a mano y ya no sigue a su linea hasta "Volver a calcular".
      * @param tarjetaId     la tarjeta de la que es la linea del plan (design D1 de tarjetas-y-creditos).
+     * @param enlacePago    enlace http(s) del portal de pago, o null (gastos-datos-pago).
+     * @param codigoPago    codigo de usuario o referencia para pagar, o null (gastos-datos-pago).
      */
     public record ItemPlan(UUID id, UUID escenarioId, UUID categoriaId, String nombre, long monto, Integer diaVence,
                            Tipo tipo, Integer cuotaActual, Integer cuotaTotal, int orden, UUID creditoId,
-                           UUID ingresoFijoId, UUID aporteId, UUID ingresoPlanId, boolean ajustadoAMano, UUID tarjetaId) {
+                           UUID ingresoFijoId, UUID aporteId, UUID ingresoPlanId, boolean ajustadoAMano, UUID tarjetaId,
+                           String enlacePago, String codigoPago) {
 
         public static final int NOMBRE_MAX = 60;
+        public static final int ENLACE_PAGO_MAX = 500;
+        public static final int CODIGO_PAGO_MAX = 60;
+
+        /** Sin datos de pago. */
+        public ItemPlan(UUID id, UUID escenarioId, UUID categoriaId, String nombre, long monto, Integer diaVence,
+                        Tipo tipo, Integer cuotaActual, Integer cuotaTotal, int orden, UUID creditoId,
+                        UUID ingresoFijoId, UUID aporteId, UUID ingresoPlanId, boolean ajustadoAMano, UUID tarjetaId) {
+            this(id, escenarioId, categoriaId, nombre, monto, diaVence, tipo, cuotaActual, cuotaTotal, orden, creditoId,
+                    ingresoFijoId, aporteId, ingresoPlanId, ajustadoAMano, tarjetaId, null, null);
+        }
+
+        /** El mismo item con otros datos de pago (gastos-datos-pago). */
+        public ItemPlan conPago(String enlace, String codigo) {
+            return new ItemPlan(id, escenarioId, categoriaId, nombre, monto, diaVence, tipo, cuotaActual, cuotaTotal, orden,
+                    creditoId, ingresoFijoId, aporteId, ingresoPlanId, ajustadoAMano, tarjetaId, enlace, codigo);
+        }
 
         /** Sin tarjeta. */
         public ItemPlan(UUID id, UUID escenarioId, UUID categoriaId, String nombre, long monto, Integer diaVence,
@@ -121,29 +140,29 @@ public record PlanMes(UUID id, UUID hogarId, YearMonth ref, Estado estado, UUID 
         /** El mismo item en otra opcion (o con otro monto o cuota), con sus enlaces. */
         public ItemPlan copia(UUID nuevoId, UUID otroEscenario, long otroMonto, Integer otraCuota, int otroOrden) {
             return new ItemPlan(nuevoId, otroEscenario, categoriaId, nombre, otroMonto, diaVence, tipo, otraCuota, cuotaTotal,
-                    otroOrden, creditoId, ingresoFijoId, aporteId, ingresoPlanId, ajustadoAMano, tarjetaId);
+                    otroOrden, creditoId, ingresoFijoId, aporteId, ingresoPlanId, ajustadoAMano, tarjetaId, enlacePago, codigoPago);
         }
 
         /** El mismo item con otro monto y nombre, y su marca de "ajustado a mano". */
         public ItemPlan conMonto(String otroNombre, long otroMonto, boolean ajustado) {
             return new ItemPlan(id, escenarioId, categoriaId, otroNombre, otroMonto, diaVence, tipo, cuotaActual, cuotaTotal, orden,
-                    creditoId, ingresoFijoId, aporteId, ingresoPlanId, ajustado, tarjetaId);
+                    creditoId, ingresoFijoId, aporteId, ingresoPlanId, ajustado, tarjetaId, enlacePago, codigoPago);
         }
 
         /** El mismo item enlazado a otra linea (la copia de la suya al duplicar). */
         public ItemPlan conLinea(UUID linea) {
             return new ItemPlan(id, escenarioId, categoriaId, nombre, monto, diaVence, tipo, cuotaActual, cuotaTotal, orden,
-                    creditoId, ingresoFijoId, aporteId, linea, ajustadoAMano, tarjetaId);
+                    creditoId, ingresoFijoId, aporteId, linea, ajustadoAMano, tarjetaId, enlacePago, codigoPago);
         }
 
         /** La linea de una tarjeta: su nombre, su monto y su dia de pago, enlazada a ella (o sin enlace con null). */
         public ItemPlan conTarjeta(Tarjeta t) {
             if (t == null) {
                 return new ItemPlan(id, escenarioId, categoriaId, nombre, monto, diaVence, tipo, cuotaActual, cuotaTotal, orden,
-                        creditoId, ingresoFijoId, aporteId, ingresoPlanId, ajustadoAMano, null);
+                        creditoId, ingresoFijoId, aporteId, ingresoPlanId, ajustadoAMano, null, enlacePago, codigoPago);
             }
             return new ItemPlan(id, escenarioId, categoriaId, nombre, t.pagoMonto(), t.diaPago(), tipo, cuotaActual, cuotaTotal,
-                    orden, creditoId, ingresoFijoId, aporteId, ingresoPlanId, ajustadoAMano, t.id());
+                    orden, creditoId, ingresoFijoId, aporteId, ingresoPlanId, ajustadoAMano, t.id(), enlacePago, codigoPago);
         }
 
         public enum Tipo {

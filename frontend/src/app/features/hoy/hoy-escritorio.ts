@@ -118,7 +118,10 @@ const TONO_VENCE: Record<TonoVence, string> = { alerta: 'font-semibold text-nega
                     </td>
                     <td class="px-3 py-3 text-[13px]" [class]="tonoVence(i)" data-col="vence">{{ i.vence.texto }}</td>
                     <td class="px-3 py-3 text-right"><app-monto class="text-[13px] font-semibold" [valor]="i.pendiente" /></td>
-                    <td class="px-5 py-3 text-right">
+                    <td class="px-5 py-3 text-right whitespace-nowrap">
+                      @if (i.item.enlacePago) {
+                        <a [href]="i.item.enlacePago" target="_blank" rel="noopener noreferrer" class="mr-3 text-[13px] font-semibold text-acento" data-testid="pagar-enlace" [attr.aria-label]="'Pagar ' + i.item.nombre + ' en línea'">Pagar ↗</a>
+                      }
                       <a [routerLink]="rutaPagar(i)" [queryParams]="paramsPagar(i)" class="inline-flex h-[34px] items-center rounded-[9px] border border-control px-3 text-[13px] font-semibold whitespace-nowrap text-texto">Marcar pagado</a>
                     </td>
                   </tr>

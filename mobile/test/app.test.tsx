@@ -483,6 +483,54 @@ describe('paridad con la PWA (steward-mobile-app)', () => {
     expect(johana.proxima!.ref).toEqual({ anio: 2026, mes: 12 });
   });
 
+  it('datos de pago: plegados, se aplican a las otras opciones y Marcar pago copia el código (gastos-datos-pago)', async () => {
+    const p = await conSesion();
+    renderRouter('./src/app', { initialUrl: '/mes/2026-11' });
+    await tocar(/^Gastos fijos/);
+    await tocar('Internet');
+    expect(screen.queryByLabelText('Enlace de pago')).toBeNull();
+    await tocar(/Datos de pago \(opcional\)/);
+    expect(screen.getByText('No guardes contraseñas aquí.')).toBeTruthy();
+    await escribir('Enlace de pago', 'pagos.ejemplo.com');
+    expect(await screen.findByText('Debe empezar por https://')).toBeTruthy();
+    await escribir('Enlace de pago', 'https://pagos.ejemplo.com');
+    await escribir('Código de usuario o referencia', '123456');
+    expect(screen.getByText('Aplicar también a los meses ya planeados')).toBeTruthy();
+    await tocar('Guardar');
+    await waitFor(async () => {
+      const internet = (await p.plan.mes(NOV)).opciones.map((o) => o.escenario.items.find((i) => i.nombre === 'Internet')!);
+      expect(internet.length).toBeGreaterThan(1);
+      for (const i of internet) expect(i).toMatchObject({ enlacePago: 'https://pagos.ejemplo.com', codigoPago: '123456' });
+    });
+  });
+
+  it('Marcar pago muestra el portal y copia el código (gastos-datos-pago)', async () => {
+    const p = await conSesion();
+    const pendiente = (await p.movimientos.resumenMes(OCT)).porPagar.find((e) => e.item.tipo !== 'VARIABLE' && e.item.tipo !== 'DIEZMO')!.item;
+    const mes = await p.plan.mes(OCT);
+    const esc = mes.opciones.find((o) => o.escenario.items.some((i) => i.id === pendiente.id))!.escenario;
+    await p.plan.guardarItem(mes.plan!.id, esc.id, { ...pendiente, enlacePago: 'https://pagos.ejemplo.com', codigoPago: '123456' });
+    renderRouter('./src/app', { initialUrl: `/pagar/${pendiente.id}` });
+    expect(await screen.findByTestId('codigo-pago')).toHaveTextContent('123456');
+    expect(screen.getByTestId('abrir-portal')).toBeTruthy();
+    await tocar('Copiar');
+    expect(require('expo-clipboard').setStringAsync).toHaveBeenCalledWith('123456');
+    expect(await screen.findByText('Código copiado')).toBeTruthy();
+  });
+
+  it('Hoy: Pagar ↗ solo en los gastos con enlace (gastos-datos-pago)', async () => {
+    const p = await conSesion();
+    const pendiente = (await p.movimientos.resumenMes(OCT)).porPagar.find((e) => e.item.tipo !== 'VARIABLE' && e.item.tipo !== 'DIEZMO')!.item;
+    const mes = await p.plan.mes(OCT);
+    const esc = mes.opciones.find((o) => o.escenario.items.some((i) => i.id === pendiente.id))!.escenario;
+    await p.plan.guardarItem(mes.plan!.id, esc.id, { ...pendiente, enlacePago: 'https://pagos.ejemplo.com' });
+    renderRouter('./src/app', { initialUrl: '/hoy' });
+    const ver = await screen.findAllByText(/^Ver \d+ más/).catch(() => []);
+    if (ver[0]) fireEvent.press(ver[0]);
+    expect(await screen.findAllByText('Pagar ↗')).toHaveLength(1);
+    expect(screen.getByTestId(`pagar-enlace-${pendiente.nombre}`)).toBeTruthy();
+  });
+
   it('replicar octubre en 2028 y la revisión del carro en mayo dan las mismas cifras que la PWA', async () => {
     await conSesion();
     renderRouter('./src/app', { initialUrl: '/anual/2028' });

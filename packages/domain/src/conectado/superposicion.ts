@@ -140,6 +140,7 @@ function itemPlan(i: ItemPlanApi): ItemPlan {
   return {
     id: i.id, categoriaId: i.categoriaId, nombre: i.nombre, monto: i.monto, diaVence: i.diaVence, tipo: i.tipo, cuota: i.cuota,
     creditoId: i.creditoId ?? null, ingresoFijoId: i.ingresoFijoId ?? null, aporteId: i.aporteId ?? null, ingresoPlanId: i.ingresoPlanId ?? null, ajustadoAMano: i.ajustadoAMano ?? false, tarjetaId: i.tarjetaId ?? null,
+    enlacePago: i.enlacePago ?? null, codigoPago: i.codigoPago ?? null,
   };
 }
 

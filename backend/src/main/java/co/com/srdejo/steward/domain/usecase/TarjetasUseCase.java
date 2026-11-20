@@ -146,7 +146,7 @@ public class TarjetasUseCase implements ITarjetasServicePort {
     private static ItemPlan enCategoria(ItemPlan i, UUID categoria) {
         return new ItemPlan(i.id(), i.escenarioId(), categoria, i.nombre(), i.monto(), i.diaVence(), i.tipo(), i.cuotaActual(),
                 i.cuotaTotal(), i.orden(), i.creditoId(), i.ingresoFijoId(), i.aporteId(), i.ingresoPlanId(), i.ajustadoAMano(),
-                i.tarjetaId());
+                i.tarjetaId(), i.enlacePago(), i.codigoPago());
     }
 
     /** La linea de una tarjeta: Tarjetas, FIJO, "Tarjeta {nombre} · {uso}", su monto y su dia de pago. */

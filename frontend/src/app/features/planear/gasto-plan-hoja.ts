@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, output, signal } from '@angular/core';
-import type { Categoria, Id, IngresoPlan, ItemPlan, TipoItem } from '@steward/domain';
+import { MAX_ENLACE_PAGO, type Categoria, type Id, type IngresoPlan, type ItemPlan, type TipoItem } from '@steward/domain';
 
 import { mensajeDeError } from '../../core/datos/consulta';
 import { PUERTOS } from '../../core/datos/puertos';
@@ -80,6 +80,33 @@ function tipoDe(c: Categoria | undefined, aCuotas: boolean, cambia: boolean): Ti
             </label>
           </div>
         }
+        @if (tipo() !== 'DIEZMO') {
+          <div class="flex flex-col gap-3" data-testid="datos-pago">
+            <button type="button" class="boton-texto flex items-center gap-1.5 self-start font-medium" [attr.aria-expanded]="verPago()" (click)="verPago.set(!verPago())">
+              <span aria-hidden="true">{{ verPago() ? '▾' : '▸' }}</span> Datos de pago (opcional)
+            </button>
+            @if (verPago()) {
+              <label class="flex flex-col gap-2">
+                <span class="rotulo">Enlace de pago</span>
+                <input class="campo" type="url" inputmode="url" autocomplete="off" placeholder="https://…" [value]="enlace()" (input)="enlace.set($any($event.target).value)" />
+                @if (!enlaceBien()) {
+                  <span class="text-xs text-negativo">Debe empezar por https://</span>
+                }
+              </label>
+              <label class="flex flex-col gap-2">
+                <span class="rotulo">Código de usuario o referencia</span>
+                <input class="campo" autocomplete="off" maxlength="60" placeholder="Ej: 1234567" [value]="codigo()" (input)="codigo.set($any($event.target).value)" />
+              </label>
+              <p class="text-xs text-secundario">No guardes contraseñas aquí.</p>
+              @if (cambioPago()) {
+                <label class="flex items-start gap-2.5 text-[13px]">
+                  <input type="checkbox" class="mt-0.5 size-4 accent-acento" [checked]="aplicar()" (change)="aplicar.set($any($event.target).checked)" />
+                  <span>Aplicar también a los meses ya planeados <span class="text-secundario">(los gastos con el mismo nombre y categoría)</span></span>
+                </label>
+              }
+            }
+          </div>
+        }
         @if (error()) {
           <p role="alert" class="text-sm text-negativo">{{ error() }}</p>
         }
@@ -124,6 +151,19 @@ export class GastoPlanHoja implements OnInit {
   protected readonly dia = signal('');
   protected readonly cuotaActual = signal('');
   protected readonly cuotaTotal = signal('');
+  /** Datos de pago (gastos-datos-pago): la seccion abre cerrada si el gasto no tiene. */
+  protected readonly verPago = signal(false);
+  protected readonly enlace = signal('');
+  protected readonly codigo = signal('');
+  protected readonly aplicar = signal(true);
+  protected readonly enlaceBien = computed(() => {
+    const e = this.enlace().trim();
+    return !e || (/^https?:\/\/\S+$/i.test(e) && e.length <= MAX_ENLACE_PAGO);
+  });
+  protected readonly cambioPago = computed(() => {
+    const i = this.item();
+    return this.enlace().trim() !== (i?.enlacePago ?? '') || this.codigo().trim() !== (i?.codigoPago ?? '');
+  });
   protected readonly quitando = signal(false);
   protected readonly guardando = signal(false);
   protected readonly error = signal('');
@@ -145,7 +185,7 @@ export class GastoPlanHoja implements OnInit {
     const dia = this.dia().trim();
     const diaBien = !dia || ((this.entero(dia) ?? 0) >= 1 && (this.entero(dia) ?? 32) <= 31);
     const cuotaBien = this.tipo() !== 'CUOTA' || (this.entero(this.cuotaActual()) !== null && this.entero(this.cuotaTotal()) !== null);
-    return Boolean(this.nombre().trim()) && this.monto() !== null && Boolean(this.categoria()) && diaBien && cuotaBien;
+    return Boolean(this.nombre().trim()) && this.monto() !== null && Boolean(this.categoria()) && diaBien && cuotaBien && this.enlaceBien();
   });
 
   ngOnInit(): void {
@@ -158,6 +198,9 @@ export class GastoPlanHoja implements OnInit {
     this.dia.set(i?.diaVence ? String(i.diaVence) : '');
     this.cuotaActual.set(i?.cuota ? String(i.cuota.actual) : '');
     this.cuotaTotal.set(i?.cuota ? String(i.cuota.total) : '');
+    this.enlace.set(i?.enlacePago ?? '');
+    this.codigo.set(i?.codigoPago ?? '');
+    this.verPago.set(Boolean(i?.enlacePago || i?.codigoPago));
   }
 
   protected elegirCategoria(id: Id): void {
@@ -172,8 +215,10 @@ export class GastoPlanHoja implements OnInit {
     const datos: Omit<ItemPlan, 'id'> & { id?: Id } = {
       id: i?.id, categoriaId: this.categoria()!, nombre: this.nombre(), monto: this.monto()!, diaVence: this.entero(this.dia()), tipo, cuota,
       creditoId: i?.creditoId ?? null, ingresoFijoId: i?.ingresoFijoId ?? null, aporteId: i?.aporteId ?? null, ingresoPlanId: i?.ingresoPlanId ?? null, ajustadoAMano: i?.ajustadoAMano ?? false,
+      ...(tipo === 'DIEZMO' ? {} : { enlacePago: this.enlace().trim() || null, codigoPago: this.codigo().trim() || null }),
     };
-    return this.ejecutar(() => this.puertos.plan.guardarItem(this.planId(), this.escenarioId(), datos));
+    const aplicarAMeses = tipo !== 'DIEZMO' && this.cambioPago() && this.aplicar();
+    return this.ejecutar(() => this.puertos.plan.guardarItem(this.planId(), this.escenarioId(), datos, { aplicarAMeses }));
   }
 
   protected recalcular(): Promise<void> {

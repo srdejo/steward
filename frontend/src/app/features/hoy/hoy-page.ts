@@ -97,16 +97,35 @@ const LISTA_CORTA = 3;
         @for (g of grupos(r); track g.grupo) {
           <h3 class="px-4 pt-2.5 pb-0.5 text-xs font-semibold" [class]="g.grupo === 'VENCIDO' ? 'text-negativo' : 'text-secundario'" [attr.data-grupo]="g.grupo">{{ g.titulo }}</h3>
           @for (i of g.items; track i.item.id) {
-            <a routerLink="." [queryParams]="{ agregar: i.item.tipo === 'VARIABLE' ? 'gasto' : 'pago', item: i.item.id }" class="flex items-center gap-3 px-4 hover:bg-fondo" [attr.aria-label]="'Marcar ' + i.item.nombre + ' como pagado'">
-              <span class="flex size-11 shrink-0 flex-col items-center justify-center gap-0.5 rounded-control" [class]="claseBloque(i)" aria-hidden="true">
-                <span class="text-[15px] leading-none font-bold">{{ diaDe(i) }}</span>
-                <span class="text-[10px] leading-none">{{ diaDe(i) === '—' ? '' : mesCorto() }}</span>
-              </span>
-              <app-fila class="min-w-0 grow" [titulo]="i.item.nombre" [detalle]="i.detalle" [tonoDetalle]="i.vencido ? 'font-semibold text-negativo' : 'text-secundario'">
-                <app-monto class="text-[15px] font-semibold" [valor]="i.pendiente" />
-                <span class="flex size-11 items-center justify-center rounded-full border-2 border-[#D6D3CB] text-[#8A8D85]" aria-hidden="true"><app-icono nombre="check" [tamano]="18" /></span>
-              </app-fila>
-            </a>
+            @if (i.item.enlacePago) {
+              <!-- Con enlace de pago (gastos-datos-pago): "Pagar ↗" abre el portal sin marcar el pago; la fila sigue abriendo Marcar pago. -->
+              <div class="flex items-center hover:bg-fondo">
+                <a routerLink="." [queryParams]="{ agregar: i.item.tipo === 'VARIABLE' ? 'gasto' : 'pago', item: i.item.id }" class="flex min-w-0 grow items-center gap-3 pl-4" [attr.aria-label]="'Marcar ' + i.item.nombre + ' como pagado'">
+                  <span class="flex size-11 shrink-0 flex-col items-center justify-center gap-0.5 rounded-control" [class]="claseBloque(i)" aria-hidden="true">
+                    <span class="text-[15px] leading-none font-bold">{{ diaDe(i) }}</span>
+                    <span class="text-[10px] leading-none">{{ diaDe(i) === '—' ? '' : mesCorto() }}</span>
+                  </span>
+                  <app-fila class="min-w-0 grow" [titulo]="i.item.nombre" [detalle]="i.detalle" [tonoDetalle]="i.vencido ? 'font-semibold text-negativo' : 'text-secundario'">
+                    <app-monto class="text-[15px] font-semibold" [valor]="i.pendiente" />
+                  </app-fila>
+                </a>
+                <a [href]="i.item.enlacePago" target="_blank" rel="noopener noreferrer" class="shrink-0 px-2 py-3 text-[13px] font-semibold text-acento" data-testid="pagar-enlace" [attr.aria-label]="'Pagar ' + i.item.nombre + ' en línea'">Pagar ↗</a>
+                <a routerLink="." [queryParams]="{ agregar: i.item.tipo === 'VARIABLE' ? 'gasto' : 'pago', item: i.item.id }" class="py-2.5 pr-4" tabindex="-1" aria-hidden="true">
+                  <span class="flex size-11 items-center justify-center rounded-full border-2 border-[#D6D3CB] text-[#8A8D85]"><app-icono nombre="check" [tamano]="18" /></span>
+                </a>
+              </div>
+            } @else {
+              <a routerLink="." [queryParams]="{ agregar: i.item.tipo === 'VARIABLE' ? 'gasto' : 'pago', item: i.item.id }" class="flex items-center gap-3 px-4 hover:bg-fondo" [attr.aria-label]="'Marcar ' + i.item.nombre + ' como pagado'">
+                <span class="flex size-11 shrink-0 flex-col items-center justify-center gap-0.5 rounded-control" [class]="claseBloque(i)" aria-hidden="true">
+                  <span class="text-[15px] leading-none font-bold">{{ diaDe(i) }}</span>
+                  <span class="text-[10px] leading-none">{{ diaDe(i) === '—' ? '' : mesCorto() }}</span>
+                </span>
+                <app-fila class="min-w-0 grow" [titulo]="i.item.nombre" [detalle]="i.detalle" [tonoDetalle]="i.vencido ? 'font-semibold text-negativo' : 'text-secundario'">
+                  <app-monto class="text-[15px] font-semibold" [valor]="i.pendiente" />
+                  <span class="flex size-11 items-center justify-center rounded-full border-2 border-[#D6D3CB] text-[#8A8D85]" aria-hidden="true"><app-icono nombre="check" [tamano]="18" /></span>
+                </app-fila>
+              </a>
+            }
           }
         } @empty {
           <p class="px-4 pt-1 pb-4 text-sm text-secundario">Todo pagado este mes.</p>
