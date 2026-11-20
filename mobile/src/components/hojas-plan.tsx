@@ -1,4 +1,4 @@
-import type { Categoria, Id, IngresoPlan, ItemPlan, TipoItem } from '@steward/domain';
+import { MAX_ENLACE_PAGO, type Categoria, type Id, type IngresoPlan, type ItemPlan, type TipoItem } from '@steward/domain';
 import { useState, type ReactNode } from 'react';
 import { Modal, ScrollView, View } from 'react-native';
 
@@ -125,13 +125,20 @@ export function GastoPlanHoja({ planId, escenarioId, letra, item, categorias, li
   const [cuotaActual, setCuotaActual] = useState(item?.cuota ? String(item.cuota.actual) : '');
   const [cuotaTotal, setCuotaTotal] = useState(item?.cuota ? String(item.cuota.total) : '');
   const [quitando, setQuitando] = useState(false);
+  // Datos de pago (gastos-datos-pago): la seccion abre cerrada si el gasto no tiene.
+  const [verPago, setVerPago] = useState(Boolean(item?.enlacePago || item?.codigoPago));
+  const [enlace, setEnlace] = useState(item?.enlacePago ?? '');
+  const [codigo, setCodigo] = useState(item?.codigoPago ?? '');
+  const [aplicar, setAplicar] = useState(true);
 
   const elegida = categorias.find((c) => c.id === categoria);
   const tipo: TipoItem = item && !tocado ? item.tipo : tipoDe(elegida, aCuotas, cambia);
   const origen = item?.tipo !== 'DIEZMO' ? null : lineas.find((l) => l.id === item.ingresoPlanId)?.nombre ? `Viene de ${lineas.find((l) => l.id === item.ingresoPlanId)!.nombre}` : item.aporteId ? 'Viene de un aporte' : null;
   const diaBien = !dia.trim() || ((entero(dia) ?? 0) >= 1 && (entero(dia) ?? 32) <= 31);
   const cuotaBien = tipo !== 'CUOTA' || (entero(cuotaActual) !== null && entero(cuotaTotal) !== null);
-  const listo = Boolean(nombre.trim()) && monto !== null && Boolean(categoria) && diaBien && cuotaBien;
+  const enlaceBien = !enlace.trim() || (/^https?:\/\/\S+$/i.test(enlace.trim()) && enlace.trim().length <= MAX_ENLACE_PAGO);
+  const cambioPago = enlace.trim() !== (item?.enlacePago ?? '') || codigo.trim() !== (item?.codigoPago ?? '');
+  const listo = Boolean(nombre.trim()) && monto !== null && Boolean(categoria) && diaBien && cuotaBien && enlaceBien;
 
   const terminar = async (trabajo: Parameters<typeof accion.ejecutar>[0]) => {
     if (await accion.ejecutar(trabajo)) onGuardado();
@@ -143,7 +150,8 @@ export function GastoPlanHoja({ planId, escenarioId, letra, item, categorias, li
       p.plan.guardarItem(planId, escenarioId, {
         id: item?.id, categoriaId: categoria!, nombre, monto: monto!, diaVence: entero(dia), tipo, cuota, creditoId: item?.creditoId ?? null,
         ingresoFijoId: item?.ingresoFijoId ?? null, aporteId: item?.aporteId ?? null, ingresoPlanId: item?.ingresoPlanId ?? null, ajustadoAMano: item?.ajustadoAMano ?? false,
-      }),
+        ...(tipo === 'DIEZMO' ? {} : { enlacePago: enlace.trim() || null, codigoPago: codigo.trim() || null }),
+      }, { aplicarAMeses: tipo !== 'DIEZMO' && cambioPago && aplicar }),
     );
   }
 
@@ -185,6 +193,22 @@ export function GastoPlanHoja({ planId, escenarioId, letra, item, categorias, li
             <View style={{ flexDirection: 'row', gap: 10 }}>
               <View style={{ flex: 1 }}><Campo etiqueta="Cuota actual" teclado="number-pad" valor={cuotaActual} onCambio={setCuotaActual} /></View>
               <View style={{ flex: 1 }}><Campo etiqueta="De cuántas" teclado="number-pad" valor={cuotaTotal} onCambio={setCuotaTotal} /></View>
+            </View>
+          )}
+          {tipo !== 'DIEZMO' && (
+            <View testID="datos-pago" style={{ gap: 12 }}>
+              <Boton tipo="texto" titulo={`${verPago ? '▾' : '▸'} Datos de pago (opcional)`} onPress={() => setVerPago(!verPago)} />
+              {verPago && (
+                <>
+                  <Campo etiqueta="Enlace de pago" teclado="url" valor={enlace} onCambio={setEnlace} placeholder="https://…" />
+                  {!enlaceBien && <Texto style={{ fontSize: 12, color: colors.negativo }}>Debe empezar por https://</Texto>}
+                  <Campo etiqueta="Código de usuario o referencia" valor={codigo} onCambio={(t) => setCodigo(t.slice(0, 60))} placeholder="Ej: 1234567" />
+                  <Texto style={{ fontSize: 12, color: colors.secundario }}>No guardes contraseñas aquí.</Texto>
+                  {cambioPago && (
+                    <Interruptor titulo="Aplicar también a los meses ya planeados" detalle="Los gastos con el mismo nombre y categoría" activo={aplicar} onCambio={setAplicar} />
+                  )}
+                </>
+              )}
             </View>
           )}
           <Aviso texto={accion.error} />

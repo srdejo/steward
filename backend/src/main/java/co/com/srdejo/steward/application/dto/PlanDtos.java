@@ -173,12 +173,13 @@ public final class PlanDtos {
         }
     }
 
+    /** {@code enlacePago}/{@code codigoPago}: null conserva al editar, "" quita (gastos-datos-pago). */
     public record ItemRequest(UUID categoriaId, String nombre, long monto, Integer diaVence, String tipo, CuotaDto cuota,
-                              UUID creditoId) {
+                              UUID creditoId, String enlacePago, String codigoPago, Boolean aplicarAMeses) {
 
         public DatosItem datos() {
             return new DatosItem(categoriaId, nombre, monto, diaVence, tipo, cuota == null ? null : cuota.actual(),
-                    cuota == null ? null : cuota.total(), creditoId);
+                    cuota == null ? null : cuota.total(), creditoId, enlacePago, codigoPago, Boolean.TRUE.equals(aplicarAMeses));
         }
     }
 
@@ -192,12 +193,12 @@ public final class PlanDtos {
     /** {@code ingresoFijoId} y {@code aporteId}: el ingreso o el aporte que origina un item de diezmo. */
     public record ItemResponse(UUID id, UUID categoriaId, String nombre, long monto, Integer diaVence, String tipo,
                                CuotaDto cuota, UUID creditoId, UUID ingresoFijoId, UUID aporteId, UUID ingresoPlanId,
-                               boolean ajustadoAMano, UUID tarjetaId) {
+                               boolean ajustadoAMano, UUID tarjetaId, String enlacePago, String codigoPago) {
 
         public static ItemResponse de(ItemPlan i) {
             return new ItemResponse(i.id(), i.categoriaId(), i.nombre(), i.monto(), i.diaVence(), i.tipo().name(),
                     i.cuotaActual() == null ? null : new CuotaDto(i.cuotaActual(), i.cuotaTotal()), i.creditoId(),
-                    i.ingresoFijoId(), i.aporteId(), i.ingresoPlanId(), i.ajustadoAMano(), i.tarjetaId());
+                    i.ingresoFijoId(), i.aporteId(), i.ingresoPlanId(), i.ajustadoAMano(), i.tarjetaId(), i.enlacePago(), i.codigoPago());
         }
     }
 

@@ -172,6 +172,9 @@ export interface ItemPlan {
   ajustadoAMano: boolean;
   /** Tarjeta de la que es la linea del plan (design D1 de tarjetas-y-creditos). Sin el campo = ninguna. */
   tarjetaId?: Id | null;
+  /** Datos de pago opcionales (gastos-datos-pago): enlace http(s) del portal y codigo de usuario o referencia. Sin el campo = ninguno. */
+  enlacePago?: string | null;
+  codigoPago?: string | null;
 }
 
 /** FIJO sale de Ajustes, EXTRA de un evento del plan anual, OTRO se agrego a mano (design D8 de diezmo-como-gasto). */

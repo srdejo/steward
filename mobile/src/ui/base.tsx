@@ -83,7 +83,7 @@ export function MontoInput({ etiqueta, valor, onCambio, grande, ayuda, placehold
   );
 }
 
-export function Campo({ etiqueta, valor, onCambio, placeholder, teclado, testID }: { etiqueta: string; valor: string; onCambio: (t: string) => void; placeholder?: string; teclado?: 'default' | 'email-address' | 'number-pad' | 'decimal-pad'; testID?: string }) {
+export function Campo({ etiqueta, valor, onCambio, placeholder, teclado, testID }: { etiqueta: string; valor: string; onCambio: (t: string) => void; placeholder?: string; teclado?: 'default' | 'email-address' | 'number-pad' | 'decimal-pad' | 'url'; testID?: string }) {
   const cerrar = useCerrarTeclado(teclado === 'number-pad' || teclado === 'decimal-pad');
   return (
     <View style={{ gap: 8 }}>
@@ -97,7 +97,7 @@ export function Campo({ etiqueta, valor, onCambio, placeholder, teclado, testID 
         placeholderTextColor={colors.secundario}
         keyboardType={teclado ?? 'default'}
         inputAccessoryViewID={cerrar.id}
-        autoCapitalize={teclado === 'email-address' ? 'none' : 'sentences'}
+        autoCapitalize={teclado === 'email-address' || teclado === 'url' ? 'none' : 'sentences'}
         style={{ height: 52, borderRadius: radius.tarjeta, borderWidth: 1, borderColor: colors.bordeCampo, backgroundColor: colors.superficie, paddingHorizontal: 14, fontFamily: fonts.medium, fontSize: 16, color: colors.texto }}
       />
       {cerrar.barra}

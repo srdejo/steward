@@ -72,7 +72,17 @@ public interface IPlanServicePort {
 
     /** {@code tipo}: FIJO, VARIABLE, CUOTA, CREDITO o DIEZMO. Cuota actual y total van juntas o ninguna. */
     /** {@code creditoId}: el credito del hogar al que corresponde; al editar, null conserva el que tenia. */
+    /**
+     * {@code enlacePago} y {@code codigoPago} (gastos-datos-pago): null conserva lo guardado al editar y "" lo quita.
+     * {@code aplicarAMeses}: los lleva a los meses ya planeados.
+     */
     record DatosItem(UUID categoriaId, String nombre, long monto, Integer diaVence, String tipo, Integer cuotaActual,
-                     Integer cuotaTotal, UUID creditoId) {
+                     Integer cuotaTotal, UUID creditoId, String enlacePago, String codigoPago, boolean aplicarAMeses) {
+
+        /** Sin datos de pago. */
+        public DatosItem(UUID categoriaId, String nombre, long monto, Integer diaVence, String tipo, Integer cuotaActual,
+                         Integer cuotaTotal, UUID creditoId) {
+            this(categoriaId, nombre, monto, diaVence, tipo, cuotaActual, cuotaTotal, creditoId, null, null, false);
+        }
     }
 }

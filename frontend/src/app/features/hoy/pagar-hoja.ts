@@ -6,6 +6,7 @@ import { fechaEnMes, formatFechaCorta, nombreMes, parseClaveMes, type Id } from 
 import { consulta, mensajeDeError } from '../../core/datos/consulta';
 import { PUERTOS } from '../../core/datos/puertos';
 import { SesionActual } from '../../core/sesion/sesion';
+import { DatosPago } from '../../shared/components/datos-pago';
 import { Hoja } from '../../shared/components/hoja';
 import { Monto } from '../../shared/components/monto';
 import { MontoInput } from '../../shared/components/monto-input';
@@ -19,7 +20,7 @@ import { SU_CUENTA, opcionesDeHoja } from './opciones-hoja';
  */
 @Component({
   selector: 'app-pagar-hoja',
-  imports: [NgTemplateOutlet, RouterLink, Hoja, Monto, MontoInput, Segmentado],
+  imports: [NgTemplateOutlet, RouterLink, DatosPago, Hoja, Monto, MontoInput, Segmentado],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <ng-template #cuerpo>
@@ -33,6 +34,7 @@ import { SU_CUENTA, opcionesDeHoja } from './opciones-hoja';
           <button type="button" class="boton-grande" (click)="hoja.cerrar()">Entendido</button>
           <a [routerLink]="['/hoy/registro', e.pagos[0]!.id]" class="boton-texto self-center">Abrir ese pago</a>
         } @else {
+          <app-datos-pago [enlace]="e.item.enlacePago" [codigo]="e.item.codigoPago" />
           <app-monto-input etiqueta="Valor pagado" [grande]="true" [(valor)]="monto" ayuda="Viene lleno con el plan. Si pagas otro valor, la diferencia se ve en el mes." />
           <app-segmentado etiqueta="Pagado por" [opciones]="hoja.personas()" [(valor)]="quien" />
           <app-segmentado etiqueta="Desde · Opcional" [chips]="true" [opcional]="true" [opciones]="hoja.desde()" [(valor)]="desde" />

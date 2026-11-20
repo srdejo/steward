@@ -42,3 +42,6 @@ jest.mock('expo-notifications', () => ({
   IosAuthorizationStatus: { NOT_DETERMINED: 0, DENIED: 1, AUTHORIZED: 2, PROVISIONAL: 3, EPHEMERAL: 4 },
   DEFAULT_ACTION_IDENTIFIER: 'expo.modules.notifications.actions.DEFAULT',
 }));
+
+// Copiar el codigo de pago (gastos-datos-pago): el portapapeles en memoria.
+jest.mock('expo-clipboard', () => ({ setStringAsync: jest.fn(async () => true) }));

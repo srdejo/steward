@@ -334,9 +334,9 @@ public class AnualUseCase implements IAnualServicePort {
         return Mono.fromCallable(() -> PlanUseCase.itemValido(datos)).flatMap(d -> registro.contexto().flatMap(ctx -> anualDe(ctx, anio)
                 .flatMap(a -> opcion(a, opcionId).flatMap(op -> categoriaDeGasto(ctx, d.categoriaId())
                         .then(transaccion.enTransaccion(asegurarMesBase(ctx.hogar().id(), anio, op).flatMap(mb -> {
-                            ItemPlan item = new ItemPlan(UUID.randomUUID(), op.id(), d.categoriaId(), d.nombre(), d.monto(), d.diaVence(),
+                            ItemPlan item = PlanUseCase.conPago(new ItemPlan(UUID.randomUUID(), op.id(), d.categoriaId(), d.nombre(), d.monto(), d.diaVence(),
                                     PlanUseCase.tipo(d.tipo()), d.cuotaActual(), d.cuotaTotal(),
-                                    mb.items().stream().mapToInt(ItemPlan::orden).max().orElse(0) + 1, d.creditoId());
+                                    mb.items().stream().mapToInt(ItemPlan::orden).max().orElse(0) + 1, d.creditoId()), d, null, null);
                             return anuales.guardarItemBase(op.id(), item).thenReturn(item);
                         })))))));
     }
@@ -350,9 +350,10 @@ public class AnualUseCase implements IAnualServicePort {
                             if (actual.isEmpty()) {
                                 return Mono.error(AnualUseCase::itemBaseNoEncontrado);
                             }
-                            ItemPlan item = new ItemPlan(itemId, op.id(), d.categoriaId(), d.nombre(), d.monto(), d.diaVence(),
+                            // Datos de pago: null conserva, "" quita (design D3 de gastos-datos-pago).
+                            ItemPlan item = PlanUseCase.conPago(new ItemPlan(itemId, op.id(), d.categoriaId(), d.nombre(), d.monto(), d.diaVence(),
                                     PlanUseCase.tipo(d.tipo()), d.cuotaActual(), d.cuotaTotal(), actual.get().orden(), d.creditoId(),
-                                    null, null, null, false, actual.get().tarjetaId());
+                                    null, null, null, false, actual.get().tarjetaId()), d, actual.get().enlacePago(), actual.get().codigoPago());
                             return anuales.guardarItemBase(op.id(), item).thenReturn(item);
                         })))))));
     }

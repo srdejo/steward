@@ -162,6 +162,9 @@ export interface ItemPlanApi {
   /** DIEZMO: la linea de la opcion de la que sale y si su monto se cambio a mano (design D1 de usabilidad-plan). */
   ingresoPlanId?: string | null;
   ajustadoAMano?: boolean;
+  /** Datos de pago (gastos-datos-pago). En el PUT, null o ausente conserva lo guardado y "" lo quita. */
+  enlacePago?: string | null;
+  codigoPago?: string | null;
   /** La tarjeta de la que es la linea (design D1 de tarjetas-y-creditos). */
   tarjetaId?: string | null;
 }
@@ -324,7 +327,7 @@ export interface FinanzasApi {
 }
 
 /** El ingreso o el aporte de un diezmo los pone el backend y los conserva al editar. */
-export type ItemPlanRequest = Omit<ItemPlanApi, 'id' | 'ingresoFijoId' | 'aporteId' | 'ingresoPlanId' | 'ajustadoAMano'>;
+export type ItemPlanRequest = Omit<ItemPlanApi, 'id' | 'ingresoFijoId' | 'aporteId' | 'ingresoPlanId' | 'ajustadoAMano'> & { aplicarAMeses?: boolean };
 
 export interface IngresoPlanRequest {
   nombre: string;

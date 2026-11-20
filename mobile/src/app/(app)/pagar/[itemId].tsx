@@ -1,7 +1,8 @@
 import { fechaEnMes, formatFechaCorta, nombreMes, parseClaveMes, type Id } from '@steward/domain';
 import { router, useLocalSearchParams } from 'expo-router';
+import * as Clipboard from 'expo-clipboard';
 import { useEffect, useState } from 'react';
-import { View } from 'react-native';
+import { Linking, Pressable, View } from 'react-native';
 
 import { SU_CUENTA, useOpcionesHoja } from '@/data/hoja';
 import { AvisoMes, useMesDeHoy } from '@/data/mes-de-hoy';
@@ -29,6 +30,7 @@ export default function Pagar({ elegido }: { elegido?: string } = {}) {
   const [monto, setMonto] = useState<number | null>(null);
   const [quien, setQuien] = useState<Id | null>(sesion?.usuario.id ?? null);
   const [desde, setDesde] = useState<string | null>(null);
+  const [copiado, setCopiado] = useState(false);
   useEffect(() => {
     if (e && monto === null && !e.pagado) setMonto(e.plan);
   }, [e, monto]);
@@ -63,6 +65,28 @@ export default function Pagar({ elegido }: { elegido?: string } = {}) {
         </>
       ) : (
         <>
+          {(e.item.enlacePago || e.item.codigoPago) && (
+            // Datos de pago (gastos-datos-pago): el codigo con Copiar y el portal.
+            <View testID="datos-pago-hoja" style={{ gap: 8, borderRadius: 12, backgroundColor: colors.nota, paddingHorizontal: 16, paddingVertical: 12 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                {e.item.codigoPago ? (
+                  <View style={{ flexShrink: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Texto style={{ fontSize: 13, color: colors.secundario }}>Código</Texto>
+                    <Texto testID="codigo-pago" selectable style={{ flexShrink: 1, fontSize: 13, fontFamily: fonts.semibold }}>{e.item.codigoPago}</Texto>
+                    <Pressable accessibilityRole="button" hitSlop={8} onPress={async () => { await Clipboard.setStringAsync(e.item.codigoPago!); setCopiado(true); }}>
+                      <Texto style={{ fontSize: 13, fontFamily: fonts.semibold, color: colors.acento }}>Copiar</Texto>
+                    </Pressable>
+                  </View>
+                ) : <View />}
+                {e.item.enlacePago && (
+                  <Pressable testID="abrir-portal" accessibilityRole="link" hitSlop={8} onPress={() => void Linking.openURL(e.item.enlacePago!)}>
+                    <Texto style={{ fontSize: 13, fontFamily: fonts.semibold, color: colors.acento }}>Abrir portal ↗</Texto>
+                  </Pressable>
+                )}
+              </View>
+              {copiado && <Texto accessibilityRole="alert" style={{ fontSize: 12, color: colors.positivo }}>Código copiado</Texto>}
+            </View>
+          )}
           <MontoInput etiqueta="Valor pagado" grande valor={monto} onCambio={setMonto} ayuda="Viene lleno con el plan. Si pagas otro valor, la diferencia se ve en el mes." />
           <Segmentado etiqueta="Pagado por" opciones={hoja.personas} valor={quien} onCambio={setQuien} />
           <Segmentado etiqueta="Desde · Opcional" chips opcional opciones={hoja.desde} valor={desde} onCambio={setDesde} />

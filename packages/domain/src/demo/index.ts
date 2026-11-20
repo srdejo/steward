@@ -357,8 +357,8 @@ export function crearAdaptadorDemo(opciones: OpcionesDemo): Puertos {
       async quitarOpcion(planId, escenarioId) {
         await cambiar((s) => R.quitarEscenario(s, { planId, escenarioId, hoy: hoy() }));
       },
-      async guardarItem(planId, escenarioId, item) {
-        await cambiar((s) => R.guardarItem(s, { planId, escenarioId, item }));
+      async guardarItem(planId, escenarioId, item, opciones) {
+        await cambiar((s) => R.guardarItem(s, { planId, escenarioId, item, aplicarAMeses: opciones?.aplicarAMeses }));
       },
       async quitarItem(planId, escenarioId, itemId) {
         await cambiar((s) => R.quitarItem(s, { planId, escenarioId, itemId }));

@@ -1,7 +1,7 @@
 import { TITULO_GRUPO, avancePagado, pendientesAvisos, claveMes, diaDelBloque, formatDiaLargo, formatMesAnio, fraseVsPlan, nombreMes, sumar, type ItemEjecucion, type LineaIngreso } from '@steward/domain';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { Linking, Pressable, View } from 'react-native';
 
 import { useMesDeHoy } from '@/data/mes-de-hoy';
 import { useMiembros } from '@/data/miembros';
@@ -139,6 +139,12 @@ export default function Hoy() {
                     <Texto v="detalle" style={i.vencido ? { color: colors.negativo, fontFamily: fonts.semibold } : undefined}>{i.detalle}</Texto>
                   </View>
                   <Monto valor={i.pendiente} style={{ fontFamily: fonts.semibold, fontSize: 15 }} />
+                  {i.item.enlacePago && (
+                    // Datos de pago (gastos-datos-pago): abre el portal sin marcar el pago.
+                    <Pressable testID={`pagar-enlace-${i.item.nombre}`} accessibilityRole="link" accessibilityLabel={`Pagar ${i.item.nombre} en línea`} hitSlop={8} onPress={() => void Linking.openURL(i.item.enlacePago!)}>
+                      <Texto style={{ fontFamily: fonts.semibold, fontSize: 13, color: colors.acento }}>Pagar ↗</Texto>
+                    </Pressable>
+                  )}
                   <View style={{ width: 44, height: 44, borderRadius: 22, borderWidth: 2, borderColor: '#D6D3CB', alignItems: 'center', justifyContent: 'center' }}>
                     <Icono nombre="check" color="#8A8D85" tamano={18} />
                   </View>

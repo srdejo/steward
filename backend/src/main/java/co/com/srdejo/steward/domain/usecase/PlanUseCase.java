@@ -6,6 +6,7 @@ import co.com.srdejo.steward.domain.model.Categoria;
 import co.com.srdejo.steward.domain.model.Credito;
 import co.com.srdejo.steward.domain.model.Hogar;
 import co.com.srdejo.steward.domain.model.Movimiento;
+import co.com.srdejo.steward.domain.model.PlanAnual;
 import co.com.srdejo.steward.domain.model.PlanMes;
 import co.com.srdejo.steward.domain.model.PlanMes.Escenario;
 import co.com.srdejo.steward.domain.model.PlanMes.IngresoPlan;
@@ -33,6 +34,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
@@ -57,6 +59,7 @@ public class PlanUseCase implements IPlanServicePort {
     private final NacimientoMes nacimiento;
 
     private final ITarjetaPersistencePort tarjetas;
+    private final IAnualPersistencePort anuales;
 
     public PlanUseCase(IHogarPersistencePort hogares, ICategoriaPersistencePort categorias, IPlanPersistencePort planes,
                        IMovimientoPersistencePort movimientos, ICreditoPersistencePort creditos,
@@ -64,6 +67,7 @@ public class PlanUseCase implements IPlanServicePort {
                        IAnualPersistencePort anuales, ICurrentUserPort usuarioActual, ITransaccionPort transaccion,
                        IClockPort clock, ITarjetaPersistencePort tarjetas) {
         this.tarjetas = tarjetas;
+        this.anuales = anuales;
         this.hogares = hogares;
         this.categorias = categorias;
         this.planes = planes;
@@ -268,10 +272,15 @@ public class PlanUseCase implements IPlanServicePort {
                 .flatMap(ctx -> escenarioEditable(planId, escenarioId, ctx)
                         .flatMap(esc -> categoriaDelHogar(d.categoriaId(), ctx)
                                 .then(creditoDelHogar(d.creditoId(), ctx))
-                                .then(planes.crearItem(new ItemPlan(UUID.randomUUID(), esc.id(), d.categoriaId(), d.nombre(),
-                                        d.monto(), d.diaVence(), tipo(d.tipo()), d.cuotaActual(), d.cuotaTotal(),
-                                        esc.items().stream().mapToInt(ItemPlan::orden).max().orElse(0) + 1,
-                                        d.creditoId()))))));
+                                .then(Mono.defer(() -> {
+                                    ItemPlan nuevo = conPago(new ItemPlan(UUID.randomUUID(), esc.id(), d.categoriaId(), d.nombre(),
+                                            d.monto(), d.diaVence(), tipo(d.tipo()), d.cuotaActual(), d.cuotaTotal(),
+                                            esc.items().stream().mapToInt(ItemPlan::orden).max().orElse(0) + 1,
+                                            d.creditoId()), d, null, null);
+                                    boolean aplicar = d.aplicarAMeses() && tieneDatosPago(nuevo);
+                                    return transaccion.enTransaccion(planes.crearItem(nuevo)
+                                            .flatMap(i -> (aplicar ? aplicarDatosPago(planId, i, ctx) : Mono.<Void>empty()).thenReturn(i)));
+                                })))));
     }
 
     @Override
@@ -285,12 +294,66 @@ public class PlanUseCase implements IPlanServicePort {
                                         // tambien se conservan, y cambiar su monto lo deja "ajustado a mano" (design D1 de
                                         // usabilidad-plan).
                                         .then(ajustado(esc, actual, d.monto()))
-                                        .flatMap(ajustado -> planes.actualizarItem(new ItemPlan(actual.id(), esc.id(), d.categoriaId(),
-                                                d.nombre(), d.monto(), d.diaVence(), tipo(d.tipo()), d.cuotaActual(),
-                                                d.cuotaTotal(), actual.orden(),
-                                                d.creditoId() == null ? actual.creditoId() : d.creditoId(),
-                                                actual.ingresoFijoId(), actual.aporteId(), actual.ingresoPlanId(), ajustado,
-                                                actual.tarjetaId())))))));
+                                        .flatMap(ajustado -> {
+                                            // Datos de pago: null conserva, "" quita (design D3 de gastos-datos-pago).
+                                            ItemPlan nuevo = conPago(new ItemPlan(actual.id(), esc.id(), d.categoriaId(),
+                                                    d.nombre(), d.monto(), d.diaVence(), tipo(d.tipo()), d.cuotaActual(),
+                                                    d.cuotaTotal(), actual.orden(),
+                                                    d.creditoId() == null ? actual.creditoId() : d.creditoId(),
+                                                    actual.ingresoFijoId(), actual.aporteId(), actual.ingresoPlanId(), ajustado,
+                                                    actual.tarjetaId()), d, actual.enlacePago(), actual.codigoPago());
+                                            boolean aplicar = d.aplicarAMeses() && !(Objects.equals(nuevo.enlacePago(), actual.enlacePago())
+                                                    && Objects.equals(nuevo.codigoPago(), actual.codigoPago()));
+                                            return transaccion.enTransaccion(planes.actualizarItem(nuevo)
+                                                    .flatMap(i -> (aplicar ? aplicarDatosPago(planId, i, ctx) : Mono.<Void>empty()).thenReturn(i)));
+                                        })))));
+    }
+
+    /** Los datos de pago de un item: los indicados ("" = ninguno) o los que tenia; un diezmo no tiene. */
+    static ItemPlan conPago(ItemPlan item, DatosItem d, String enlaceActual, String codigoActual) {
+        if (item.tipo() == ItemPlan.Tipo.DIEZMO) {
+            return item.conPago(null, null);
+        }
+        return item.conPago(dato(d.enlacePago(), enlaceActual), dato(d.codigoPago(), codigoActual));
+    }
+
+    private static String dato(String nuevo, String actual) {
+        if (nuevo == null) {
+            return actual;
+        }
+        return nuevo.isEmpty() ? null : nuevo;
+    }
+
+    private static boolean tieneDatosPago(ItemPlan i) {
+        return i.enlacePago() != null || i.codigoPago() != null;
+    }
+
+    /** Mismo gasto en otro mes u opcion: misma categoria y nombre sin distinguir mayusculas ni espacios de los extremos. */
+    static boolean mismoGasto(ItemPlan a, ItemPlan b) {
+        return b.tipo() != ItemPlan.Tipo.DIEZMO && a.categoriaId().equals(b.categoriaId())
+                && a.nombre().strip().equalsIgnoreCase(b.nombre().strip());
+    }
+
+    /**
+     * "Aplicar tambien a los meses ya planeados" (design D2 de gastos-datos-pago): las otras opciones del mes y los meses
+     * posteriores no cerrados, y los mes base del plan anual del año en adelante.
+     */
+    private Mono<Void> aplicarDatosPago(UUID planId, ItemPlan item, Contexto ctx) {
+        UUID hogar = ctx.hogar().id();
+        return planes.porIdEnHogar(planId, hogar).flatMap(plan -> Flux.concat(
+                planes.desde(hogar, plan.ref())
+                        .filter(p -> p.estado() != PlanMes.Estado.CERRADO)
+                        .flatMapIterable(PlanMes::escenarios)
+                        .flatMapIterable(Escenario::items)
+                        .filter(i -> !i.id().equals(item.id()) && mismoGasto(item, i))
+                        .concatMap(i -> planes.actualizarItem(i.conPago(item.enlacePago(), item.codigoPago())).then()),
+                anuales.desde(hogar, plan.ref().getYear())
+                        .flatMapIterable(PlanAnual::opciones)
+                        .filter(op -> op.mesBase() != null)
+                        .concatMap(op -> Flux.fromIterable(op.mesBase().items())
+                                .filter(i -> mismoGasto(item, i))
+                                .concatMap(i -> anuales.guardarItemBase(op.id(), i.conPago(item.enlacePago(), item.codigoPago())))))
+                .then());
     }
 
     /** Si el diezmo queda ajustado a mano: su monto cambio y no es el que sugiere su linea. */
@@ -632,7 +695,32 @@ public class PlanUseCase implements IPlanServicePort {
             throw DomainException.datosInvalidos("La cuota actual va de 1 al total de cuotas");
         }
         return new DatosItem(d.categoriaId(), nombre, d.monto(), d.diaVence(), d.tipo(), d.cuotaActual(), d.cuotaTotal(),
-                d.creditoId());
+                d.creditoId(), enlaceValido(d.enlacePago()), codigoValido(d.codigoPago()), d.aplicarAMeses());
+    }
+
+    private static final java.util.regex.Pattern ENLACE = java.util.regex.Pattern.compile("(?i)^https?://\\S+$");
+
+    /** null = sin indicar; "" = quitarlo; si no, http(s), sin espacios, hasta 500 (design D4 de gastos-datos-pago). */
+    static String enlaceValido(String enlace) {
+        if (enlace == null) {
+            return null;
+        }
+        String e = enlace.strip();
+        if (!e.isEmpty() && (e.length() > ItemPlan.ENLACE_PAGO_MAX || !ENLACE.matcher(e).matches())) {
+            throw DomainException.datosInvalidos("El enlace de pago debe empezar por https://");
+        }
+        return e;
+    }
+
+    static String codigoValido(String codigo) {
+        if (codigo == null) {
+            return null;
+        }
+        String c = codigo.strip();
+        if (c.length() > ItemPlan.CODIGO_PAGO_MAX) {
+            throw DomainException.datosInvalidos("El código de pago es muy largo");
+        }
+        return c;
     }
 
     static ItemPlan.Tipo tipo(String tipo) {
