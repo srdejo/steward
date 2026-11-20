@@ -26,6 +26,6 @@
 
 ## 5. Entrega
 
-- [ ] 5.1 PR, merge, backup y despliegue del backend (V19) y de la PWA
+- [x] 5.1 PR, merge, backup y despliegue del backend (V19) y de la PWA
 - [ ] 5.2 Build de la app para TestFlight y App Store (con Daniel)
 - [ ] 5.3 Corregir Johana: "Cambiar" → "Primera cuota: diciembre 2026", y revisar que el detalle diga "Próxima cuota · diciembre" (Daniel)
