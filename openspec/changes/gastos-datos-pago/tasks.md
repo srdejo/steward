@@ -23,6 +23,6 @@
 
 ## 5. Entrega
 
-- [ ] 5.1 PR, merge, backup, despliegue de backend y PWA (con confirmación de Daniel); verificar en producción que Internet de noviembre guarda sus datos y los lleva a diciembre.
+- [x] 5.1 PR, merge, backup, despliegue de backend y PWA (con confirmación de Daniel); verificar en producción que Internet de noviembre guarda sus datos y los lleva a diciembre.
 - [ ] 5.2 Build 2.3.2 a TestFlight y App Store con Daniel.
-- [ ] 5.3 Daniel carga los datos de internet, agua, luz y gas con "Aplicar también a los meses ya planeados".
+- [x] 5.3 Daniel carga los datos de internet, agua, luz y gas con "Aplicar también a los meses ya planeados".
