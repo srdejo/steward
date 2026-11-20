@@ -21,7 +21,7 @@ import java.util.UUID;
 public class CreditoR2dbcAdapter implements ICreditoPersistencePort {
 
     private static final String COLUMNAS = "id, hogar_id, nombre, entidad, saldo, saldo_actualizado_en, cuota, tasa_em, "
-            + "dia_pago, total_original, metodo, numero_cuotas, cuotas_pagadas, valor_financiado";
+            + "dia_pago, total_original, metodo, numero_cuotas, cuotas_pagadas, valor_financiado, primera_cuota";
 
     private final DatabaseClient db;
 
@@ -32,11 +32,12 @@ public class CreditoR2dbcAdapter implements ICreditoPersistencePort {
     @Override
     public Mono<Credito> crear(Credito c) {
         DatabaseClient.GenericExecuteSpec spec = db.sql("INSERT INTO credito (" + COLUMNAS + ") VALUES (:id, :hogar, :nombre, "
-                        + ":entidad, :saldo, :fecha, :cuota, :tasa, :dia, :total, :metodo, :numero, :pagadas, :valor)")
+                        + ":entidad, :saldo, :fecha, :cuota, :tasa, :dia, :total, :metodo, :numero, :pagadas, :valor, :primera)")
                 .bind("metodo", c.metodo().name())
                 .bind("pagadas", (short) c.cuotasPagadas());
         spec = Sql.opcional(spec, "numero", c.numeroCuotas() == null ? null : c.numeroCuotas().shortValue(), Short.class);
         spec = Sql.opcional(spec, "valor", c.valorFinanciado(), Long.class);
+        spec = Sql.opcional(spec, "primera", primera(c), LocalDate.class);
         return spec
                 .bind("id", c.id())
                 .bind("hogar", c.hogarId())
@@ -138,7 +139,7 @@ public class CreditoR2dbcAdapter implements ICreditoPersistencePort {
     public Mono<Credito> cambiarMetodo(Credito c) {
         DatabaseClient.GenericExecuteSpec spec = db.sql("UPDATE credito SET metodo = :metodo, saldo = :saldo, cuota = :cuota, "
                         + "tasa_em = :tasa, numero_cuotas = :numero, cuotas_pagadas = :pagadas, valor_financiado = :valor, "
-                        + "total_original = :total, saldo_actualizado_en = :fecha WHERE id = :id")
+                        + "total_original = :total, saldo_actualizado_en = :fecha, primera_cuota = :primera WHERE id = :id")
                 .bind("id", c.id())
                 .bind("metodo", c.metodo().name())
                 .bind("saldo", c.saldo())
@@ -149,16 +150,24 @@ public class CreditoR2dbcAdapter implements ICreditoPersistencePort {
                 .bind("fecha", c.saldoActualizadoEn());
         spec = Sql.opcional(spec, "numero", c.numeroCuotas() == null ? null : c.numeroCuotas().shortValue(), Short.class);
         spec = Sql.opcional(spec, "valor", c.valorFinanciado(), Long.class);
+        spec = Sql.opcional(spec, "primera", primera(c), LocalDate.class);
         return spec.then().thenReturn(c);
+    }
+
+    /** La primera cuota se guarda como el dia 1 de su mes. */
+    private static LocalDate primera(Credito c) {
+        return c.primeraCuota() == null ? null : c.primeraCuota().atDay(1);
     }
 
     private static Credito credito(Readable row) {
         Short numero = row.get("numero_cuotas", Short.class);
+        LocalDate primera = row.get("primera_cuota", LocalDate.class);
         return new Credito(row.get("id", UUID.class), row.get("hogar_id", UUID.class), row.get("nombre", String.class),
                 row.get("entidad", String.class), row.get("saldo", Long.class),
                 row.get("saldo_actualizado_en", LocalDate.class), row.get("cuota", Long.class),
                 row.get("tasa_em", BigDecimal.class), row.get("dia_pago", Short.class), row.get("total_original", Long.class),
                 List.of(), Credito.Metodo.valueOf(row.get("metodo", String.class)), numero == null ? null : numero.intValue(),
-                row.get("cuotas_pagadas", Short.class), row.get("valor_financiado", Long.class));
+                row.get("cuotas_pagadas", Short.class), row.get("valor_financiado", Long.class),
+                primera == null ? null : YearMonth.from(primera));
     }
 }

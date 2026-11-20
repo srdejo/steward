@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal, type OnInit } from '@angular/core';
 import {
-  cuotaFija, cuotasRestantes, emDeEa, formatCop, formatMesAnio, mesDe, saldoPlan, sumarMeses, type Credito, type MetodoCredito,
+  MAX_MESES_PRIMERA_CUOTA, compararMes, cuotaFija, cuotasRestantes, emDeEa, formatCop, formatMesAnio, mesDe, saldoPlan, sumarMeses, type Credito,
+  type MesRef, type MetodoCredito,
 } from '@steward/domain';
 
 import { mensajeDeError } from '../../core/datos/consulta';
@@ -103,6 +104,18 @@ function numero(texto: string): number {
         }
       }
 
+      <label class="flex flex-col gap-2">
+        <span class="rotulo">Primera cuota</span>
+        <select class="campo" data-testid="primera-cuota" [value]="primeraTexto()" (change)="primeraTexto.set($any($event.target).value)">
+          @for (m of mesesPrimera(); track m.valor) {
+            <option [value]="m.valor" [selected]="m.valor === primeraTexto()">{{ m.etiqueta }}</option>
+          }
+        </select>
+        @if (credito() && primeraTexto() !== primeraInicial) {
+          <span class="text-xs text-secundario" data-testid="nota-primera">Los meses ya planeados no cambian; ajústalos en Planear.</span>
+        }
+      </label>
+
       <p class="text-xs text-secundario">Siempre puedes corregir con el saldo del extracto: la app ajusta desde ahí.</p>
       @if (error()) {
         <p role="alert" class="text-sm text-negativo">{{ error() }}</p>
@@ -138,12 +151,29 @@ export class MetodoHoja implements OnInit {
   protected readonly pagadasTexto = signal('');
   protected readonly error = signal('');
   protected readonly ocupado = signal(false);
+  /** Cuantos meses despues del en curso es la primera cuota (0: este mes; spec "Primera cuota de un crédito"). */
+  protected readonly primeraTexto = signal('0');
+  protected primeraInicial = '0';
+
+  private readonly mesEnCurso = computed(() => mesDe(this.puertos.hoy()));
+  protected readonly mesesPrimera = computed(() => Array.from({ length: MAX_MESES_PRIMERA_CUOTA + 1 }, (_, i) => {
+    const m = formatMesAnio(sumarMeses(this.mesEnCurso(), i));
+    return { valor: String(i), etiqueta: i === 0 ? `Este mes (${m.toLowerCase()})` : m };
+  }));
+  private readonly primeraOffset = computed(() => Number(this.primeraTexto()));
+  private readonly primeraCuota = computed<MesRef | null>(() => (this.primeraOffset() > 0 ? sumarMeses(this.mesEnCurso(), this.primeraOffset()) : null));
 
   ngOnInit(): void {
     // "Cambiar": la hoja abre con los datos que tiene el credito.
     {
       const c = this.credito();
       if (!c) return;
+      // Una primera cuota ya pasada se muestra como este mes.
+      const p = c.primeraCuota ?? null;
+      const M = mesDe(this.puertos.hoy());
+      const offset = p && compararMes(p, M) > 0 ? (p.anio - M.anio) * 12 + p.mes - M.mes : 0;
+      this.primeraInicial = String(Math.min(offset, MAX_MESES_PRIMERA_CUOTA));
+      this.primeraTexto.set(this.primeraInicial);
       this.metodo.set(c.metodo);
       this.saldo.set(c.saldo);
       this.cuota.set(c.cuota);
@@ -176,7 +206,7 @@ export class MetodoHoja implements OnInit {
     const n = cuotasRestantes({ saldo, cuota, tasaEM: em });
     const tasa = this.unidad() === 'EA' ? ` Equivale a ${String(em).replace('.', ',')} % EM.` : '';
     if (n === null) return `La cuota no alcanza para los intereses del mes.${tasa}`;
-    return `Con esto: ${n} cuotas, termina ≈ ${formatMesAnio(sumarMeses(mesDe(this.puertos.hoy()), n))}.${tasa}`;
+    return `Con esto: ${n} cuotas, termina ≈ ${formatMesAnio(sumarMeses(this.mesEnCurso(), this.primeraOffset() > 0 ? this.primeraOffset() + n - 1 : n))}.${tasa}`;
   });
 
   protected readonly resumenPlan = computed(() => {
@@ -204,7 +234,7 @@ export class MetodoHoja implements OnInit {
     const datos = {
       metodo: this.metodo(), saldo: plan ? 0 : this.saldo()!, cuota: plan ? 0 : this.cuota()!, tasaEM: this.metodo() === 'MANUAL' ? 0 : this.tasaEM(),
       numeroCuotas: plan ? this.numeroCuotas() : null, cuotasPagadas: plan ? this.pagadas() : (this.credito()?.cuotasPagadas ?? 0),
-      valorFinanciado: plan ? this.valor() : null,
+      valorFinanciado: plan ? this.valor() : null, primeraCuota: this.primeraCuota(),
     };
     try {
       const c = this.credito();

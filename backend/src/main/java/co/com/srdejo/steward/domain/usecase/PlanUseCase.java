@@ -155,7 +155,7 @@ public class PlanUseCase implements IPlanServicePort {
                     // Cada tarjeta trae su linea con su monto, en los tres modos (design D1 de tarjetas-y-creditos).
                     List<ItemPlan> items = new ArrayList<>(TarjetasUseCase.conTarjetas(conCuotas(t.getT1().items().stream()
                             .map(i -> i.copia(UUID.randomUUID(), escenarioId, i.monto(), i.cuotaActual(), i.orden()))
-                            .toList(), escenarioId, t.getT2().getT1(), t.getT2().getT2()), escenarioId, t.getT2().getT4(),
+                            .toList(), escenarioId, t.getT2().getT1(), t.getT2().getT2(), ref), escenarioId, t.getT2().getT4(),
                             t.getT2().getT2()));
                     // Las lineas de Ajustes y del anual se calculan de nuevo; las agregadas a mano se copian (design D8), con
                     // su diezmo si lo tenian; cada diezmo nace enlazado a su linea (design D1 de usabilidad-plan).
@@ -204,19 +204,21 @@ public class PlanUseCase implements IPlanServicePort {
 
     /**
      * Como {@code crearMes} del dominio con creditos: no se copia la cuota de un credito ya pagado (saldo en cero), y
-     * cada credito con saldo sin item en la opcion gana su cuota.
+     * cada credito con saldo sin item en la opcion gana su cuota. Un credito cuya primera cuota es posterior a {@code ref}
+     * no la trae ni se copia (design D3 de credito-primera-cuota).
      */
     private static List<ItemPlan> conCuotas(List<ItemPlan> copiados, UUID escenarioId, Map<UUID, Credito> creditos,
-                                            List<Categoria> cats) {
+                                            List<Categoria> cats, YearMonth ref) {
+        java.util.function.Predicate<Credito> paga = c -> c.saldo() > 0 && (c.primeraCuota() == null || !c.primeraCuota().isAfter(ref));
         List<ItemPlan> items = new ArrayList<>(copiados.stream()
                 .filter(i -> i.creditoId() == null
-                        || (creditos.containsKey(i.creditoId()) && creditos.get(i.creditoId()).saldo() > 0))
+                        || (creditos.containsKey(i.creditoId()) && paga.test(creditos.get(i.creditoId()))))
                 .toList());
         Set<UUID> enlazados = new HashSet<>();
         items.forEach(i -> enlazados.add(i.creditoId()));
         int orden = items.stream().mapToInt(ItemPlan::orden).max().orElse(0);
         for (Credito c : creditos.values().stream().sorted(Comparator.comparing(Credito::nombre)).toList()) {
-            if (c.saldo() > 0 && !enlazados.contains(c.id())) {
+            if (paga.test(c) && !enlazados.contains(c.id())) {
                 items.add(cuotaDe(c, escenarioId, CuentasUseCase.categoriaDeCreditos(cats), ++orden));
             }
         }

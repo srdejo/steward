@@ -492,7 +492,8 @@ describe('finanzas en el backend (steward-finanzas, design D5)', () => {
     finanzasPrueba.valor = finanzas({ creditos: [credito] });
     const req = await responder('POST', '/api/creditos', credito, tick, 201);
     await agregar;
-    expect(req.request.body).toEqual(datos);
+    // Sin primera cuota, va vacia (credito-primera-cuota).
+    expect(req.request.body).toEqual({ ...datos, primeraCuota: null });
     const [vista] = await p.cuentas.creditos();
     expect(vista).toMatchObject({ porcentajePagado: 29, credito: { nombre: 'Libre inversión', pagos: [{ tipo: 'CUOTA', monto: 500_000 }] } });
 

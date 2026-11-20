@@ -464,6 +464,25 @@ describe('paridad con la PWA (steward-mobile-app)', () => {
     await waitFor(() => expect(screen.getByTestId('credito-Nevera')).toHaveTextContent(/Cuota 4 de 12/));
   });
 
+  it('primera cuota en diciembre: igual que la PWA (credito-primera-cuota)', async () => {
+    const p = await conSesion();
+    renderRouter('./src/app', { initialUrl: '/cuentas?pestana=creditos' });
+    await tocar('+ Agregar crédito');
+    await escribir('Nombre', 'Johana');
+    await escribir('Día de pago', '1');
+    await escribir('Saldo hoy', '192000000');
+    await escribir('Cuota', '2000000');
+    await escribir('Tasa (%)', '0');
+    expect(screen.getByTestId('primera-0')).toHaveTextContent('Este mes (octubre 2026)');
+    fireEvent.press(screen.getByTestId('primera-2'));
+    expect(await screen.findByTestId('resumen-metodo')).toHaveTextContent(/96 cuotas, termina ≈ Noviembre 2034/);
+    await tocar('Agregar crédito');
+    await waitFor(() => expect(screen.getByTestId('credito-Johana')).toBeTruthy());
+    const johana = (await p.cuentas.creditos()).find((v) => v.credito.nombre === 'Johana')!;
+    expect(johana.credito.primeraCuota).toEqual({ anio: 2026, mes: 12 });
+    expect(johana.proxima!.ref).toEqual({ anio: 2026, mes: 12 });
+  });
+
   it('replicar octubre en 2028 y la revisión del carro en mayo dan las mismas cifras que la PWA', async () => {
     await conSesion();
     renderRouter('./src/app', { initialUrl: '/anual/2028' });

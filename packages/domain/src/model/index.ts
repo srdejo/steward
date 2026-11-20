@@ -109,6 +109,11 @@ export interface Credito {
   cuotasPagadas: number;
   /** PLAN: el valor financiado, de donde sale la tabla. */
   valorFinanciado: Pesos | null;
+  /**
+   * El mes de la primera cuota, si es posterior al mes en que se creo (design D1 de credito-primera-cuota). Mientras no
+   * llegue, las cuotas proyectadas empiezan ahi; despues no influye. Sin el campo (o null), la regla de siempre.
+   */
+  primeraCuota?: MesRef | null;
 }
 
 /** TASA: saldo, tasa y cuota. PLAN: valor, numero de cuotas y tasa (tabla aproximada). MANUAL: el saldo se escribe del extracto. */

@@ -217,6 +217,8 @@ export interface CreditoApi {
   numeroCuotas?: number | null;
   cuotasPagadas?: number;
   valorFinanciado?: number | null;
+  /** `"YYYY-MM"` (design D5 de credito-primera-cuota); sin el campo, null. */
+  primeraCuota?: string | null;
 }
 
 /** Tarjeta de credito (spec steward-tarjetas): `pagoMonto` es el fijo o, si se paga completa, el estimado. */
@@ -241,6 +243,8 @@ export interface MetodoCreditoRequest {
   numeroCuotas: number | null;
   cuotasPagadas: number;
   valorFinanciado: number | null;
+  /** `"YYYY-MM"`; sin el campo, el backend conserva la que habia. */
+  primeraCuota?: string;
 }
 
 /** La foto del cierre que guardo el backend (design D1 de backend-cierre-mes). */

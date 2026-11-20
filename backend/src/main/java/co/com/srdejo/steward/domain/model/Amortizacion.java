@@ -84,16 +84,23 @@ public final class Amortizacion {
     /**
      * Si el credito paga una cuota en {@code ref} ({@code pagaEnMes} del dominio, design D3 de anual-opciones-y-meses): a
      * mano, mientras tenga saldo; un mes anterior al en curso cuenta como pagado; la primera cuota es la del mes en curso, o
-     * la del siguiente si ya se pago.
+     * la del siguiente si ya se pago, o la primera cuota del credito si es posterior (design D2 de credito-primera-cuota).
      */
     public static boolean pagaEnMes(Credito c, YearMonth ref, YearMonth mesEnCurso, boolean pagadaEsteMes) {
         if (c.saldo() <= 0) {
+            return false;
+        }
+        YearMonth pendiente = c.primeraCuotaPendiente(mesEnCurso);
+        if (pendiente != null && ref.isBefore(pendiente)) {
             return false;
         }
         if (c.metodo() == Credito.Metodo.MANUAL || ref.isBefore(mesEnCurso)) {
             return true;
         }
         YearMonth primera = pagadaEsteMes ? mesEnCurso.plusMonths(1) : mesEnCurso;
+        if (pendiente != null && pendiente.isAfter(primera)) {
+            primera = pendiente;
+        }
         if (ref.isBefore(primera)) {
             return false;
         }

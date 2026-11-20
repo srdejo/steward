@@ -2,6 +2,7 @@ package co.com.srdejo.steward.domain.model;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.List;
 import java.util.UUID;
 
@@ -14,10 +15,12 @@ import java.util.UUID;
  * @param numeroCuotas    PLAN: el numero total de cuotas de la tabla; null en los otros.
  * @param cuotasPagadas   cuotas ya pagadas (PLAN; en TASA, si se conoce).
  * @param valorFinanciado PLAN: el valor del que sale la tabla; null en los otros.
+ * @param primeraCuota    el mes de la primera cuota si es posterior al de su creacion; null, la regla de siempre (design D1
+ *                        de credito-primera-cuota).
  */
 public record Credito(UUID id, UUID hogarId, String nombre, String entidad, long saldo, LocalDate saldoActualizadoEn,
                       long cuota, BigDecimal tasaEm, int diaPago, long totalOriginal, List<Pago> pagos, Metodo metodo,
-                      Integer numeroCuotas, int cuotasPagadas, Long valorFinanciado) {
+                      Integer numeroCuotas, int cuotasPagadas, Long valorFinanciado, YearMonth primeraCuota) {
 
     public static final int NOMBRE_MAX = 40;
     public static final BigDecimal TASA_MAX = BigDecimal.TEN;
@@ -39,12 +42,30 @@ public record Credito(UUID id, UUID hogarId, String nombre, String entidad, long
     public Credito(UUID id, UUID hogarId, String nombre, String entidad, long saldo, LocalDate saldoActualizadoEn, long cuota,
                    BigDecimal tasaEm, int diaPago, long totalOriginal, List<Pago> pagos) {
         this(id, hogarId, nombre, entidad, saldo, saldoActualizadoEn, cuota, tasaEm, diaPago, totalOriginal, pagos, Metodo.TASA,
-                null, 0, null);
+                null, 0, null, null);
+    }
+
+    /** Sin primera cuota. */
+    public Credito(UUID id, UUID hogarId, String nombre, String entidad, long saldo, LocalDate saldoActualizadoEn, long cuota,
+                   BigDecimal tasaEm, int diaPago, long totalOriginal, List<Pago> pagos, Metodo metodo, Integer numeroCuotas,
+                   int cuotasPagadas, Long valorFinanciado) {
+        this(id, hogarId, nombre, entidad, saldo, saldoActualizadoEn, cuota, tasaEm, diaPago, totalOriginal, pagos, metodo,
+                numeroCuotas, cuotasPagadas, valorFinanciado, null);
+    }
+
+    public Credito conPrimeraCuota(YearMonth mes) {
+        return new Credito(id, hogarId, nombre, entidad, saldo, saldoActualizadoEn, cuota, tasaEm, diaPago, totalOriginal,
+                pagos, metodo, numeroCuotas, cuotasPagadas, valorFinanciado, mes);
+    }
+
+    /** La primera cuota si todavia no llega {@code mesEnCurso}; si no, null (design D2 de credito-primera-cuota). */
+    public YearMonth primeraCuotaPendiente(YearMonth mesEnCurso) {
+        return primeraCuota != null && primeraCuota.isAfter(mesEnCurso) ? primeraCuota : null;
     }
 
     public Credito conPagos(List<Pago> nuevos) {
         return new Credito(id, hogarId, nombre, entidad, saldo, saldoActualizadoEn, cuota, tasaEm, diaPago, totalOriginal,
-                nuevos, metodo, numeroCuotas, cuotasPagadas, valorFinanciado);
+                nuevos, metodo, numeroCuotas, cuotasPagadas, valorFinanciado, primeraCuota);
     }
 
     /** "Cuota libre inversión": el nombre del item de su cuota en el plan. */

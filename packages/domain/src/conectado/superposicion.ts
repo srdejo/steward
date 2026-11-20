@@ -1,6 +1,6 @@
 import type { Categoria, CierreMes, Credito, PlanAnual, Tarjeta, Cuenta, EstadoHogar, IngresoFijo, IngresoPlan, ItemPlan, Movimiento, Origen, PlanMes, ReglaDiezmo } from '../index';
 
-import { hastaDe } from '../index';
+import { hastaDe, mesDe } from '../index';
 import {
   usuarioDe,
   type AnualApi,
@@ -107,6 +107,7 @@ export function credito(c: CreditoApi): Credito {
     id: c.id, nombre: c.nombre, entidad: c.entidad, saldo: c.saldo, saldoActualizadoEn: c.saldoActualizadoEn, cuota: c.cuota,
     tasaEM: c.tasaEM, diaPago: c.diaPago, totalOriginal: c.totalOriginal, pagos: c.pagos.map((p) => ({ ...p })),
     metodo: c.metodo ?? 'TASA', numeroCuotas: c.numeroCuotas ?? null, cuotasPagadas: c.cuotasPagadas ?? 0, valorFinanciado: c.valorFinanciado ?? null,
+    primeraCuota: c.primeraCuota ? mesDe(c.primeraCuota + '-01') : null,
   };
 }
 

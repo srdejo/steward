@@ -24,6 +24,7 @@ import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -145,17 +146,25 @@ public class CuentasUseCase implements ICuentasServicePort {
 
     @Override
     public Mono<Credito> crearCredito(DatosCredito datos) {
-        return Mono.fromCallable(() -> creditoValido(datos, registro.hoy())).flatMap(d -> registro.contexto().flatMap(ctx -> {
+        return Mono.fromCallable(() -> creditoValido(datos, registro.hoy())
+                .conPrimeraCuota(primeraCuotaValida(datos.primeraCuota(), registro.mesEnCurso())))
+                .flatMap(d -> registro.contexto().flatMap(ctx -> {
             Credito credito = new Credito(UUID.randomUUID(), ctx.hogar().id(), d.nombre(), d.entidad(), d.saldo(),
                     d.saldoActualizadoEn(), d.cuota(), d.tasaEm(), d.diaPago(), d.totalOriginal(), List.of(), d.metodo(),
-                    d.numeroCuotas(), d.cuotasPagadas(), d.valorFinanciado());
+                    d.numeroCuotas(), d.cuotasPagadas(), d.valorFinanciado(), d.primeraCuota());
             return transaccion.enTransaccion(creditos.crear(credito)
                     .flatMap(c -> cuotaEnElMes(ctx, c).thenReturn(c)));
         }));
     }
 
-    /** Su cuota entra a la opcion principal del mes en curso, si tiene plan y no esta cerrado (design D5). */
+    /**
+     * Su cuota entra a la opcion principal del mes en curso, si tiene plan y no esta cerrado (design D5), y si su primera
+     * cuota no es de un mes posterior (design D3 de credito-primera-cuota).
+     */
     private Mono<Void> cuotaEnElMes(Contexto ctx, Credito credito) {
+        if (credito.primeraCuotaPendiente(registro.mesEnCurso()) != null) {
+            return Mono.empty();
+        }
         return planes.deMes(ctx.hogar().id(), registro.mesEnCurso())
                 .filter(plan -> plan.estado() != PlanMes.Estado.CERRADO)
                 .flatMap(plan -> Mono.justOrEmpty(plan.principal()))
@@ -171,6 +180,26 @@ public class CuentasUseCase implements ICuentasServicePort {
                 .or(() -> cats.stream().min(Comparator.comparingInt(Categoria::orden)))
                 .map(Categoria::id)
                 .orElseThrow(() -> DomainException.datosInvalidos("El hogar no tiene categorías"));
+    }
+
+    /** Hasta cuantos meses despues del en curso puede ser la primera cuota (design D4 de credito-primera-cuota). */
+    static final int MAX_MESES_PRIMERA_CUOTA = 12;
+
+    /** "YYYY-MM" del mes en curso a 12 meses despues; null o el mes en curso dan null (design D4). */
+    static YearMonth primeraCuotaValida(String texto, YearMonth mesEnCurso) {
+        if (texto == null || texto.isBlank()) {
+            return null;
+        }
+        YearMonth mes;
+        try {
+            mes = YearMonth.parse(texto.strip());
+        } catch (java.time.format.DateTimeParseException ex) {
+            throw DomainException.datosInvalidos("La primera cuota es un mes (AAAA-MM)");
+        }
+        if (mes.isBefore(mesEnCurso) || mes.isAfter(mesEnCurso.plusMonths(MAX_MESES_PRIMERA_CUOTA))) {
+            throw DomainException.datosInvalidos("La primera cuota va del mes en curso a 12 meses después");
+        }
+        return mes.equals(mesEnCurso) ? null : mes;
     }
 
     /** El credito valido, con el saldo y la cuota de su metodo (sin id ni hogar). */
@@ -216,20 +245,24 @@ public class CuentasUseCase implements ICuentasServicePort {
             long cuota = Amortizacion.cuotaFija(valor, n, tasa);
             long saldo = Amortizacion.saldoPlan(valor, n, tasa, cuota, pagadas);
             return new Credito(c.id(), c.hogarId(), c.nombre(), c.entidad(), saldo, saldo == c.saldo() ? c.saldoActualizadoEn() : hoy,
-                    cuota, tasa, c.diaPago(), Math.max(valor, saldo), c.pagos(), metodo, n, pagadas, valor);
+                    cuota, tasa, c.diaPago(), Math.max(valor, saldo), c.pagos(), metodo, n, pagadas, valor, c.primeraCuota());
         }
         if (d.saldo() < 0 || d.cuota() <= 0) {
             throw DomainException.datosInvalidos("Revisa el saldo y la cuota");
         }
         return new Credito(c.id(), c.hogarId(), c.nombre(), c.entidad(), d.saldo(), d.saldo() == c.saldo() ? c.saldoActualizadoEn() : hoy,
                 d.cuota(), metodo == Credito.Metodo.MANUAL ? BigDecimal.ZERO : tasa, c.diaPago(), Math.max(c.totalOriginal(), d.saldo()),
-                c.pagos(), metodo, null, d.cuotasPagadas(), null);
+                c.pagos(), metodo, null, d.cuotasPagadas(), null, c.primeraCuota());
     }
 
     @Override
     public Mono<Credito> cambiarMetodo(UUID creditoId, DatosMetodo datos) {
         return registro.contexto().flatMap(ctx -> creditoDelHogar(creditoId, ctx)
-                .flatMap(actual -> Mono.fromCallable(() -> conMetodo(actual, datos, registro.hoy())))
+                .flatMap(actual -> Mono.fromCallable(() -> {
+                    Credito c = conMetodo(actual, datos, registro.hoy());
+                    // Sin el campo se conserva la que habia (design D5 de credito-primera-cuota).
+                    return datos.primeraCuota() == null ? c : c.conPrimeraCuota(primeraCuotaValida(datos.primeraCuota(), registro.mesEnCurso()));
+                }))
                 .flatMap(c -> transaccion.enTransaccion(creditos.cambiarMetodo(c)
                         .flatMap(g -> cuotaEnBorradores(ctx, g).thenReturn(g)))));
     }

@@ -120,10 +120,21 @@ export interface CuotaProyectada extends FilaTabla {
   ref: MesRef;
 }
 
-/** Las cuotas que vienen, cada una en su mes: la del mes en curso si todavia no se paga. */
+/** La primera cuota del credito si todavia no llega el mes de `hoy`; si no, null (design D2 de credito-primera-cuota). */
+export function primeraCuotaPendiente(c: Pick<Credito, 'primeraCuota'>, hoy: Fecha): MesRef | null {
+  const p = c.primeraCuota ?? null;
+  return p && compararMes(p, mesDe(hoy)) > 0 ? p : null;
+}
+
+/**
+ * Las cuotas que vienen, cada una en su mes: la del mes en curso si todavia no se paga, o la de la primera cuota si es
+ * posterior (design D2 de credito-primera-cuota).
+ */
 export function cuotasProyectadas(c: Credito, hoy: Fecha, meses: number): CuotaProyectada[] {
   const M = mesDe(hoy);
-  const primera = cuotaPagadaEn(c, M) ? sumarMeses(M, 1) : M;
+  let primera = cuotaPagadaEn(c, M) ? sumarMeses(M, 1) : M;
+  const pendiente = primeraCuotaPendiente(c, hoy);
+  if (pendiente && compararMes(pendiente, primera) > 0) primera = pendiente;
   return tablaCredito(c, meses).map((f, i) => ({ ...f, ref: sumarMeses(primera, i) }));
 }
 
@@ -334,6 +345,25 @@ export interface DatosMetodo {
   numeroCuotas?: number | null;
   cuotasPagadas?: number;
   valorFinanciado?: Pesos | null;
+  /**
+   * El mes de la primera cuota: del en curso a 12 meses despues; el en curso la quita. Sin el campo, al cambiar el metodo
+   * se conserva la que habia (design D4 y D5 de credito-primera-cuota).
+   */
+  primeraCuota?: MesRef | null;
+}
+
+/** Hasta cuantos meses despues del en curso puede ser la primera cuota. */
+export const MAX_MESES_PRIMERA_CUOTA = 12;
+
+/** Valida la primera cuota contra el mes de `fecha` y devuelve lo que se guarda: null para el mes en curso (design D4). */
+function primeraCuotaValida(p: MesRef | null | undefined, fecha: Fecha): MesRef | null {
+  if (!p) return null;
+  const M = mesDe(fecha);
+  if (!(Number.isInteger(p.anio) && Number.isInteger(p.mes) && p.mes >= 1 && p.mes <= 12)
+    || compararMes(p, M) < 0 || compararMes(p, sumarMeses(M, MAX_MESES_PRIMERA_CUOTA)) > 0) {
+    throw new ReglaError('DATOS_INVALIDOS', 'La primera cuota va del mes en curso a 12 meses después');
+  }
+  return compararMes(p, M) === 0 ? null : { anio: p.anio, mes: p.mes };
 }
 
 export interface DatosCredito extends Omit<DatosMetodo, 'metodo'> {
@@ -371,6 +401,7 @@ export function cambiarMetodoCredito(estado: EstadoHogar, datos: DatosMetodo & {
   const c = creditoDe(s, datos.creditoId);
   const antes = c.saldo;
   Object.assign(c, camposMetodo(datos));
+  if (datos.primeraCuota !== undefined) c.primeraCuota = primeraCuotaValida(datos.primeraCuota, datos.fecha);
   if (c.saldo !== antes) c.saldoActualizadoEn = datos.fecha;
   if (c.metodo === 'PLAN') c.totalOriginal = Math.max(c.valorFinanciado ?? 0, c.saldo);
   for (const plan of s.planes.filter((p) => p.estado === 'BORRADOR')) {
@@ -401,6 +432,8 @@ export function cuotasDeCreditos(s: EstadoHogar, items: ItemPlan[], filtro: (c: 
  */
 export function pagaEnMes(c: Credito, ref: MesRef, hoy: Fecha): boolean {
   if (c.saldo <= 0) return false;
+  const pendiente = primeraCuotaPendiente(c, hoy);
+  if (pendiente && compararMes(ref, pendiente) < 0) return false;
   if (c.metodo === 'MANUAL') return true;
   const M = mesDe(hoy);
   const meses = (ref.anio - M.anio) * 12 + ref.mes - M.mes + 1;
@@ -415,15 +448,18 @@ export function agregarCredito(estado: EstadoHogar, datos: DatosCredito & { fech
   if (!nombre || nombre.length > 40 || entidad.length > 40) throw new ReglaError('NOMBRE_REQUERIDO', 'El crédito necesita un nombre de hasta 40 caracteres');
   if (!Number.isInteger(datos.diaPago) || datos.diaPago < 1 || datos.diaPago > 31) throw new ReglaError('DIA_INVALIDO', 'El día de pago va de 1 a 31');
   const campos = camposMetodo({ ...datos, metodo: datos.metodo ?? 'TASA' });
+  const primeraCuota = primeraCuotaValida(datos.primeraCuota, datos.fecha);
   const totalOriginal = campos.metodo === 'PLAN' ? campos.valorFinanciado! : datos.totalOriginal;
   if (!(totalOriginal > 0) || totalOriginal < campos.saldo) throw new ReglaError('MONTO_INVALIDO', 'Revisa el saldo, el total original y la cuota');
   const s = clonar(estado);
   const credito: Credito = {
     id: nuevoId(s, 'cred'), nombre, entidad, saldoActualizadoEn: datos.fecha, diaPago: datos.diaPago, totalOriginal, pagos: [], ...campos,
+    primeraCuota,
   };
   s.creditos.push(credito);
   const plan = planDe(s, mesDe(datos.fecha));
-  const principal = plan && plan.estado !== 'CERRADO' ? escenarioPrincipal(plan) : null;
+  // Si la primera cuota es de un mes posterior, el mes en curso no la trae (design D3 de credito-primera-cuota).
+  const principal = plan && plan.estado !== 'CERRADO' && !primeraCuota ? escenarioPrincipal(plan) : null;
   if (principal) principal.items.push(itemCuota(s, credito));
   return s;
 }
