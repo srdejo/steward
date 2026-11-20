@@ -110,22 +110,23 @@ public final class FinanzasDtos {
     /** {@code metodo} null es TASA (design D3 de tarjetas-y-creditos). */
     public record CreditoRequest(String nombre, String entidad, Long saldo, Long totalOriginal, Long cuota,
                                  @NotNull(message = "Escribe la tasa") BigDecimal tasaEM, int diaPago, String metodo,
-                                 Integer numeroCuotas, Integer cuotasPagadas, Long valorFinanciado) {
+                                 Integer numeroCuotas, Integer cuotasPagadas, Long valorFinanciado, String primeraCuota) {
 
         public DatosCredito datos() {
             return new DatosCredito(nombre, entidad, saldo == null ? 0 : saldo, totalOriginal == null ? 0 : totalOriginal,
                     cuota == null ? 0 : cuota, tasaEM, diaPago, metodo, numeroCuotas,
-                    cuotasPagadas == null ? 0 : cuotasPagadas, valorFinanciado);
+                    cuotasPagadas == null ? 0 : cuotasPagadas, valorFinanciado, primeraCuota);
         }
     }
 
+    /** {@code primeraCuota}: "YYYY-MM"; sin el campo, se conserva la que habia (design D5 de credito-primera-cuota). */
     public record MetodoCreditoRequest(String metodo, Long saldo, Long cuota, BigDecimal tasaEM, Integer numeroCuotas,
-                                       Integer cuotasPagadas, Long valorFinanciado) {
+                                       Integer cuotasPagadas, Long valorFinanciado, String primeraCuota) {
 
         public co.com.srdejo.steward.domain.api.ICuentasServicePort.DatosMetodo datos() {
             return new co.com.srdejo.steward.domain.api.ICuentasServicePort.DatosMetodo(metodo, saldo == null ? 0 : saldo,
                     cuota == null ? 0 : cuota, tasaEM, numeroCuotas,
-                    cuotasPagadas == null ? 0 : cuotasPagadas, valorFinanciado);
+                    cuotasPagadas == null ? 0 : cuotasPagadas, valorFinanciado, primeraCuota);
         }
     }
 
@@ -157,13 +158,14 @@ public final class FinanzasDtos {
     public record CreditoResponse(UUID id, String nombre, String entidad, long saldo, LocalDate saldoActualizadoEn,
                                   long cuota, BigDecimal tasaEM, int diaPago, long totalOriginal,
                                   List<PagoCreditoResponse> pagos, String metodo, Integer numeroCuotas, int cuotasPagadas,
-                                  Long valorFinanciado) {
+                                  Long valorFinanciado, String primeraCuota) {
 
         public static CreditoResponse de(Credito c) {
             return new CreditoResponse(c.id(), c.nombre(), c.entidad(), c.saldo(), c.saldoActualizadoEn(), c.cuota(),
                     ReglaResponse.sinCeros(c.tasaEm()), c.diaPago(), c.totalOriginal(),
                     c.pagos().stream().map(p -> new PagoCreditoResponse(p.fecha(), p.monto(), p.tipo().name())).toList(),
-                    c.metodo().name(), c.numeroCuotas(), c.cuotasPagadas(), c.valorFinanciado());
+                    c.metodo().name(), c.numeroCuotas(), c.cuotasPagadas(), c.valorFinanciado(),
+                    c.primeraCuota() == null ? null : c.primeraCuota().toString());
         }
     }
 

@@ -99,6 +99,39 @@ describe('Tarjetas y créditos (tarjetas-y-creditos)', () => {
     expect(textoLegible(a.raiz().querySelector('[data-testid="proximas-cuotas"] tbody tr')!)).toContain('$222.400');
   });
 
+  it('primera cuota: el crédito que empieza en diciembre no entra a octubre y su próxima cuota es diciembre', async () => {
+    const p = await conSesion();
+    const a = await app('/cuentas?pestana=creditos');
+    await a.tocar('+ Agregar crédito');
+    await a.escribir('Nombre', 'Johana');
+    await a.escribir('Día de pago', '1');
+    await a.escribir('Saldo hoy', '192000000');
+    await a.escribir('Cuota', '2000000');
+    await a.escribir('Tasa (%)', '0');
+    const opciones = [...a.raiz().querySelectorAll('[data-testid="primera-cuota"] option')].map((o) => o.textContent!.trim());
+    expect(opciones[0]).toBe('Este mes (octubre 2026)');
+    expect(opciones).toHaveLength(13);
+    await a.escribir('[data-testid="primera-cuota"]', '2');
+    expect(texto(a, '[data-testid="resumen-metodo"]')).toContain('96 cuotas, termina ≈ Noviembre 2034');
+    await a.tocar('Agregar crédito');
+    const johana = (await p.cuentas.creditos()).find((v) => v.credito.nombre === 'Johana')!.credito;
+    expect(johana.primeraCuota).toEqual({ anio: 2026, mes: 12 });
+    // Octubre no la trae.
+    await a.ir('/hoy');
+    expect(a.texto()).not.toContain('Cuota johana');
+
+    await a.ir(`/cuentas/credito/${johana.id}`);
+    expect(textoLegible(a.raiz().querySelector('[data-testid="proximas-cuotas"] tbody tr')!)).toBe('1 dic $0 $2.000.000 $190.000.000');
+    await a.tocar('Cambiar');
+    expect(a.campo('[data-testid="primera-cuota"]').value).toBe('2');
+    expect(a.raiz().querySelector('[data-testid="nota-primera"]')).toBeNull();
+    await a.escribir('[data-testid="primera-cuota"]', '0');
+    expect(texto(a, '[data-testid="nota-primera"]')).toBe('Los meses ya planeados no cambian; ajústalos en Planear.');
+    await a.tocar('Guardar');
+    expect((await p.cuentas.credito(johana.id))!.credito.primeraCuota).toBeNull();
+    expect(textoLegible(a.raiz().querySelector('[data-testid="proximas-cuotas"] tbody tr')!)).toMatch(/^1 oct /);
+  });
+
   it('cambiar a plan de pagos desde el detalle', async () => {
     await conSesion();
     const a = await app('/cuentas/credito/cred-cuotas');

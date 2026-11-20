@@ -119,6 +119,50 @@ class CreditosContratoTest extends ContratoBase {
         get(daniel, "/api/finanzas").expectBody().jsonPath("$.planes[2].escenarios[0].items").isEmpty();
     }
 
+    // --- Primera cuota (credito-primera-cuota) ---
+
+    @Test
+    void conLaPrimeraCuotaElMesSiguienteNoEntraAlMesEnCursoNiSeCopiaAntes() {
+        ayudas.crearPlan(daniel, MES, "CERO");
+        post(daniel, "/api/creditos", conCambio("primeraCuota", MES.plusMonths(2).toString())).expectStatus().isCreated()
+                .expectBody().jsonPath("$.primeraCuota").isEqualTo(MES.plusMonths(2).toString());
+        get(daniel, "/api/finanzas").expectBody().jsonPath("$.planes[0].escenarios[0].items").isEmpty();
+        // El mes siguiente todavia no la trae; el de la primera cuota, si.
+        ayudas.crearPlan(daniel, MES.plusMonths(1), "COPIAR");
+        ayudas.crearPlan(daniel, MES.plusMonths(2), "COPIAR");
+        get(daniel, "/api/finanzas").expectBody()
+                .jsonPath("$.planes[1].escenarios[0].items").isEmpty()
+                .jsonPath("$.planes[2].escenarios[0].items[?(@.creditoId)].nombre").isEqualTo(List.of("Cuota libre inversión"));
+    }
+
+    @Test
+    void laPrimeraCuotaDelMesEnCursoSeGuardaVaciaYFueraDeRangoEs400() {
+        post(daniel, "/api/creditos", conCambio("primeraCuota", MES.minusMonths(1).toString())).expectStatus().isBadRequest()
+                .expectBody().jsonPath("$.codigo").isEqualTo("DATOS_INVALIDOS");
+        post(daniel, "/api/creditos", conCambio("primeraCuota", MES.plusMonths(13).toString())).expectStatus().isBadRequest();
+        post(daniel, "/api/creditos", conCambio("primeraCuota", "diciembre")).expectStatus().isBadRequest();
+        post(daniel, "/api/creditos", conCambio("primeraCuota", MES.toString())).expectStatus().isCreated()
+                .expectBody().jsonPath("$.primeraCuota").doesNotExist();
+    }
+
+    @Test
+    void cambiarElMetodoConservaLaPrimeraCuotaSinElCampoYElMesEnCursoLaQuita() {
+        post(daniel, "/api/creditos", libreInversion()).expectStatus().isCreated();
+        String id = idCredito(daniel);
+        Map<String, Object> metodo = new HashMap<>(Map.of("metodo", "TASA", "saldo", 14_250_000, "cuota", 500_000, "tasaEM", 1.6));
+        metodo.put("primeraCuota", MES.plusMonths(1).toString());
+        put(daniel, "/api/creditos/{id}/metodo", metodo, id).expectStatus().isOk().expectBody()
+                .jsonPath("$.primeraCuota").isEqualTo(MES.plusMonths(1).toString())
+                .jsonPath("$.saldo").isEqualTo(14_250_000);
+        metodo.remove("primeraCuota");
+        put(daniel, "/api/creditos/{id}/metodo", metodo, id).expectStatus().isOk().expectBody()
+                .jsonPath("$.primeraCuota").isEqualTo(MES.plusMonths(1).toString());
+        get(esposa, "/api/finanzas").expectBody().jsonPath("$.creditos[0].primeraCuota").isEqualTo(MES.plusMonths(1).toString());
+        metodo.put("primeraCuota", MES.toString());
+        put(daniel, "/api/creditos/{id}/metodo", metodo, id).expectStatus().isOk().expectBody()
+                .jsonPath("$.primeraCuota").doesNotExist();
+    }
+
     // --- Ítems de la opción, con creditos ---
 
     @Test

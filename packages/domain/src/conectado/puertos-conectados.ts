@@ -20,7 +20,7 @@ import type {
   Usuario,
   VistaHogar,
 } from '../index';
-import { ReglaError, claveMes, hastaDe, sumarMeses } from '../index';
+import { ReglaError, claveMes, hastaDe, mesDe, sumarMeses } from '../index';
 import { crearAdaptadorDemo, type StorageLike } from '../demo';
 
 import {
@@ -536,8 +536,9 @@ export class PuertosConectados implements Puertos {
         escribir(api.cambiarMetodoCredito(id, {
           metodo: datos.metodo, saldo: datos.saldo, cuota: datos.cuota, tasaEM: datos.tasaEM,
           numeroCuotas: datos.numeroCuotas ?? null, cuotasPagadas: datos.cuotasPagadas ?? 0, valorFinanciado: datos.valorFinanciado ?? null,
+          ...(datos.primeraCuota !== undefined ? { primeraCuota: datos.primeraCuota ? claveMes(datos.primeraCuota) : claveMes(mesDe(this.hoy())) } : {}),
         })),
-      agregarCredito: (datos) => escribir(api.crearCredito(datos)),
+      agregarCredito: (datos) => escribir(api.crearCredito({ ...datos, primeraCuota: datos.primeraCuota ? claveMes(datos.primeraCuota) : null })),
       actualizarSaldo: (id, saldo) => escribir(api.actualizarSaldoCredito(id, saldo)),
       eliminarCredito: (id) => escribir(api.eliminarCredito(id)),
       registrarAbono: async (id, monto, origen) => {

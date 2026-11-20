@@ -1,4 +1,4 @@
-import type { Escenario, EstadoHogar, EstadoMes, Fecha, Id, IngresoPlan, ItemPlan, MesRef, Pesos, PlanMes } from '../model';
+import type { Credito, Escenario, EstadoHogar, EstadoMes, Fecha, Id, IngresoPlan, ItemPlan, MesRef, Pesos, PlanMes } from '../model';
 import { formatCop, nombreMes, nombreMesCapital } from '../format';
 import { libreAnualDelMes } from './anual';
 import { ReglaError, clonar, compararMes, mesDe, nuevoId, sumar, sumarMeses } from './base';
@@ -56,8 +56,10 @@ export function crearMes(estado: EstadoHogar, datos: { ref: MesRef; modo: ModoNu
   if (datos.modo === 'COPIAR') items = copiarItems(s, base, true);
   if (datos.modo === 'FIJOS') items = copiarItems(s, base, true).map((i) => (i.tipo === 'VARIABLE' ? { ...i, monto: 0 } : i));
   // Los creditos con saldo traen su cuota en los tres modos; la de un credito ya pagado no se copia.
-  const pagados = new Set(s.creditos.filter((c) => c.saldo <= 0).map((c) => c.id));
-  items = cuotasDeCreditos(s, items.filter((i) => !i.creditoId || !pagados.has(i.creditoId)));
+  // Tampoco la de un credito cuya primera cuota es de un mes posterior (design D3 de credito-primera-cuota).
+  const empiezaDespues = (c: Credito) => !!c.primeraCuota && compararMes(c.primeraCuota, datos.ref) > 0;
+  const pagados = new Set(s.creditos.filter((c) => c.saldo <= 0 || empiezaDespues(c)).map((c) => c.id));
+  items = cuotasDeCreditos(s, items.filter((i) => !i.creditoId || !pagados.has(i.creditoId)), (c) => !empiezaDespues(c));
   // Cada tarjeta trae su linea con el monto de la tarjeta, tambien en los tres modos (design D1 de tarjetas-y-creditos).
   items = lineasDeTarjetas(s, items);
   // Las lineas de Ajustes y del anual se calculan de nuevo; las agregadas a mano se copian (design D8), con su diezmo si lo tenian.

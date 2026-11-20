@@ -49,21 +49,33 @@ public interface ICuentasServicePort {
 
     /** {@code metodo} null es TASA; en PLAN, la cuota y el saldo salen de la tabla. */
     record DatosCredito(String nombre, String entidad, long saldo, long totalOriginal, long cuota, BigDecimal tasaEm,
-                        int diaPago, String metodo, Integer numeroCuotas, int cuotasPagadas, Long valorFinanciado) {
+                        int diaPago, String metodo, Integer numeroCuotas, int cuotasPagadas, Long valorFinanciado,
+                        String primeraCuota) {
+
+        public DatosCredito(String nombre, String entidad, long saldo, long totalOriginal, long cuota, BigDecimal tasaEm,
+                            int diaPago, String metodo, Integer numeroCuotas, int cuotasPagadas, Long valorFinanciado) {
+            this(nombre, entidad, saldo, totalOriginal, cuota, tasaEm, diaPago, metodo, numeroCuotas, cuotasPagadas, valorFinanciado, null);
+        }
 
         /** Con la tasa, como antes de tarjetas-y-creditos. */
         public DatosCredito(String nombre, String entidad, long saldo, long totalOriginal, long cuota, BigDecimal tasaEm,
                             int diaPago) {
-            this(nombre, entidad, saldo, totalOriginal, cuota, tasaEm, diaPago, null, null, 0, null);
+            this(nombre, entidad, saldo, totalOriginal, cuota, tasaEm, diaPago, null, null, 0, null, null);
         }
 
         public DatosMetodo metodoYDatos() {
-            return new DatosMetodo(metodo == null ? "TASA" : metodo, saldo, cuota, tasaEm, numeroCuotas, cuotasPagadas, valorFinanciado);
+            return new DatosMetodo(metodo == null ? "TASA" : metodo, saldo, cuota, tasaEm, numeroCuotas, cuotasPagadas, valorFinanciado, null);
         }
     }
 
     /** TASA y MANUAL: saldo y cuota; PLAN: valor, numero de cuotas, tasa y cuotas pagadas. */
+    /** {@code primeraCuota}: "YYYY-MM"; null conserva la que habia (design D5 de credito-primera-cuota). */
     record DatosMetodo(String metodo, long saldo, long cuota, BigDecimal tasaEm, Integer numeroCuotas, int cuotasPagadas,
-                       Long valorFinanciado) {
+                       Long valorFinanciado, String primeraCuota) {
+
+        public DatosMetodo(String metodo, long saldo, long cuota, BigDecimal tasaEm, Integer numeroCuotas, int cuotasPagadas,
+                           Long valorFinanciado) {
+            this(metodo, saldo, cuota, tasaEm, numeroCuotas, cuotasPagadas, valorFinanciado, null);
+        }
     }
 }

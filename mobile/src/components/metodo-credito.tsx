@@ -1,6 +1,9 @@
-import { cuotaFija, cuotasRestantes, emDeEa, formatCop, formatMesAnio, mesDe, saldoPlan, sumarMeses, type Credito, type MetodoCredito } from '@steward/domain';
+import {
+  MAX_MESES_PRIMERA_CUOTA, compararMes, cuotaFija, cuotasRestantes, emDeEa, formatCop, formatMesAnio, mesDe, saldoPlan, sumarMeses,
+  type Credito, type MetodoCredito,
+} from '@steward/domain';
 import { useState } from 'react';
-import { Modal, Pressable, View } from 'react-native';
+import { Modal, Pressable, ScrollView, View } from 'react-native';
 
 import { useAccion, usePuertos } from '@/data/puertos';
 import { Aviso, Boton, Campo, colors, CuerpoModal, fonts, MontoInput, Segmentado, Texto } from '@/ui';
@@ -40,6 +43,13 @@ export function MetodoCredito({ credito, onCerrar }: { credito: Credito | null; 
   const [valor, setValor] = useState<number | null>(credito?.valorFinanciado ?? null);
   const [numeroTexto, setNumeroTexto] = useState(credito?.numeroCuotas ? String(credito.numeroCuotas) : '');
   const [pagadasTexto, setPagadasTexto] = useState(credito?.metodo === 'PLAN' ? String(credito.cuotasPagadas) : '');
+  // Primera cuota: meses despues del en curso (0: este mes). Una ya pasada se muestra como este mes (spec "Primera cuota de un crédito").
+  const M = mesDe(puertos.hoy());
+  const [primeraInicial] = useState(() => {
+    const p = credito?.primeraCuota ?? null;
+    return p && compararMes(p, M) > 0 ? Math.min((p.anio - M.anio) * 12 + p.mes - M.mes, MAX_MESES_PRIMERA_CUOTA) : 0;
+  });
+  const [primera, setPrimera] = useState(primeraInicial);
 
   const plan = metodo === 'PLAN';
   const t = numero(tasaTexto || '0');
@@ -54,7 +64,7 @@ export function MetodoCredito({ credito, onCerrar }: { credito: Credito | null; 
     else {
       const restantes = cuotasRestantes({ saldo, cuota, tasaEM });
       const equivale = unidad === 'EA' ? ` Equivale a ${String(tasaEM).replace('.', ',')} % EM.` : '';
-      resumen = restantes === null ? `La cuota no alcanza para los intereses del mes.${equivale}` : `Con esto: ${restantes} cuotas, termina ≈ ${formatMesAnio(sumarMeses(mesDe(puertos.hoy()), restantes))}.${equivale}`;
+      resumen = restantes === null ? `La cuota no alcanza para los intereses del mes.${equivale}` : `Con esto: ${restantes} cuotas, termina ≈ ${formatMesAnio(sumarMeses(M, primera > 0 ? primera + restantes - 1 : restantes))}.${equivale}`;
     }
   } else if (plan) {
     if (!valor || !Number.isInteger(n) || n < 1 || Number.isNaN(tasaEM)) resumen = 'Escribe el valor, el número de cuotas y la tasa (0 si es sin intereses).';
@@ -72,6 +82,7 @@ export function MetodoCredito({ credito, onCerrar }: { credito: Credito | null; 
     const datos = {
       metodo, saldo: plan ? 0 : saldo!, cuota: plan ? 0 : cuota!, tasaEM: metodo === 'MANUAL' ? 0 : tasaEM,
       numeroCuotas: plan ? n : null, cuotasPagadas: plan ? pagadas : (credito?.cuotasPagadas ?? 0), valorFinanciado: plan ? valor : null,
+      primeraCuota: primera > 0 ? sumarMeses(M, primera) : null,
     };
     void accion
       .ejecutar((p) => (credito ? p.cuentas.cambiarMetodo(credito.id, datos)
@@ -136,6 +147,25 @@ export function MetodoCredito({ credito, onCerrar }: { credito: Credito | null; 
             <Texto v="detalle">Te recordamos actualizarlo el día de pago.</Texto>
           </>
         )}
+        <View style={{ gap: 8 }}>
+          <Texto v="detalle" style={{ fontFamily: fonts.semibold }}>Primera cuota</Texto>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} accessibilityRole="radiogroup" accessibilityLabel="Primera cuota"
+            contentContainerStyle={{ gap: 8 }}>
+            {Array.from({ length: MAX_MESES_PRIMERA_CUOTA + 1 }, (_, i) => {
+              const activo = primera === i;
+              const mes = formatMesAnio(sumarMeses(M, i));
+              return (
+                <Pressable key={i} testID={`primera-${i}`} accessibilityRole="radio" accessibilityState={{ checked: activo }} onPress={() => setPrimera(i)}
+                  style={{ paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999, borderWidth: activo ? 2 : 1, borderColor: activo ? colors.acento : colors.borde, backgroundColor: activo ? colors.acentoSuave : colors.superficie }}>
+                  <Texto style={{ fontSize: 14, fontFamily: activo ? fonts.semibold : fonts.regular }}>{i === 0 ? `Este mes (${mes.toLowerCase()})` : mes}</Texto>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+          {!!credito && primera !== primeraInicial && (
+            <Texto testID="nota-primera" v="detalle">Los meses ya planeados no cambian; ajústalos en Planear.</Texto>
+          )}
+        </View>
         {!!resumen && <Texto testID="resumen-metodo" v="detalle">{resumen}</Texto>}
         <Texto v="detalle">Siempre puedes corregir con el saldo del extracto: la app ajusta desde ahí.</Texto>
         <Aviso texto={accion.error} />
