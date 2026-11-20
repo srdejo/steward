@@ -8,6 +8,7 @@ import type { ResultadoLogin } from '@steward/domain/conectado';
 import { PUERTOS, puertosConectados } from '../../core/datos/puertos';
 import { GOOGLE_IDENTITY_LOADER } from '../../core/sesion/google-identity';
 import { SesionActual } from '../../core/sesion/sesion';
+import { DescargaIos } from '../../shared/components/descarga-ios';
 import { Icono } from '../../shared/components/icono';
 
 /**
@@ -17,7 +18,7 @@ import { Icono } from '../../shared/components/icono';
  */
 @Component({
   selector: 'app-acceso-page',
-  imports: [Icono],
+  imports: [DescargaIos, Icono],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block lg:flex lg:min-h-dvh lg:flex-wrap' },
   template: `
@@ -105,6 +106,7 @@ import { Icono } from '../../shared/components/icono';
       @if (error()) {
         <p role="alert" class="text-center text-sm text-negativo">{{ error() }}</p>
       }
+      <app-descarga-ios class="mt-2" />
     </div>
 
     <div class="flex flex-col gap-1.5 text-center">

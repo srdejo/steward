@@ -30,6 +30,20 @@ describe('Acceso y onboarding (steward-acceso-onboarding)', () => {
     expect(a.url()).toBe('/acceso/face-id');
   });
 
+  it('Entrar enlaza la app de iPhone en la App Store', async () => {
+    const a = await desdeCero();
+    const enlace = a.raiz().querySelector<HTMLAnchorElement>('[data-testid="descarga-ios"]')!;
+    expect(enlace.textContent!.trim()).toBe('Descarga la app para iPhone');
+    expect(enlace.href).toBe('https://apps.apple.com/us/app/steward/id6783429254');
+    expect(enlace.target).toBe('_blank');
+  });
+
+  it('Ajustes también enlaza la app de iPhone', async () => {
+    await puertos().sesion.iniciar('GOOGLE');
+    const a = await app('/ajustes');
+    expect(a.raiz().querySelector('[data-testid="descarga-ios"]')).not.toBeNull();
+  });
+
   it('hogar ya configurado: Continuar con correo abre Hoy', async () => {
     const a = await app('/acceso');
     await a.tocar('Continuar con correo');

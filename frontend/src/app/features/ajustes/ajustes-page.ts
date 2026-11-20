@@ -8,6 +8,7 @@ import { PUERTOS, puertosConectados } from '../../core/datos/puertos';
 import { MiembrosHogar } from '../../core/layout/miembros';
 import { SEGURIDAD_DISPONIBLE, SesionActual } from '../../core/sesion/sesion';
 import { Avatar } from '../../shared/components/avatar';
+import { DescargaIos } from '../../shared/components/descarga-ios';
 import { Hoja } from '../../shared/components/hoja';
 import { Interruptor } from '../../shared/components/interruptor';
 import { Monto } from '../../shared/components/monto';
@@ -38,7 +39,7 @@ const CONFIRMACIONES = {
  */
 @Component({
   selector: 'app-ajustes-page',
-  imports: [NgTemplateOutlet, RouterLink, Avatar, Hoja, Interruptor, Monto, MontoInput, PaletaColor, Segmentado],
+  imports: [NgTemplateOutlet, RouterLink, Avatar, DescargaIos, Hoja, Interruptor, Monto, MontoInput, PaletaColor, Segmentado],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '[class]': "escritorio() ? 'flex flex-col gap-5 px-8 pt-7 pb-12' : 'flex flex-col gap-[22px] px-5 pt-6 pb-4'" },
   template: `
@@ -250,6 +251,7 @@ const CONFIRMACIONES = {
     }
 
     <div class="mt-auto flex flex-col gap-1">
+      <app-descarga-ios class="mb-2" />
       <button type="button" class="boton h-12 rounded-[14px] border border-[#D9D8D2] bg-superficie" (click)="cerrarSesion()">Cerrar sesión</button>
       <button type="button" class="flex min-h-11 items-center justify-center text-sm font-medium text-negativo" (click)="abrir({ tipo: 'empezar' })">Empezar de nuevo</button>
       <button type="button" class="flex min-h-11 items-center justify-center text-sm font-medium text-negativo" (click)="abrir({ tipo: 'eliminar' })">Eliminar mi cuenta</button>
